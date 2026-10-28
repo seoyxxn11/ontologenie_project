@@ -1,0 +1,17 @@
+-- 이 폴더에서 실행: psql -f <이 파일>
+\i mes/schema.sql
+\copy mes.equipment from 'mes/equipment.csv' with (format csv, header true, null '')
+\copy mes.worker from 'mes/worker.csv' with (format csv, header true, null '')
+\copy mes.routing from 'mes/routing.csv' with (format csv, header true, null '')
+\copy mes.work_order from 'mes/work_order.csv' with (format csv, header true, null '')
+\copy mes.work_order_operation from 'mes/work_order_operation.csv' with (format csv, header true, null '')
+\copy mes.production_result from 'mes/production_result.csv' with (format csv, header true, null '')
+\copy mes.material_issue from 'mes/material_issue.csv' with (format csv, header true, null '')
+\copy mes.downtime from 'mes/downtime.csv' with (format csv, header true, null '')
+\copy mes.sensor_reading from 'mes/sensor_reading.csv' with (format csv, header true, null '')
+\copy mes.defect from 'mes/defect.csv' with (format csv, header true, null '')
+\copy mes.inspection from 'mes/inspection.csv' with (format csv, header true, null '')
+\copy mes.die from 'mes/die.csv' with (format csv, header true, null '')
+\copy mes.maintenance_order from 'mes/maintenance_order.csv' with (format csv, header true, null '')
+\copy mes.handover_note from 'mes/handover_note.csv' with (format csv, header true, null '')
+\copy mes.change_log from 'mes/change_log.csv' with (format csv, header true, null '')

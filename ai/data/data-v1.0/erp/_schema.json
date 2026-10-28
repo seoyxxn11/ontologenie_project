@@ -1,0 +1,661 @@
+{
+  "tables": {
+    "item": {
+      "description": "품목",
+      "primary_key": [
+        "item_code"
+      ],
+      "columns": {
+        "item_code": {
+          "type": "varchar(20)",
+          "comment": "품번"
+        },
+        "item_name": {
+          "type": "varchar(100)",
+          "comment": "품명"
+        },
+        "spec": {
+          "type": "varchar(100)",
+          "comment": "규격"
+        },
+        "unit": {
+          "type": "varchar(10)",
+          "comment": "단위(EA 개 · KG 킬로그램)"
+        },
+        "item_type": {
+          "type": "varchar(2)",
+          "comment": "품목 구분(FG 완제품 · SF 반제품 · RM 원자재)"
+        },
+        "std_price": {
+          "type": "numeric(12,2)",
+          "comment": "표준 단가(원)"
+        },
+        "safety_stock": {
+          "type": "numeric(14,3)",
+          "comment": "안전 재고 수량"
+        },
+        "use_yn": {
+          "type": "char(1)",
+          "comment": "사용 여부(Y/N)"
+        },
+        "updated_at": {
+          "type": "timestamp",
+          "comment": "마지막 수정 시각"
+        }
+      }
+    },
+    "vendor": {
+      "description": "거래처",
+      "primary_key": [
+        "vendor_code"
+      ],
+      "columns": {
+        "vendor_code": {
+          "type": "varchar(20)",
+          "comment": "거래처 코드"
+        },
+        "vendor_name": {
+          "type": "varchar(100)",
+          "comment": "거래처 상호"
+        },
+        "biz_no": {
+          "type": "varchar(20)",
+          "comment": "사업자등록번호(뒷자리 가림)"
+        },
+        "vendor_type": {
+          "type": "char(1)",
+          "comment": "거래 구분(P 매입처 · S 매출처 · B 매입·매출)"
+        },
+        "contact_name": {
+          "type": "varchar(50)",
+          "comment": "담당자 이름(가명)"
+        },
+        "payment_terms": {
+          "type": "varchar(50)",
+          "comment": "결제 조건"
+        },
+        "use_yn": {
+          "type": "char(1)",
+          "comment": "사용 여부(Y/N)"
+        }
+      }
+    },
+    "purchase_order": {
+      "description": "구매 발주",
+      "primary_key": [
+        "po_no"
+      ],
+      "columns": {
+        "po_no": {
+          "type": "varchar(20)",
+          "comment": "발주 번호"
+        },
+        "vendor_code": {
+          "type": "varchar(20)",
+          "comment": "공급 거래처 코드"
+        },
+        "po_date": {
+          "type": "date",
+          "comment": "발주일"
+        },
+        "due_date": {
+          "type": "date",
+          "comment": "입고 요청일"
+        },
+        "status": {
+          "type": "varchar(10)",
+          "comment": "진행 상태(발주 · 부분입고 · 입고완료 · 취소)"
+        },
+        "total_amount": {
+          "type": "numeric(16,2)",
+          "comment": "발주 금액(원, 부가세 별도)"
+        },
+        "buyer": {
+          "type": "varchar(50)",
+          "comment": "구매 담당"
+        },
+        "remark": {
+          "type": "varchar(100)",
+          "comment": "비고"
+        }
+      }
+    },
+    "purchase_order_line": {
+      "description": "구매 발주 상세",
+      "primary_key": [
+        "po_no",
+        "line_no"
+      ],
+      "columns": {
+        "po_no": {
+          "type": "varchar(20)",
+          "comment": "발주 번호"
+        },
+        "line_no": {
+          "type": "int",
+          "comment": "상세 순번"
+        },
+        "item_code": {
+          "type": "varchar(20)",
+          "comment": "발주 품번"
+        },
+        "qty": {
+          "type": "numeric(14,3)",
+          "comment": "발주 수량"
+        },
+        "unit_price": {
+          "type": "numeric(12,2)",
+          "comment": "발주 단가(원)"
+        },
+        "received_qty": {
+          "type": "numeric(14,3)",
+          "comment": "누적 입고 수량"
+        },
+        "due_date": {
+          "type": "date",
+          "comment": "상세별 입고 요청일"
+        }
+      }
+    },
+    "goods_receipt": {
+      "description": "입고",
+      "primary_key": [
+        "gr_no"
+      ],
+      "columns": {
+        "gr_no": {
+          "type": "varchar(20)",
+          "comment": "입고 번호"
+        },
+        "po_no": {
+          "type": "varchar(20)",
+          "comment": "근거 발주 번호"
+        },
+        "item_code": {
+          "type": "varchar(20)",
+          "comment": "입고 품번"
+        },
+        "gr_date": {
+          "type": "date",
+          "comment": "입고일"
+        },
+        "qty": {
+          "type": "numeric(14,3)",
+          "comment": "입고 수량"
+        },
+        "accepted_qty": {
+          "type": "numeric(14,3)",
+          "comment": "검수 합격 수량"
+        },
+        "rejected_qty": {
+          "type": "numeric(14,3)",
+          "comment": "검수 불합격 수량"
+        },
+        "warehouse": {
+          "type": "varchar(50)",
+          "comment": "입고 창고"
+        },
+        "inspector": {
+          "type": "varchar(50)",
+          "comment": "검수 담당"
+        }
+      }
+    },
+    "stock": {
+      "description": "창고별 재고",
+      "primary_key": [
+        "warehouse",
+        "item_code"
+      ],
+      "columns": {
+        "warehouse": {
+          "type": "varchar(50)",
+          "comment": "창고"
+        },
+        "item_code": {
+          "type": "varchar(20)",
+          "comment": "품번"
+        },
+        "qty": {
+          "type": "numeric(14,3)",
+          "comment": "현재 재고 수량"
+        },
+        "reserved_qty": {
+          "type": "numeric(14,3)",
+          "comment": "출고 예약 수량"
+        },
+        "available_qty": {
+          "type": "numeric(14,3)",
+          "comment": "가용 수량(현재 − 예약)"
+        },
+        "last_in_date": {
+          "type": "date",
+          "comment": "최근 입고일"
+        },
+        "last_out_date": {
+          "type": "date",
+          "comment": "최근 출고일"
+        }
+      }
+    },
+    "sales_order": {
+      "description": "수주",
+      "primary_key": [
+        "so_no"
+      ],
+      "columns": {
+        "so_no": {
+          "type": "varchar(20)",
+          "comment": "수주 번호"
+        },
+        "customer_code": {
+          "type": "varchar(20)",
+          "comment": "주문 고객 코드"
+        },
+        "so_date": {
+          "type": "date",
+          "comment": "수주일"
+        },
+        "due_date": {
+          "type": "date",
+          "comment": "납기일"
+        },
+        "status": {
+          "type": "varchar(10)",
+          "comment": "진행 상태(접수 · 생산중 · 출하완료 · 취소)"
+        },
+        "total_amount": {
+          "type": "numeric(16,2)",
+          "comment": "수주 금액(원)"
+        },
+        "sales_rep": {
+          "type": "varchar(50)",
+          "comment": "영업 담당"
+        }
+      }
+    },
+    "sales_order_line": {
+      "description": "수주 상세",
+      "primary_key": [
+        "so_no",
+        "line_no"
+      ],
+      "columns": {
+        "so_no": {
+          "type": "varchar(20)",
+          "comment": "수주 번호"
+        },
+        "line_no": {
+          "type": "int",
+          "comment": "상세 순번"
+        },
+        "item_code": {
+          "type": "varchar(20)",
+          "comment": "주문 품번"
+        },
+        "qty": {
+          "type": "numeric(14,3)",
+          "comment": "주문 수량"
+        },
+        "unit_price": {
+          "type": "numeric(12,2)",
+          "comment": "판매 단가(원)"
+        },
+        "shipped_qty": {
+          "type": "numeric(14,3)",
+          "comment": "누적 출하 수량"
+        }
+      }
+    },
+    "shipment": {
+      "description": "출하",
+      "primary_key": [
+        "ship_no"
+      ],
+      "columns": {
+        "ship_no": {
+          "type": "varchar(20)",
+          "comment": "출하 번호"
+        },
+        "so_no": {
+          "type": "varchar(20)",
+          "comment": "근거 수주 번호"
+        },
+        "item_code": {
+          "type": "varchar(20)",
+          "comment": "출하 품번"
+        },
+        "ship_date": {
+          "type": "date",
+          "comment": "출하일"
+        },
+        "qty": {
+          "type": "numeric(14,3)",
+          "comment": "출하 수량"
+        },
+        "carrier": {
+          "type": "varchar(50)",
+          "comment": "운송사"
+        },
+        "lot_no": {
+          "type": "varchar(20)",
+          "comment": "출하 제품 로트"
+        }
+      }
+    },
+    "sales_invoice": {
+      "description": "매출 전표",
+      "primary_key": [
+        "invoice_no"
+      ],
+      "columns": {
+        "invoice_no": {
+          "type": "varchar(20)",
+          "comment": "매출 전표 번호"
+        },
+        "customer_code": {
+          "type": "varchar(20)",
+          "comment": "청구 고객 코드"
+        },
+        "invoice_date": {
+          "type": "date",
+          "comment": "발행일"
+        },
+        "supply_amount": {
+          "type": "numeric(16,2)",
+          "comment": "공급가액(원)"
+        },
+        "vat": {
+          "type": "numeric(16,2)",
+          "comment": "부가세(원)"
+        },
+        "total_amount": {
+          "type": "numeric(16,2)",
+          "comment": "합계(원)"
+        },
+        "collected_yn": {
+          "type": "char(1)",
+          "comment": "수금 완료 여부(Y/N)"
+        },
+        "collected_date": {
+          "type": "date",
+          "comment": "수금일"
+        }
+      }
+    },
+    "purchase_invoice": {
+      "description": "매입 전표",
+      "primary_key": [
+        "invoice_no"
+      ],
+      "columns": {
+        "invoice_no": {
+          "type": "varchar(20)",
+          "comment": "매입 전표 번호"
+        },
+        "vendor_code": {
+          "type": "varchar(20)",
+          "comment": "공급 거래처 코드"
+        },
+        "invoice_date": {
+          "type": "date",
+          "comment": "발행일"
+        },
+        "supply_amount": {
+          "type": "numeric(16,2)",
+          "comment": "공급가액(원)"
+        },
+        "vat": {
+          "type": "numeric(16,2)",
+          "comment": "부가세(원)"
+        },
+        "total_amount": {
+          "type": "numeric(16,2)",
+          "comment": "합계(원)"
+        },
+        "paid_yn": {
+          "type": "char(1)",
+          "comment": "지급 완료 여부(Y/N)"
+        },
+        "paid_date": {
+          "type": "date",
+          "comment": "지급일"
+        }
+      }
+    },
+    "gl_account": {
+      "description": "회계 계정",
+      "primary_key": [
+        "account_code"
+      ],
+      "columns": {
+        "account_code": {
+          "type": "varchar(10)",
+          "comment": "계정 코드"
+        },
+        "account_name": {
+          "type": "varchar(50)",
+          "comment": "계정명"
+        },
+        "account_type": {
+          "type": "varchar(10)",
+          "comment": "계정 구분(자산 · 부채 · 자본 · 수익 · 비용)"
+        },
+        "parent_code": {
+          "type": "varchar(10)",
+          "comment": "상위 계정 코드"
+        },
+        "use_yn": {
+          "type": "char(1)",
+          "comment": "사용 여부(Y/N)"
+        }
+      }
+    },
+    "journal_entry": {
+      "description": "분개",
+      "primary_key": [
+        "entry_no",
+        "line_no"
+      ],
+      "columns": {
+        "entry_no": {
+          "type": "varchar(20)",
+          "comment": "전표 번호"
+        },
+        "line_no": {
+          "type": "int",
+          "comment": "분개 순번"
+        },
+        "entry_date": {
+          "type": "date",
+          "comment": "전표일"
+        },
+        "account_code": {
+          "type": "varchar(10)",
+          "comment": "계정 코드"
+        },
+        "vendor_code": {
+          "type": "varchar(20)",
+          "comment": "관련 거래처 코드"
+        },
+        "debit": {
+          "type": "numeric(16,2)",
+          "comment": "차변 금액"
+        },
+        "credit": {
+          "type": "numeric(16,2)",
+          "comment": "대변 금액"
+        },
+        "description": {
+          "type": "varchar(100)",
+          "comment": "적요"
+        }
+      }
+    },
+    "employee": {
+      "description": "직원",
+      "primary_key": [
+        "emp_no"
+      ],
+      "columns": {
+        "emp_no": {
+          "type": "varchar(20)",
+          "comment": "사번"
+        },
+        "emp_name": {
+          "type": "varchar(50)",
+          "comment": "이름(가명)"
+        },
+        "dept_code": {
+          "type": "varchar(10)",
+          "comment": "소속 부서 코드"
+        },
+        "position": {
+          "type": "varchar(20)",
+          "comment": "직급"
+        },
+        "hire_date": {
+          "type": "date",
+          "comment": "입사일"
+        },
+        "employment_type": {
+          "type": "varchar(10)",
+          "comment": "고용 형태(정규 · 계약)"
+        },
+        "status": {
+          "type": "varchar(10)",
+          "comment": "재직 상태(재직 · 휴직 · 퇴직)"
+        }
+      }
+    },
+    "department": {
+      "description": "부서",
+      "primary_key": [
+        "dept_code"
+      ],
+      "columns": {
+        "dept_code": {
+          "type": "varchar(10)",
+          "comment": "부서 코드"
+        },
+        "dept_name": {
+          "type": "varchar(50)",
+          "comment": "부서명"
+        },
+        "parent_code": {
+          "type": "varchar(10)",
+          "comment": "상위 부서 코드"
+        },
+        "manager_emp_no": {
+          "type": "varchar(20)",
+          "comment": "부서장 사번"
+        }
+      }
+    },
+    "attendance": {
+      "description": "근태",
+      "primary_key": [
+        "emp_no",
+        "work_date"
+      ],
+      "columns": {
+        "emp_no": {
+          "type": "varchar(20)",
+          "comment": "사번"
+        },
+        "work_date": {
+          "type": "date",
+          "comment": "근무일"
+        },
+        "clock_in": {
+          "type": "time",
+          "comment": "출근 시각"
+        },
+        "clock_out": {
+          "type": "time",
+          "comment": "퇴근 시각"
+        },
+        "work_type": {
+          "type": "varchar(10)",
+          "comment": "근무 구분(근무 · 외근 · 연차)"
+        },
+        "overtime_min": {
+          "type": "int",
+          "comment": "연장 근무 시간(분)"
+        },
+        "late_yn": {
+          "type": "char(1)",
+          "comment": "지각 여부(Y/N)"
+        }
+      }
+    },
+    "fixed_asset": {
+      "description": "고정자산",
+      "primary_key": [
+        "asset_no"
+      ],
+      "columns": {
+        "asset_no": {
+          "type": "varchar(20)",
+          "comment": "자산 번호"
+        },
+        "asset_name": {
+          "type": "varchar(100)",
+          "comment": "자산명"
+        },
+        "asset_type": {
+          "type": "varchar(20)",
+          "comment": "자산 종류(기계장치 · 차량 · 공구)"
+        },
+        "acquired_on": {
+          "type": "date",
+          "comment": "취득일"
+        },
+        "acquisition_cost": {
+          "type": "numeric(16,2)",
+          "comment": "취득가(원)"
+        },
+        "book_value": {
+          "type": "numeric(16,2)",
+          "comment": "장부가(원)"
+        },
+        "location": {
+          "type": "varchar(50)",
+          "comment": "설치·보관 위치"
+        },
+        "equipment_code": {
+          "type": "varchar(20)",
+          "comment": "생산 설비이면 현장 시스템의 설비 코드"
+        }
+      }
+    },
+    "change_log": {
+      "description": "원천 변경 이력",
+      "primary_key": [
+        "change_id"
+      ],
+      "columns": {
+        "change_id": {
+          "type": "bigint",
+          "comment": "변경 순번"
+        },
+        "table_name": {
+          "type": "varchar(50)",
+          "comment": "변경된 표"
+        },
+        "row_key": {
+          "type": "varchar(100)",
+          "comment": "변경된 행의 키"
+        },
+        "operation": {
+          "type": "varchar(10)",
+          "comment": "INSERT · UPDATE · DELETE"
+        },
+        "changed_at": {
+          "type": "timestamp",
+          "comment": "변경 시각"
+        }
+      }
+    }
+  }
+}
