@@ -1,0 +1,3735 @@
+[
+  {
+    "rule_id": "R-W",
+    "from_value": "6",
+    "to_value": "GP0006",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "6"
+    ]
+  },
+  {
+    "rule_id": "R-W",
+    "from_value": "24",
+    "to_value": "GP0024",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "24"
+    ]
+  },
+  {
+    "rule_id": "R-W",
+    "from_value": "27",
+    "to_value": "GP0027",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "27"
+    ]
+  },
+  {
+    "rule_id": "R-W",
+    "from_value": "31",
+    "to_value": "GP0031",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "31"
+    ]
+  },
+  {
+    "rule_id": "R-W",
+    "from_value": "36",
+    "to_value": "GP0036",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "36"
+    ]
+  },
+  {
+    "rule_id": "R-W",
+    "from_value": "38",
+    "to_value": "GP0038",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "38"
+    ]
+  },
+  {
+    "rule_id": "R-W",
+    "from_value": "40",
+    "to_value": "GP0040",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "40"
+    ]
+  },
+  {
+    "rule_id": "R-W",
+    "from_value": "44",
+    "to_value": "GP0044",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "44"
+    ]
+  },
+  {
+    "rule_id": "R-W",
+    "from_value": "45",
+    "to_value": "GP0045",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "45"
+    ]
+  },
+  {
+    "rule_id": "R-W",
+    "from_value": "48",
+    "to_value": "GP0048",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "48"
+    ]
+  },
+  {
+    "rule_id": "R-W",
+    "from_value": "52",
+    "to_value": "GP0052",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "52"
+    ]
+  },
+  {
+    "rule_id": "R-W",
+    "from_value": "55",
+    "to_value": "GP0055",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "55"
+    ]
+  },
+  {
+    "rule_id": "R-W",
+    "from_value": "72",
+    "to_value": "GP0072",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "72"
+    ]
+  },
+  {
+    "rule_id": "R-W",
+    "from_value": "74",
+    "to_value": "GP0074",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "74"
+    ]
+  },
+  {
+    "rule_id": "R-W",
+    "from_value": "79",
+    "to_value": "GP0079",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "79"
+    ]
+  },
+  {
+    "rule_id": "R-W",
+    "from_value": "57",
+    "to_value": null,
+    "status": "unmatched_error",
+    "candidates": [],
+    "reason": "직원 표에 GP0057 없음",
+    "planted_id": "K2",
+    "row_keys": [
+      "57"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2607001",
+    "to_value": "OD-2607-001",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0101",
+      "JB2608-0102"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2607002",
+    "to_value": "OD-2607-002",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0103"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2607003",
+    "to_value": "OD-2607-003",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0104"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2607004",
+    "to_value": "OD-2607-004",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0105",
+      "JB2608-0106"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608001",
+    "to_value": "OD-2608-001",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0107",
+      "JB2608-0108"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2607005",
+    "to_value": "OD-2607-005",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0109"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "OD-2608-002",
+    "to_value": "OD-2608-002",
+    "status": "matched",
+    "candidates": [],
+    "reason": "이미 ERP 형식으로 입력됨",
+    "planted_id": "S-FULL",
+    "row_keys": [
+      "JB2608-0110"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608003",
+    "to_value": "OD-2608-003",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0111",
+      "JB2608-0112"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "OD-2607-006",
+    "to_value": "OD-2607-006",
+    "status": "matched",
+    "candidates": [],
+    "reason": "이미 ERP 형식으로 입력됨",
+    "planted_id": "S-FULL",
+    "row_keys": [
+      "JB2608-0113"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608004",
+    "to_value": "OD-2608-004",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0114",
+      "JB2608-0115"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608005",
+    "to_value": "OD-2608-005",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0116",
+      "JB2608-0117"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608006",
+    "to_value": "OD-2608-006",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0118",
+      "JB2608-0119"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608007",
+    "to_value": "OD-2608-007",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0120",
+      "JB2608-0121"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608008",
+    "to_value": "OD-2608-008",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0122",
+      "JB2608-0123"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608009",
+    "to_value": "OD-2608-009",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0124",
+      "JB2608-0125"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608010",
+    "to_value": "OD-2608-010",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0126",
+      "JB2608-0127"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608011",
+    "to_value": "OD-2608-011",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0128",
+      "JB2608-0129"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608012",
+    "to_value": "OD-2608-012",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0130"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608013",
+    "to_value": "OD-2608-013",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0131",
+      "JB2608-0132"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "OD-2608-014",
+    "to_value": "OD-2608-014",
+    "status": "matched",
+    "candidates": [],
+    "reason": "이미 ERP 형식으로 입력됨",
+    "planted_id": "S-FULL",
+    "row_keys": [
+      "JB2608-0133"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608015",
+    "to_value": "OD-2608-015",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0134"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608016",
+    "to_value": "OD-2608-016",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0135"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "",
+    "to_value": null,
+    "status": "missing",
+    "candidates": [],
+    "reason": "수주 참조가 빈 값",
+    "planted_id": "S-BLANK",
+    "row_keys": [
+      "JB2608-0136",
+      "JB2608-0139",
+      "JB2609-0106"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "OD-2608-017",
+    "to_value": "OD-2608-017",
+    "status": "matched",
+    "candidates": [],
+    "reason": "이미 ERP 형식으로 입력됨",
+    "planted_id": "S-FULL",
+    "row_keys": [
+      "JB2608-0137"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608017",
+    "to_value": "OD-2608-017",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0138"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608019",
+    "to_value": "OD-2608-019",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0140",
+      "JB2608-0141"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608020",
+    "to_value": "OD-2608-020",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0142"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608021",
+    "to_value": "OD-2608-021",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0143"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608022",
+    "to_value": "OD-2608-022",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0144",
+      "JB2608-0145"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608023",
+    "to_value": "OD-2608-023",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0146"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608024",
+    "to_value": "OD-2608-024",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0147"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608025",
+    "to_value": "OD-2608-025",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0148",
+      "JB2608-0149"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608026",
+    "to_value": "OD-2608-026",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2608-0150"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608027",
+    "to_value": "OD-2608-027",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0101",
+      "JB2609-0102"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608028",
+    "to_value": "OD-2608-028",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0103",
+      "JB2609-0104"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608029",
+    "to_value": "OD-2608-029",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0105"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608030",
+    "to_value": "OD-2608-030",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0107"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "OD-2608-030",
+    "to_value": "OD-2608-030",
+    "status": "matched",
+    "candidates": [],
+    "reason": "이미 ERP 형식으로 입력됨",
+    "planted_id": "S-FULL",
+    "row_keys": [
+      "JB2609-0108"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608031",
+    "to_value": "OD-2608-031",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0109",
+      "JB2609-0110"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "OD-2608-032",
+    "to_value": "OD-2608-032",
+    "status": "matched",
+    "candidates": [],
+    "reason": "이미 ERP 형식으로 입력됨",
+    "planted_id": "S-FULL",
+    "row_keys": [
+      "JB2609-0111"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2608032",
+    "to_value": "OD-2608-032",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0112"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609001",
+    "to_value": "OD-2609-001",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0113"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "OD-2609-001",
+    "to_value": "OD-2609-001",
+    "status": "matched",
+    "candidates": [],
+    "reason": "이미 ERP 형식으로 입력됨",
+    "planted_id": "S-FULL",
+    "row_keys": [
+      "JB2609-0114"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "OD-2609-002",
+    "to_value": "OD-2609-002",
+    "status": "matched",
+    "candidates": [],
+    "reason": "이미 ERP 형식으로 입력됨",
+    "planted_id": "S-FULL",
+    "row_keys": [
+      "JB2609-0115"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609002",
+    "to_value": "OD-2609-002",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0116"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609003",
+    "to_value": "OD-2609-003",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0117",
+      "JB2609-0118"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609004",
+    "to_value": "OD-2609-004",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0119",
+      "JB2609-0120"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609005",
+    "to_value": "OD-2609-005",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0121"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609006",
+    "to_value": "OD-2609-006",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0122",
+      "JB2609-0123"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609007",
+    "to_value": "OD-2609-007",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0124"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609008",
+    "to_value": "OD-2609-008",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0125"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609009",
+    "to_value": "OD-2609-009",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0126",
+      "JB2609-0127"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609010",
+    "to_value": "OD-2609-010",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0128"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609011",
+    "to_value": "OD-2609-011",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0129"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609012",
+    "to_value": "OD-2609-012",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0130",
+      "JB2609-0131"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609013",
+    "to_value": "OD-2609-013",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0132"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609014",
+    "to_value": "OD-2609-014",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0133",
+      "JB2609-0134"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "OD-2609-015",
+    "to_value": "OD-2609-015",
+    "status": "matched",
+    "candidates": [],
+    "reason": "이미 ERP 형식으로 입력됨",
+    "planted_id": "S-FULL",
+    "row_keys": [
+      "JB2609-0135"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609015",
+    "to_value": "OD-2609-015",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0136"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609016",
+    "to_value": "OD-2609-016",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0137"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609017",
+    "to_value": "OD-2609-017",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0138",
+      "JB2609-0139"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609018",
+    "to_value": "OD-2609-018",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0140"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609971",
+    "to_value": null,
+    "status": "unmatched_error",
+    "candidates": [],
+    "reason": "변환 값 OD-2609-971에 해당하는 수주 없음",
+    "planted_id": "S-MISSING",
+    "row_keys": [
+      "JB2609-0141"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609019",
+    "to_value": "OD-2609-019",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0142",
+      "JB2609-0143"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "OD-2609-020",
+    "to_value": "OD-2609-020",
+    "status": "matched",
+    "candidates": [],
+    "reason": "이미 ERP 형식으로 입력됨",
+    "planted_id": "S-FULL",
+    "row_keys": [
+      "JB2609-0144"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609020",
+    "to_value": "OD-2609-020",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2609-0145"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609021",
+    "to_value": "OD-2609-021",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0101",
+      "JB2610-0102"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609970",
+    "to_value": null,
+    "status": "unmatched_error",
+    "candidates": [],
+    "reason": "변환 값 OD-2609-970에 해당하는 수주 없음",
+    "planted_id": "S-MISSING",
+    "row_keys": [
+      "JB2610-0103"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609022",
+    "to_value": "OD-2609-022",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0104"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609023",
+    "to_value": "OD-2609-023",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0105",
+      "JB2610-0106"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610001",
+    "to_value": "OD-2610-001",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0107"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610002",
+    "to_value": "OD-2610-002",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0108",
+      "JB2610-0109"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609024",
+    "to_value": "OD-2609-024",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0110"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609025",
+    "to_value": "OD-2609-025",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0111",
+      "JB2610-0112"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610003",
+    "to_value": "OD-2610-003",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0113",
+      "JB2610-0114"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610004",
+    "to_value": "OD-2610-004",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0115"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610005",
+    "to_value": "OD-2610-005",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0116"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609026",
+    "to_value": "OD-2609-026",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0117"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2609027",
+    "to_value": "OD-2609-027",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0118",
+      "JB2610-0119"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "OD-2610-006",
+    "to_value": "OD-2610-006",
+    "status": "matched",
+    "candidates": [],
+    "reason": "이미 ERP 형식으로 입력됨",
+    "planted_id": "S-FULL",
+    "row_keys": [
+      "JB2610-0120"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610006",
+    "to_value": "OD-2610-006",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0121"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610007",
+    "to_value": "OD-2610-007",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0122"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "OD-2610-008",
+    "to_value": "OD-2610-008",
+    "status": "matched",
+    "candidates": [],
+    "reason": "이미 ERP 형식으로 입력됨",
+    "planted_id": "S-FULL",
+    "row_keys": [
+      "JB2610-0123"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610008",
+    "to_value": "OD-2610-008",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0124"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610009",
+    "to_value": "OD-2610-009",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0125",
+      "JB2610-0126"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610010",
+    "to_value": "OD-2610-010",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0127"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610011",
+    "to_value": "OD-2610-011",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0128"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610012",
+    "to_value": "OD-2610-012",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0129",
+      "JB2610-0130"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610013",
+    "to_value": "OD-2610-013",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0131",
+      "JB2610-0132"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610014",
+    "to_value": "OD-2610-014",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0133",
+      "JB2610-0134"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610015",
+    "to_value": "OD-2610-015",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0135"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610016",
+    "to_value": "OD-2610-016",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0136",
+      "JB2610-0137"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610017",
+    "to_value": "OD-2610-017",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0139",
+      "JB2610-0140"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610021",
+    "to_value": "OD-2610-021",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0138",
+      "JB2610-0141"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610019",
+    "to_value": "OD-2610-019",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0145"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610018",
+    "to_value": "OD-2610-018",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0142"
+    ]
+  },
+  {
+    "rule_id": "R-SO",
+    "from_value": "2610020",
+    "to_value": "OD-2610-020",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "JB2610-0143"
+    ]
+  },
+  {
+    "rule_id": "R-ASSET",
+    "from_value": "P2O1",
+    "to_value": null,
+    "status": "unmatched_error",
+    "candidates": [
+      "P201"
+    ],
+    "reason": "숫자 0 대신 영문 O로 입력된 오타 (실제 P201)",
+    "planted_id": "M-ASSET-TYPO",
+    "row_keys": [
+      "FA-0001"
+    ]
+  },
+  {
+    "rule_id": "R-ASSET",
+    "from_value": "B101",
+    "to_value": "B101",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "FA-0002"
+    ]
+  },
+  {
+    "rule_id": "R-ASSET",
+    "from_value": "P101",
+    "to_value": "P101",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "FA-0003"
+    ]
+  },
+  {
+    "rule_id": "R-ASSET",
+    "from_value": "",
+    "to_value": null,
+    "status": "unmatched_expected",
+    "candidates": [],
+    "reason": "설비가 아닌 자산이라 비어 있는 것이 정상",
+    "planted_id": null,
+    "row_keys": [
+      "FA-0004",
+      "FA-0008"
+    ]
+  },
+  {
+    "rule_id": "R-ASSET",
+    "from_value": "W201",
+    "to_value": "W201",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "FA-0005"
+    ]
+  },
+  {
+    "rule_id": "R-ASSET",
+    "from_value": "P103",
+    "to_value": "P103",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "FA-0006"
+    ]
+  },
+  {
+    "rule_id": "R-ASSET",
+    "from_value": "I101",
+    "to_value": "I101",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "FA-0007"
+    ]
+  },
+  {
+    "rule_id": "R-ITEM",
+    "from_value": "BRK-210L",
+    "to_value": "BRK-210L",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "mes.die:BRK-210L",
+      "mes.routing:BRK-210L",
+      "mes.work_order:BRK-210L"
+    ]
+  },
+  {
+    "rule_id": "R-ITEM",
+    "from_value": "BRK-210R",
+    "to_value": "BRK-210R",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "mes.die:BRK-210R",
+      "mes.routing:BRK-210R",
+      "mes.work_order:BRK-210R"
+    ]
+  },
+  {
+    "rule_id": "R-ITEM",
+    "from_value": "BRK-990T",
+    "to_value": null,
+    "status": "unmatched_error",
+    "candidates": [],
+    "reason": "품목 마스터에 없음",
+    "planted_id": "K4",
+    "row_keys": [
+      "mes.die:BRK-990T"
+    ]
+  },
+  {
+    "rule_id": "R-ITEM",
+    "from_value": "PNL-410",
+    "to_value": "PNL-410",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "mes.die:PNL-410",
+      "mes.routing:PNL-410",
+      "mes.work_order:PNL-410"
+    ]
+  },
+  {
+    "rule_id": "R-ITEM",
+    "from_value": "RNF-320L",
+    "to_value": "RNF-320L",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "mes.die:RNF-320L",
+      "mes.routing:RNF-320L",
+      "mes.work_order:RNF-320L"
+    ]
+  },
+  {
+    "rule_id": "R-ITEM",
+    "from_value": "RNF-320R",
+    "to_value": "RNF-320R",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "mes.die:RNF-320R",
+      "mes.routing:RNF-320R",
+      "mes.work_order:RNF-320R"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260804-1",
+    "to_value": "LT260804-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0001"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260805-1",
+    "to_value": "LT260805-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0002"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260806-1",
+    "to_value": "LT260806-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0003"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260806-2",
+    "to_value": "LT260806-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0004"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260806-3",
+    "to_value": "LT260806-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0005"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260807-1",
+    "to_value": "LT260807-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0006"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260807-2",
+    "to_value": "LT260807-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0007"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260808-1",
+    "to_value": "LT260808-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0008"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260808-2",
+    "to_value": "LT260808-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0009"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260808-3",
+    "to_value": "LT260808-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0010"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260809-1",
+    "to_value": "LT260809-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0011"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260811-1",
+    "to_value": "LT260811-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0012"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260812-1",
+    "to_value": "LT260812-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0013"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260812-2",
+    "to_value": "LT260812-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0014"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260812-3",
+    "to_value": "LT260812-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0015"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260813-1",
+    "to_value": "LT260813-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0016"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260813-2",
+    "to_value": "LT260813-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0017"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260814-1",
+    "to_value": "LT260814-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0018"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260815-1",
+    "to_value": "LT260815-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0019"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260815-2",
+    "to_value": "LT260815-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0020"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260816-1",
+    "to_value": "LT260816-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0021"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260815-3",
+    "to_value": "LT260815-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0022"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260816-2",
+    "to_value": "LT260816-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0023"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260816-3",
+    "to_value": "LT260816-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0024"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260818-1",
+    "to_value": "LT260818-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0025"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260819-1",
+    "to_value": "LT260819-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0026"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260820-1",
+    "to_value": "LT260820-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0027"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260820-2",
+    "to_value": "LT260820-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0028"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260820-3",
+    "to_value": "LT260820-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0029"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260821-1",
+    "to_value": "LT260821-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0030"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260822-1",
+    "to_value": "LT260822-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0031"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260821-2",
+    "to_value": "LT260821-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0032"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260822-2",
+    "to_value": "LT260822-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0033"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260823-1",
+    "to_value": "LT260823-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0034"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260823-2",
+    "to_value": "LT260823-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0035"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260822-3",
+    "to_value": "LT260822-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0036"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260825-1",
+    "to_value": "LT260825-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0037"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260825-2",
+    "to_value": "LT260825-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0038"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260826-1",
+    "to_value": "LT260826-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0039"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260827-1",
+    "to_value": "LT260827-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0040"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260826-2",
+    "to_value": "LT260826-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0041"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260827-2",
+    "to_value": "LT260827-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0042"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260827-3",
+    "to_value": "LT260827-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0043"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260828-1",
+    "to_value": "LT260828-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0044"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260829-1",
+    "to_value": "LT260829-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0045"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260828-2",
+    "to_value": "LT260828-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0046"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260828-3",
+    "to_value": "LT260828-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0047"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260829-2",
+    "to_value": "LT260829-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0048"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260829-3",
+    "to_value": "LT260829-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2608-0049"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260901-1",
+    "to_value": "LT260901-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0001"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260902-1",
+    "to_value": "LT260902-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0002"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260901-2",
+    "to_value": "LT260901-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0003"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260902-2",
+    "to_value": "LT260902-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0004"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260902-3",
+    "to_value": "LT260902-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0005"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260903-1",
+    "to_value": "LT260903-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0006"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260903-2",
+    "to_value": "LT260903-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0007"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260902-4",
+    "to_value": "LT260902-4",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0008"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260904-1",
+    "to_value": "LT260904-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0009"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260904-2",
+    "to_value": "LT260904-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0010"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260905-1",
+    "to_value": "LT260905-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0011"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260905-2",
+    "to_value": "LT260905-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0012"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260908-1",
+    "to_value": "LT260908-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0013"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260909-1",
+    "to_value": "LT260909-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0014"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260908-2",
+    "to_value": "LT260908-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0015"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260910-1",
+    "to_value": "LT260910-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0016"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260911-1",
+    "to_value": "LT260911-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0017"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260909-2",
+    "to_value": "LT260909-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0018"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260910-2",
+    "to_value": "LT260910-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0019"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260910-3",
+    "to_value": "LT260910-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0020"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260911-2",
+    "to_value": "LT260911-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0021"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260912-1",
+    "to_value": "LT260912-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0022"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260912-2",
+    "to_value": "LT260912-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0023"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260913-1",
+    "to_value": "LT260913-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0024"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260914-1",
+    "to_value": "LT260914-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0025"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260913-2",
+    "to_value": "LT260913-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0026"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260915-1",
+    "to_value": "LT260915-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0027"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260916-1",
+    "to_value": "LT260916-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0028"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260917-1",
+    "to_value": "LT260917-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0029"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260917-2",
+    "to_value": "LT260917-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0030"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260918-1",
+    "to_value": "LT260918-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0031"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260917-3",
+    "to_value": "LT260917-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0032"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260918-2",
+    "to_value": "LT260918-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0033"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260918-3",
+    "to_value": "LT260918-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0034"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260918-4",
+    "to_value": "LT260918-4",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0035"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260920-1",
+    "to_value": "LT260920-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0036"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260921-1",
+    "to_value": "LT260921-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0037"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260919-1",
+    "to_value": "LT260919-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0038"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260920-2",
+    "to_value": "LT260920-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0039"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260921-2",
+    "to_value": "LT260921-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0040"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260920-3",
+    "to_value": "LT260920-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0041"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260923-1",
+    "to_value": "LT260923-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0042"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260923-2",
+    "to_value": "LT260923-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0043"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260924-1",
+    "to_value": "LT260924-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0044"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260923-3",
+    "to_value": "LT260923-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0045"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260924-2",
+    "to_value": "LT260924-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0046"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260925-1",
+    "to_value": "LT260925-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0047"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260924-3",
+    "to_value": "LT260924-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0048"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260924-4",
+    "to_value": "LT260924-4",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0049"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260925-2",
+    "to_value": "LT260925-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0050"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260926-1",
+    "to_value": "LT260926-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0051"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260926-2",
+    "to_value": "LT260926-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0052"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260926-3",
+    "to_value": "LT260926-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0053"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260927-1",
+    "to_value": "LT260927-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0054"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260927-2",
+    "to_value": "LT260927-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0055"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260927-3",
+    "to_value": "LT260927-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0056"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260930-1",
+    "to_value": "LT260930-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0057"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261001-1",
+    "to_value": "LT261001-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0001"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260929-1",
+    "to_value": "LT260929-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0058"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT260930-2",
+    "to_value": "LT260930-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2609-0059"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261001-2",
+    "to_value": "LT261001-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0002"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261002-1",
+    "to_value": "LT261002-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0003"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261002-2",
+    "to_value": "LT261002-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0004"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261003-1",
+    "to_value": "LT261003-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0005"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261002-3",
+    "to_value": "LT261002-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0006"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261003-2",
+    "to_value": "LT261003-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0007"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261003-3",
+    "to_value": "LT261003-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0008"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261004-1",
+    "to_value": "LT261004-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0009"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261005-1",
+    "to_value": "LT261005-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0010"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261004-2",
+    "to_value": "LT261004-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0011"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261006-1",
+    "to_value": "LT261006-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0012"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261006-2",
+    "to_value": "LT261006-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0013"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261006-3",
+    "to_value": "LT261006-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0014"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261007-1",
+    "to_value": "LT261007-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0015"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261008-1",
+    "to_value": "LT261008-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0016"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261009-1",
+    "to_value": "LT261009-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0017"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261008-2",
+    "to_value": "LT261008-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0018"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261008-3",
+    "to_value": "LT261008-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0019"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261009-2",
+    "to_value": "LT261009-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0020"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261009-3",
+    "to_value": "LT261009-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0021"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261010-1",
+    "to_value": "LT261010-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0022"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261010-2",
+    "to_value": "LT261010-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0023"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261011-1",
+    "to_value": "LT261011-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0024"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261012-1",
+    "to_value": "LT261012-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0025"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261011-2",
+    "to_value": "LT261011-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0026"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261011-3",
+    "to_value": "LT261011-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0027"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261013-1",
+    "to_value": "LT261013-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0028"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261013-2",
+    "to_value": "LT261013-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0029"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261014-1",
+    "to_value": "LT261014-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0030"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261015-1",
+    "to_value": "LT261015-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0031"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261015-2",
+    "to_value": "LT261015-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0032"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261014-2",
+    "to_value": "LT261014-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0033"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261016-1",
+    "to_value": "LT261016-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0034"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261016-2",
+    "to_value": "LT261016-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0035"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261017-1",
+    "to_value": "LT261017-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0036"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261018-1",
+    "to_value": "LT261018-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0037"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261016-3",
+    "to_value": "LT261016-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0038"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261018-2",
+    "to_value": "LT261018-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0039"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261019-1",
+    "to_value": "LT261019-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0040"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261017-2",
+    "to_value": "LT261017-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0041"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261020-1",
+    "to_value": "LT261020-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0042"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261021-1",
+    "to_value": "LT261021-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0043"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261021-2",
+    "to_value": "LT261021-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0044"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261022-1",
+    "to_value": "LT261022-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0045"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261023-1",
+    "to_value": "LT261023-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0046"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261022-2",
+    "to_value": "LT261022-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0047"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261023-2",
+    "to_value": "LT261023-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0048"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261023-3",
+    "to_value": "LT261023-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0049"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261024-1",
+    "to_value": "LT261024-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0050"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261024-2",
+    "to_value": "LT261024-2",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0051"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261024-3",
+    "to_value": "LT261024-3",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0052"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261025-1",
+    "to_value": "LT261025-1",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0053"
+    ]
+  },
+  {
+    "rule_id": "R-LOT",
+    "from_value": "LT261025-2",
+    "to_value": null,
+    "status": "unmatched_expected",
+    "candidates": [],
+    "reason": "아직 최종 검사 기록이 없는 로트",
+    "planted_id": null,
+    "row_keys": [
+      "DL2610-0054"
+    ]
+  },
+  {
+    "rule_id": "R-ALIAS",
+    "from_value": "P201",
+    "to_value": "P201",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "HN-260804-D",
+      "HN-260906-N",
+      "HN-260916-D",
+      "HN-260930-D",
+      "HN-261015-D"
+    ]
+  },
+  {
+    "rule_id": "R-ALIAS",
+    "from_value": "2라인 1호 프레스",
+    "to_value": "P201",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "HN-260808-D",
+      "HN-260921-D",
+      "HN-260923-D"
+    ]
+  },
+  {
+    "rule_id": "R-ALIAS",
+    "from_value": "2라인 1호",
+    "to_value": "P201",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "HN-260808-N",
+      "HN-261010-D"
+    ]
+  },
+  {
+    "rule_id": "R-ALIAS",
+    "from_value": "P103",
+    "to_value": "P103",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "HN-260808-N",
+      "HN-260906-N",
+      "HN-260914-D",
+      "HN-260916-N",
+      "HN-261006-D",
+      "HN-261019-D",
+      "HN-261028-D",
+      "HN-261029-N"
+    ]
+  },
+  {
+    "rule_id": "R-ALIAS",
+    "from_value": "1라인 3호 프레스",
+    "to_value": "P103",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "HN-260809-N",
+      "HN-261027-N"
+    ]
+  },
+  {
+    "rule_id": "R-ALIAS",
+    "from_value": "1호기",
+    "to_value": null,
+    "status": "ambiguous",
+    "candidates": [
+      "P101",
+      "P201"
+    ],
+    "reason": "라인 표시가 없어 같은 호기의 설비가 여럿",
+    "planted_id": "M5-A",
+    "row_keys": [
+      "HN-260817-N",
+      "HN-261014-N",
+      "HN-261015-D"
+    ]
+  },
+  {
+    "rule_id": "R-ALIAS",
+    "from_value": "1라인 1호 프레스",
+    "to_value": "P101",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "HN-260821-D"
+    ]
+  },
+  {
+    "rule_id": "R-ALIAS",
+    "from_value": "P101",
+    "to_value": "P101",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "HN-260821-N",
+      "HN-260831-N",
+      "HN-260914-D",
+      "HN-261029-D"
+    ]
+  },
+  {
+    "rule_id": "R-ALIAS",
+    "from_value": "1라인 블랭킹기",
+    "to_value": "B101",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "HN-260825-N",
+      "HN-260902-N",
+      "HN-260911-N",
+      "HN-260920-D",
+      "HN-260924-N",
+      "HN-261029-D"
+    ]
+  },
+  {
+    "rule_id": "R-ALIAS",
+    "from_value": "1라인 1호",
+    "to_value": "P101",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "HN-260904-D",
+      "HN-260913-D"
+    ]
+  },
+  {
+    "rule_id": "R-ALIAS",
+    "from_value": "1-3호",
+    "to_value": "P103",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "HN-260905-D"
+    ]
+  },
+  {
+    "rule_id": "R-ALIAS",
+    "from_value": "p201",
+    "to_value": "P201",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "HN-260909-D",
+      "HN-260909-N"
+    ]
+  },
+  {
+    "rule_id": "R-ALIAS",
+    "from_value": "1라인 2호기",
+    "to_value": null,
+    "status": "unmatched_error",
+    "candidates": [],
+    "reason": "설비 목록에 없는 이름",
+    "planted_id": "M5-U",
+    "row_keys": [
+      "HN-260910-N"
+    ]
+  },
+  {
+    "rule_id": "R-ALIAS",
+    "from_value": "2라인 3호기",
+    "to_value": null,
+    "status": "unmatched_error",
+    "candidates": [],
+    "reason": "설비 목록에 없는 이름",
+    "planted_id": "M5-U",
+    "row_keys": [
+      "HN-260919-N"
+    ]
+  },
+  {
+    "rule_id": "R-ALIAS",
+    "from_value": "1-1호",
+    "to_value": "P101",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "HN-260920-N"
+    ]
+  },
+  {
+    "rule_id": "R-ALIAS",
+    "from_value": "3호기",
+    "to_value": "P103",
+    "status": "matched",
+    "candidates": [],
+    "reason": "",
+    "planted_id": null,
+    "row_keys": [
+      "HN-261029-N"
+    ]
+  }
+]

@@ -1,0 +1,365 @@
+[
+  {
+    "case_id": "M-ASSET-TYPO",
+    "description": "자산의 설비 코드 오타 P2O1 (실제 P201)",
+    "location": "erp.fixed_asset.equipment_code",
+    "rows": [
+      "FA-0001"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "D1",
+    "description": "작업지시 수주 참조(so_ref) — ERP 수주 번호와 표기가 다름 (2610021 ↔ OD-2610-021)",
+    "location": "시나리오 4",
+    "rows": [
+      "JB2610-0141",
+      "JB2610-0138",
+      "JB2610-0145"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "D2",
+    "description": "공정별 배정: JB2610-0141의 성형·트리밍 = P103",
+    "location": "시나리오 4",
+    "rows": [
+      "JB2610-0141"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "D3",
+    "description": "P103 고장(비가동 진행 중)·정비 진행, 진동이 10/28부터 상한 초과",
+    "location": "시나리오 4",
+    "rows": [
+      "DT-0460",
+      "RP-26-041"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "D4",
+    "description": "공정 최소 톤수: 브래킷 성형 400톤 → P201(300톤) 불가",
+    "location": "시나리오 4",
+    "rows": [
+      "BRK-210R"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "D5",
+    "description": "OD-2610-019 ↔ JB2610-0145: 작업지시가 대기(11/2 시작)라 납기 10/31 위험",
+    "location": "시나리오 4",
+    "rows": [
+      "OD-2610-019",
+      "JB2610-0145"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "S-FULL",
+    "description": "수주 참조가 이미 ERP 표기(OD-YYMM-NNN)로 입력됨",
+    "location": "mes.work_order.so_ref",
+    "rows": [
+      "JB2609-0108",
+      "JB2608-0110",
+      "JB2608-0137",
+      "JB2610-0123",
+      "JB2609-0135",
+      "JB2610-0120",
+      "JB2609-0115",
+      "JB2609-0111",
+      "JB2609-0144",
+      "JB2608-0133",
+      "JB2608-0113",
+      "JB2609-0114"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "S-BLANK",
+    "description": "수주 참조가 빈 작업지시 (오류 결측)",
+    "location": "mes.work_order.so_ref",
+    "rows": [
+      "JB2608-0139",
+      "JB2608-0136",
+      "JB2609-0106"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "S-MISSING",
+    "description": "ERP에 없는 수주 번호를 참조",
+    "location": "mes.work_order.so_ref",
+    "rows": [
+      "JB2610-0103",
+      "JB2609-0141"
+    ],
+    "values": {
+      "JB2610-0103": "2609970",
+      "JB2609-0141": "2609971"
+    }
+  },
+  {
+    "case_id": "CASE-K4_die",
+    "description": "정합성 검사 대상",
+    "location": "K4_die",
+    "rows": [
+      "MD-990T-01"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "CASE-K4_product",
+    "description": "정합성 검사 대상",
+    "location": "K4_product",
+    "rows": [
+      "BRK-990T"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "CASE-K1_worker",
+    "description": "정합성 검사 대상",
+    "location": "K1_worker",
+    "rows": [
+      "31"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "CASE-K2_worker",
+    "description": "정합성 검사 대상",
+    "location": "K2_worker",
+    "rows": [
+      "57"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "CASE-K3_asset",
+    "description": "정합성 검사 대상",
+    "location": "K3_asset",
+    "rows": [
+      "FA-0003"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "CASE-A2_po",
+    "description": "정합성 검사 대상",
+    "location": "A2_po",
+    "rows": [
+      "PO2609-003"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "CASE-A4_entry",
+    "description": "정합성 검사 대상",
+    "location": "A4_entry",
+    "rows": [
+      "JV-2609-0005"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "CASE-A1_so",
+    "description": "정합성 검사 대상",
+    "location": "A1_so",
+    "rows": [
+      "OD-2609-014"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "CASE-A3_wo",
+    "description": "정합성 검사 대상",
+    "location": "A3_wo",
+    "rows": [
+      "JB2608-0145"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "CASE-K5_lot",
+    "description": "정합성 검사 대상",
+    "location": "K5_lot",
+    "rows": [
+      "CL440-0915-05"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "CASE-P3_lot",
+    "description": "정합성 검사 대상",
+    "location": "P3_lot",
+    "rows": [
+      "LT261025-2"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "N1",
+    "description": "메모 문장 패턴",
+    "location": "mes.handover_note.content",
+    "rows": [
+      "HN-260804-D",
+      "HN-260809-N",
+      "HN-260821-D",
+      "HN-260825-N",
+      "HN-260902-N",
+      "HN-260913-D",
+      "HN-260920-D",
+      "HN-260921-D",
+      "HN-260924-N",
+      "HN-261015-D",
+      "HN-261019-D",
+      "HN-261027-N",
+      "HN-261029-N"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "N10",
+    "description": "메모 문장 패턴",
+    "location": "mes.handover_note.content",
+    "rows": [
+      "HN-260808-N",
+      "HN-260904-D",
+      "HN-261010-D"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "N11",
+    "description": "메모 문장 패턴",
+    "location": "mes.handover_note.content",
+    "rows": [
+      "HN-261014-N",
+      "HN-261024-D"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "N2",
+    "description": "메모 문장 패턴",
+    "location": "mes.handover_note.content",
+    "rows": [
+      "HN-260817-N",
+      "HN-261014-N",
+      "HN-261015-D"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "N3",
+    "description": "메모 문장 패턴",
+    "location": "mes.handover_note.content",
+    "rows": [
+      "HN-260805-N",
+      "HN-260820-N",
+      "HN-260829-D",
+      "HN-260910-N",
+      "HN-260917-D",
+      "HN-260918-N",
+      "HN-261009-N",
+      "HN-261014-N",
+      "HN-261017-D",
+      "HN-261024-N",
+      "HN-261029-N"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "N4",
+    "description": "메모 문장 패턴",
+    "location": "mes.handover_note.content",
+    "rows": [
+      "HN-260906-N",
+      "HN-260911-N",
+      "HN-261006-D",
+      "HN-261029-D",
+      "HN-261029-N"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "N5",
+    "description": "메모 문장 패턴",
+    "location": "mes.handover_note.content",
+    "rows": [
+      "HN-260821-N",
+      "HN-260905-D",
+      "HN-260906-N",
+      "HN-260909-D",
+      "HN-260909-N",
+      "HN-260914-D",
+      "HN-260920-N",
+      "HN-261028-D"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "N7",
+    "description": "메모 문장 패턴",
+    "location": "mes.handover_note.content",
+    "rows": [
+      "HN-260910-N",
+      "HN-260919-N"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "N8",
+    "description": "메모 문장 패턴",
+    "location": "mes.handover_note.content",
+    "rows": [
+      "HN-260806-N",
+      "HN-260812-N",
+      "HN-260820-D",
+      "HN-260822-N",
+      "HN-260908-D",
+      "HN-260923-N",
+      "HN-260924-D",
+      "HN-261008-D",
+      "HN-261015-N",
+      "HN-261020-D",
+      "HN-261023-N",
+      "HN-261025-D",
+      "HN-261026-N",
+      "HN-261027-D"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "N9",
+    "description": "메모 문장 패턴",
+    "location": "mes.handover_note.content",
+    "rows": [
+      "HN-260808-D",
+      "HN-260808-N",
+      "HN-260831-N",
+      "HN-260914-D",
+      "HN-260916-D",
+      "HN-260916-N",
+      "HN-260923-D",
+      "HN-260930-D",
+      "HN-261029-D"
+    ],
+    "values": null
+  },
+  {
+    "case_id": "T4",
+    "description": "메모 문장 패턴",
+    "location": "mes.handover_note.content",
+    "rows": [
+      "HN-260809-N",
+      "HN-260902-N",
+      "HN-261027-N",
+      "HN-261029-N"
+    ],
+    "values": null
+  }
+]

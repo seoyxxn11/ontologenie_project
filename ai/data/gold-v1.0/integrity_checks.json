@@ -1,0 +1,65 @@
+[
+  {
+    "check_id": "K1",
+    "kind": "key_link",
+    "title": "MES 작업자 31 → ERP 직원 GP0031",
+    "verdict": "통과",
+    "detail": "있음"
+  },
+  {
+    "check_id": "K2",
+    "kind": "key_link",
+    "title": "MES 작업자 57 → ERP 직원 GP0057",
+    "verdict": "실패",
+    "detail": "직원 표에 GP0057 없음"
+  },
+  {
+    "check_id": "K3",
+    "kind": "key_link",
+    "title": "ERP 고정자산 FA-0003 → MES 설비 P101",
+    "verdict": "통과",
+    "detail": "equipment_code = P101"
+  },
+  {
+    "check_id": "K4",
+    "kind": "key_link",
+    "title": "MES 금형 MD-990T-01의 제품 BRK-990T → ERP 품목",
+    "verdict": "실패",
+    "detail": "품목 마스터에 없음"
+  },
+  {
+    "check_id": "K5",
+    "kind": "key_link",
+    "title": "MES 자재 로트 CL440-0915-05 → ERP 입고 로트",
+    "verdict": "확인 필요",
+    "detail": "입고 표에 로트 컬럼 없음"
+  },
+  {
+    "check_id": "A1",
+    "kind": "amount_match",
+    "title": "수주 OD-2609-014 출하 수량",
+    "verdict": "통과",
+    "detail": "수주 상세 6,500 / 출하 합 6,500"
+  },
+  {
+    "check_id": "A2",
+    "kind": "amount_match",
+    "title": "발주 PO2609-003 입고 수량",
+    "verdict": "통과",
+    "detail": "발주 상세 10,000 / 입고 합 10,000"
+  },
+  {
+    "check_id": "A3",
+    "kind": "amount_match",
+    "title": "작업지시 JB2608-0145 불량 수량",
+    "verdict": "실패",
+    "detail": "작업지시 31 / 실적 ng 합 21 / 불량 기록 합 12"
+  },
+  {
+    "check_id": "A4",
+    "kind": "amount_match",
+    "title": "분개 JV-2609-0005 차변·대변",
+    "verdict": "실패",
+    "detail": "차변 3,060,000 / 대변 3,366,000"
+  }
+]

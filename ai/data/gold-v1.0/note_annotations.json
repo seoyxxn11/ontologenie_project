@@ -1,0 +1,4494 @@
+[
+  {
+    "doc_id": "RP-26-001",
+    "source": "maint",
+    "pattern": [],
+    "text": "피더 센서 교체",
+    "meta": {
+      "shift": null,
+      "period": {
+        "start": "2026-08-05",
+        "end": "2026-08-05"
+      },
+      "author": "보전팀"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "ACTION",
+        "start": 0,
+        "end": 8,
+        "text": "피더 센서 교체",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "RP-26-002",
+    "source": "maint",
+    "pattern": [],
+    "text": "윤활 배관 점검·보충",
+    "meta": {
+      "shift": null,
+      "period": {
+        "start": "2026-08-06",
+        "end": "2026-08-06"
+      },
+      "author": "보전팀"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "ACTION",
+        "start": 0,
+        "end": 11,
+        "text": "윤활 배관 점검·보충",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "RP-26-003",
+    "source": "maint",
+    "pattern": [],
+    "text": "윤활 배관 점검·보충",
+    "meta": {
+      "shift": null,
+      "period": {
+        "start": "2026-08-24",
+        "end": "2026-08-24"
+      },
+      "author": "보전팀"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "ACTION",
+        "start": 0,
+        "end": 11,
+        "text": "윤활 배관 점검·보충",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "RP-26-004",
+    "source": "maint",
+    "pattern": [],
+    "text": "가이드 라이너 교체",
+    "meta": {
+      "shift": null,
+      "period": {
+        "start": "2026-08-31",
+        "end": "2026-08-31"
+      },
+      "author": "보전팀"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "ACTION",
+        "start": 0,
+        "end": 10,
+        "text": "가이드 라이너 교체",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "RP-26-005",
+    "source": "maint",
+    "pattern": [],
+    "text": "윤활 배관 점검·보충",
+    "meta": {
+      "shift": null,
+      "period": {
+        "start": "2026-08-31",
+        "end": "2026-08-31"
+      },
+      "author": "보전팀"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "ACTION",
+        "start": 0,
+        "end": 11,
+        "text": "윤활 배관 점검·보충",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "RP-26-006",
+    "source": "maint",
+    "pattern": [],
+    "text": "유압 펌프 필터 교체",
+    "meta": {
+      "shift": null,
+      "period": {
+        "start": "2026-09-10",
+        "end": "2026-09-10"
+      },
+      "author": "보전팀"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "ACTION",
+        "start": 0,
+        "end": 11,
+        "text": "유압 펌프 필터 교체",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "RP-26-007",
+    "source": "maint",
+    "pattern": [],
+    "text": "윤활 배관 점검·보충",
+    "meta": {
+      "shift": null,
+      "period": {
+        "start": "2026-09-10",
+        "end": "2026-09-10"
+      },
+      "author": "보전팀"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "ACTION",
+        "start": 0,
+        "end": 11,
+        "text": "윤활 배관 점검·보충",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "RP-26-008",
+    "source": "maint",
+    "pattern": [],
+    "text": "윤활 배관 점검·보충",
+    "meta": {
+      "shift": null,
+      "period": {
+        "start": "2026-09-17",
+        "end": "2026-09-17"
+      },
+      "author": "보전팀"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "ACTION",
+        "start": 0,
+        "end": 11,
+        "text": "윤활 배관 점검·보충",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "RP-26-009",
+    "source": "maint",
+    "pattern": [],
+    "text": "피더 센서 교체",
+    "meta": {
+      "shift": null,
+      "period": {
+        "start": "2026-10-02",
+        "end": "2026-10-02"
+      },
+      "author": "보전팀"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "ACTION",
+        "start": 0,
+        "end": 8,
+        "text": "피더 센서 교체",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "RP-26-010",
+    "source": "maint",
+    "pattern": [],
+    "text": "유압 펌프 필터 교체",
+    "meta": {
+      "shift": null,
+      "period": {
+        "start": "2026-10-09",
+        "end": "2026-10-09"
+      },
+      "author": "보전팀"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "ACTION",
+        "start": 0,
+        "end": 11,
+        "text": "유압 펌프 필터 교체",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "RP-26-011",
+    "source": "maint",
+    "pattern": [],
+    "text": "유압 펌프 필터 교체",
+    "meta": {
+      "shift": null,
+      "period": {
+        "start": "2026-10-19",
+        "end": "2026-10-19"
+      },
+      "author": "보전팀"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "ACTION",
+        "start": 0,
+        "end": 11,
+        "text": "유압 펌프 필터 교체",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "RP-26-012",
+    "source": "maint",
+    "pattern": [],
+    "text": "윤활 배관 점검·보충",
+    "meta": {
+      "shift": null,
+      "period": {
+        "start": "2026-10-20",
+        "end": "2026-10-20"
+      },
+      "author": "보전팀"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "ACTION",
+        "start": 0,
+        "end": 11,
+        "text": "윤활 배관 점검·보충",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "RP-26-013",
+    "source": "maint",
+    "pattern": [],
+    "text": "펀치 연마",
+    "meta": {
+      "shift": null,
+      "period": {
+        "start": "2026-09-03",
+        "end": "2026-09-03"
+      },
+      "author": "홍보람"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "ACTION",
+        "start": 0,
+        "end": 5,
+        "text": "펀치 연마",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "RP-26-014",
+    "source": "maint",
+    "pattern": [],
+    "text": "펀치 연마",
+    "meta": {
+      "shift": null,
+      "period": {
+        "start": "2026-09-24",
+        "end": "2026-09-24"
+      },
+      "author": "홍보람"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "ACTION",
+        "start": 0,
+        "end": 5,
+        "text": "펀치 연마",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "RP-26-041",
+    "source": "maint",
+    "pattern": [],
+    "text": "슬라이드 유압 실린더 씰 교체",
+    "meta": {
+      "shift": null,
+      "period": {
+        "start": "2026-10-30",
+        "end": "2026-10-30"
+      },
+      "author": "보전팀"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "ACTION",
+        "start": 0,
+        "end": 16,
+        "text": "슬라이드 유압 실린더 씰 교체",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260804-D",
+    "source": "note",
+    "pattern": [
+      "N1"
+    ],
+    "text": "[8/4 주간 → 8/4 야간 인수인계] 작성 52\n오후 3시쯤 P201 진동이 평소보다 커서 점검 요청함.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-08-04T08:00:00",
+        "end": "2026-08-04T17:00:00"
+      },
+      "author": "mes.worker:52"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "TIME",
+        "start": 29,
+        "end": 35,
+        "text": "오후 3시쯤",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": "2026-08-04T15:00:00"
+      },
+      {
+        "id": "e2",
+        "type": "EQUIPMENT",
+        "start": 36,
+        "end": 40,
+        "text": "P201",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P201",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "OBSERVATION",
+        "start": 41,
+        "end": 52,
+        "text": "진동이 평소보다 커서",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "ACTION",
+        "start": 53,
+        "end": 58,
+        "text": "점검 요청",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e2"
+      },
+      {
+        "type": "observed_on",
+        "from": "e3",
+        "to": "e2"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260805-N",
+    "source": "note",
+    "pattern": [
+      "N3"
+    ],
+    "text": "[8/5 야간 → 8/6 주간 인수인계] 작성 24\nJB2608-0103 잔량 1,100개는 주간조에 넘김.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-08-05T20:00:00",
+        "end": "2026-08-06T05:00:00"
+      },
+      "author": "mes.worker:24"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "WORK_ORDER",
+        "start": 29,
+        "end": 40,
+        "text": "JB2608-0103",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.work_order:JB2608-0103",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "ACTION",
+        "start": 52,
+        "end": 59,
+        "text": "주간조에 넘김",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "about_work_order",
+        "from": "doc",
+        "to": "e1"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260806-N",
+    "source": "note",
+    "pattern": [
+      "N8"
+    ],
+    "text": "[8/6 야간 → 8/7 주간 인수인계] 작성 57\n특이사항 없음.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-08-06T20:00:00",
+        "end": "2026-08-07T05:00:00"
+      },
+      "author": "mes.worker:57"
+    },
+    "entities": [],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260808-D",
+    "source": "note",
+    "pattern": [
+      "N9"
+    ],
+    "text": "[8/8 주간 → 8/8 야간 인수인계] 작성 79\n2라인 1호 프레스 진동 이상 없음.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-08-08T08:00:00",
+        "end": "2026-08-08T17:00:00"
+      },
+      "author": "mes.worker:79"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 29,
+        "end": 39,
+        "text": "2라인 1호 프레스",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P201",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 40,
+        "end": 48,
+        "text": "진동 이상 없음",
+        "assertion": "negated",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      }
+    ],
+    "review_note": "e2: 부정 표현. 이상이 있다고 바꾸면 오답."
+  },
+  {
+    "doc_id": "HN-260808-N",
+    "source": "note",
+    "pattern": [
+      "N10",
+      "N9"
+    ],
+    "text": "[8/8 야간 → 8/9 주간 인수인계] 작성 57\n2라인 1호 소음은 금형 문제인 듯.\nP103 진동 이상 없음.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-08-08T20:00:00",
+        "end": "2026-08-09T05:00:00"
+      },
+      "author": "mes.worker:57"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 29,
+        "end": 35,
+        "text": "2라인 1호",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P201",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 36,
+        "end": 38,
+        "text": "소음",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "OBSERVATION",
+        "start": 40,
+        "end": 45,
+        "text": "금형 문제",
+        "assertion": "uncertain",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "EQUIPMENT",
+        "start": 50,
+        "end": 54,
+        "text": "P103",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P103",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e5",
+        "type": "OBSERVATION",
+        "start": 55,
+        "end": 63,
+        "text": "진동 이상 없음",
+        "assertion": "negated",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e3",
+        "to": "e1"
+      },
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e4"
+      },
+      {
+        "type": "observed_on",
+        "from": "e5",
+        "to": "e4"
+      }
+    ],
+    "review_note": "e3: 추정 표현. 확정 원인으로 다루면 오답. e5: 부정 표현. 이상이 있다고 바꾸면 오답."
+  },
+  {
+    "doc_id": "HN-260809-N",
+    "source": "note",
+    "pattern": [
+      "T4",
+      "N1"
+    ],
+    "text": "[8/9 야간 → 8/10 주간 인수인계] 작성 24\n새벽 2시쯤 1라인 3호 프레스 유압 압력이 떨어져서 보전팀 호출함.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-08-09T20:00:00",
+        "end": "2026-08-10T05:00:00"
+      },
+      "author": "mes.worker:24"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "TIME",
+        "start": 30,
+        "end": 36,
+        "text": "새벽 2시쯤",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": "2026-08-10T02:00:00"
+      },
+      {
+        "id": "e2",
+        "type": "EQUIPMENT",
+        "start": 37,
+        "end": 47,
+        "text": "1라인 3호 프레스",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P103",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "OBSERVATION",
+        "start": 48,
+        "end": 59,
+        "text": "유압 압력이 떨어져서",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "ACTION",
+        "start": 60,
+        "end": 66,
+        "text": "보전팀 호출",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e2"
+      },
+      {
+        "type": "observed_on",
+        "from": "e3",
+        "to": "e2"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260812-N",
+    "source": "note",
+    "pattern": [
+      "N8"
+    ],
+    "text": "[8/12 야간 → 8/13 주간 인수인계] 작성 38\n특이사항 없음.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-08-12T20:00:00",
+        "end": "2026-08-13T05:00:00"
+      },
+      "author": "mes.worker:38"
+    },
+    "entities": [],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260817-N",
+    "source": "note",
+    "pattern": [
+      "N2"
+    ],
+    "text": "[8/17 야간 → 8/18 주간 인수인계] 작성 24\n1호기 진동 있음. 볼트 재체결 했는데 지켜봐야 함.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-08-17T20:00:00",
+        "end": "2026-08-18T05:00:00"
+      },
+      "author": "mes.worker:24"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 31,
+        "end": 34,
+        "text": "1호기",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "ambiguous",
+          "ref": null,
+          "candidates": [
+            "mes.equipment:P101",
+            "mes.equipment:P201"
+          ]
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 35,
+        "end": 40,
+        "text": "진동 있음",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "ACTION",
+        "start": 42,
+        "end": 48,
+        "text": "볼트 재체결",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      }
+    ],
+    "review_note": "'1호기' 표기는 1라인·2라인 1호 프레스 중 하나라 확정할 수 없어 보류로 둠. 작성자 배치 라인(1라인)이 단서다."
+  },
+  {
+    "doc_id": "HN-260820-D",
+    "source": "note",
+    "pattern": [
+      "N8"
+    ],
+    "text": "[8/20 주간 → 8/20 야간 인수인계] 작성 52\n이상 없이 교대함.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-08-20T08:00:00",
+        "end": "2026-08-20T17:00:00"
+      },
+      "author": "mes.worker:52"
+    },
+    "entities": [],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260820-N",
+    "source": "note",
+    "pattern": [
+      "N3"
+    ],
+    "text": "[8/20 야간 → 8/21 주간 인수인계] 작성 24\nJB2608-0129 잔량 1,900개는 주간조에 넘김.\nJB2608-0130 잔량 900개는 주간조에 넘김.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-08-20T20:00:00",
+        "end": "2026-08-21T05:00:00"
+      },
+      "author": "mes.worker:24"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "WORK_ORDER",
+        "start": 31,
+        "end": 42,
+        "text": "JB2608-0129",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.work_order:JB2608-0129",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "ACTION",
+        "start": 54,
+        "end": 61,
+        "text": "주간조에 넘김",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "WORK_ORDER",
+        "start": 63,
+        "end": 74,
+        "text": "JB2608-0130",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.work_order:JB2608-0130",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "ACTION",
+        "start": 84,
+        "end": 91,
+        "text": "주간조에 넘김",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "about_work_order",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "about_work_order",
+        "from": "doc",
+        "to": "e3"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260821-D",
+    "source": "note",
+    "pattern": [
+      "N1"
+    ],
+    "text": "[8/21 주간 → 8/21 야간 인수인계] 작성 36\n점심 직후 1라인 1호 프레스 유압 압력이 떨어져서 보전팀 호출함.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-08-21T08:00:00",
+        "end": "2026-08-21T17:00:00"
+      },
+      "author": "mes.worker:36"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "TIME",
+        "start": 31,
+        "end": 36,
+        "text": "점심 직후",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": "2026-08-21T13:00:00"
+      },
+      {
+        "id": "e2",
+        "type": "EQUIPMENT",
+        "start": 37,
+        "end": 47,
+        "text": "1라인 1호 프레스",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P101",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "OBSERVATION",
+        "start": 48,
+        "end": 59,
+        "text": "유압 압력이 떨어져서",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "ACTION",
+        "start": 60,
+        "end": 66,
+        "text": "보전팀 호출",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e2"
+      },
+      {
+        "type": "observed_on",
+        "from": "e3",
+        "to": "e2"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260821-N",
+    "source": "note",
+    "pattern": [
+      "N5"
+    ],
+    "text": "[8/21 야간 → 8/22 주간 인수인계] 작성 57\nP101 이음 발생.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-08-21T20:00:00",
+        "end": "2026-08-22T05:00:00"
+      },
+      "author": "mes.worker:57"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 31,
+        "end": 35,
+        "text": "P101",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P101",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 36,
+        "end": 41,
+        "text": "이음 발생",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260822-N",
+    "source": "note",
+    "pattern": [
+      "N8"
+    ],
+    "text": "[8/22 야간 → 8/23 주간 인수인계] 작성 57\n전달 사항 없음.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-08-22T20:00:00",
+        "end": "2026-08-23T05:00:00"
+      },
+      "author": "mes.worker:57"
+    },
+    "entities": [],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260825-N",
+    "source": "note",
+    "pattern": [
+      "N1"
+    ],
+    "text": "[8/25 야간 → 8/26 주간 인수인계] 작성 48\n밤 10시쯤 1라인 블랭킹기 유압 압력이 떨어져서 보전팀 호출함.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-08-25T20:00:00",
+        "end": "2026-08-26T05:00:00"
+      },
+      "author": "mes.worker:48"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "TIME",
+        "start": 31,
+        "end": 37,
+        "text": "밤 10시쯤",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": "2026-08-25T22:00:00"
+      },
+      {
+        "id": "e2",
+        "type": "EQUIPMENT",
+        "start": 38,
+        "end": 46,
+        "text": "1라인 블랭킹기",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:B101",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "OBSERVATION",
+        "start": 47,
+        "end": 58,
+        "text": "유압 압력이 떨어져서",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "ACTION",
+        "start": 59,
+        "end": 65,
+        "text": "보전팀 호출",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e2"
+      },
+      {
+        "type": "observed_on",
+        "from": "e3",
+        "to": "e2"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260829-D",
+    "source": "note",
+    "pattern": [
+      "N3"
+    ],
+    "text": "[8/29 주간 → 8/29 야간 인수인계] 작성 6\nJB2608-0147 잔량 700개는 야간조에 넘김.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-08-29T08:00:00",
+        "end": "2026-08-29T17:00:00"
+      },
+      "author": "mes.worker:6"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "WORK_ORDER",
+        "start": 30,
+        "end": 41,
+        "text": "JB2608-0147",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.work_order:JB2608-0147",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "ACTION",
+        "start": 51,
+        "end": 58,
+        "text": "야간조에 넘김",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "about_work_order",
+        "from": "doc",
+        "to": "e1"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260831-N",
+    "source": "note",
+    "pattern": [
+      "N9"
+    ],
+    "text": "[8/31 야간 → 9/1 주간 인수인계] 작성 38\nP101 누유 없음.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-08-31T20:00:00",
+        "end": "2026-09-01T05:00:00"
+      },
+      "author": "mes.worker:38"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 30,
+        "end": 34,
+        "text": "P101",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P101",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 35,
+        "end": 40,
+        "text": "누유 없음",
+        "assertion": "negated",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      }
+    ],
+    "review_note": "e2: 부정 표현. 이상이 있다고 바꾸면 오답."
+  },
+  {
+    "doc_id": "HN-260902-N",
+    "source": "note",
+    "pattern": [
+      "T4",
+      "N1"
+    ],
+    "text": "[9/2 야간 → 9/3 주간 인수인계] 작성 55\n새벽 2시쯤 1라인 블랭킹기 유압 압력이 떨어져서 보전팀 호출함.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-09-02T20:00:00",
+        "end": "2026-09-03T05:00:00"
+      },
+      "author": "mes.worker:55"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "TIME",
+        "start": 29,
+        "end": 35,
+        "text": "새벽 2시쯤",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": "2026-09-03T02:00:00"
+      },
+      {
+        "id": "e2",
+        "type": "EQUIPMENT",
+        "start": 36,
+        "end": 44,
+        "text": "1라인 블랭킹기",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:B101",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "OBSERVATION",
+        "start": 45,
+        "end": 56,
+        "text": "유압 압력이 떨어져서",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "ACTION",
+        "start": 57,
+        "end": 63,
+        "text": "보전팀 호출",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e2"
+      },
+      {
+        "type": "observed_on",
+        "from": "e3",
+        "to": "e2"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260904-D",
+    "source": "note",
+    "pattern": [
+      "N10"
+    ],
+    "text": "[9/4 주간 → 9/4 야간 인수인계] 작성 79\n1라인 1호 소음은 금형 문제인 듯.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-09-04T08:00:00",
+        "end": "2026-09-04T17:00:00"
+      },
+      "author": "mes.worker:79"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 29,
+        "end": 35,
+        "text": "1라인 1호",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P101",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 36,
+        "end": 38,
+        "text": "소음",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "OBSERVATION",
+        "start": 40,
+        "end": 45,
+        "text": "금형 문제",
+        "assertion": "uncertain",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e3",
+        "to": "e1"
+      }
+    ],
+    "review_note": "e3: 추정 표현. 확정 원인으로 다루면 오답."
+  },
+  {
+    "doc_id": "HN-260905-D",
+    "source": "note",
+    "pattern": [
+      "N5"
+    ],
+    "text": "[9/5 주간 → 9/5 야간 인수인계] 작성 40\n1-3호 진동↑.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-09-05T08:00:00",
+        "end": "2026-09-05T17:00:00"
+      },
+      "author": "mes.worker:40"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 29,
+        "end": 33,
+        "text": "1-3호",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P103",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 34,
+        "end": 37,
+        "text": "진동↑",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260906-N",
+    "source": "note",
+    "pattern": [
+      "N4",
+      "N5"
+    ],
+    "text": "[9/6 야간 → 9/7 주간 인수인계] 작성 48\nRP-26-005 윤활 배관 점검·보충 이후 P103 이상 없음.\nP201 이음 발생.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-09-06T20:00:00",
+        "end": "2026-09-07T05:00:00"
+      },
+      "author": "mes.worker:48"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "MAINTENANCE",
+        "start": 29,
+        "end": 38,
+        "text": "RP-26-005",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.maintenance_order:RP-26-005",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "ACTION",
+        "start": 39,
+        "end": 50,
+        "text": "윤활 배관 점검·보충",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "EQUIPMENT",
+        "start": 54,
+        "end": 58,
+        "text": "P103",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P103",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "OBSERVATION",
+        "start": 59,
+        "end": 64,
+        "text": "이상 없음",
+        "assertion": "negated",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e5",
+        "type": "EQUIPMENT",
+        "start": 66,
+        "end": 70,
+        "text": "P201",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P201",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e6",
+        "type": "OBSERVATION",
+        "start": 71,
+        "end": 76,
+        "text": "이음 발생",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e3"
+      },
+      {
+        "type": "refers_maintenance",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e4",
+        "to": "e3"
+      },
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e5"
+      },
+      {
+        "type": "observed_on",
+        "from": "e6",
+        "to": "e5"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260908-D",
+    "source": "note",
+    "pattern": [
+      "N8"
+    ],
+    "text": "[9/8 주간 → 9/8 야간 인수인계] 작성 44\n이상 없이 교대함.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-09-08T08:00:00",
+        "end": "2026-09-08T17:00:00"
+      },
+      "author": "mes.worker:44"
+    },
+    "entities": [],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260909-D",
+    "source": "note",
+    "pattern": [
+      "N5"
+    ],
+    "text": "[9/9 주간 → 9/9 야간 인수인계] 작성 31\np201 온도 경고 2회.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-09-09T08:00:00",
+        "end": "2026-09-09T17:00:00"
+      },
+      "author": "mes.worker:31"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 29,
+        "end": 33,
+        "text": "p201",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P201",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 34,
+        "end": 42,
+        "text": "온도 경고 2회",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260909-N",
+    "source": "note",
+    "pattern": [
+      "N5"
+    ],
+    "text": "[9/9 야간 → 9/10 주간 인수인계] 작성 74\np201 온도 경고 2회.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-09-09T20:00:00",
+        "end": "2026-09-10T05:00:00"
+      },
+      "author": "mes.worker:74"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 30,
+        "end": 34,
+        "text": "p201",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P201",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 35,
+        "end": 43,
+        "text": "온도 경고 2회",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260910-N",
+    "source": "note",
+    "pattern": [
+      "N7",
+      "N3"
+    ],
+    "text": "[9/10 야간 → 9/11 주간 인수인계] 작성 74\n1라인 2호기 쪽에서 이상한 소리 남. 확인 바람.\nJB2609-0115 잔량 900개는 주간조에 넘김.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-09-10T20:00:00",
+        "end": "2026-09-11T05:00:00"
+      },
+      "author": "mes.worker:74"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 31,
+        "end": 38,
+        "text": "1라인 2호기",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "unmatched",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 43,
+        "end": 49,
+        "text": "이상한 소리",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "ACTION",
+        "start": 53,
+        "end": 58,
+        "text": "확인 바람",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "WORK_ORDER",
+        "start": 60,
+        "end": 71,
+        "text": "JB2609-0115",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.work_order:JB2609-0115",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e5",
+        "type": "ACTION",
+        "start": 81,
+        "end": 88,
+        "text": "주간조에 넘김",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      },
+      {
+        "type": "about_work_order",
+        "from": "doc",
+        "to": "e4"
+      }
+    ],
+    "review_note": "'1라인 2호기' 표기는 없는 설비다(1라인에 2호 프레스가 없음). 연결하지 않는 것이 정답."
+  },
+  {
+    "doc_id": "HN-260911-N",
+    "source": "note",
+    "pattern": [
+      "N4"
+    ],
+    "text": "[9/11 야간 → 9/12 주간 인수인계] 작성 48\nRP-26-007 윤활 배관 점검·보충 이후 1라인 블랭킹기 이상 없음.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-09-11T20:00:00",
+        "end": "2026-09-12T05:00:00"
+      },
+      "author": "mes.worker:48"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "MAINTENANCE",
+        "start": 31,
+        "end": 40,
+        "text": "RP-26-007",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.maintenance_order:RP-26-007",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "ACTION",
+        "start": 41,
+        "end": 52,
+        "text": "윤활 배관 점검·보충",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "EQUIPMENT",
+        "start": 56,
+        "end": 64,
+        "text": "1라인 블랭킹기",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:B101",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "OBSERVATION",
+        "start": 65,
+        "end": 70,
+        "text": "이상 없음",
+        "assertion": "negated",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e3"
+      },
+      {
+        "type": "refers_maintenance",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e4",
+        "to": "e3"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260913-D",
+    "source": "note",
+    "pattern": [
+      "N1"
+    ],
+    "text": "[9/13 주간 → 9/13 야간 인수인계] 작성 40\n점심 직후 1라인 1호 진동이 평소보다 커서 점검 요청함.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-09-13T08:00:00",
+        "end": "2026-09-13T17:00:00"
+      },
+      "author": "mes.worker:40"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "TIME",
+        "start": 31,
+        "end": 36,
+        "text": "점심 직후",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": "2026-09-13T13:00:00"
+      },
+      {
+        "id": "e2",
+        "type": "EQUIPMENT",
+        "start": 37,
+        "end": 43,
+        "text": "1라인 1호",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P101",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "OBSERVATION",
+        "start": 44,
+        "end": 55,
+        "text": "진동이 평소보다 커서",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "ACTION",
+        "start": 56,
+        "end": 61,
+        "text": "점검 요청",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e2"
+      },
+      {
+        "type": "observed_on",
+        "from": "e3",
+        "to": "e2"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260914-D",
+    "source": "note",
+    "pattern": [
+      "N5",
+      "N9"
+    ],
+    "text": "[9/14 주간 → 9/14 야간 인수인계] 작성 72\nP103 이음 발생.\nP101 누유 없음.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-09-14T08:00:00",
+        "end": "2026-09-14T17:00:00"
+      },
+      "author": "mes.worker:72"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 31,
+        "end": 35,
+        "text": "P103",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P103",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 36,
+        "end": 41,
+        "text": "이음 발생",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "EQUIPMENT",
+        "start": 43,
+        "end": 47,
+        "text": "P101",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P101",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "OBSERVATION",
+        "start": 48,
+        "end": 53,
+        "text": "누유 없음",
+        "assertion": "negated",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      },
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e3"
+      },
+      {
+        "type": "observed_on",
+        "from": "e4",
+        "to": "e3"
+      }
+    ],
+    "review_note": "e4: 부정 표현. 이상이 있다고 바꾸면 오답."
+  },
+  {
+    "doc_id": "HN-260916-D",
+    "source": "note",
+    "pattern": [
+      "N9"
+    ],
+    "text": "[9/16 주간 → 9/16 야간 인수인계] 작성 27\nP201 누유 없음.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-09-16T08:00:00",
+        "end": "2026-09-16T17:00:00"
+      },
+      "author": "mes.worker:27"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 31,
+        "end": 35,
+        "text": "P201",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P201",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 36,
+        "end": 41,
+        "text": "누유 없음",
+        "assertion": "negated",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      }
+    ],
+    "review_note": "e2: 부정 표현. 이상이 있다고 바꾸면 오답."
+  },
+  {
+    "doc_id": "HN-260916-N",
+    "source": "note",
+    "pattern": [
+      "N9"
+    ],
+    "text": "[9/16 야간 → 9/17 주간 인수인계] 작성 48\nP103 누유 없음.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-09-16T20:00:00",
+        "end": "2026-09-17T05:00:00"
+      },
+      "author": "mes.worker:48"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 31,
+        "end": 35,
+        "text": "P103",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P103",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 36,
+        "end": 41,
+        "text": "누유 없음",
+        "assertion": "negated",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      }
+    ],
+    "review_note": "e2: 부정 표현. 이상이 있다고 바꾸면 오답."
+  },
+  {
+    "doc_id": "HN-260917-D",
+    "source": "note",
+    "pattern": [
+      "N3"
+    ],
+    "text": "[9/17 주간 → 9/17 야간 인수인계] 작성 45\nJB2609-0121 잔량 2,000개는 야간조에 넘김.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-09-17T08:00:00",
+        "end": "2026-09-17T17:00:00"
+      },
+      "author": "mes.worker:45"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "WORK_ORDER",
+        "start": 31,
+        "end": 42,
+        "text": "JB2609-0121",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.work_order:JB2609-0121",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "ACTION",
+        "start": 54,
+        "end": 61,
+        "text": "야간조에 넘김",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "about_work_order",
+        "from": "doc",
+        "to": "e1"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260918-N",
+    "source": "note",
+    "pattern": [
+      "N3"
+    ],
+    "text": "[9/18 야간 → 9/19 주간 인수인계] 작성 57\nJB2609-0125 잔량 400개는 주간조에 넘김.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-09-18T20:00:00",
+        "end": "2026-09-19T05:00:00"
+      },
+      "author": "mes.worker:57"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "WORK_ORDER",
+        "start": 31,
+        "end": 42,
+        "text": "JB2609-0125",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.work_order:JB2609-0125",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "ACTION",
+        "start": 52,
+        "end": 59,
+        "text": "주간조에 넘김",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "about_work_order",
+        "from": "doc",
+        "to": "e1"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260919-N",
+    "source": "note",
+    "pattern": [
+      "N7"
+    ],
+    "text": "[9/19 야간 → 9/20 주간 인수인계] 작성 24\n2라인 3호기 쪽에서 이상한 소리 남. 확인 바람.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-09-19T20:00:00",
+        "end": "2026-09-20T05:00:00"
+      },
+      "author": "mes.worker:24"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 31,
+        "end": 38,
+        "text": "2라인 3호기",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "unmatched",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 43,
+        "end": 49,
+        "text": "이상한 소리",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "ACTION",
+        "start": 53,
+        "end": 58,
+        "text": "확인 바람",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      }
+    ],
+    "review_note": "'2라인 3호기' 표기는 없는 설비다(2라인에 3호 프레스가 없음). 연결하지 않는 것이 정답."
+  },
+  {
+    "doc_id": "HN-260920-D",
+    "source": "note",
+    "pattern": [
+      "N1"
+    ],
+    "text": "[9/20 주간 → 9/20 야간 인수인계] 작성 44\n오전 10시쯤 1라인 블랭킹기 이음이 들려서 가동 멈추고 확인함.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-09-20T08:00:00",
+        "end": "2026-09-20T17:00:00"
+      },
+      "author": "mes.worker:44"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "TIME",
+        "start": 31,
+        "end": 38,
+        "text": "오전 10시쯤",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": "2026-09-20T10:00:00"
+      },
+      {
+        "id": "e2",
+        "type": "EQUIPMENT",
+        "start": 39,
+        "end": 47,
+        "text": "1라인 블랭킹기",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:B101",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "OBSERVATION",
+        "start": 48,
+        "end": 55,
+        "text": "이음이 들려서",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "ACTION",
+        "start": 56,
+        "end": 65,
+        "text": "가동 멈추고 확인",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e2"
+      },
+      {
+        "type": "observed_on",
+        "from": "e3",
+        "to": "e2"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260920-N",
+    "source": "note",
+    "pattern": [
+      "N5"
+    ],
+    "text": "[9/20 야간 → 9/21 주간 인수인계] 작성 74\n1-1호 이음 발생.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-09-20T20:00:00",
+        "end": "2026-09-21T05:00:00"
+      },
+      "author": "mes.worker:74"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 31,
+        "end": 35,
+        "text": "1-1호",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P101",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 36,
+        "end": 41,
+        "text": "이음 발생",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260921-D",
+    "source": "note",
+    "pattern": [
+      "N1"
+    ],
+    "text": "[9/21 주간 → 9/21 야간 인수인계] 작성 36\n오후 3시쯤 2라인 1호 프레스 진동이 평소보다 커서 점검 요청함.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-09-21T08:00:00",
+        "end": "2026-09-21T17:00:00"
+      },
+      "author": "mes.worker:36"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "TIME",
+        "start": 31,
+        "end": 37,
+        "text": "오후 3시쯤",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": "2026-09-21T15:00:00"
+      },
+      {
+        "id": "e2",
+        "type": "EQUIPMENT",
+        "start": 38,
+        "end": 48,
+        "text": "2라인 1호 프레스",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P201",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "OBSERVATION",
+        "start": 49,
+        "end": 60,
+        "text": "진동이 평소보다 커서",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "ACTION",
+        "start": 61,
+        "end": 66,
+        "text": "점검 요청",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e2"
+      },
+      {
+        "type": "observed_on",
+        "from": "e3",
+        "to": "e2"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260923-D",
+    "source": "note",
+    "pattern": [
+      "N9"
+    ],
+    "text": "[9/23 주간 → 9/23 야간 인수인계] 작성 79\n2라인 1호 프레스 진동 이상 없음.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-09-23T08:00:00",
+        "end": "2026-09-23T17:00:00"
+      },
+      "author": "mes.worker:79"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 31,
+        "end": 41,
+        "text": "2라인 1호 프레스",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P201",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 42,
+        "end": 50,
+        "text": "진동 이상 없음",
+        "assertion": "negated",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      }
+    ],
+    "review_note": "e2: 부정 표현. 이상이 있다고 바꾸면 오답."
+  },
+  {
+    "doc_id": "HN-260923-N",
+    "source": "note",
+    "pattern": [
+      "N8"
+    ],
+    "text": "[9/23 야간 → 9/24 주간 인수인계] 작성 48\n이상 없이 교대함.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-09-23T20:00:00",
+        "end": "2026-09-24T05:00:00"
+      },
+      "author": "mes.worker:48"
+    },
+    "entities": [],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260924-D",
+    "source": "note",
+    "pattern": [
+      "N8"
+    ],
+    "text": "[9/24 주간 → 9/24 야간 인수인계] 작성 40\n특이사항 없음.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-09-24T08:00:00",
+        "end": "2026-09-24T17:00:00"
+      },
+      "author": "mes.worker:40"
+    },
+    "entities": [],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260924-N",
+    "source": "note",
+    "pattern": [
+      "N1"
+    ],
+    "text": "[9/24 야간 → 9/25 주간 인수인계] 작성 55\n교대 직후 1라인 블랭킹기 유압 압력이 떨어져서 보전팀 호출함.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-09-24T20:00:00",
+        "end": "2026-09-25T05:00:00"
+      },
+      "author": "mes.worker:55"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "TIME",
+        "start": 31,
+        "end": 36,
+        "text": "교대 직후",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": "2026-09-24T20:00:00"
+      },
+      {
+        "id": "e2",
+        "type": "EQUIPMENT",
+        "start": 37,
+        "end": 45,
+        "text": "1라인 블랭킹기",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:B101",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "OBSERVATION",
+        "start": 46,
+        "end": 57,
+        "text": "유압 압력이 떨어져서",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "ACTION",
+        "start": 58,
+        "end": 64,
+        "text": "보전팀 호출",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e2"
+      },
+      {
+        "type": "observed_on",
+        "from": "e3",
+        "to": "e2"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-260930-D",
+    "source": "note",
+    "pattern": [
+      "N9"
+    ],
+    "text": "[9/30 주간 → 9/30 야간 인수인계] 작성 27\nP201 누유 없음.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-09-30T08:00:00",
+        "end": "2026-09-30T17:00:00"
+      },
+      "author": "mes.worker:27"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 31,
+        "end": 35,
+        "text": "P201",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P201",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 36,
+        "end": 41,
+        "text": "누유 없음",
+        "assertion": "negated",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      }
+    ],
+    "review_note": "e2: 부정 표현. 이상이 있다고 바꾸면 오답."
+  },
+  {
+    "doc_id": "HN-261006-D",
+    "source": "note",
+    "pattern": [
+      "N4"
+    ],
+    "text": "[10/6 주간 → 10/6 야간 인수인계] 작성 27\nRP-26-005 윤활 배관 점검·보충 이후 P103 이상 없음.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-10-06T08:00:00",
+        "end": "2026-10-06T17:00:00"
+      },
+      "author": "mes.worker:27"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "MAINTENANCE",
+        "start": 31,
+        "end": 40,
+        "text": "RP-26-005",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.maintenance_order:RP-26-005",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "ACTION",
+        "start": 41,
+        "end": 52,
+        "text": "윤활 배관 점검·보충",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "EQUIPMENT",
+        "start": 56,
+        "end": 60,
+        "text": "P103",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P103",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "OBSERVATION",
+        "start": 61,
+        "end": 66,
+        "text": "이상 없음",
+        "assertion": "negated",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e3"
+      },
+      {
+        "type": "refers_maintenance",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e4",
+        "to": "e3"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-261008-D",
+    "source": "note",
+    "pattern": [
+      "N8"
+    ],
+    "text": "[10/8 주간 → 10/8 야간 인수인계] 작성 52\n전달 사항 없음.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-10-08T08:00:00",
+        "end": "2026-10-08T17:00:00"
+      },
+      "author": "mes.worker:52"
+    },
+    "entities": [],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-261009-N",
+    "source": "note",
+    "pattern": [
+      "N3"
+    ],
+    "text": "[10/9 야간 → 10/10 주간 인수인계] 작성 74\nJB2610-0117 잔량 800개는 주간조에 넘김.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-10-09T20:00:00",
+        "end": "2026-10-10T05:00:00"
+      },
+      "author": "mes.worker:74"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "WORK_ORDER",
+        "start": 32,
+        "end": 43,
+        "text": "JB2610-0117",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.work_order:JB2610-0117",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "ACTION",
+        "start": 53,
+        "end": 60,
+        "text": "주간조에 넘김",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "about_work_order",
+        "from": "doc",
+        "to": "e1"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-261010-D",
+    "source": "note",
+    "pattern": [
+      "N10"
+    ],
+    "text": "[10/10 주간 → 10/10 야간 인수인계] 작성 31\n2라인 1호 소음은 금형 문제인 듯.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-10-10T08:00:00",
+        "end": "2026-10-10T17:00:00"
+      },
+      "author": "mes.worker:31"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 33,
+        "end": 39,
+        "text": "2라인 1호",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P201",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 40,
+        "end": 42,
+        "text": "소음",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "OBSERVATION",
+        "start": 44,
+        "end": 49,
+        "text": "금형 문제",
+        "assertion": "uncertain",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e3",
+        "to": "e1"
+      }
+    ],
+    "review_note": "e3: 추정 표현. 확정 원인으로 다루면 오답."
+  },
+  {
+    "doc_id": "HN-261014-N",
+    "source": "note",
+    "pattern": [
+      "N11",
+      "N3",
+      "N2"
+    ],
+    "text": "[10/14 야간 → 10/15 주간 인수인계] 작성 38\nLT261017-1 출하 전 외관 확인 완료.\nJB2610-0125 잔량 400개는 주간조에 넘김.\n1호기 소음 계속됨. 금형 교체 후에도 비슷함.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-10-14T20:00:00",
+        "end": "2026-10-15T05:00:00"
+      },
+      "author": "mes.worker:38"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "LOT",
+        "start": 33,
+        "end": 43,
+        "text": "LT261017-1",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "erp.shipment:DL2610-0036",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "ACTION",
+        "start": 49,
+        "end": 54,
+        "text": "외관 확인",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "WORK_ORDER",
+        "start": 59,
+        "end": 70,
+        "text": "JB2610-0125",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.work_order:JB2610-0125",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "ACTION",
+        "start": 80,
+        "end": 87,
+        "text": "주간조에 넘김",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e5",
+        "type": "EQUIPMENT",
+        "start": 89,
+        "end": 92,
+        "text": "1호기",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "ambiguous",
+          "ref": null,
+          "candidates": [
+            "mes.equipment:P101",
+            "mes.equipment:P201"
+          ]
+        },
+        "normalized": null
+      },
+      {
+        "id": "e6",
+        "type": "OBSERVATION",
+        "start": 93,
+        "end": 99,
+        "text": "소음 계속됨",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e7",
+        "type": "ACTION",
+        "start": 101,
+        "end": 106,
+        "text": "금형 교체",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "about_lot",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "about_work_order",
+        "from": "doc",
+        "to": "e3"
+      },
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e5"
+      },
+      {
+        "type": "observed_on",
+        "from": "e6",
+        "to": "e5"
+      }
+    ],
+    "review_note": "'1호기' 표기는 1라인·2라인 1호 프레스 중 하나라 확정할 수 없어 보류로 둠. 작성자 배치 라인(1라인)이 단서다."
+  },
+  {
+    "doc_id": "HN-261015-D",
+    "source": "note",
+    "pattern": [
+      "N2",
+      "N1"
+    ],
+    "text": "[10/15 주간 → 10/15 야간 인수인계] 작성 52\n1호기 진동 있음. 볼트 재체결 했는데 지켜봐야 함.\n교대 직후 P201 이음이 들려서 가동 멈추고 확인함.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-10-15T08:00:00",
+        "end": "2026-10-15T17:00:00"
+      },
+      "author": "mes.worker:52"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 33,
+        "end": 36,
+        "text": "1호기",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "ambiguous",
+          "ref": null,
+          "candidates": [
+            "mes.equipment:P101",
+            "mes.equipment:P201"
+          ]
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 37,
+        "end": 42,
+        "text": "진동 있음",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "ACTION",
+        "start": 44,
+        "end": 50,
+        "text": "볼트 재체결",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "TIME",
+        "start": 63,
+        "end": 68,
+        "text": "교대 직후",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": "2026-10-15T08:00:00"
+      },
+      {
+        "id": "e5",
+        "type": "EQUIPMENT",
+        "start": 69,
+        "end": 73,
+        "text": "P201",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P201",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e6",
+        "type": "OBSERVATION",
+        "start": 74,
+        "end": 81,
+        "text": "이음이 들려서",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e7",
+        "type": "ACTION",
+        "start": 82,
+        "end": 91,
+        "text": "가동 멈추고 확인",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      },
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e5"
+      },
+      {
+        "type": "observed_on",
+        "from": "e6",
+        "to": "e5"
+      }
+    ],
+    "review_note": "'1호기' 표기는 1라인·2라인 1호 프레스 중 하나라 확정할 수 없어 보류로 둠. 작성자 배치 라인(2라인)이 단서다."
+  },
+  {
+    "doc_id": "HN-261015-N",
+    "source": "note",
+    "pattern": [
+      "N8"
+    ],
+    "text": "[10/15 야간 → 10/16 주간 인수인계] 작성 38\n전달 사항 없음.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-10-15T20:00:00",
+        "end": "2026-10-16T05:00:00"
+      },
+      "author": "mes.worker:38"
+    },
+    "entities": [],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-261017-D",
+    "source": "note",
+    "pattern": [
+      "N3"
+    ],
+    "text": "[10/17 주간 → 10/17 야간 인수인계] 작성 79\nJB2610-0131 잔량 300개는 야간조에 넘김.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-10-17T08:00:00",
+        "end": "2026-10-17T17:00:00"
+      },
+      "author": "mes.worker:79"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "WORK_ORDER",
+        "start": 33,
+        "end": 44,
+        "text": "JB2610-0131",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.work_order:JB2610-0131",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "ACTION",
+        "start": 54,
+        "end": 61,
+        "text": "야간조에 넘김",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "about_work_order",
+        "from": "doc",
+        "to": "e1"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-261019-D",
+    "source": "note",
+    "pattern": [
+      "N1"
+    ],
+    "text": "[10/19 주간 → 10/19 야간 인수인계] 작성 52\n점심 직후 P103 이음이 들려서 가동 멈추고 확인함.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-10-19T08:00:00",
+        "end": "2026-10-19T17:00:00"
+      },
+      "author": "mes.worker:52"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "TIME",
+        "start": 33,
+        "end": 38,
+        "text": "점심 직후",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": "2026-10-19T13:00:00"
+      },
+      {
+        "id": "e2",
+        "type": "EQUIPMENT",
+        "start": 39,
+        "end": 43,
+        "text": "P103",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P103",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "OBSERVATION",
+        "start": 44,
+        "end": 51,
+        "text": "이음이 들려서",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "ACTION",
+        "start": 52,
+        "end": 61,
+        "text": "가동 멈추고 확인",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e2"
+      },
+      {
+        "type": "observed_on",
+        "from": "e3",
+        "to": "e2"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-261020-D",
+    "source": "note",
+    "pattern": [
+      "N8"
+    ],
+    "text": "[10/20 주간 → 10/20 야간 인수인계] 작성 40\n특이사항 없음.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-10-20T08:00:00",
+        "end": "2026-10-20T17:00:00"
+      },
+      "author": "mes.worker:40"
+    },
+    "entities": [],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-261023-N",
+    "source": "note",
+    "pattern": [
+      "N8"
+    ],
+    "text": "[10/23 야간 → 10/24 주간 인수인계] 작성 48\n이상 없이 교대함.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-10-23T20:00:00",
+        "end": "2026-10-24T05:00:00"
+      },
+      "author": "mes.worker:48"
+    },
+    "entities": [],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-261024-D",
+    "source": "note",
+    "pattern": [
+      "N11"
+    ],
+    "text": "[10/24 주간 → 10/24 야간 인수인계] 작성 31\nLT261024-1 출하 전 외관 확인 완료.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-10-24T08:00:00",
+        "end": "2026-10-24T17:00:00"
+      },
+      "author": "mes.worker:31"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "LOT",
+        "start": 33,
+        "end": 43,
+        "text": "LT261024-1",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "erp.shipment:DL2610-0050",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "ACTION",
+        "start": 49,
+        "end": 54,
+        "text": "외관 확인",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "about_lot",
+        "from": "doc",
+        "to": "e1"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-261024-N",
+    "source": "note",
+    "pattern": [
+      "N3"
+    ],
+    "text": "[10/24 야간 → 10/25 주간 인수인계] 작성 24\nJB2610-0139 잔량 1,100개는 주간조에 넘김.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-10-24T20:00:00",
+        "end": "2026-10-25T05:00:00"
+      },
+      "author": "mes.worker:24"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "WORK_ORDER",
+        "start": 33,
+        "end": 44,
+        "text": "JB2610-0139",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.work_order:JB2610-0139",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "ACTION",
+        "start": 56,
+        "end": 63,
+        "text": "주간조에 넘김",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "about_work_order",
+        "from": "doc",
+        "to": "e1"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-261025-D",
+    "source": "note",
+    "pattern": [
+      "N8"
+    ],
+    "text": "[10/25 주간 → 10/25 야간 인수인계] 작성 6\n특이사항 없음.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-10-25T08:00:00",
+        "end": "2026-10-25T17:00:00"
+      },
+      "author": "mes.worker:6"
+    },
+    "entities": [],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-261026-N",
+    "source": "note",
+    "pattern": [
+      "N8"
+    ],
+    "text": "[10/26 야간 → 10/27 주간 인수인계] 작성 24\n이상 없이 교대함.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-10-26T20:00:00",
+        "end": "2026-10-27T05:00:00"
+      },
+      "author": "mes.worker:24"
+    },
+    "entities": [],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-261027-D",
+    "source": "note",
+    "pattern": [
+      "N8"
+    ],
+    "text": "[10/27 주간 → 10/27 야간 인수인계] 작성 40\n전달 사항 없음.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-10-27T08:00:00",
+        "end": "2026-10-27T17:00:00"
+      },
+      "author": "mes.worker:40"
+    },
+    "entities": [],
+    "relations": [],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-261027-N",
+    "source": "note",
+    "pattern": [
+      "T4",
+      "N1"
+    ],
+    "text": "[10/27 야간 → 10/28 주간 인수인계] 작성 24\n새벽 2시쯤 1라인 3호 프레스 진동이 평소보다 커서 점검 요청함.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-10-27T20:00:00",
+        "end": "2026-10-28T05:00:00"
+      },
+      "author": "mes.worker:24"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "TIME",
+        "start": 33,
+        "end": 39,
+        "text": "새벽 2시쯤",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": "2026-10-28T02:00:00"
+      },
+      {
+        "id": "e2",
+        "type": "EQUIPMENT",
+        "start": 40,
+        "end": 50,
+        "text": "1라인 3호 프레스",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P103",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "OBSERVATION",
+        "start": 51,
+        "end": 62,
+        "text": "진동이 평소보다 커서",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "ACTION",
+        "start": 63,
+        "end": 68,
+        "text": "점검 요청",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e2"
+      },
+      {
+        "type": "observed_on",
+        "from": "e3",
+        "to": "e2"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-261028-D",
+    "source": "note",
+    "pattern": [
+      "N5"
+    ],
+    "text": "[10/28 주간 → 10/28 야간 인수인계] 작성 31\nP103 진동 상한 넘음.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-10-28T08:00:00",
+        "end": "2026-10-28T17:00:00"
+      },
+      "author": "mes.worker:31"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 33,
+        "end": 37,
+        "text": "P103",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P103",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 38,
+        "end": 46,
+        "text": "진동 상한 넘음",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      }
+    ],
+    "review_note": null
+  },
+  {
+    "doc_id": "HN-261029-D",
+    "source": "note",
+    "pattern": [
+      "N9",
+      "N4"
+    ],
+    "text": "[10/29 주간 → 10/29 야간 인수인계] 작성 31\nP101 누유 없음.\nRP-26-011 유압 펌프 필터 교체 이후 1라인 블랭킹기 압력 저하 없음.\n",
+    "meta": {
+      "shift": "주간",
+      "period": {
+        "start": "2026-10-29T08:00:00",
+        "end": "2026-10-29T17:00:00"
+      },
+      "author": "mes.worker:31"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "EQUIPMENT",
+        "start": 33,
+        "end": 37,
+        "text": "P101",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P101",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e2",
+        "type": "OBSERVATION",
+        "start": 38,
+        "end": 43,
+        "text": "누유 없음",
+        "assertion": "negated",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "MAINTENANCE",
+        "start": 45,
+        "end": 54,
+        "text": "RP-26-011",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.maintenance_order:RP-26-011",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "ACTION",
+        "start": 55,
+        "end": 66,
+        "text": "유압 펌프 필터 교체",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e5",
+        "type": "EQUIPMENT",
+        "start": 70,
+        "end": 78,
+        "text": "1라인 블랭킹기",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:B101",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e6",
+        "type": "OBSERVATION",
+        "start": 79,
+        "end": 87,
+        "text": "압력 저하 없음",
+        "assertion": "negated",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e1"
+      },
+      {
+        "type": "observed_on",
+        "from": "e2",
+        "to": "e1"
+      },
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e5"
+      },
+      {
+        "type": "refers_maintenance",
+        "from": "doc",
+        "to": "e3"
+      },
+      {
+        "type": "observed_on",
+        "from": "e6",
+        "to": "e5"
+      }
+    ],
+    "review_note": "e2: 부정 표현. 이상이 있다고 바꾸면 오답."
+  },
+  {
+    "doc_id": "HN-261029-N",
+    "source": "note",
+    "pattern": [
+      "T4",
+      "N1",
+      "N4",
+      "N3"
+    ],
+    "text": "[10/29 야간 → 10/30 주간 인수인계] 작성 57\n새벽 3시쯤 3호기 슬라이드 유압 누유로 정지. RP-26-041 정비 진행 중.\nJB2610-0141 성형은 P103 정지로 중단, 잔량 3,200개.\nJB2610-0138 잔량 2,400개는 주간조에 넘김.\n",
+    "meta": {
+      "shift": "야간",
+      "period": {
+        "start": "2026-10-29T20:00:00",
+        "end": "2026-10-30T05:00:00"
+      },
+      "author": "mes.worker:57"
+    },
+    "entities": [
+      {
+        "id": "e1",
+        "type": "TIME",
+        "start": 33,
+        "end": 39,
+        "text": "새벽 3시쯤",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": "2026-10-30T03:00:00"
+      },
+      {
+        "id": "e2",
+        "type": "EQUIPMENT",
+        "start": 40,
+        "end": 43,
+        "text": "3호기",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P103",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e3",
+        "type": "OBSERVATION",
+        "start": 44,
+        "end": 54,
+        "text": "슬라이드 유압 누유",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e4",
+        "type": "MAINTENANCE",
+        "start": 60,
+        "end": 69,
+        "text": "RP-26-041",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.maintenance_order:RP-26-041",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e5",
+        "type": "ACTION",
+        "start": 70,
+        "end": 77,
+        "text": "정비 진행 중",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e6",
+        "type": "WORK_ORDER",
+        "start": 79,
+        "end": 90,
+        "text": "JB2610-0141",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.work_order:JB2610-0141",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e7",
+        "type": "EQUIPMENT",
+        "start": 95,
+        "end": 99,
+        "text": "P103",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.equipment:P103",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e8",
+        "type": "OBSERVATION",
+        "start": 100,
+        "end": 106,
+        "text": "정지로 중단",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e9",
+        "type": "WORK_ORDER",
+        "start": 119,
+        "end": 130,
+        "text": "JB2610-0138",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "resolved",
+          "ref": "mes.work_order:JB2610-0138",
+          "candidates": []
+        },
+        "normalized": null
+      },
+      {
+        "id": "e10",
+        "type": "ACTION",
+        "start": 142,
+        "end": 149,
+        "text": "주간조에 넘김",
+        "assertion": "affirmed",
+        "resolution": {
+          "status": "none",
+          "ref": null,
+          "candidates": []
+        },
+        "normalized": null
+      }
+    ],
+    "relations": [
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e2"
+      },
+      {
+        "type": "observed_on",
+        "from": "e3",
+        "to": "e2"
+      },
+      {
+        "type": "refers_maintenance",
+        "from": "doc",
+        "to": "e4"
+      },
+      {
+        "type": "mentions_equipment",
+        "from": "doc",
+        "to": "e7"
+      },
+      {
+        "type": "about_work_order",
+        "from": "doc",
+        "to": "e6"
+      },
+      {
+        "type": "observed_on",
+        "from": "e8",
+        "to": "e7"
+      },
+      {
+        "type": "about_work_order",
+        "from": "doc",
+        "to": "e9"
+      }
+    ],
+    "review_note": null
+  }
+]

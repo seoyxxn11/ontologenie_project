@@ -1,0 +1,4432 @@
+{
+  "object_types": [
+    {
+      "code": "Item",
+      "name": "품목",
+      "synonyms": [],
+      "category": "master",
+      "source_tables": [
+        "erp.item"
+      ],
+      "key_columns": [
+        "erp.item.item_code"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "Vendor",
+      "name": "거래처",
+      "synonyms": [],
+      "category": "master",
+      "source_tables": [
+        "erp.vendor"
+      ],
+      "key_columns": [
+        "erp.vendor.vendor_code"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "PurchaseOrder",
+      "name": "구매 발주",
+      "synonyms": [],
+      "category": "transaction",
+      "source_tables": [
+        "erp.purchase_order"
+      ],
+      "key_columns": [
+        "erp.purchase_order.po_no"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "PurchaseOrderLine",
+      "name": "구매 발주 상세",
+      "synonyms": [],
+      "category": "detail",
+      "source_tables": [
+        "erp.purchase_order_line"
+      ],
+      "key_columns": [
+        "erp.purchase_order_line.po_no",
+        "erp.purchase_order_line.line_no"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "GoodsReceipt",
+      "name": "입고",
+      "synonyms": [],
+      "category": "history",
+      "source_tables": [
+        "erp.goods_receipt"
+      ],
+      "key_columns": [
+        "erp.goods_receipt.gr_no"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "Stock",
+      "name": "창고별 재고",
+      "synonyms": [],
+      "category": "snapshot",
+      "source_tables": [
+        "erp.stock"
+      ],
+      "key_columns": [
+        "erp.stock.warehouse",
+        "erp.stock.item_code"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "SalesOrder",
+      "name": "수주",
+      "synonyms": [],
+      "category": "transaction",
+      "source_tables": [
+        "erp.sales_order"
+      ],
+      "key_columns": [
+        "erp.sales_order.so_no"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "SalesOrderLine",
+      "name": "수주 상세",
+      "synonyms": [],
+      "category": "detail",
+      "source_tables": [
+        "erp.sales_order_line"
+      ],
+      "key_columns": [
+        "erp.sales_order_line.so_no",
+        "erp.sales_order_line.line_no"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "Shipment",
+      "name": "출하",
+      "synonyms": [],
+      "category": "history",
+      "source_tables": [
+        "erp.shipment"
+      ],
+      "key_columns": [
+        "erp.shipment.ship_no"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "SalesInvoice",
+      "name": "매출 전표",
+      "synonyms": [],
+      "category": "transaction",
+      "source_tables": [
+        "erp.sales_invoice"
+      ],
+      "key_columns": [
+        "erp.sales_invoice.invoice_no"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "PurchaseInvoice",
+      "name": "매입 전표",
+      "synonyms": [],
+      "category": "transaction",
+      "source_tables": [
+        "erp.purchase_invoice"
+      ],
+      "key_columns": [
+        "erp.purchase_invoice.invoice_no"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "GlAccount",
+      "name": "회계 계정",
+      "synonyms": [],
+      "category": "master",
+      "source_tables": [
+        "erp.gl_account"
+      ],
+      "key_columns": [
+        "erp.gl_account.account_code"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "JournalEntry",
+      "name": "분개",
+      "synonyms": [],
+      "category": "detail",
+      "source_tables": [
+        "erp.journal_entry"
+      ],
+      "key_columns": [
+        "erp.journal_entry.entry_no",
+        "erp.journal_entry.line_no"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "Employee",
+      "name": "직원",
+      "synonyms": [],
+      "category": "master",
+      "source_tables": [
+        "erp.employee"
+      ],
+      "key_columns": [
+        "erp.employee.emp_no"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "Department",
+      "name": "부서",
+      "synonyms": [],
+      "category": "master",
+      "source_tables": [
+        "erp.department"
+      ],
+      "key_columns": [
+        "erp.department.dept_code"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "Attendance",
+      "name": "근태",
+      "synonyms": [],
+      "category": "history",
+      "source_tables": [
+        "erp.attendance"
+      ],
+      "key_columns": [
+        "erp.attendance.emp_no",
+        "erp.attendance.work_date"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "FixedAsset",
+      "name": "고정자산",
+      "synonyms": [],
+      "category": "master",
+      "source_tables": [
+        "erp.fixed_asset"
+      ],
+      "key_columns": [
+        "erp.fixed_asset.asset_no"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "Equipment",
+      "name": "설비",
+      "synonyms": [],
+      "category": "master",
+      "source_tables": [
+        "mes.equipment"
+      ],
+      "key_columns": [
+        "mes.equipment.code"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "Worker",
+      "name": "현장 작업자",
+      "synonyms": [],
+      "category": "master",
+      "source_tables": [
+        "mes.worker"
+      ],
+      "key_columns": [
+        "mes.worker.id"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "Routing",
+      "name": "제품별 공정",
+      "synonyms": [],
+      "category": "master",
+      "source_tables": [
+        "mes.routing"
+      ],
+      "key_columns": [
+        "mes.routing.product_code",
+        "mes.routing.op_seq"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "WorkOrder",
+      "name": "작업지시",
+      "synonyms": [],
+      "category": "transaction",
+      "source_tables": [
+        "mes.work_order"
+      ],
+      "key_columns": [
+        "mes.work_order.wo_no"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "WorkOrderOperation",
+      "name": "작업지시 공정별 배정",
+      "synonyms": [],
+      "category": "detail",
+      "source_tables": [
+        "mes.work_order_operation"
+      ],
+      "key_columns": [
+        "mes.work_order_operation.wo_no",
+        "mes.work_order_operation.op_seq"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "ProductionResult",
+      "name": "공정 실적",
+      "synonyms": [],
+      "category": "history",
+      "source_tables": [
+        "mes.production_result"
+      ],
+      "key_columns": [
+        "mes.production_result.result_id"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "MaterialIssue",
+      "name": "자재 투입",
+      "synonyms": [],
+      "category": "history",
+      "source_tables": [
+        "mes.material_issue"
+      ],
+      "key_columns": [
+        "mes.material_issue.issue_id"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "Downtime",
+      "name": "설비 비가동",
+      "synonyms": [],
+      "category": "history",
+      "source_tables": [
+        "mes.downtime"
+      ],
+      "key_columns": [
+        "mes.downtime.downtime_id"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "SensorReading",
+      "name": "설비 센서 측정",
+      "synonyms": [],
+      "category": "history",
+      "source_tables": [
+        "mes.sensor_reading"
+      ],
+      "key_columns": [
+        "mes.sensor_reading.equipment_code",
+        "mes.sensor_reading.measured_at",
+        "mes.sensor_reading.metric"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "Defect",
+      "name": "불량 기록",
+      "synonyms": [],
+      "category": "history",
+      "source_tables": [
+        "mes.defect"
+      ],
+      "key_columns": [
+        "mes.defect.defect_id"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "Inspection",
+      "name": "품질 검사",
+      "synonyms": [],
+      "category": "history",
+      "source_tables": [
+        "mes.inspection"
+      ],
+      "key_columns": [
+        "mes.inspection.inspection_id"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "Die",
+      "name": "금형",
+      "synonyms": [],
+      "category": "master",
+      "source_tables": [
+        "mes.die"
+      ],
+      "key_columns": [
+        "mes.die.die_code"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "MaintenanceOrder",
+      "name": "정비 지시",
+      "synonyms": [],
+      "category": "transaction",
+      "source_tables": [
+        "mes.maintenance_order"
+      ],
+      "key_columns": [
+        "mes.maintenance_order.mo_no"
+      ],
+      "level": "must"
+    },
+    {
+      "code": "HandoverNote",
+      "name": "교대 인수인계 메모",
+      "synonyms": [],
+      "category": "history",
+      "source_tables": [
+        "mes.handover_note"
+      ],
+      "key_columns": [
+        "mes.handover_note.note_id"
+      ],
+      "level": "must"
+    }
+  ],
+  "properties": [
+    {
+      "object_type": "Item",
+      "code": "item_code",
+      "name": "품번",
+      "data_type": "STRING",
+      "source_column": "erp.item.item_code",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Item",
+      "code": "item_name",
+      "name": "품명",
+      "data_type": "STRING",
+      "source_column": "erp.item.item_name",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Item",
+      "code": "spec",
+      "name": "규격",
+      "data_type": "STRING",
+      "source_column": "erp.item.spec",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Item",
+      "code": "unit",
+      "name": "단위",
+      "data_type": "STRING",
+      "source_column": "erp.item.unit",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Item",
+      "code": "item_type",
+      "name": "품목 구분",
+      "data_type": "STRING",
+      "source_column": "erp.item.item_type",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Item",
+      "code": "std_price",
+      "name": "표준 단가",
+      "data_type": "DECIMAL",
+      "source_column": "erp.item.std_price",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Item",
+      "code": "safety_stock",
+      "name": "안전 재고 수량",
+      "data_type": "DECIMAL",
+      "source_column": "erp.item.safety_stock",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Item",
+      "code": "use_yn",
+      "name": "사용 여부",
+      "data_type": "STRING",
+      "source_column": "erp.item.use_yn",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Item",
+      "code": "updated_at",
+      "name": "마지막 수정 시각",
+      "data_type": "DATETIME",
+      "source_column": "erp.item.updated_at",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Vendor",
+      "code": "vendor_code",
+      "name": "거래처 코드",
+      "data_type": "STRING",
+      "source_column": "erp.vendor.vendor_code",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Vendor",
+      "code": "vendor_name",
+      "name": "거래처 상호",
+      "data_type": "STRING",
+      "source_column": "erp.vendor.vendor_name",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Vendor",
+      "code": "biz_no",
+      "name": "사업자등록번호",
+      "data_type": "STRING",
+      "source_column": "erp.vendor.biz_no",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Vendor",
+      "code": "vendor_type",
+      "name": "거래 구분",
+      "data_type": "STRING",
+      "source_column": "erp.vendor.vendor_type",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Vendor",
+      "code": "contact_name",
+      "name": "담당자 이름",
+      "data_type": "STRING",
+      "source_column": "erp.vendor.contact_name",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": true,
+      "level": "must"
+    },
+    {
+      "object_type": "Vendor",
+      "code": "payment_terms",
+      "name": "결제 조건",
+      "data_type": "STRING",
+      "source_column": "erp.vendor.payment_terms",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Vendor",
+      "code": "use_yn",
+      "name": "사용 여부",
+      "data_type": "STRING",
+      "source_column": "erp.vendor.use_yn",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseOrder",
+      "code": "po_no",
+      "name": "발주 번호",
+      "data_type": "STRING",
+      "source_column": "erp.purchase_order.po_no",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseOrder",
+      "code": "vendor_code",
+      "name": "공급 거래처 코드",
+      "data_type": "STRING",
+      "source_column": "erp.purchase_order.vendor_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseOrder",
+      "code": "po_date",
+      "name": "발주일",
+      "data_type": "DATE",
+      "source_column": "erp.purchase_order.po_date",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseOrder",
+      "code": "due_date",
+      "name": "입고 요청일",
+      "data_type": "DATE",
+      "source_column": "erp.purchase_order.due_date",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseOrder",
+      "code": "status",
+      "name": "진행 상태",
+      "data_type": "STRING",
+      "source_column": "erp.purchase_order.status",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseOrder",
+      "code": "total_amount",
+      "name": "발주 금액",
+      "data_type": "DECIMAL",
+      "source_column": "erp.purchase_order.total_amount",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseOrder",
+      "code": "buyer",
+      "name": "구매 담당",
+      "data_type": "STRING",
+      "source_column": "erp.purchase_order.buyer",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseOrder",
+      "code": "remark",
+      "name": "비고",
+      "data_type": "STRING",
+      "source_column": "erp.purchase_order.remark",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseOrderLine",
+      "code": "po_no",
+      "name": "발주 번호",
+      "data_type": "STRING",
+      "source_column": "erp.purchase_order_line.po_no",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseOrderLine",
+      "code": "line_no",
+      "name": "상세 순번",
+      "data_type": "INTEGER",
+      "source_column": "erp.purchase_order_line.line_no",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseOrderLine",
+      "code": "item_code",
+      "name": "발주 품번",
+      "data_type": "STRING",
+      "source_column": "erp.purchase_order_line.item_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseOrderLine",
+      "code": "qty",
+      "name": "발주 수량",
+      "data_type": "DECIMAL",
+      "source_column": "erp.purchase_order_line.qty",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseOrderLine",
+      "code": "unit_price",
+      "name": "발주 단가",
+      "data_type": "DECIMAL",
+      "source_column": "erp.purchase_order_line.unit_price",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseOrderLine",
+      "code": "received_qty",
+      "name": "누적 입고 수량",
+      "data_type": "DECIMAL",
+      "source_column": "erp.purchase_order_line.received_qty",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseOrderLine",
+      "code": "due_date",
+      "name": "상세별 입고 요청일",
+      "data_type": "DATE",
+      "source_column": "erp.purchase_order_line.due_date",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "GoodsReceipt",
+      "code": "gr_no",
+      "name": "입고 번호",
+      "data_type": "STRING",
+      "source_column": "erp.goods_receipt.gr_no",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "GoodsReceipt",
+      "code": "po_no",
+      "name": "근거 발주 번호",
+      "data_type": "STRING",
+      "source_column": "erp.goods_receipt.po_no",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "GoodsReceipt",
+      "code": "item_code",
+      "name": "입고 품번",
+      "data_type": "STRING",
+      "source_column": "erp.goods_receipt.item_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "GoodsReceipt",
+      "code": "gr_date",
+      "name": "입고일",
+      "data_type": "DATE",
+      "source_column": "erp.goods_receipt.gr_date",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "GoodsReceipt",
+      "code": "qty",
+      "name": "입고 수량",
+      "data_type": "DECIMAL",
+      "source_column": "erp.goods_receipt.qty",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "GoodsReceipt",
+      "code": "accepted_qty",
+      "name": "검수 합격 수량",
+      "data_type": "DECIMAL",
+      "source_column": "erp.goods_receipt.accepted_qty",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "GoodsReceipt",
+      "code": "rejected_qty",
+      "name": "검수 불합격 수량",
+      "data_type": "DECIMAL",
+      "source_column": "erp.goods_receipt.rejected_qty",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "GoodsReceipt",
+      "code": "warehouse",
+      "name": "입고 창고",
+      "data_type": "STRING",
+      "source_column": "erp.goods_receipt.warehouse",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "GoodsReceipt",
+      "code": "inspector",
+      "name": "검수 담당",
+      "data_type": "STRING",
+      "source_column": "erp.goods_receipt.inspector",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Stock",
+      "code": "warehouse",
+      "name": "창고",
+      "data_type": "STRING",
+      "source_column": "erp.stock.warehouse",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Stock",
+      "code": "item_code",
+      "name": "품번",
+      "data_type": "STRING",
+      "source_column": "erp.stock.item_code",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Stock",
+      "code": "qty",
+      "name": "현재 재고 수량",
+      "data_type": "DECIMAL",
+      "source_column": "erp.stock.qty",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Stock",
+      "code": "reserved_qty",
+      "name": "출고 예약 수량",
+      "data_type": "DECIMAL",
+      "source_column": "erp.stock.reserved_qty",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Stock",
+      "code": "available_qty",
+      "name": "가용 수량",
+      "data_type": "DECIMAL",
+      "source_column": "erp.stock.available_qty",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Stock",
+      "code": "last_in_date",
+      "name": "최근 입고일",
+      "data_type": "DATE",
+      "source_column": "erp.stock.last_in_date",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Stock",
+      "code": "last_out_date",
+      "name": "최근 출고일",
+      "data_type": "DATE",
+      "source_column": "erp.stock.last_out_date",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesOrder",
+      "code": "so_no",
+      "name": "수주 번호",
+      "data_type": "STRING",
+      "source_column": "erp.sales_order.so_no",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesOrder",
+      "code": "customer_code",
+      "name": "주문 고객 코드",
+      "data_type": "STRING",
+      "source_column": "erp.sales_order.customer_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesOrder",
+      "code": "so_date",
+      "name": "수주일",
+      "data_type": "DATE",
+      "source_column": "erp.sales_order.so_date",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesOrder",
+      "code": "due_date",
+      "name": "납기일",
+      "data_type": "DATE",
+      "source_column": "erp.sales_order.due_date",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesOrder",
+      "code": "status",
+      "name": "진행 상태",
+      "data_type": "STRING",
+      "source_column": "erp.sales_order.status",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesOrder",
+      "code": "total_amount",
+      "name": "수주 금액",
+      "data_type": "DECIMAL",
+      "source_column": "erp.sales_order.total_amount",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesOrder",
+      "code": "sales_rep",
+      "name": "영업 담당",
+      "data_type": "STRING",
+      "source_column": "erp.sales_order.sales_rep",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesOrderLine",
+      "code": "so_no",
+      "name": "수주 번호",
+      "data_type": "STRING",
+      "source_column": "erp.sales_order_line.so_no",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesOrderLine",
+      "code": "line_no",
+      "name": "상세 순번",
+      "data_type": "INTEGER",
+      "source_column": "erp.sales_order_line.line_no",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesOrderLine",
+      "code": "item_code",
+      "name": "주문 품번",
+      "data_type": "STRING",
+      "source_column": "erp.sales_order_line.item_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesOrderLine",
+      "code": "qty",
+      "name": "주문 수량",
+      "data_type": "DECIMAL",
+      "source_column": "erp.sales_order_line.qty",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesOrderLine",
+      "code": "unit_price",
+      "name": "판매 단가",
+      "data_type": "DECIMAL",
+      "source_column": "erp.sales_order_line.unit_price",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesOrderLine",
+      "code": "shipped_qty",
+      "name": "누적 출하 수량",
+      "data_type": "DECIMAL",
+      "source_column": "erp.sales_order_line.shipped_qty",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Shipment",
+      "code": "ship_no",
+      "name": "출하 번호",
+      "data_type": "STRING",
+      "source_column": "erp.shipment.ship_no",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Shipment",
+      "code": "so_no",
+      "name": "근거 수주 번호",
+      "data_type": "STRING",
+      "source_column": "erp.shipment.so_no",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Shipment",
+      "code": "item_code",
+      "name": "출하 품번",
+      "data_type": "STRING",
+      "source_column": "erp.shipment.item_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Shipment",
+      "code": "ship_date",
+      "name": "출하일",
+      "data_type": "DATE",
+      "source_column": "erp.shipment.ship_date",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Shipment",
+      "code": "qty",
+      "name": "출하 수량",
+      "data_type": "DECIMAL",
+      "source_column": "erp.shipment.qty",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Shipment",
+      "code": "carrier",
+      "name": "운송사",
+      "data_type": "STRING",
+      "source_column": "erp.shipment.carrier",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Shipment",
+      "code": "lot_no",
+      "name": "출하 제품 로트",
+      "data_type": "STRING",
+      "source_column": "erp.shipment.lot_no",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesInvoice",
+      "code": "invoice_no",
+      "name": "매출 전표 번호",
+      "data_type": "STRING",
+      "source_column": "erp.sales_invoice.invoice_no",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesInvoice",
+      "code": "customer_code",
+      "name": "청구 고객 코드",
+      "data_type": "STRING",
+      "source_column": "erp.sales_invoice.customer_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesInvoice",
+      "code": "invoice_date",
+      "name": "발행일",
+      "data_type": "DATE",
+      "source_column": "erp.sales_invoice.invoice_date",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesInvoice",
+      "code": "supply_amount",
+      "name": "공급가액",
+      "data_type": "DECIMAL",
+      "source_column": "erp.sales_invoice.supply_amount",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesInvoice",
+      "code": "vat",
+      "name": "부가세",
+      "data_type": "DECIMAL",
+      "source_column": "erp.sales_invoice.vat",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesInvoice",
+      "code": "total_amount",
+      "name": "합계",
+      "data_type": "DECIMAL",
+      "source_column": "erp.sales_invoice.total_amount",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesInvoice",
+      "code": "collected_yn",
+      "name": "수금 완료 여부",
+      "data_type": "STRING",
+      "source_column": "erp.sales_invoice.collected_yn",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SalesInvoice",
+      "code": "collected_date",
+      "name": "수금일",
+      "data_type": "DATE",
+      "source_column": "erp.sales_invoice.collected_date",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseInvoice",
+      "code": "invoice_no",
+      "name": "매입 전표 번호",
+      "data_type": "STRING",
+      "source_column": "erp.purchase_invoice.invoice_no",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseInvoice",
+      "code": "vendor_code",
+      "name": "공급 거래처 코드",
+      "data_type": "STRING",
+      "source_column": "erp.purchase_invoice.vendor_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseInvoice",
+      "code": "invoice_date",
+      "name": "발행일",
+      "data_type": "DATE",
+      "source_column": "erp.purchase_invoice.invoice_date",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseInvoice",
+      "code": "supply_amount",
+      "name": "공급가액",
+      "data_type": "DECIMAL",
+      "source_column": "erp.purchase_invoice.supply_amount",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseInvoice",
+      "code": "vat",
+      "name": "부가세",
+      "data_type": "DECIMAL",
+      "source_column": "erp.purchase_invoice.vat",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseInvoice",
+      "code": "total_amount",
+      "name": "합계",
+      "data_type": "DECIMAL",
+      "source_column": "erp.purchase_invoice.total_amount",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseInvoice",
+      "code": "paid_yn",
+      "name": "지급 완료 여부",
+      "data_type": "STRING",
+      "source_column": "erp.purchase_invoice.paid_yn",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "PurchaseInvoice",
+      "code": "paid_date",
+      "name": "지급일",
+      "data_type": "DATE",
+      "source_column": "erp.purchase_invoice.paid_date",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "GlAccount",
+      "code": "account_code",
+      "name": "계정 코드",
+      "data_type": "STRING",
+      "source_column": "erp.gl_account.account_code",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "GlAccount",
+      "code": "account_name",
+      "name": "계정명",
+      "data_type": "STRING",
+      "source_column": "erp.gl_account.account_name",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "GlAccount",
+      "code": "account_type",
+      "name": "계정 구분",
+      "data_type": "STRING",
+      "source_column": "erp.gl_account.account_type",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "GlAccount",
+      "code": "parent_code",
+      "name": "상위 계정 코드",
+      "data_type": "STRING",
+      "source_column": "erp.gl_account.parent_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "GlAccount",
+      "code": "use_yn",
+      "name": "사용 여부",
+      "data_type": "STRING",
+      "source_column": "erp.gl_account.use_yn",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "JournalEntry",
+      "code": "entry_no",
+      "name": "전표 번호",
+      "data_type": "STRING",
+      "source_column": "erp.journal_entry.entry_no",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "JournalEntry",
+      "code": "line_no",
+      "name": "분개 순번",
+      "data_type": "INTEGER",
+      "source_column": "erp.journal_entry.line_no",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "JournalEntry",
+      "code": "entry_date",
+      "name": "전표일",
+      "data_type": "DATE",
+      "source_column": "erp.journal_entry.entry_date",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "JournalEntry",
+      "code": "account_code",
+      "name": "계정 코드",
+      "data_type": "STRING",
+      "source_column": "erp.journal_entry.account_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "JournalEntry",
+      "code": "vendor_code",
+      "name": "관련 거래처 코드",
+      "data_type": "STRING",
+      "source_column": "erp.journal_entry.vendor_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "JournalEntry",
+      "code": "debit",
+      "name": "차변 금액",
+      "data_type": "DECIMAL",
+      "source_column": "erp.journal_entry.debit",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "JournalEntry",
+      "code": "credit",
+      "name": "대변 금액",
+      "data_type": "DECIMAL",
+      "source_column": "erp.journal_entry.credit",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "JournalEntry",
+      "code": "description",
+      "name": "적요",
+      "data_type": "STRING",
+      "source_column": "erp.journal_entry.description",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Employee",
+      "code": "emp_no",
+      "name": "사번",
+      "data_type": "STRING",
+      "source_column": "erp.employee.emp_no",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Employee",
+      "code": "emp_name",
+      "name": "이름",
+      "data_type": "STRING",
+      "source_column": "erp.employee.emp_name",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": true,
+      "level": "must"
+    },
+    {
+      "object_type": "Employee",
+      "code": "dept_code",
+      "name": "소속 부서 코드",
+      "data_type": "STRING",
+      "source_column": "erp.employee.dept_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Employee",
+      "code": "position",
+      "name": "직급",
+      "data_type": "STRING",
+      "source_column": "erp.employee.position",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Employee",
+      "code": "hire_date",
+      "name": "입사일",
+      "data_type": "DATE",
+      "source_column": "erp.employee.hire_date",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Employee",
+      "code": "employment_type",
+      "name": "고용 형태",
+      "data_type": "STRING",
+      "source_column": "erp.employee.employment_type",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Employee",
+      "code": "status",
+      "name": "재직 상태",
+      "data_type": "STRING",
+      "source_column": "erp.employee.status",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Department",
+      "code": "dept_code",
+      "name": "부서 코드",
+      "data_type": "STRING",
+      "source_column": "erp.department.dept_code",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Department",
+      "code": "dept_name",
+      "name": "부서명",
+      "data_type": "STRING",
+      "source_column": "erp.department.dept_name",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Department",
+      "code": "parent_code",
+      "name": "상위 부서 코드",
+      "data_type": "STRING",
+      "source_column": "erp.department.parent_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Department",
+      "code": "manager_emp_no",
+      "name": "부서장 사번",
+      "data_type": "STRING",
+      "source_column": "erp.department.manager_emp_no",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Attendance",
+      "code": "emp_no",
+      "name": "사번",
+      "data_type": "STRING",
+      "source_column": "erp.attendance.emp_no",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Attendance",
+      "code": "work_date",
+      "name": "근무일",
+      "data_type": "DATE",
+      "source_column": "erp.attendance.work_date",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Attendance",
+      "code": "clock_in",
+      "name": "출근 시각",
+      "data_type": "TIME",
+      "source_column": "erp.attendance.clock_in",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Attendance",
+      "code": "clock_out",
+      "name": "퇴근 시각",
+      "data_type": "TIME",
+      "source_column": "erp.attendance.clock_out",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Attendance",
+      "code": "work_type",
+      "name": "근무 구분",
+      "data_type": "STRING",
+      "source_column": "erp.attendance.work_type",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Attendance",
+      "code": "overtime_min",
+      "name": "연장 근무 시간",
+      "data_type": "INTEGER",
+      "source_column": "erp.attendance.overtime_min",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Attendance",
+      "code": "late_yn",
+      "name": "지각 여부",
+      "data_type": "STRING",
+      "source_column": "erp.attendance.late_yn",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "FixedAsset",
+      "code": "asset_no",
+      "name": "자산 번호",
+      "data_type": "STRING",
+      "source_column": "erp.fixed_asset.asset_no",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "FixedAsset",
+      "code": "asset_name",
+      "name": "자산명",
+      "data_type": "STRING",
+      "source_column": "erp.fixed_asset.asset_name",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "FixedAsset",
+      "code": "asset_type",
+      "name": "자산 종류",
+      "data_type": "STRING",
+      "source_column": "erp.fixed_asset.asset_type",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "FixedAsset",
+      "code": "acquired_on",
+      "name": "취득일",
+      "data_type": "DATE",
+      "source_column": "erp.fixed_asset.acquired_on",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "FixedAsset",
+      "code": "acquisition_cost",
+      "name": "취득가",
+      "data_type": "DECIMAL",
+      "source_column": "erp.fixed_asset.acquisition_cost",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "FixedAsset",
+      "code": "book_value",
+      "name": "장부가",
+      "data_type": "DECIMAL",
+      "source_column": "erp.fixed_asset.book_value",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "FixedAsset",
+      "code": "location",
+      "name": "설치·보관 위치",
+      "data_type": "STRING",
+      "source_column": "erp.fixed_asset.location",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "FixedAsset",
+      "code": "equipment_code",
+      "name": "생산 설비이면 현장 시스템의 설비 코드",
+      "data_type": "STRING",
+      "source_column": "erp.fixed_asset.equipment_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Equipment",
+      "code": "code",
+      "name": "설비 코드",
+      "data_type": "STRING",
+      "source_column": "mes.equipment.code",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Equipment",
+      "code": "name",
+      "name": "설비 이름",
+      "data_type": "STRING",
+      "source_column": "mes.equipment.name",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Equipment",
+      "code": "kind",
+      "name": "설비 종류",
+      "data_type": "STRING",
+      "source_column": "mes.equipment.kind",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Equipment",
+      "code": "line",
+      "name": "설치 라인",
+      "data_type": "STRING",
+      "source_column": "mes.equipment.line",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Equipment",
+      "code": "capacity_ton",
+      "name": "프레스 능력",
+      "data_type": "INTEGER",
+      "source_column": "mes.equipment.capacity_ton",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Equipment",
+      "code": "status",
+      "name": "상태",
+      "data_type": "STRING",
+      "source_column": "mes.equipment.status",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Equipment",
+      "code": "installed_on",
+      "name": "설치일",
+      "data_type": "DATE",
+      "source_column": "mes.equipment.installed_on",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Equipment",
+      "code": "maker",
+      "name": "제조사",
+      "data_type": "STRING",
+      "source_column": "mes.equipment.maker",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Worker",
+      "code": "id",
+      "name": "작업자 번호",
+      "data_type": "STRING",
+      "source_column": "mes.worker.id",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Worker",
+      "code": "name",
+      "name": "이름",
+      "data_type": "STRING",
+      "source_column": "mes.worker.name",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": true,
+      "level": "must"
+    },
+    {
+      "object_type": "Worker",
+      "code": "shift",
+      "name": "근무 조",
+      "data_type": "STRING",
+      "source_column": "mes.worker.shift",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Worker",
+      "code": "line",
+      "name": "배치 라인",
+      "data_type": "STRING",
+      "source_column": "mes.worker.line",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Worker",
+      "code": "skill_level",
+      "name": "숙련도",
+      "data_type": "INTEGER",
+      "source_column": "mes.worker.skill_level",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Worker",
+      "code": "active_yn",
+      "name": "근무 중 여부",
+      "data_type": "STRING",
+      "source_column": "mes.worker.active_yn",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Routing",
+      "code": "product_code",
+      "name": "제품 코드",
+      "data_type": "STRING",
+      "source_column": "mes.routing.product_code",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Routing",
+      "code": "op_seq",
+      "name": "공정 순서",
+      "data_type": "INTEGER",
+      "source_column": "mes.routing.op_seq",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Routing",
+      "code": "op_name",
+      "name": "공정명",
+      "data_type": "STRING",
+      "source_column": "mes.routing.op_name",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Routing",
+      "code": "equipment_kind",
+      "name": "필요한 설비 종류",
+      "data_type": "STRING",
+      "source_column": "mes.routing.equipment_kind",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Routing",
+      "code": "std_cycle_sec",
+      "name": "개당 표준 가공 시간",
+      "data_type": "DECIMAL",
+      "source_column": "mes.routing.std_cycle_sec",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Routing",
+      "code": "std_setup_min",
+      "name": "표준 준비 시간",
+      "data_type": "INTEGER",
+      "source_column": "mes.routing.std_setup_min",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Routing",
+      "code": "min_tonnage",
+      "name": "프레스 공정의 최소 능력",
+      "data_type": "INTEGER",
+      "source_column": "mes.routing.min_tonnage",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "WorkOrder",
+      "code": "wo_no",
+      "name": "작업지시 번호",
+      "data_type": "STRING",
+      "source_column": "mes.work_order.wo_no",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "WorkOrder",
+      "code": "product_code",
+      "name": "생산 제품 코드",
+      "data_type": "STRING",
+      "source_column": "mes.work_order.product_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "WorkOrder",
+      "code": "die_drawing_code",
+      "name": "사용 금형 도면 번호",
+      "data_type": "STRING",
+      "source_column": "mes.work_order.die_drawing_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "WorkOrder",
+      "code": "status",
+      "name": "진행 상태",
+      "data_type": "STRING",
+      "source_column": "mes.work_order.status",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "WorkOrder",
+      "code": "priority",
+      "name": "우선순위",
+      "data_type": "STRING",
+      "source_column": "mes.work_order.priority",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "WorkOrder",
+      "code": "line",
+      "name": "생산 라인",
+      "data_type": "STRING",
+      "source_column": "mes.work_order.line",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "WorkOrder",
+      "code": "planned_qty",
+      "name": "계획 수량",
+      "data_type": "INTEGER",
+      "source_column": "mes.work_order.planned_qty",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "WorkOrder",
+      "code": "produced_qty",
+      "name": "생산 수량",
+      "data_type": "INTEGER",
+      "source_column": "mes.work_order.produced_qty",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "WorkOrder",
+      "code": "defect_qty",
+      "name": "불량 수량",
+      "data_type": "INTEGER",
+      "source_column": "mes.work_order.defect_qty",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "WorkOrder",
+      "code": "planned_start",
+      "name": "계획 시작일",
+      "data_type": "DATE",
+      "source_column": "mes.work_order.planned_start",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "WorkOrder",
+      "code": "planned_end",
+      "name": "계획 종료일",
+      "data_type": "DATE",
+      "source_column": "mes.work_order.planned_end",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "WorkOrder",
+      "code": "actual_start",
+      "name": "실제 시작 시각",
+      "data_type": "DATETIME",
+      "source_column": "mes.work_order.actual_start",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "WorkOrder",
+      "code": "actual_end",
+      "name": "실제 종료 시각",
+      "data_type": "DATETIME",
+      "source_column": "mes.work_order.actual_end",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "WorkOrder",
+      "code": "so_ref",
+      "name": "주문 참조 번호",
+      "data_type": "STRING",
+      "source_column": "mes.work_order.so_ref",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "WorkOrderOperation",
+      "code": "wo_no",
+      "name": "작업지시 번호",
+      "data_type": "STRING",
+      "source_column": "mes.work_order_operation.wo_no",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "WorkOrderOperation",
+      "code": "op_seq",
+      "name": "공정 순서",
+      "data_type": "INTEGER",
+      "source_column": "mes.work_order_operation.op_seq",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "WorkOrderOperation",
+      "code": "equipment_code",
+      "name": "배정 설비 코드",
+      "data_type": "STRING",
+      "source_column": "mes.work_order_operation.equipment_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "WorkOrderOperation",
+      "code": "status",
+      "name": "공정 상태",
+      "data_type": "STRING",
+      "source_column": "mes.work_order_operation.status",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "WorkOrderOperation",
+      "code": "remaining_qty",
+      "name": "남은 수량",
+      "data_type": "INTEGER",
+      "source_column": "mes.work_order_operation.remaining_qty",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "ProductionResult",
+      "code": "result_id",
+      "name": "실적 번호",
+      "data_type": "INTEGER",
+      "source_column": "mes.production_result.result_id",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "ProductionResult",
+      "code": "wo_no",
+      "name": "작업지시 번호",
+      "data_type": "STRING",
+      "source_column": "mes.production_result.wo_no",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "ProductionResult",
+      "code": "op_seq",
+      "name": "공정 순서",
+      "data_type": "INTEGER",
+      "source_column": "mes.production_result.op_seq",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "ProductionResult",
+      "code": "equipment_code",
+      "name": "작업 설비 코드",
+      "data_type": "STRING",
+      "source_column": "mes.production_result.equipment_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "ProductionResult",
+      "code": "worker_id",
+      "name": "작업자 번호",
+      "data_type": "STRING",
+      "source_column": "mes.production_result.worker_id",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "ProductionResult",
+      "code": "shift",
+      "name": "근무 조",
+      "data_type": "STRING",
+      "source_column": "mes.production_result.shift",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "ProductionResult",
+      "code": "started_at",
+      "name": "시작 시각",
+      "data_type": "DATETIME",
+      "source_column": "mes.production_result.started_at",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "ProductionResult",
+      "code": "ended_at",
+      "name": "종료 시각",
+      "data_type": "DATETIME",
+      "source_column": "mes.production_result.ended_at",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "ProductionResult",
+      "code": "good_qty",
+      "name": "양품 수량",
+      "data_type": "INTEGER",
+      "source_column": "mes.production_result.good_qty",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "ProductionResult",
+      "code": "ng_qty",
+      "name": "불량 수량",
+      "data_type": "INTEGER",
+      "source_column": "mes.production_result.ng_qty",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "MaterialIssue",
+      "code": "issue_id",
+      "name": "투입 번호",
+      "data_type": "INTEGER",
+      "source_column": "mes.material_issue.issue_id",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "MaterialIssue",
+      "code": "wo_no",
+      "name": "작업지시 번호",
+      "data_type": "STRING",
+      "source_column": "mes.material_issue.wo_no",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "MaterialIssue",
+      "code": "item_code",
+      "name": "투입 자재 품번",
+      "data_type": "STRING",
+      "source_column": "mes.material_issue.item_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "MaterialIssue",
+      "code": "lot_no",
+      "name": "자재 로트",
+      "data_type": "STRING",
+      "source_column": "mes.material_issue.lot_no",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "MaterialIssue",
+      "code": "qty",
+      "name": "투입량",
+      "data_type": "DECIMAL",
+      "source_column": "mes.material_issue.qty",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "MaterialIssue",
+      "code": "unit",
+      "name": "단위",
+      "data_type": "STRING",
+      "source_column": "mes.material_issue.unit",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "MaterialIssue",
+      "code": "issued_at",
+      "name": "투입 시각",
+      "data_type": "DATETIME",
+      "source_column": "mes.material_issue.issued_at",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Downtime",
+      "code": "downtime_id",
+      "name": "비가동 번호",
+      "data_type": "STRING",
+      "source_column": "mes.downtime.downtime_id",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Downtime",
+      "code": "equipment_code",
+      "name": "멈춘 설비 코드",
+      "data_type": "STRING",
+      "source_column": "mes.downtime.equipment_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Downtime",
+      "code": "wo_no",
+      "name": "당시 작업지시",
+      "data_type": "STRING",
+      "source_column": "mes.downtime.wo_no",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Downtime",
+      "code": "reason_code",
+      "name": "사유 코드",
+      "data_type": "STRING",
+      "source_column": "mes.downtime.reason_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Downtime",
+      "code": "reason",
+      "name": "사유 설명",
+      "data_type": "STRING",
+      "source_column": "mes.downtime.reason",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Downtime",
+      "code": "started_at",
+      "name": "시작 시각",
+      "data_type": "DATETIME",
+      "source_column": "mes.downtime.started_at",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Downtime",
+      "code": "ended_at",
+      "name": "종료 시각",
+      "data_type": "DATETIME",
+      "source_column": "mes.downtime.ended_at",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Downtime",
+      "code": "minutes",
+      "name": "비가동 시간",
+      "data_type": "INTEGER",
+      "source_column": "mes.downtime.minutes",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SensorReading",
+      "code": "equipment_code",
+      "name": "설비 코드",
+      "data_type": "STRING",
+      "source_column": "mes.sensor_reading.equipment_code",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SensorReading",
+      "code": "measured_at",
+      "name": "측정 시각",
+      "data_type": "DATETIME",
+      "source_column": "mes.sensor_reading.measured_at",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SensorReading",
+      "code": "metric",
+      "name": "측정 항목",
+      "data_type": "STRING",
+      "source_column": "mes.sensor_reading.metric",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SensorReading",
+      "code": "value",
+      "name": "측정값",
+      "data_type": "DECIMAL",
+      "source_column": "mes.sensor_reading.value",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "SensorReading",
+      "code": "threshold_high",
+      "name": "경고 상한",
+      "data_type": "DECIMAL",
+      "source_column": "mes.sensor_reading.threshold_high",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Defect",
+      "code": "defect_id",
+      "name": "불량 번호",
+      "data_type": "INTEGER",
+      "source_column": "mes.defect.defect_id",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Defect",
+      "code": "wo_no",
+      "name": "작업지시 번호",
+      "data_type": "STRING",
+      "source_column": "mes.defect.wo_no",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Defect",
+      "code": "op_seq",
+      "name": "발생 공정",
+      "data_type": "INTEGER",
+      "source_column": "mes.defect.op_seq",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Defect",
+      "code": "equipment_code",
+      "name": "발생 설비 코드",
+      "data_type": "STRING",
+      "source_column": "mes.defect.equipment_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Defect",
+      "code": "defect_type",
+      "name": "불량 유형",
+      "data_type": "STRING",
+      "source_column": "mes.defect.defect_type",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Defect",
+      "code": "qty",
+      "name": "불량 수량",
+      "data_type": "INTEGER",
+      "source_column": "mes.defect.qty",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Defect",
+      "code": "disposition",
+      "name": "처리",
+      "data_type": "STRING",
+      "source_column": "mes.defect.disposition",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Defect",
+      "code": "detected_at",
+      "name": "발견 시각",
+      "data_type": "DATETIME",
+      "source_column": "mes.defect.detected_at",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Defect",
+      "code": "detected_by",
+      "name": "발견 작업자 번호",
+      "data_type": "STRING",
+      "source_column": "mes.defect.detected_by",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Inspection",
+      "code": "inspection_id",
+      "name": "검사 번호",
+      "data_type": "INTEGER",
+      "source_column": "mes.inspection.inspection_id",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Inspection",
+      "code": "wo_no",
+      "name": "작업지시 번호",
+      "data_type": "STRING",
+      "source_column": "mes.inspection.wo_no",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Inspection",
+      "code": "lot_no",
+      "name": "검사 제품 로트",
+      "data_type": "STRING",
+      "source_column": "mes.inspection.lot_no",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Inspection",
+      "code": "inspection_type",
+      "name": "검사 종류",
+      "data_type": "STRING",
+      "source_column": "mes.inspection.inspection_type",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Inspection",
+      "code": "item",
+      "name": "검사 항목",
+      "data_type": "STRING",
+      "source_column": "mes.inspection.item",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Inspection",
+      "code": "spec_low",
+      "name": "규격 하한",
+      "data_type": "DECIMAL",
+      "source_column": "mes.inspection.spec_low",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Inspection",
+      "code": "spec_high",
+      "name": "규격 상한",
+      "data_type": "DECIMAL",
+      "source_column": "mes.inspection.spec_high",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Inspection",
+      "code": "measured",
+      "name": "측정값",
+      "data_type": "DECIMAL",
+      "source_column": "mes.inspection.measured",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Inspection",
+      "code": "result",
+      "name": "판정",
+      "data_type": "STRING",
+      "source_column": "mes.inspection.result",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Inspection",
+      "code": "inspected_at",
+      "name": "검사 시각",
+      "data_type": "DATETIME",
+      "source_column": "mes.inspection.inspected_at",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Die",
+      "code": "die_code",
+      "name": "금형 코드",
+      "data_type": "STRING",
+      "source_column": "mes.die.die_code",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Die",
+      "code": "drawing_code",
+      "name": "금형 도면 번호",
+      "data_type": "STRING",
+      "source_column": "mes.die.drawing_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Die",
+      "code": "product_code",
+      "name": "생산 제품 코드",
+      "data_type": "STRING",
+      "source_column": "mes.die.product_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Die",
+      "code": "total_strokes",
+      "name": "누적 타수",
+      "data_type": "INTEGER",
+      "source_column": "mes.die.total_strokes",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Die",
+      "code": "pm_interval_strokes",
+      "name": "정비 주기",
+      "data_type": "INTEGER",
+      "source_column": "mes.die.pm_interval_strokes",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Die",
+      "code": "last_pm_at",
+      "name": "마지막 정비일",
+      "data_type": "DATE",
+      "source_column": "mes.die.last_pm_at",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Die",
+      "code": "status",
+      "name": "상태",
+      "data_type": "STRING",
+      "source_column": "mes.die.status",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "Die",
+      "code": "location",
+      "name": "보관 위치",
+      "data_type": "STRING",
+      "source_column": "mes.die.location",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "MaintenanceOrder",
+      "code": "mo_no",
+      "name": "정비 번호",
+      "data_type": "STRING",
+      "source_column": "mes.maintenance_order.mo_no",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "MaintenanceOrder",
+      "code": "target_type",
+      "name": "정비 대상 구분",
+      "data_type": "STRING",
+      "source_column": "mes.maintenance_order.target_type",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "MaintenanceOrder",
+      "code": "target_code",
+      "name": "정비 대상 코드",
+      "data_type": "STRING",
+      "source_column": "mes.maintenance_order.target_code",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "MaintenanceOrder",
+      "code": "mo_type",
+      "name": "정비 종류",
+      "data_type": "STRING",
+      "source_column": "mes.maintenance_order.mo_type",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "MaintenanceOrder",
+      "code": "status",
+      "name": "상태",
+      "data_type": "STRING",
+      "source_column": "mes.maintenance_order.status",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "MaintenanceOrder",
+      "code": "planned_date",
+      "name": "계획일",
+      "data_type": "DATE",
+      "source_column": "mes.maintenance_order.planned_date",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "MaintenanceOrder",
+      "code": "completed_at",
+      "name": "완료 시각",
+      "data_type": "DATETIME",
+      "source_column": "mes.maintenance_order.completed_at",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "MaintenanceOrder",
+      "code": "technician",
+      "name": "담당 부서",
+      "data_type": "STRING",
+      "source_column": "mes.maintenance_order.technician",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": true,
+      "level": "must"
+    },
+    {
+      "object_type": "MaintenanceOrder",
+      "code": "parts_cost",
+      "name": "부품비",
+      "data_type": "DECIMAL",
+      "source_column": "mes.maintenance_order.parts_cost",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "MaintenanceOrder",
+      "code": "note",
+      "name": "작업 내용",
+      "data_type": "STRING",
+      "source_column": "mes.maintenance_order.note",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "HandoverNote",
+      "code": "note_id",
+      "name": "메모 번호",
+      "data_type": "STRING",
+      "source_column": "mes.handover_note.note_id",
+      "value_map": null,
+      "is_identifier": true,
+      "is_required": true,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "HandoverNote",
+      "code": "shift_date",
+      "name": "교대가 시작한 날",
+      "data_type": "DATE",
+      "source_column": "mes.handover_note.shift_date",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "HandoverNote",
+      "code": "shift",
+      "name": "교대",
+      "data_type": "STRING",
+      "source_column": "mes.handover_note.shift",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "HandoverNote",
+      "code": "author_id",
+      "name": "작성 작업자 번호",
+      "data_type": "STRING",
+      "source_column": "mes.handover_note.author_id",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": true,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "HandoverNote",
+      "code": "written_at",
+      "name": "작성 시각",
+      "data_type": "DATETIME",
+      "source_column": "mes.handover_note.written_at",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    },
+    {
+      "object_type": "HandoverNote",
+      "code": "content",
+      "name": "메모 원문",
+      "data_type": "STRING",
+      "source_column": "mes.handover_note.content",
+      "value_map": null,
+      "is_identifier": false,
+      "is_required": null,
+      "is_reference": false,
+      "is_personal": false,
+      "level": "must"
+    }
+  ],
+  "link_types": [
+    {
+      "code": "purchase_order_vendor_code",
+      "name": "erp.purchase_order.vendor_code → erp.vendor.vendor_code",
+      "source_type": "PurchaseOrder",
+      "target_type": "Vendor",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.purchase_order.vendor_code",
+        "to": "erp.vendor.vendor_code",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "purchase_order_line_po_no",
+      "name": "erp.purchase_order_line.po_no → erp.purchase_order.po_no",
+      "source_type": "PurchaseOrderLine",
+      "target_type": "PurchaseOrder",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.purchase_order_line.po_no",
+        "to": "erp.purchase_order.po_no",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must",
+      "note": "업무상 발주 1건에 상세 여러 줄(1:N). 이 데이터는 발주마다 상세가 1줄뿐이라 값만 보면 1:1로 보인다"
+    },
+    {
+      "code": "purchase_order_line_item_code",
+      "name": "erp.purchase_order_line.item_code → erp.item.item_code",
+      "source_type": "PurchaseOrderLine",
+      "target_type": "Item",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.purchase_order_line.item_code",
+        "to": "erp.item.item_code",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "goods_receipt_po_no",
+      "name": "erp.goods_receipt.po_no → erp.purchase_order.po_no",
+      "source_type": "GoodsReceipt",
+      "target_type": "PurchaseOrder",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.goods_receipt.po_no",
+        "to": "erp.purchase_order.po_no",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "goods_receipt_item_code",
+      "name": "erp.goods_receipt.item_code → erp.item.item_code",
+      "source_type": "GoodsReceipt",
+      "target_type": "Item",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.goods_receipt.item_code",
+        "to": "erp.item.item_code",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "goods_receipt_po_no_item_code",
+      "name": "erp.goods_receipt.po_no + erp.goods_receipt.item_code → erp.purchase_order_line.po_no + erp.purchase_order_line.item_code",
+      "source_type": "GoodsReceipt",
+      "target_type": "PurchaseOrderLine",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": [
+          "erp.goods_receipt.po_no",
+          "erp.goods_receipt.item_code"
+        ],
+        "to": [
+          "erp.purchase_order_line.po_no",
+          "erp.purchase_order_line.item_code"
+        ],
+        "key": "alternate"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "goods_receipt_inspector",
+      "name": "erp.goods_receipt.inspector → erp.department.dept_name",
+      "source_type": "GoodsReceipt",
+      "target_type": "Department",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.goods_receipt.inspector",
+        "to": "erp.department.dept_name",
+        "key": "alternate"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "purchase_order_buyer",
+      "name": "erp.purchase_order.buyer → erp.department.dept_name",
+      "source_type": "PurchaseOrder",
+      "target_type": "Department",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.purchase_order.buyer",
+        "to": "erp.department.dept_name",
+        "key": "alternate"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "stock_item_code",
+      "name": "erp.stock.item_code → erp.item.item_code",
+      "source_type": "Stock",
+      "target_type": "Item",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.stock.item_code",
+        "to": "erp.item.item_code",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "sales_order_customer_code",
+      "name": "erp.sales_order.customer_code → erp.vendor.vendor_code",
+      "source_type": "SalesOrder",
+      "target_type": "Vendor",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.sales_order.customer_code",
+        "to": "erp.vendor.vendor_code",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "sales_order_sales_rep",
+      "name": "erp.sales_order.sales_rep → erp.department.dept_name",
+      "source_type": "SalesOrder",
+      "target_type": "Department",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.sales_order.sales_rep",
+        "to": "erp.department.dept_name",
+        "key": "alternate"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "sales_order_line_so_no",
+      "name": "erp.sales_order_line.so_no → erp.sales_order.so_no",
+      "source_type": "SalesOrderLine",
+      "target_type": "SalesOrder",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.sales_order_line.so_no",
+        "to": "erp.sales_order.so_no",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "sales_order_line_item_code",
+      "name": "erp.sales_order_line.item_code → erp.item.item_code",
+      "source_type": "SalesOrderLine",
+      "target_type": "Item",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.sales_order_line.item_code",
+        "to": "erp.item.item_code",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "shipment_so_no",
+      "name": "erp.shipment.so_no → erp.sales_order.so_no",
+      "source_type": "Shipment",
+      "target_type": "SalesOrder",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.shipment.so_no",
+        "to": "erp.sales_order.so_no",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "shipment_item_code",
+      "name": "erp.shipment.item_code → erp.item.item_code",
+      "source_type": "Shipment",
+      "target_type": "Item",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.shipment.item_code",
+        "to": "erp.item.item_code",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "shipment_so_no_item_code",
+      "name": "erp.shipment.so_no + erp.shipment.item_code → erp.sales_order_line.so_no + erp.sales_order_line.item_code",
+      "source_type": "Shipment",
+      "target_type": "SalesOrderLine",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": [
+          "erp.shipment.so_no",
+          "erp.shipment.item_code"
+        ],
+        "to": [
+          "erp.sales_order_line.so_no",
+          "erp.sales_order_line.item_code"
+        ],
+        "key": "alternate"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "sales_invoice_customer_code",
+      "name": "erp.sales_invoice.customer_code → erp.vendor.vendor_code",
+      "source_type": "SalesInvoice",
+      "target_type": "Vendor",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.sales_invoice.customer_code",
+        "to": "erp.vendor.vendor_code",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "purchase_invoice_vendor_code",
+      "name": "erp.purchase_invoice.vendor_code → erp.vendor.vendor_code",
+      "source_type": "PurchaseInvoice",
+      "target_type": "Vendor",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.purchase_invoice.vendor_code",
+        "to": "erp.vendor.vendor_code",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "journal_entry_account_code",
+      "name": "erp.journal_entry.account_code → erp.gl_account.account_code",
+      "source_type": "JournalEntry",
+      "target_type": "GlAccount",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.journal_entry.account_code",
+        "to": "erp.gl_account.account_code",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "journal_entry_vendor_code",
+      "name": "erp.journal_entry.vendor_code → erp.vendor.vendor_code",
+      "source_type": "JournalEntry",
+      "target_type": "Vendor",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.journal_entry.vendor_code",
+        "to": "erp.vendor.vendor_code",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "employee_dept_code",
+      "name": "erp.employee.dept_code → erp.department.dept_code",
+      "source_type": "Employee",
+      "target_type": "Department",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.employee.dept_code",
+        "to": "erp.department.dept_code",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "department_parent_code",
+      "name": "erp.department.parent_code → erp.department.dept_code",
+      "source_type": "Department",
+      "target_type": "Department",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.department.parent_code",
+        "to": "erp.department.dept_code",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "department_manager_emp_no",
+      "name": "erp.department.manager_emp_no → erp.employee.emp_no",
+      "source_type": "Department",
+      "target_type": "Employee",
+      "cardinality": "ONE_TO_ONE",
+      "via": {
+        "from": "erp.department.manager_emp_no",
+        "to": "erp.employee.emp_no",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "attendance_emp_no",
+      "name": "erp.attendance.emp_no → erp.employee.emp_no",
+      "source_type": "Attendance",
+      "target_type": "Employee",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "erp.attendance.emp_no",
+        "to": "erp.employee.emp_no",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "fixed_asset_equipment_code",
+      "name": "erp.fixed_asset.equipment_code → mes.equipment.code",
+      "source_type": "FixedAsset",
+      "target_type": "Equipment",
+      "cardinality": "ONE_TO_ONE",
+      "via": {
+        "from": "erp.fixed_asset.equipment_code",
+        "to": "mes.equipment.code",
+        "key": "primary"
+      },
+      "mapping_rule": "R-ASSET",
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "worker_id",
+      "name": "mes.worker.id → erp.employee.emp_no",
+      "source_type": "Worker",
+      "target_type": "Employee",
+      "cardinality": "ONE_TO_ONE",
+      "via": {
+        "from": "mes.worker.id",
+        "to": "erp.employee.emp_no",
+        "key": "primary"
+      },
+      "mapping_rule": "R-W",
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "routing_product_code",
+      "name": "mes.routing.product_code → erp.item.item_code",
+      "source_type": "Routing",
+      "target_type": "Item",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.routing.product_code",
+        "to": "erp.item.item_code",
+        "key": "primary"
+      },
+      "mapping_rule": "R-ITEM",
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "routing_equipment_kind",
+      "name": "mes.routing.equipment_kind → mes.equipment.kind",
+      "source_type": "Routing",
+      "target_type": "Equipment",
+      "cardinality": "MANY_TO_MANY",
+      "via": {
+        "from": "mes.routing.equipment_kind",
+        "to": "mes.equipment.kind",
+        "key": "none"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must",
+      "note": "특정 설비가 아니라 설비 종류를 가리킴"
+    },
+    {
+      "code": "work_order_product_code",
+      "name": "mes.work_order.product_code → erp.item.item_code",
+      "source_type": "WorkOrder",
+      "target_type": "Item",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.work_order.product_code",
+        "to": "erp.item.item_code",
+        "key": "primary"
+      },
+      "mapping_rule": "R-ITEM",
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "work_order_so_ref",
+      "name": "mes.work_order.so_ref → erp.sales_order.so_no",
+      "source_type": "WorkOrder",
+      "target_type": "SalesOrder",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.work_order.so_ref",
+        "to": "erp.sales_order.so_no",
+        "key": "primary"
+      },
+      "mapping_rule": "R-SO",
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "work_order_die_drawing_code",
+      "name": "mes.work_order.die_drawing_code → mes.die.drawing_code",
+      "source_type": "WorkOrder",
+      "target_type": "Die",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.work_order.die_drawing_code",
+        "to": "mes.die.drawing_code",
+        "key": "alternate"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "work_order_operation_wo_no",
+      "name": "mes.work_order_operation.wo_no → mes.work_order.wo_no",
+      "source_type": "WorkOrderOperation",
+      "target_type": "WorkOrder",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.work_order_operation.wo_no",
+        "to": "mes.work_order.wo_no",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "work_order_operation_wo_no_op_seq_routing",
+      "name": "mes.work_order_operation.wo_no + mes.work_order_operation.op_seq → mes.routing.product_code + mes.routing.op_seq",
+      "source_type": "WorkOrderOperation",
+      "target_type": "Routing",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": [
+          "mes.work_order_operation.wo_no",
+          "mes.work_order_operation.op_seq"
+        ],
+        "to": [
+          "mes.routing.product_code",
+          "mes.routing.op_seq"
+        ],
+        "key": "primary",
+        "through": {
+          "match": "mes.work_order.wo_no",
+          "take": "mes.work_order.product_code"
+        }
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must",
+      "note": "작업지시의 품목 코드를 거쳐 라우팅 한 줄을 가리킴"
+    },
+    {
+      "code": "work_order_operation_equipment_code",
+      "name": "mes.work_order_operation.equipment_code → mes.equipment.code",
+      "source_type": "WorkOrderOperation",
+      "target_type": "Equipment",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.work_order_operation.equipment_code",
+        "to": "mes.equipment.code",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "production_result_wo_no",
+      "name": "mes.production_result.wo_no → mes.work_order.wo_no",
+      "source_type": "ProductionResult",
+      "target_type": "WorkOrder",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.production_result.wo_no",
+        "to": "mes.work_order.wo_no",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "production_result_wo_no_op_seq",
+      "name": "mes.production_result.wo_no + mes.production_result.op_seq → mes.work_order_operation.wo_no + mes.work_order_operation.op_seq",
+      "source_type": "ProductionResult",
+      "target_type": "WorkOrderOperation",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": [
+          "mes.production_result.wo_no",
+          "mes.production_result.op_seq"
+        ],
+        "to": [
+          "mes.work_order_operation.wo_no",
+          "mes.work_order_operation.op_seq"
+        ],
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "production_result_wo_no_op_seq_routing",
+      "name": "mes.production_result.wo_no + mes.production_result.op_seq → mes.routing.product_code + mes.routing.op_seq",
+      "source_type": "ProductionResult",
+      "target_type": "Routing",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": [
+          "mes.production_result.wo_no",
+          "mes.production_result.op_seq"
+        ],
+        "to": [
+          "mes.routing.product_code",
+          "mes.routing.op_seq"
+        ],
+        "key": "primary",
+        "through": {
+          "match": "mes.work_order.wo_no",
+          "take": "mes.work_order.product_code"
+        }
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must",
+      "note": "작업지시의 품목 코드를 거쳐 라우팅 한 줄을 가리킴"
+    },
+    {
+      "code": "production_result_equipment_code",
+      "name": "mes.production_result.equipment_code → mes.equipment.code",
+      "source_type": "ProductionResult",
+      "target_type": "Equipment",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.production_result.equipment_code",
+        "to": "mes.equipment.code",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "production_result_worker_id",
+      "name": "mes.production_result.worker_id → mes.worker.id",
+      "source_type": "ProductionResult",
+      "target_type": "Worker",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.production_result.worker_id",
+        "to": "mes.worker.id",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "material_issue_wo_no",
+      "name": "mes.material_issue.wo_no → mes.work_order.wo_no",
+      "source_type": "MaterialIssue",
+      "target_type": "WorkOrder",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.material_issue.wo_no",
+        "to": "mes.work_order.wo_no",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "material_issue_item_code",
+      "name": "mes.material_issue.item_code → erp.item.item_code",
+      "source_type": "MaterialIssue",
+      "target_type": "Item",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.material_issue.item_code",
+        "to": "erp.item.item_code",
+        "key": "primary"
+      },
+      "mapping_rule": "R-ITEM",
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "downtime_equipment_code",
+      "name": "mes.downtime.equipment_code → mes.equipment.code",
+      "source_type": "Downtime",
+      "target_type": "Equipment",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.downtime.equipment_code",
+        "to": "mes.equipment.code",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "downtime_wo_no",
+      "name": "mes.downtime.wo_no → mes.work_order.wo_no",
+      "source_type": "Downtime",
+      "target_type": "WorkOrder",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.downtime.wo_no",
+        "to": "mes.work_order.wo_no",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "sensor_reading_equipment_code",
+      "name": "mes.sensor_reading.equipment_code → mes.equipment.code",
+      "source_type": "SensorReading",
+      "target_type": "Equipment",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.sensor_reading.equipment_code",
+        "to": "mes.equipment.code",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "defect_wo_no",
+      "name": "mes.defect.wo_no → mes.work_order.wo_no",
+      "source_type": "Defect",
+      "target_type": "WorkOrder",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.defect.wo_no",
+        "to": "mes.work_order.wo_no",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "defect_wo_no_op_seq",
+      "name": "mes.defect.wo_no + mes.defect.op_seq → mes.work_order_operation.wo_no + mes.work_order_operation.op_seq",
+      "source_type": "Defect",
+      "target_type": "WorkOrderOperation",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": [
+          "mes.defect.wo_no",
+          "mes.defect.op_seq"
+        ],
+        "to": [
+          "mes.work_order_operation.wo_no",
+          "mes.work_order_operation.op_seq"
+        ],
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "defect_wo_no_op_seq_routing",
+      "name": "mes.defect.wo_no + mes.defect.op_seq → mes.routing.product_code + mes.routing.op_seq",
+      "source_type": "Defect",
+      "target_type": "Routing",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": [
+          "mes.defect.wo_no",
+          "mes.defect.op_seq"
+        ],
+        "to": [
+          "mes.routing.product_code",
+          "mes.routing.op_seq"
+        ],
+        "key": "primary",
+        "through": {
+          "match": "mes.work_order.wo_no",
+          "take": "mes.work_order.product_code"
+        }
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must",
+      "note": "작업지시의 품목 코드를 거쳐 라우팅 한 줄을 가리킴"
+    },
+    {
+      "code": "defect_equipment_code",
+      "name": "mes.defect.equipment_code → mes.equipment.code",
+      "source_type": "Defect",
+      "target_type": "Equipment",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.defect.equipment_code",
+        "to": "mes.equipment.code",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "defect_detected_by",
+      "name": "mes.defect.detected_by → mes.worker.id",
+      "source_type": "Defect",
+      "target_type": "Worker",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.defect.detected_by",
+        "to": "mes.worker.id",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "inspection_wo_no",
+      "name": "mes.inspection.wo_no → mes.work_order.wo_no",
+      "source_type": "Inspection",
+      "target_type": "WorkOrder",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.inspection.wo_no",
+        "to": "mes.work_order.wo_no",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "die_product_code",
+      "name": "mes.die.product_code → erp.item.item_code",
+      "source_type": "Die",
+      "target_type": "Item",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.die.product_code",
+        "to": "erp.item.item_code",
+        "key": "primary"
+      },
+      "mapping_rule": "R-ITEM",
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "maintenance_order_target_code_equipment",
+      "name": "mes.maintenance_order.target_code → mes.equipment.code",
+      "source_type": "MaintenanceOrder",
+      "target_type": "Equipment",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.maintenance_order.target_code",
+        "to": "mes.equipment.code",
+        "key": "primary",
+        "condition": {
+          "column": "mes.maintenance_order.target_type",
+          "equals": "설비"
+        }
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "maintenance_order_target_code_die",
+      "name": "mes.maintenance_order.target_code → mes.die.die_code",
+      "source_type": "MaintenanceOrder",
+      "target_type": "Die",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.maintenance_order.target_code",
+        "to": "mes.die.die_code",
+        "key": "primary",
+        "condition": {
+          "column": "mes.maintenance_order.target_type",
+          "equals": "금형"
+        }
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "maintenance_order_technician",
+      "name": "mes.maintenance_order.technician → erp.department.dept_name",
+      "source_type": "MaintenanceOrder",
+      "target_type": "Department",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.maintenance_order.technician",
+        "to": "erp.department.dept_name",
+        "key": "alternate"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must",
+      "known_unmatched": [
+        {
+          "value": "홍보람",
+          "reason": "팀 대신 담당 직원 이름으로 적힘"
+        }
+      ]
+    },
+    {
+      "code": "handover_note_author_id",
+      "name": "mes.handover_note.author_id → mes.worker.id",
+      "source_type": "HandoverNote",
+      "target_type": "Worker",
+      "cardinality": "MANY_TO_ONE",
+      "via": {
+        "from": "mes.handover_note.author_id",
+        "to": "mes.worker.id",
+        "key": "primary"
+      },
+      "mapping_rule": null,
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "shipment_lot_no",
+      "name": "erp.shipment.lot_no → mes.inspection.lot_no",
+      "source_type": "Shipment",
+      "target_type": "Inspection",
+      "cardinality": "ONE_TO_ONE",
+      "via": {
+        "from": "erp.shipment.lot_no",
+        "to": "mes.inspection.lot_no",
+        "key": "alternate"
+      },
+      "mapping_rule": "R-LOT",
+      "derived_from": "column",
+      "level": "must"
+    },
+    {
+      "code": "mentions_equipment",
+      "name": "mentions_equipment",
+      "source_type": "HandoverNote",
+      "target_type": "Equipment",
+      "cardinality": "MANY_TO_MANY",
+      "via": null,
+      "mapping_rule": "R-ALIAS",
+      "derived_from": "text",
+      "level": "must"
+    },
+    {
+      "code": "refers_maintenance",
+      "name": "refers_maintenance",
+      "source_type": "HandoverNote",
+      "target_type": "MaintenanceOrder",
+      "cardinality": "MANY_TO_MANY",
+      "via": null,
+      "mapping_rule": null,
+      "derived_from": "text",
+      "level": "must"
+    },
+    {
+      "code": "about_work_order",
+      "name": "about_work_order",
+      "source_type": "HandoverNote",
+      "target_type": "WorkOrder",
+      "cardinality": "MANY_TO_MANY",
+      "via": null,
+      "mapping_rule": null,
+      "derived_from": "text",
+      "level": "must"
+    },
+    {
+      "code": "about_lot",
+      "name": "about_lot",
+      "source_type": "HandoverNote",
+      "target_type": "Shipment",
+      "cardinality": "MANY_TO_MANY",
+      "via": null,
+      "mapping_rule": null,
+      "derived_from": "text",
+      "level": "must"
+    }
+  ]
+}

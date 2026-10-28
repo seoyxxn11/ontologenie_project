@@ -1,0 +1,128 @@
+[
+  {
+    "rule_id": "R-SO",
+    "rule_type": "transform",
+    "from": "mes.work_order.so_ref",
+    "to": "erp.sales_order.so_no",
+    "description": "양쪽에서 숫자만 남겨 비교함. 2610021 = OD-2610-021",
+    "examples": [
+      {
+        "from": "2610021",
+        "to": "OD-2610-021"
+      },
+      {
+        "from": "OD-2608-030",
+        "to": "OD-2608-030"
+      }
+    ],
+    "notes": "일부는 이미 ERP 표기로 입력됨. 빈 값·없는 번호 사례 포함",
+    "reference_transforms": {
+      "source_transforms": [
+        {
+          "op": "EXTRACT_NUMBER",
+          "arg": null
+        }
+      ],
+      "target_transforms": [
+        {
+          "op": "EXTRACT_NUMBER",
+          "arg": null
+        }
+      ]
+    }
+  },
+  {
+    "rule_id": "R-W",
+    "rule_type": "transform",
+    "from": "mes.worker.id",
+    "to": "erp.employee.emp_no",
+    "description": "번호를 4자리로 0 채우고 앞에 GP를 붙임",
+    "examples": [
+      {
+        "from": "31",
+        "to": "GP0031"
+      }
+    ],
+    "notes": "작업자 57 → GP0057은 직원 표에 없음(검사 K2)",
+    "reference_transforms": {
+      "source_transforms": [
+        {
+          "op": "PAD_ZEROS",
+          "arg": 4
+        },
+        {
+          "op": "ADD_PREFIX",
+          "arg": "GP"
+        }
+      ],
+      "target_transforms": []
+    }
+  },
+  {
+    "rule_id": "R-ASSET",
+    "rule_type": "mapping_column",
+    "from": "erp.fixed_asset.equipment_code",
+    "to": "mes.equipment.code",
+    "description": "자산 표의 설비 코드 칸을 그대로 비교함",
+    "examples": [
+      {
+        "from": "P103",
+        "to": "P103"
+      }
+    ],
+    "notes": "설비가 아닌 자산은 빈 값이 정상. P201 자산은 오타 P2O1",
+    "reference_transforms": {
+      "source_transforms": [],
+      "target_transforms": []
+    }
+  },
+  {
+    "rule_id": "R-ITEM",
+    "rule_type": "same_value",
+    "from": "mes.*.product_code",
+    "to": "erp.item.item_code",
+    "description": "제품·자재 코드를 그대로 비교함",
+    "examples": [
+      {
+        "from": "BRK-210L",
+        "to": "BRK-210L"
+      }
+    ],
+    "notes": "금형의 제품 BRK-990T는 품목 마스터에 없음(검사 K4)",
+    "reference_transforms": {
+      "source_transforms": [],
+      "target_transforms": []
+    }
+  },
+  {
+    "rule_id": "R-LOT",
+    "rule_type": "same_value",
+    "from": "erp.shipment.lot_no",
+    "to": "mes.inspection.lot_no",
+    "description": "출하 로트와 최종 검사 로트를 그대로 비교함",
+    "examples": [],
+    "notes": "최근 출하 로트 하나는 검사 기록 없음",
+    "reference_transforms": {
+      "source_transforms": [],
+      "target_transforms": []
+    }
+  },
+  {
+    "rule_id": "R-ALIAS",
+    "rule_type": "name_alias",
+    "from": "mes.handover_note.content",
+    "to": "mes.equipment.code",
+    "description": "설비 이름·'L라인 N호'·'L-N호'·코드 표기를 설비 코드로 연결함",
+    "examples": [
+      {
+        "from": "1라인 3호 프레스",
+        "to": "P103"
+      },
+      {
+        "from": "3호기",
+        "to": "P103"
+      }
+    ],
+    "notes": "'1호기'는 1라인·2라인 1호 프레스가 모두 있어 후보가 여럿이다."
+  }
+]
