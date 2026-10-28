@@ -1,0 +1,93 @@
+# 분석 연동 (FastAPI 쪽)
+
+- 기준: 노션 "API 명세서"의 API 공통 규칙, 018 분석 실행, 105 분석 결과 내부 저장, 043 모델 요약 (모두 초안, 2026-10-27 확인)
+- 후보 샘플: `results/proposals-v1.0.api.json` (data-v1.0 전체를 분석한 105 요청 본문)
+
+## 1. 흐름
+
+| 순서 | 처리 | 위치 |
+| --- | --- | --- |
+| 1 | 화면에서 분석 실행(018) → `analysis_run`을 QUEUED로 만듦 | Spring |
+| 2 | FastAPI에 시작 알림 (3절, 명세에 아직 없음) | Spring → FastAPI |
+| 3 | 105로 `RUNNING` 보냄 | FastAPI → Spring |
+| 4 | AI 계정으로 고른 표·컬럼만 읽어 분석 | FastAPI |
+| 5 | 105로 `SUCCEEDED` + 후보, 또는 `FAILED` + 사유 | FastAPI → Spring |
+| 6 | 후보 저장(검토 상태 PENDING), 화면 조회는 019·020 | Spring |
+
+- FastAPI는 플랫폼 DB에 쓰지 않고 실행 상태도 저장하지 않습니다. 상태는 Spring의 `analysis_run`이 가집니다.
+- 원천 연결 검사·표본·매핑 미리보기는 배치가 합니다. FastAPI는 AI 분석 때만 원천을 읽습니다.
+- 내부 API(`/api/v1/internal/**`)는 `X-Internal-Token` 헤더를 붙여 부릅니다. 토큰 값은 환경변수 `AI_ONTOLOGY_INTERNAL_TOKEN`, 백엔드 주소는 `AI_ONTOLOGY_BACKEND_URL`입니다.
+
+## 2. FastAPI가 부르는 백엔드 API
+
+| API | 언제 | 보내는 것 |
+| --- | --- | --- |
+| 105 `POST /api/v1/internal/analyses/{id}/results` | 시작·끝·실패 | `status`, `resultSummary`, `proposals[]` 또는 `errorMessage` |
+| 043 `GET /api/v1/internal/ontology/model-summary` | 분석 전 | 없음. 이미 있는 정의와 같은 후보를 내지 않으려고 받음. 실패하면 빈 요약으로 계속함 |
+
+**105 `proposals[]` 한 건**
+
+| 필드 | 내용 |
+| --- | --- |
+| `itemKind` | OBJECT_TYPE · PROPERTY · LINK_TYPE · OBJECT_MAPPING · PROPERTY_MAPPING · LINK_RULE · DOCUMENT_LINK |
+| `payload` | 후보 내용. 객체·관계 유형 코드는 대문자(`WORK_ORDER`), 속성은 컬럼 이름 그대로 |
+| `evidence` | 아래 표 |
+| `aiConfidence` | 0~1. 근거 신호 점수의 합이고 정답 확률이 아님. 매칭률과 섞지 않음 |
+| `options[]` | 같은 대상에 후보가 여럿일 때 `{optionNo, payload, evidence, aiConfidence}` |
+
+**`evidence` 안 (105는 evidence를 객체로만 받으므로 검토에 필요한 것을 여기에 담습니다)**
+
+| 필드 | 내용 |
+| --- | --- |
+| `reason`, `title` | 제안 이유, 화면 제목 |
+| `items[]` | 근거 `{sourceId, locator, snippet, values, verified}`. 원천에서 다시 확인한 것만 |
+| `confidenceItems[]`, `confidenceCap` | 신뢰도 점수 내역, 보류 상한 `{cap, reason}` |
+| `holdRecommended`, `holdReason` | AI의 보류 권고. 105는 PENDING으로 저장하므로 권고로만 남음 |
+| `method`, `llmJudgement` | `rule` · `llm` · `rule+llm`, LLM 판단 문장(점수에는 넣지 않음) |
+| `candidateId`, `fingerprint` | 재분석 비교·과거 결정 대조용 후보 ID와 payload 지문 |
+| `changeType` | 재분석에서만. ADDED · CHANGED · UNCHANGED |
+
+DOCUMENT_LINK `payload.expressionKind`는 OBSERVED(확인) · ESTIMATED(추정)입니다. 관찰이 모두 부정인 언급은 연결하지 않습니다.
+
+LINK_RULE `payload.conditions[].sourceVia` (명세에 없음, 백엔드와 합의 필요): `{matchProperty, takeProperty}`. 출발 값으로 `matchProperty`가 같은 객체를 찾아 그 `takeProperty` 값을 비교합니다. 예를 들어 공정 실적의 `wo_no`로 `WORK_ORDER.wo_no`를 찾고, 그 `WORK_ORDER.product_code`를 `ROUTING.product_code`와 비교합니다. 관계 개수 `MANY_TO_MANY`는 도착이 키가 아닌 종류 관계(라우팅 설비 종류 → 설비 종류)에 씁니다.
+
+## 3. 시작 알림 (제안, 명세에 없음)
+
+명세는 "FastAPI가 QUEUED 분석을 시작할 때 105로 RUNNING"이라고만 하고, FastAPI가 실행을 어떻게 알게 되는지는 없습니다. 아래처럼 Spring이 실행을 만든 직후 한 번 알려 주는 방식을 제안합니다.
+
+`POST /internal/v1/analysis-runs` → `202 {runId, accepted}`. 같은 실행이 아직 돌고 있으면 `accepted: false`를 돌려줍니다.
+
+| 필드 | 필수 | 내용 |
+| --- | --- | --- |
+| `runId` | O | `analysis_run.id` |
+| `runKind` | O | INITIAL · REANALYSIS |
+| `targets[]` | O | `{sourceResourceId, dataSourceCode, resourceKey(원천.표), columns, changeSeqFrom, changeSeqTo}`. REANALYSIS면 변경 번호 필수 |
+| `sources[]` | O | `{dataSourceCode, sourceKind(POSTGRES·CSV), connection(AI 계정), schema}`. 접속 정보는 로그·결과에 남기지 않음 |
+| `allowedTransforms` | 선택 | 041 허용 변환. 목록 밖 변환을 쓰는 후보는 내지 않음 |
+| `pastDecisions` | 선택 | `[{candidateId, itemKind, revision, fingerprint 또는 payload, decision, reason}]`. 같은 내용이 승인·거절됐으면 다시 내지 않음 |
+| `previousProposals` | 재분석 | `[{candidateId, fingerprint}]`. 이전 후보 evidence에서 꺼낸 값 |
+| `options.useLlm` | 선택 | false면 코드 분석만 |
+
+## 4. 실패 메시지 (105 `errorMessage`, 019에 그대로 보임)
+
+| 경우 | 메시지 |
+| --- | --- |
+| AI 계정이 고른 표를 못 읽음 | `AI 계정이 이 테이블을 읽을 수 없습니다: mes.employee` (명세 018 E3) |
+| 원천 접속 실패 | `원천에 접속하지 못했습니다` · `원천 계정 인증에 실패했다` 등 (접속 정보 없이) |
+| LLM 답이 모두 형식 오류 | `LLM 답이 형식 검사를 통과하지 못했습니다` |
+| 그 밖 | `분석 중 오류가 났습니다` (자세한 원인은 FastAPI 로그) |
+
+## 5. 정해야 할 것
+
+| 항목 | 제안 |
+| --- | --- |
+| 시작 알림 방식 | 3절. 아니면 FastAPI가 대기 실행을 조회하는 내부 API가 필요함 |
+| AI 계정 접속 정보 전달 | 3절 `sources[].connection`으로 Spring이 복호화해 내부망으로 보냄 |
+| 과거 결정·허용 변환 | 3절 요청에 함께 넣음. 따로 받을 내부 API가 명세에 없음 |
+| 043 응답 형식 | `{objectTypes:[{code}], properties:[{objectTypeCode, code}], linkTypes:[{code}]}`로 가정함 |
+
+## 6. 지금 구현 범위
+
+- 원천: CSV 폴더와 PostgreSQL(읽기 전용). PostgreSQL 드라이버(psycopg)를 설치하기 전이라 가짜 연결로만 테스트했습니다.
+- 고른 표·컬럼만 임시 폴더로 옮겨 분석하고, 끝나면 지웁니다. 기본키는 늘 함께 읽습니다.
+- 재분석: 원천별 `change_log`에서 변경 번호 구간의 행을 보고 바뀐 표·메모만 다시 분석합니다. 이전에 있다가 이번에 안 나온 후보는 판단하지 않습니다.
