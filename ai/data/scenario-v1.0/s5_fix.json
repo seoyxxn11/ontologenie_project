@@ -1,0 +1,46 @@
+{
+  "description": "시나리오 5 원천 수정분. 시연 때 원천 DB에 반영한다(분석 입력 아님).",
+  "changes": [
+    {
+      "table": "erp.fixed_asset",
+      "key": {
+        "asset_no": "FA-0001"
+      },
+      "set": {
+        "equipment_code": "P201"
+      },
+      "resolves": "M-ASSET-TYPO"
+    },
+    {
+      "table": "erp.item",
+      "insert": {
+        "item_code": "BRK-990T",
+        "item_name": "브래킷 시제품",
+        "spec": "시제품",
+        "unit": "EA",
+        "item_type": "FG",
+        "std_price": "0.00",
+        "safety_stock": "0",
+        "use_yn": "Y",
+        "updated_at": "2026-10-31 10:00:00"
+      },
+      "resolves": "K4"
+    }
+  ],
+  "change_log": [
+    {
+      "change_id": 71,
+      "table_name": "fixed_asset",
+      "row_key": "FA-0001",
+      "operation": "UPDATE",
+      "changed_at": "2026-10-31 10:00:00"
+    },
+    {
+      "change_id": 72,
+      "table_name": "item",
+      "row_key": "BRK-990T",
+      "operation": "INSERT",
+      "changed_at": "2026-10-31 10:00:00"
+    }
+  ]
+}
