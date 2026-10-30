@@ -1,0 +1,9 @@
+package com.axcore.platform.ontology.dto;
+
+import jakarta.validation.constraints.Min;
+
+/** API 021 조회 조건. q는 코드·이름·동의어에서 대소문자 없이 찾는다. */
+public record ObjectTypeSearchRequest(
+        String q,
+        @Min(value = 0, message = "page는 0 이상이어야 합니다.") Integer page,
+        @Min(value = 1, message = "size는 1 이상이어야 합니다.") Integer size) {}
