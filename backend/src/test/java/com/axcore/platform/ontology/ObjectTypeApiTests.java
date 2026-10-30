@@ -154,6 +154,11 @@ class ObjectTypeApiTests {
                 .andExpect(jsonPath("$.error.details.expected").value(0))
                 .andExpect(jsonPath("$.error.details.actual").value(1));
 
+        send(admin, patch(BASE_PATH + "/" + id), "{\"name\": \" \"}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details.errors[*].field", hasItem("rowVersion")))
+                .andExpect(jsonPath("$.error.details.errors[*].field", hasItem("name")));
+
         send(admin, patch(BASE_PATH + "/" + id), "{\"description\": null, \"rowVersion\": 1}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.description").isEmpty())

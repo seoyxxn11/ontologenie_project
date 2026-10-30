@@ -42,6 +42,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -96,6 +97,27 @@ class GlobalApiResponseTests {
                 .andExpect(
                         jsonPath("$.error.details.errors[*].field")
                                 .value(containsInAnyOrder("name", "size")));
+    }
+
+    // 경로 변수에 제약이 있으면 Spring이 메서드 단위로 검증한다. 그때도 본문 오류는 칸 이름으로 알린다.
+    @Test
+    void reportsBodyFieldsWhenPathVariableIsAlsoConstrained() throws Exception {
+        mockMvc.perform(
+                        post("/test/body/1")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"name\": \"\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.error.details.errors.length()").value(2))
+                .andExpect(
+                        jsonPath("$.error.details.errors[*].field")
+                                .value(containsInAnyOrder("name", "size")));
+        mockMvc.perform(
+                        post("/test/body/0")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"name\": \"MES\", \"size\": 1}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details.field").value("id"));
     }
 
     @Test
@@ -283,6 +305,12 @@ class GlobalApiResponseTests {
 
         @PostMapping("/body")
         ApiResponse<String> body(@Valid @RequestBody SampleRequest request) {
+            return ApiResponse.of(request.name());
+        }
+
+        @PostMapping("/body/{id}")
+        ApiResponse<String> bodyWithPath(
+                @PathVariable("id") @Min(1) long id, @Valid @RequestBody SampleRequest request) {
             return ApiResponse.of(request.name());
         }
 

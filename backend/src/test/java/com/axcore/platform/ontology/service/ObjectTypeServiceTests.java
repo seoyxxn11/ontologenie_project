@@ -16,6 +16,7 @@ import com.axcore.platform.ontology.dto.ObjectTypeCreateRequest;
 import com.axcore.platform.ontology.dto.ObjectTypeUpdateRequest;
 import com.axcore.platform.ontology.repository.DefinitionReferenceRepository;
 import com.axcore.platform.ontology.repository.ObjectTypeRepository;
+import com.axcore.platform.ontology.repository.PropertyDefinitionRepository;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,8 @@ class ObjectTypeServiceTests {
     private static final long TYPE_ID = 3L;
 
     @Mock ObjectTypeRepository objectTypeRepository;
+
+    @Mock PropertyDefinitionRepository propertyDefinitionRepository;
 
     @Mock DefinitionReferenceRepository referenceRepository;
 
@@ -121,7 +124,8 @@ class ObjectTypeServiceTests {
     @Test
     void rejectsDisplayPropertyOfAnotherType() {
         givenObjectType(existing(null));
-        given(referenceRepository.isPropertyOf(99L, TYPE_ID)).willReturn(false);
+        given(propertyDefinitionRepository.existsByIdAndObjectTypeId(99L, TYPE_ID))
+                .willReturn(false);
 
         assertThatThrownBy(() -> objectTypeService.update(TYPE_ID, displayProperty(99L)))
                 .isInstanceOfSatisfying(
@@ -137,7 +141,8 @@ class ObjectTypeServiceTests {
     @Test
     void setsDisplayPropertyOfSameType() {
         givenObjectType(existing(null));
-        given(referenceRepository.isPropertyOf(21L, TYPE_ID)).willReturn(true);
+        given(propertyDefinitionRepository.existsByIdAndObjectTypeId(21L, TYPE_ID))
+                .willReturn(true);
 
         var response = objectTypeService.update(TYPE_ID, displayProperty(21L));
 

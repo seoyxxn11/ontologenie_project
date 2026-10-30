@@ -27,11 +27,17 @@ services:
     image: axcore-jenkins:2.580.1
     container_name: jenkins
     restart: unless-stopped
-    mem_limit: 3g
+    # 5-0c: MR 검사(gradle 빌드·테스트)가 이 컨테이너 안에서 돌므로 Jenkins 2g + gradle 1g + 테스트 JVM 몫을 더해 5g.
+    mem_limit: 5g
     cpus: 2.0
     environment:
       JENKINS_OPTS: "--prefix=/jenkins"
       JAVA_OPTS: "-Xmx2g -Duser.timezone=Asia/Seoul"
+      # MR 검사용 gradle 힙 상한. mem_limit 안에 들어가야 컨테이너가 죽지 않는다.
+      GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx1g"
+      # 테스트용 PostgreSQL(Testcontainers)은 기본 bridge에 뜨고 서버 포트로 열린다. 이 컨테이너에서는 axcore-net 게이트웨이(=서버)로 닿는다.
+      # 값 확인: docker network inspect axcore-net -f '{{(index .IPAM.Config 0).Gateway}}' (2026-10-30 실측 172.18.0.1, curl 200 확인)
+      TESTCONTAINERS_HOST_OVERRIDE: "172.18.0.1"
     group_add:
       - "988"
     volumes:

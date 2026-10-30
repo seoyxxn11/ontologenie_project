@@ -1032,9 +1032,44 @@ C106은 일반 로그와 별도로 업무 변경 이력을 관리한다.
 
 업무 감사 기록은 `action_execution`, `entity_change` 등 기존 ERD를 기준으로 저장한다.
 
-Agent의 조회 Tool 호출은 `agent_tool_call`에서 추적한다.
+Agent의 조회 Tool 호출은 `action_execution`(`event_kind=AGENT_QUERY`)에 남긴다. 관리자 감사 화면에는 보이지 않는다.
 
 수집·분석·검사는 각 실행 정보와 연결해 확인할 수 있도록 한다.
+
+**기록 주체와 진입 경로 (2026-10-30)**
+
+- 기록은 백엔드(api)와 배치가 같은 코드로 DB에 직접 쓴다. FastAPI는 DB에 쓰지 않고 내부 API(105)로 알리며, 기록은 백엔드가 남긴다.
+- 사람이 한 일은 `actor_type=USER`(Agent가 대신하면 `AGENT`), 사람 없이 시스템이 하거나 끝낸 일은 `SYSTEM`이다.
+- `entry_point`는 `WEB`(화면), `AGENT`, `BATCH`(배치 컨테이너 안에서 생긴 일), `SYSTEM`(api 안에서 사람 없이 생긴 일), `INTERNAL`(다른 서비스가 내부 API로 알린 일)이다. 배치가 스스로 시작한 일은 `SYSTEM` + `BATCH`다.
+- 오래 걸리는 작업(수집·검사·분석·연결 검사·원천 표본)은 접수 1줄과 결과 1줄을 남기고, 남긴 줄은 고치지 않는다.
+  - 접수 줄: 요청한 사람, `SUCCEEDED`. 기존 작업에 합류하거나 결과를 재사용해도 남긴다.
+  - 결과 줄: `SYSTEM`, 배치가 끝내면 `BATCH`, FastAPI가 알리면 `INTERNAL`. `SUCCEEDED` 또는 `FAILED`.
+  - 두 줄은 `target_type`(작업 표 이름)과 `target_id`(작업 ID)로 묶는다. 요청자는 작업 표의 `requested_by`에서 찾는다.
+  - 요청자가 없는 작업(주기 수집 등)은 결과 줄만 남긴다.
+- 원본 규칙은 Notion API 공통 규칙의 '로그' 절이다.
+
+**기록 남기는 법**
+
+- `audit.service.AuditRecorder`로만 남긴다. `ActionExecution`·`EntityChange`를 직접 저장하지 않는다.
+- 성공 기록은 `record`를 쓴다. 업무 변경과 같은 트랜잭션이라 업무가 롤백되면 기록도 없어진다.
+- 차단·실패 기록은 `recordSeparately`를 쓴다. 새 트랜잭션에 바로 커밋해서 업무가 롤백돼도 남는다.
+- 기록 내용은 `AuditEntry.builder()`로 만든다. 필수는 `eventKind`, `actor`, `entryPoint`, `status`이고, `RUNNING`은 받지 않는다.
+- 실행자는 `Actor.user(loginAccount)`, `Actor.agent(loginAccount)`, `Actor.system()`으로 만든다. 역할은 실행 당시 값이 남는다.
+- 바뀐 행은 `ChangeEntry.insert/update/delete`로 넣는다. 행 키는 PK 이름과 값(`Map.of("id", id)`)이다.
+- `input`·`result`·전후 내용에서 이름에 password·secret·token·credential·apiKey 등이 들어간 키는 저장할 때 자동으로 빠진다. 그래도 비밀값은 처음부터 넣지 않는다.
+
+```java
+auditRecorder.record(
+        AuditEntry.builder()
+                .eventKind(EventKind.SYNC_RUN)
+                .actor(Actor.user(loginAccount))
+                .entryPoint(EntryPoint.WEB)
+                .status(ExecutionStatus.SUCCEEDED)
+                .targetType("sync_run")
+                .targetId(syncRun.getId())
+                .input(Map.of("sourceId", sourceId))
+                .build());
+```
 
 ---
 

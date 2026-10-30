@@ -17,7 +17,10 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
+import org.springframework.validation.Errors;
 import org.springframework.validation.FieldError;
+import org.springframework.validation.method.ParameterErrors;
+import org.springframework.validation.method.ParameterValidationResult;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -120,32 +123,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private static List<ValidationError> validationErrors(Exception ex) {
         List<ValidationError> errors = new ArrayList<>();
         switch (ex) {
-            case BindException bind -> {
-                for (FieldError error : bind.getFieldErrors()) {
-                    errors.add(new ValidationError(error.getField(), reason(error)));
-                }
-                bind.getGlobalErrors()
-                        .forEach(
-                                error ->
-                                        errors.add(
-                                                new ValidationError(
-                                                        error.getObjectName(), reason(error))));
-            }
-            case HandlerMethodValidationException validation ->
-                    validation
-                            .getParameterValidationResults()
+            case BindException bind -> addBindingErrors(bind, errors);
+            // 경로 변수 등에 제약이 있으면 @Valid 본문 오류도 여기로 온다. 본문 오류(ParameterErrors)는 칸 이름으로 알린다.
+            case HandlerMethodValidationException validation -> {
+                for (ParameterValidationResult result :
+                        validation.getParameterValidationResults()) {
+                    if (result instanceof ParameterErrors parameterErrors) {
+                        addBindingErrors(parameterErrors, errors);
+                        continue;
+                    }
+                    String field = result.getMethodParameter().getParameterName();
+                    result.getResolvableErrors()
                             .forEach(
-                                    result -> {
-                                        String field =
-                                                result.getMethodParameter().getParameterName();
-                                        result.getResolvableErrors()
-                                                .forEach(
-                                                        error ->
-                                                                errors.add(
-                                                                        new ValidationError(
-                                                                                field,
-                                                                                reason(error))));
-                                    });
+                                    error -> errors.add(new ValidationError(field, reason(error))));
+                }
+            }
             case TypeMismatchException mismatch ->
                     errors.add(new ValidationError(mismatch.getPropertyName(), "형식이 올바르지 않습니다."));
             case MissingServletRequestParameterException missing ->
@@ -158,6 +150,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             errors.add(new ValidationError(DEFAULT_FIELD, DEFAULT_REASON));
         }
         return errors;
+    }
+
+    private static void addBindingErrors(Errors bindingErrors, List<ValidationError> errors) {
+        for (FieldError error : bindingErrors.getFieldErrors()) {
+            errors.add(new ValidationError(error.getField(), reason(error)));
+        }
+        bindingErrors
+                .getGlobalErrors()
+                .forEach(
+                        error ->
+                                errors.add(
+                                        new ValidationError(error.getObjectName(), reason(error))));
     }
 
     private static String reason(MessageSourceResolvable error) {

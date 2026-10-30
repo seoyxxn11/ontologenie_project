@@ -34,6 +34,8 @@ SSAFY 클라우드 방화벽은 tcp · udp 1024~65535를 열어 두므로, 서�
 
 바깥에 열지 않는 것: backend `/actuator/*`(헬스체크·지표는 내부망만). `/api/`로 시작하지 않으므로 nginx가 넘기지 않는다.
 
+공통 보호: 모든 HTTPS 응답에 보안 헤더 3개(HSTS 1주 · `X-Content-Type-Options nosniff` · `X-Frame-Options SAMEORIGIN`). 로그인 `/api/v1/auth/login`만 IP별 요청 제한(20회 즉시 통과, 이후 분당 30회, 초과 시 429). 교육장은 팀이 공인 IP 하나를 같이 쓰므로 느슨하게 둔다.
+
 Swagger 열쇠 파일 만들기 (서버): `echo "swagger:$(openssl passwd -apr1)" > ~/axcore/nginx/htpasswd && chmod 644 ~/axcore/nginx/htpasswd` (비밀번호 두 번 입력. 파일에는 해시만 저장되고 저장소에는 올리지 않음. nginx 일꾼 사용자가 읽어야 하므로 644)
 
 ## 저장소에 올리지 않는 것
@@ -111,12 +113,23 @@ docker compose exec -T postgres pg_restore -U axcore -d axcore --clean --if-exis
 # 3. 앱 컨테이너를 다시 켠다
 ```
 
+## MR 검증 (MR 생성·갱신 → Jenkins axcore-mr-check)
+
+MR을 올리거나 MR 브랜치에 push하면 Job `axcore-mr-check`가 MR 브랜치를 받아 `backend/`에서 `./gradlew --no-daemon spotlessCheck build`를 돌린다 (스타일 검사 → 컴파일 → 테스트). 결과는 GitLab MR 화면 ✅/❌로 보고, 실패했을 때만 MR 작성자에게 Mattermost DM이 간다(성공 DM은 배포 Job만). 깨진 테스트 목록은 Jenkins 빌드 화면(Test Result)으로 본다. develop과 갈라진 뒤 `backend/`가 바뀌지 않은 MR(문서·인프라만 고친 MR)은 gradle을 건너뛰고 바로 ✅다. 수동 실행(Build with Parameters)은 develop을 받아 항상 전체를 돌린다 (develop 재검사 용도).
+
+- 테스트는 Testcontainers로 테스트용 PostgreSQL 컨테이너를 띄운다. Jenkins 컨테이너의 docker.sock을 쓰며, 그 컨테이너는 기본 bridge에 뜨고 서버 포트로 열리므로 Jenkins 컨테이너에서는 axcore-net 게이트웨이(=서버)로 닿는다. 그 주소가 compose의 `TESTCONTAINERS_HOST_OVERRIDE`다. axcore-net을 지웠다 다시 만들면 게이트웨이가 바뀔 수 있으니 `docker network inspect axcore-net -f '{{(index .IPAM.Config 0).Gateway}}'`로 다시 확인한다.
+- gradle 캐시는 `jenkins-data/.gradle`에 남아 두 번째부터 빠르다. 첫 실행은 Gradle 배포판과 의존성을 받느라 몇 분 걸린다.
+- 메모리: Jenkins 2g + gradle 1g(`GRADLE_OPTS`) + 테스트 JVM 몫으로 compose `mem_limit: 5g`. 빌드 중 `docker stats --no-stream jenkins`로 상한 대비 사용량을 본다.
+- `junit` 단계는 Jenkins의 JUnit 플러그인이 있어야 돈다 (초기 추천 플러그인에 포함).
+- 검사 대상은 GitLab이 알려 준 MR 커밋(`gitlabMergeRequestLastCommit`) 자체를 받는다. 빌드 로그 첫머리의 `gitlab*` 변수 목록과 "검사 대상:" 줄로 어떤 코드를 검사했는지 확인한다. MR 검사인데 develop을 받으면 빌드가 실패하도록 안전망이 있다 (2026-10-30, Jenkinsfile 파라미터 `gitlabSourceBranch`의 기본값이 플러그인 변수를 덮어써 develop을 검사하던 문제).
+- 보안 메모: MR 브랜치의 `build.gradle`이 docker.sock이 있는 Jenkins 컨테이너 안에서 실행된다. 팀원 GitLab 계정을 신뢰하는 구성이다. 분리(docker.sock 없는 일회용 컨테이너 + 외부 테스트 DB)는 보안 후속 과제로 둔다.
+
 ## 자동 배포 (develop 머지 → Jenkins axcore-deploy)
 
 `Jenkinsfile`의 배포 단계는 Job `axcore-deploy`에서만 켜진다 (MR 검증 Job은 배포하지 않는다).
 
 1. develop 머지 → GitLab Webhook → `axcore-deploy` 실행
-2. `git diff HEAD~1 HEAD -- backend/` 로 backend 변경 여부 확인. 변경 없으면 배포 건너뜀 (`FORCE_DEPLOY` 파라미터로 강제 가능)
+2. 서버 `.env`의 `BACKEND_TAG`(지금 배포된 커밋)와 develop 사이에 `backend/` 변경이 있는지 확인. 변경 없으면 배포 건너뜀 (`FORCE_DEPLOY` 파라미터로 강제 가능). 직전 커밋과 비교하지 않는 이유: 머지가 연달아 쌓이면 앞 머지의 backend 변경을 놓친다. 배포 Job은 GitLab이 어떤 변수를 보내든 항상 `origin/develop`만 받는다
 3. `docker build -t axcore-backend:<커밋 SHA> backend`
 4. `scripts/pg-backup.sh` 1회 (마이그레이션 대비)
 5. `.env`의 `BACKEND_TAG`를 새 SHA로 바꾸고 `docker compose -f /home/ubuntu/axcore/compose.yaml up -d backend`

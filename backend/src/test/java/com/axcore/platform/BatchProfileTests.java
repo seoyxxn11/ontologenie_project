@@ -2,6 +2,7 @@ package com.axcore.platform;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.axcore.platform.audit.service.AuditRecorder;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,5 +32,10 @@ class BatchProfileTests {
         try (var connection = dataSource.getConnection()) {
             assertThat(connection.isValid(1)).isTrue();
         }
+    }
+
+    @Test
+    void sharesAuditRecorderWithApi() {
+        assertThat(context.getBean(AuditRecorder.class)).isNotNull();
     }
 }

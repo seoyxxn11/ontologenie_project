@@ -46,4 +46,5 @@
 
 - 업무 변경 이력은 일반 로그와 별도로 `action_execution`, `entity_change` 등 ERD의 테이블에 저장한다.
 - 실행자, Action, 검사한 권한, 변경 데이터와 전후 내용, 성공 여부, 실패·차단 사유를 남긴다.
-- Agent의 조회 Tool 호출은 `agent_tool_call`에 남긴다.
+- Agent의 조회 Tool 호출은 `action_execution`(`event_kind=AGENT_QUERY`)에 남긴다.
+- 기록은 `audit.service.AuditRecorder`로만 남긴다. 성공은 `record`(업무와 같은 트랜잭션), 차단·실패는 `recordSeparately`(별도 트랜잭션)를 쓴다. 사용법은 [C106 개발 가이드](../../docs/development-guide.md) 14.2이다.

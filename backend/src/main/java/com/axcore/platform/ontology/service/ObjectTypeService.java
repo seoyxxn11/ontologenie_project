@@ -9,6 +9,7 @@ import com.axcore.platform.ontology.dto.ObjectTypeResponse;
 import com.axcore.platform.ontology.dto.ObjectTypeUpdateRequest;
 import com.axcore.platform.ontology.repository.DefinitionReferenceRepository;
 import com.axcore.platform.ontology.repository.ObjectTypeRepository;
+import com.axcore.platform.ontology.repository.PropertyDefinitionRepository;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -23,11 +24,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class ObjectTypeService {
 
     private final ObjectTypeRepository objectTypeRepository;
+    private final PropertyDefinitionRepository propertyDefinitionRepository;
     private final DefinitionReferenceRepository referenceRepository;
 
     /** API 021. q가 비어 있으면 전체를 돌려준다. */
     public Page<ObjectTypeResponse> search(String q, Pageable pageable) {
-        return objectTypeRepository.search(likePattern(q), pageable).map(ObjectTypeResponse::from);
+        return objectTypeRepository
+                .search(SearchPattern.contains(q), pageable)
+                .map(ObjectTypeResponse::from);
     }
 
     /** API 023. */
@@ -69,7 +73,7 @@ public class ObjectTypeService {
                         : objectType.getDisplayPropertyId();
         if (displayPropertyId != null
                 && !displayPropertyId.equals(objectType.getDisplayPropertyId())
-                && !referenceRepository.isPropertyOf(displayPropertyId, id)) {
+                && !propertyDefinitionRepository.existsByIdAndObjectTypeId(displayPropertyId, id)) {
             throw new BusinessException(
                     CommonErrorCode.BUSINESS_RULE_VIOLATION,
                     "대표 속성은 같은 객체 유형의 속성이어야 합니다.",
@@ -105,14 +109,5 @@ public class ObjectTypeService {
     private static BusinessException notFound(Long id) {
         return new BusinessException(
                 CommonErrorCode.RESOURCE_NOT_FOUND, Map.of("resource", "object_type", "id", id));
-    }
-
-    /** 사용자가 입력한 %·_는 글자 그대로 찾는다. */
-    private static String likePattern(String q) {
-        if (q == null || q.isBlank()) {
-            return "%";
-        }
-        String escaped = q.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
-        return "%" + escaped + "%";
     }
 }
