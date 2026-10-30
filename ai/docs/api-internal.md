@@ -49,7 +49,9 @@
 
 DOCUMENT_LINK `payload.expressionKind`는 OBSERVED(확인) · ESTIMATED(추정)입니다. 관찰이 모두 부정인 언급은 연결하지 않습니다.
 
-LINK_RULE `payload.conditions[].sourceVia` (명세에 없음, 백엔드와 합의 필요): `{matchProperty, takeProperty}`. 출발 값으로 `matchProperty`가 같은 객체를 찾아 그 `takeProperty` 값을 비교합니다. 예를 들어 공정 실적의 `wo_no`로 `WORK_ORDER.wo_no`를 찾고, 그 `WORK_ORDER.product_code`를 `ROUTING.product_code`와 비교합니다. 관계 개수 `MANY_TO_MANY`는 도착이 키가 아닌 종류 관계(라우팅 설비 종류 → 설비 종류)에 씁니다.
+PROPERTY `payload.sensitivity`는 ERD `property_definition.sensitivity`와 같은 값(NORMAL · RESTRICTED)입니다. 개인정보로 본 컬럼은 RESTRICTED입니다.
+
+관계 개수 `MANY_TO_MANY`는 도착이 키가 아닌 종류 관계(라우팅 설비 종류 → 설비 종류)에 씁니다. 다른 표를 거쳐야 이어지는 관계(공정 실적 → 작업지시 → 라우팅)는 연결 규칙(`link_mapping_condition`, 두 객체의 속성 비교)으로 표현할 수 없어 LINK_RULE 없이 LINK_TYPE만 보류 권고로 냅니다.
 
 ## 3. 시작 알림 (제안, 명세에 없음)
 
@@ -61,12 +63,30 @@ LINK_RULE `payload.conditions[].sourceVia` (명세에 없음, 백엔드와 합�
 | --- | --- | --- |
 | `runId` | O | `analysis_run.id` |
 | `runKind` | O | INITIAL · REANALYSIS |
-| `targets[]` | O | `{sourceResourceId, dataSourceCode, resourceKey(원천.표), columns, changeSeqFrom, changeSeqTo}`. REANALYSIS면 변경 번호 필수 |
+| `targets[]` | O | `{sourceResourceId, dataSourceCode, resourceKey(원천.표), columns, sourceMetadata, changeSeqFrom, changeSeqTo}`. REANALYSIS면 변경 번호 필수 |
 | `sources[]` | O | `{dataSourceCode, sourceKind(POSTGRES·CSV), connection(AI 계정), schema}`. 접속 정보는 로그·결과에 남기지 않음 |
 | `allowedTransforms` | 선택 | 041 허용 변환. 목록 밖 변환을 쓰는 후보는 내지 않음 |
 | `pastDecisions` | 선택 | `[{candidateId, itemKind, revision, fingerprint 또는 payload, decision, reason}]`. 같은 내용이 승인·거절됐으면 다시 내지 않음 |
 | `previousProposals` | 재분석 | `[{candidateId, fingerprint}]`. 이전 후보 evidence에서 꺼낸 값 |
 | `options.useLlm` | 선택 | false면 코드 분석만 |
+
+**`targets[].sourceMetadata`** (선택): `source_resource.source_metadata`를 그대로 보냅니다. 연동 구현은 #223입니다. AI는 아래 키만 읽고 나머지는 무시합니다.
+
+```json
+{
+  "description": "표 설명",
+  "synonyms": ["표 동의어"],
+  "memo": "표 메모",
+  "columns": {
+    "컬럼 이름": {"description": "컬럼 설명", "synonyms": ["컬럼 동의어"], "memo": "컬럼 메모"}
+  }
+}
+```
+
+| 값 | AI에서 쓰는 곳 |
+| --- | --- |
+| `description` | 원천 주석이 없을 때만 표 주석·컬럼 주석으로 씀. 주석은 객체·속성 이름이 되므로 원천 주석을 덮어쓰지 않음 |
+| `synonyms`, `memo` | 표는 LLM 해석의 참고 문장으로, 컬럼은 주석 뒤 괄호로 덧붙임 |
 
 ## 4. 실패 메시지 (105 `errorMessage`, 019에 그대로 보임)
 
@@ -74,8 +94,16 @@ LINK_RULE `payload.conditions[].sourceVia` (명세에 없음, 백엔드와 합�
 | --- | --- |
 | AI 계정이 고른 표를 못 읽음 | `AI 계정이 이 테이블을 읽을 수 없습니다: mes.employee` (명세 018 E3) |
 | 원천 접속 실패 | `원천에 접속하지 못했습니다` · `원천 계정 인증에 실패했다` 등 (접속 정보 없이) |
-| LLM 답이 모두 형식 오류 | `LLM 답이 형식 검사를 통과하지 못했습니다` |
 | 그 밖 | `분석 중 오류가 났습니다` (자세한 원인은 FastAPI 로그) |
+
+LLM 설정이 없거나 LLM 호출이 실패해도 실행은 실패로 끝내지 않고 코드 분석 후보만 `SUCCEEDED`로 보냅니다. `resultSummary`에 아래 값이 함께 갑니다.
+
+| 필드 | 내용 |
+| --- | --- |
+| `llmUsed` | LLM 답을 하나라도 썼는지 |
+| `llmSkipReason` | LLM 없이 분석한 이유. `요청에서 LLM을 끔` · `LLM 설정 없음` · `LLM 호출이 모두 실패함`, 아니면 null |
+| `llmCalls`, `llmFailedCalls` | 호출 수, 실패한 호출 수 |
+| `llmCredits` | 사용량(GMS 크레딧 기준 환산) |
 
 ## 5. 정해야 할 것
 
@@ -88,6 +116,7 @@ LINK_RULE `payload.conditions[].sourceVia` (명세에 없음, 백엔드와 합�
 
 ## 6. 지금 구현 범위
 
+- LLM: `.env`의 `AI_ONTOLOGY_LLM_PROVIDER`·`_API_KEY`·`_BASE_URL`·`_MODEL`만 바꾸면 제공사를 바꿀 수 있습니다. `gms`(기본), `openai`(OpenAI·Azure OpenAI v1, Responses API 형식), `openai-chat`(사내 LLM 서버 등 Chat Completions 형식), `none`(코드 분석만). 실제 호출로 확인한 것은 GMS뿐입니다.
 - 원천: CSV 폴더와 PostgreSQL(읽기 전용). PostgreSQL 드라이버(psycopg)를 설치하기 전이라 가짜 연결로만 테스트했습니다.
 - 고른 표·컬럼만 임시 폴더로 옮겨 분석하고, 끝나면 지웁니다. 기본키는 늘 함께 읽습니다.
 - 재분석: 원천별 `change_log`에서 변경 번호 구간의 행을 보고 바뀐 표·메모만 다시 분석합니다. 이전에 있다가 이번에 안 나온 후보는 판단하지 않습니다.

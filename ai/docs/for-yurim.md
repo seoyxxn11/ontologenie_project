@@ -119,20 +119,21 @@
 `proposals-v1.0.api.json`은 `data-v1.0` 전체를 분석했을 때 105로 보내는 요청 본문 그대로입니다. AI를 돌리지 않아도 저장과 목록·상세 화면을 만들어 볼 수 있습니다.
 
 - 구조: `{status, resultSummary, proposals[]}`
-- 후보 656개: 객체 유형·매핑 각 31, 속성·매핑 각 235, 관계 유형·연결 규칙 각 62
+- 후보 653개: 객체 유형·매핑 각 31, 속성·매핑 각 235, 관계 유형 62, 연결 규칙 59
 
 | 화면 항목 | 필드 |
 | --- | --- |
 | 내용 | `itemKind`, `payload` |
 | 근거 | `evidence.reason`, `evidence.items` |
 | 신뢰도 | `aiConfidence`, `evidence.confidenceItems` |
-| 보류 권고 | `evidence.holdRecommended`, `evidence.holdReason` (22개) |
+| 보류 권고 | `evidence.holdRecommended`, `evidence.holdReason` (25개) |
 | 대체 후보 | `options[]` |
 
 - 이 샘플에는 `options`가 채워진 후보가 없습니다. 후보가 여럿인 경우는 `id_links.json`의 "1호기"(P101·P201)를 참고해 주세요.
-- 명세에 아직 없는 부분이 두 가지 있습니다. 자세한 내용은 `docs/api-internal.md` 2절에 있습니다.
-  - 연결 규칙 `conditions[].sourceVia`: 다른 표를 거쳐 잇는 관계 (공정 실적 → 작업지시 → 라우팅). 후보 3개에만 있음
+- 후보 필드는 ERD v2(Flyway V1·V2)의 컬럼 값에 맞췄습니다. 자세한 내용은 `docs/api-internal.md` 2절에 있습니다.
+  - 속성 `sensitivity`: NORMAL · RESTRICTED (개인정보 컬럼은 RESTRICTED)
   - 관계 개수 `MANY_TO_MANY`: 키가 아닌 종류 값으로 잇는 관계 (라우팅 설비 종류 → 설비 종류)
+  - 다른 표를 거쳐야 이어지는 관계(공정 실적 → 작업지시 → 라우팅 등 3개)는 연결 규칙 없이 관계 유형만 보류 권고로 냄
 
 ## 6. 규칙 후보 직접 작성 (#125)
 
@@ -142,7 +143,7 @@
 
 ## 7. 개인정보 가림 (#224)
 
-`ontology.json`에서 `is_personal`이 true인 컬럼은 4개입니다.
+정답 `ontology.json`에서 `is_personal`이 true인 컬럼은 4개입니다. AI 후보에서는 속성 `sensitivity`가 RESTRICTED로 나옵니다.
 
 | 컬럼 | 값 |
 | --- | --- |

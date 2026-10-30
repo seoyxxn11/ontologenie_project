@@ -1,8 +1,8 @@
 {
   "status": "SUCCEEDED",
   "resultSummary": {
-    "proposals": 656,
-    "holdRecommended": 22
+    "proposals": 653,
+    "holdRecommended": 25
   },
   "proposals": [
     {
@@ -97,11 +97,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.attendance.emp_no",
-        "fingerprint": "f4ab02a895987c42",
+        "fingerprint": "965ff1e60b7fddfc",
         "title": "속성 ATTENDANCE.emp_no",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -195,11 +195,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.attendance.work_date",
-        "fingerprint": "d53b56e938c41f46",
+        "fingerprint": "8e9c32e7b11abc29",
         "title": "속성 ATTENDANCE.work_date",
         "reason": "자료형 DATE(선언 date), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -293,11 +293,11 @@
         "isIdentifier": false,
         "isRequired": false,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.attendance.clock_in",
-        "fingerprint": "c25cc58bf110e3d2",
+        "fingerprint": "9a2733b66fcdbd70",
         "title": "속성 ATTENDANCE.clock_in",
         "reason": "자료형 TIME(선언 time), 빈 값 45행",
         "items": [
@@ -391,11 +391,11 @@
         "isIdentifier": false,
         "isRequired": false,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.attendance.clock_out",
-        "fingerprint": "48fb715229891737",
+        "fingerprint": "305f5cffc00b1b7c",
         "title": "속성 ATTENDANCE.clock_out",
         "reason": "자료형 TIME(선언 time), 빈 값 63행",
         "items": [
@@ -489,11 +489,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.attendance.work_type",
-        "fingerprint": "963bef8ea8b8162e",
+        "fingerprint": "6fbb81ced6829547",
         "title": "속성 ATTENDANCE.work_type",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -585,11 +585,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.attendance.overtime_min",
-        "fingerprint": "99307c66831059db",
+        "fingerprint": "5e84a4d65a6a3227",
         "title": "속성 ATTENDANCE.overtime_min",
         "reason": "자료형 INTEGER(선언 int), 빈 값 없음(관찰)",
         "items": [
@@ -683,11 +683,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.attendance.late_yn",
-        "fingerprint": "e7171ffcb8c84e77",
+        "fingerprint": "d622cc7d1c910897",
         "title": "속성 ATTENDANCE.late_yn",
         "reason": "자료형 STRING(선언 char(1)), 빈 값 없음(관찰)",
         "items": [
@@ -864,11 +864,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.department.dept_code",
-        "fingerprint": "646b2c34ca64000c",
+        "fingerprint": "20b1d7f047e0608e",
         "title": "속성 DEPARTMENT.dept_code",
         "reason": "자료형 STRING(선언 varchar(10)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -962,11 +962,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.department.dept_name",
-        "fingerprint": "da507f6cee3fb87c",
+        "fingerprint": "3ec73d37464f7c62",
         "title": "속성 DEPARTMENT.dept_name",
         "reason": "자료형 STRING(선언 varchar(50)), 빈 값 없음(관찰)",
         "items": [
@@ -1060,11 +1060,11 @@
         "isIdentifier": false,
         "isRequired": false,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.department.parent_code",
-        "fingerprint": "8a87460c5baa64dc",
+        "fingerprint": "c632174db876bcd0",
         "title": "속성 DEPARTMENT.parent_code",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 5행",
         "items": [
@@ -1154,11 +1154,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.department.manager_emp_no",
-        "fingerprint": "25cc7694788b7324",
+        "fingerprint": "27d6ccfcff5e53e6",
         "title": "속성 DEPARTMENT.manager_emp_no",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -1337,11 +1337,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.employee.emp_no",
-        "fingerprint": "21fc43e4b5348a2d",
+        "fingerprint": "020c4b8082a2fd5f",
         "title": "속성 EMPLOYEE.emp_no",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -1435,11 +1435,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": true
+        "sensitivity": "RESTRICTED"
       },
       "evidence": {
         "candidateId": "P-erp.employee.emp_name",
-        "fingerprint": "4f6b1bd457dd6a23",
+        "fingerprint": "564f4a65f6d6c0e7",
         "title": "속성 EMPLOYEE.emp_name",
         "reason": "자료형 STRING(선언 varchar(50)), 빈 값 없음(관찰), 개인정보: 이름·주석이 개인정보를 가리킴",
         "items": [
@@ -1525,11 +1525,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.employee.dept_code",
-        "fingerprint": "2eee43e45a78bc33",
+        "fingerprint": "b7fd8b3d25246612",
         "title": "속성 EMPLOYEE.dept_code",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -1623,11 +1623,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.employee.position",
-        "fingerprint": "f318d66dd716b2bd",
+        "fingerprint": "08337b1b775af771",
         "title": "속성 EMPLOYEE.position",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -1721,11 +1721,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.employee.hire_date",
-        "fingerprint": "71df0cc71e275d3a",
+        "fingerprint": "89903929ccb2cccc",
         "title": "속성 EMPLOYEE.hire_date",
         "reason": "자료형 DATE(선언 date), 빈 값 없음(관찰)",
         "items": [
@@ -1819,11 +1819,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.employee.employment_type",
-        "fingerprint": "7d43beb6c54e9dae",
+        "fingerprint": "b564902e626055db",
         "title": "속성 EMPLOYEE.employment_type",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -1913,11 +1913,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.employee.status",
-        "fingerprint": "ce61e35bf356fe21",
+        "fingerprint": "cc09f7ac62fd395a",
         "title": "속성 EMPLOYEE.status",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -2087,11 +2087,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.fixed_asset.asset_no",
-        "fingerprint": "4dd78b766f1cf0d9",
+        "fingerprint": "bd1c5dcde06aab9d",
         "title": "속성 FIXED_ASSET.asset_no",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -2185,11 +2185,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.fixed_asset.asset_name",
-        "fingerprint": "3a0a03f417b5521f",
+        "fingerprint": "aeae7528dfc27ec7",
         "title": "속성 FIXED_ASSET.asset_name",
         "reason": "자료형 STRING(선언 varchar(100)), 빈 값 없음(관찰)",
         "items": [
@@ -2283,11 +2283,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": true
+        "sensitivity": "RESTRICTED"
       },
       "evidence": {
         "candidateId": "P-erp.fixed_asset.asset_type",
-        "fingerprint": "d7fa758fcb74d993",
+        "fingerprint": "5bcf0efd00fe2670",
         "title": "속성 FIXED_ASSET.asset_type",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰), 개인정보: 값이 사람 이름 모양",
         "items": [
@@ -2373,11 +2373,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.fixed_asset.acquired_on",
-        "fingerprint": "b920609526f3125b",
+        "fingerprint": "8f18361b4c795489",
         "title": "속성 FIXED_ASSET.acquired_on",
         "reason": "자료형 DATE(선언 date), 빈 값 없음(관찰)",
         "items": [
@@ -2471,11 +2471,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.fixed_asset.acquisition_cost",
-        "fingerprint": "d99eb3b22ef7337d",
+        "fingerprint": "0143e68357511b96",
         "title": "속성 FIXED_ASSET.acquisition_cost",
         "reason": "자료형 DECIMAL(선언 numeric(16,2)), 빈 값 없음(관찰)",
         "items": [
@@ -2569,11 +2569,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.fixed_asset.book_value",
-        "fingerprint": "774a69778081b68a",
+        "fingerprint": "8b888c649361eb8a",
         "title": "속성 FIXED_ASSET.book_value",
         "reason": "자료형 DECIMAL(선언 numeric(16,2)), 빈 값 없음(관찰)",
         "items": [
@@ -2667,11 +2667,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.fixed_asset.location",
-        "fingerprint": "dbe542b74aa8459d",
+        "fingerprint": "36a08affee73263c",
         "title": "속성 FIXED_ASSET.location",
         "reason": "자료형 STRING(선언 varchar(50)), 빈 값 없음(관찰)",
         "items": [
@@ -2765,11 +2765,11 @@
         "isIdentifier": false,
         "isRequired": false,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.fixed_asset.equipment_code",
-        "fingerprint": "d99dc5d96a81bbb0",
+        "fingerprint": "9a65d36526770a2f",
         "title": "속성 FIXED_ASSET.equipment_code",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 2행",
         "items": [
@@ -2948,11 +2948,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.gl_account.account_code",
-        "fingerprint": "5b0fe7dc364e4f39",
+        "fingerprint": "8fc1371205fb0073",
         "title": "속성 GL_ACCOUNT.account_code",
         "reason": "자료형 STRING(선언 varchar(10)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -3046,11 +3046,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.gl_account.account_name",
-        "fingerprint": "f0cb7c92e7eea6a6",
+        "fingerprint": "fa321b29d8c59254",
         "title": "속성 GL_ACCOUNT.account_name",
         "reason": "자료형 STRING(선언 varchar(50)), 빈 값 없음(관찰)",
         "items": [
@@ -3144,11 +3144,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.gl_account.account_type",
-        "fingerprint": "ff33e2319726f55c",
+        "fingerprint": "14f06584136f32b2",
         "title": "속성 GL_ACCOUNT.account_type",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -3242,11 +3242,11 @@
         "isIdentifier": false,
         "isRequired": false,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.gl_account.parent_code",
-        "fingerprint": "3781bb01a60fe40d",
+        "fingerprint": "18d7c50e3a2d471b",
         "title": "속성 GL_ACCOUNT.parent_code",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 7행",
         "items": [
@@ -3327,11 +3327,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.gl_account.use_yn",
-        "fingerprint": "451b45b9edc9cc8b",
+        "fingerprint": "e23284c52edb9301",
         "title": "속성 GL_ACCOUNT.use_yn",
         "reason": "자료형 STRING(선언 char(1)), 빈 값 없음(관찰)",
         "items": [
@@ -3501,11 +3501,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.goods_receipt.gr_no",
-        "fingerprint": "67cf0d548acfbb21",
+        "fingerprint": "d599160eb0dd47ee",
         "title": "속성 GOODS_RECEIPT.gr_no",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -3599,11 +3599,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.goods_receipt.po_no",
-        "fingerprint": "85dd257981461c36",
+        "fingerprint": "ea99406804f015a3",
         "title": "속성 GOODS_RECEIPT.po_no",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -3697,11 +3697,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.goods_receipt.item_code",
-        "fingerprint": "56cdc66c93d2c305",
+        "fingerprint": "95e07656b0d2367e",
         "title": "속성 GOODS_RECEIPT.item_code",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -3795,11 +3795,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.goods_receipt.gr_date",
-        "fingerprint": "0954195435725302",
+        "fingerprint": "85920433b2f5912d",
         "title": "속성 GOODS_RECEIPT.gr_date",
         "reason": "자료형 DATE(선언 date), 빈 값 없음(관찰)",
         "items": [
@@ -3893,11 +3893,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.goods_receipt.qty",
-        "fingerprint": "5adbfa4625d25206",
+        "fingerprint": "ccbabf3ee11606dc",
         "title": "속성 GOODS_RECEIPT.qty",
         "reason": "자료형 DECIMAL(선언 numeric(14,3)), 빈 값 없음(관찰)",
         "items": [
@@ -3991,11 +3991,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.goods_receipt.accepted_qty",
-        "fingerprint": "f406a134270e4098",
+        "fingerprint": "1e53e1034471095a",
         "title": "속성 GOODS_RECEIPT.accepted_qty",
         "reason": "자료형 DECIMAL(선언 numeric(14,3)), 빈 값 없음(관찰)",
         "items": [
@@ -4089,11 +4089,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.goods_receipt.rejected_qty",
-        "fingerprint": "d3cdadcbc09850f1",
+        "fingerprint": "bcb3bb7af1c59fdd",
         "title": "속성 GOODS_RECEIPT.rejected_qty",
         "reason": "자료형 DECIMAL(선언 numeric(14,3)), 빈 값 없음(관찰)",
         "items": [
@@ -4187,11 +4187,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.goods_receipt.warehouse",
-        "fingerprint": "53d7ed430ca72492",
+        "fingerprint": "ae7f8b54b3c77a33",
         "title": "속성 GOODS_RECEIPT.warehouse",
         "reason": "자료형 STRING(선언 varchar(50)), 빈 값 없음(관찰)",
         "items": [
@@ -4283,11 +4283,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.goods_receipt.inspector",
-        "fingerprint": "379ea23e3e67cf05",
+        "fingerprint": "b0c102baea3f3220",
         "title": "속성 GOODS_RECEIPT.inspector",
         "reason": "자료형 STRING(선언 varchar(50)), 빈 값 없음(관찰)",
         "items": [
@@ -4462,11 +4462,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.item.item_code",
-        "fingerprint": "e128dae35ca7ea1c",
+        "fingerprint": "c292dc4840784606",
         "title": "속성 ITEM.item_code",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -4560,11 +4560,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.item.item_name",
-        "fingerprint": "afc21f12beb7ca20",
+        "fingerprint": "4a90d316a85366a2",
         "title": "속성 ITEM.item_name",
         "reason": "자료형 STRING(선언 varchar(100)), 빈 값 없음(관찰)",
         "items": [
@@ -4658,11 +4658,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.item.spec",
-        "fingerprint": "b3e478d4c3d0fb4c",
+        "fingerprint": "5f677af7c83bb096",
         "title": "속성 ITEM.spec",
         "reason": "자료형 STRING(선언 varchar(100)), 빈 값 없음(관찰)",
         "items": [
@@ -4756,11 +4756,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.item.unit",
-        "fingerprint": "b8146f008e422a66",
+        "fingerprint": "d3a537f7c1588254",
         "title": "속성 ITEM.unit",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -4852,11 +4852,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.item.item_type",
-        "fingerprint": "0fea7c90a4744771",
+        "fingerprint": "56cceff1d6a8841f",
         "title": "속성 ITEM.item_type",
         "reason": "자료형 STRING(선언 varchar(2)), 빈 값 없음(관찰)",
         "items": [
@@ -4950,11 +4950,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.item.std_price",
-        "fingerprint": "267d14a503fd6a54",
+        "fingerprint": "83289529753ee3fc",
         "title": "속성 ITEM.std_price",
         "reason": "자료형 DECIMAL(선언 numeric(12,2)), 빈 값 없음(관찰)",
         "items": [
@@ -5048,11 +5048,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.item.safety_stock",
-        "fingerprint": "474fa7b105148aa6",
+        "fingerprint": "80607f70dc2fe735",
         "title": "속성 ITEM.safety_stock",
         "reason": "자료형 DECIMAL(선언 numeric(14,3)), 빈 값 없음(관찰)",
         "items": [
@@ -5146,11 +5146,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.item.use_yn",
-        "fingerprint": "bbe831c67048b241",
+        "fingerprint": "78eeafad5bfdcef3",
         "title": "속성 ITEM.use_yn",
         "reason": "자료형 STRING(선언 char(1)), 빈 값 없음(관찰)",
         "items": [
@@ -5240,11 +5240,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.item.updated_at",
-        "fingerprint": "e86c399077609794",
+        "fingerprint": "b23807157951a9b3",
         "title": "속성 ITEM.updated_at",
         "reason": "자료형 DATETIME(선언 timestamp), 빈 값 없음(관찰)",
         "items": [
@@ -5415,11 +5415,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.journal_entry.entry_no",
-        "fingerprint": "921cd89103e99cbb",
+        "fingerprint": "23b209919e14fb1e",
         "title": "속성 JOURNAL_ENTRY.entry_no",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -5513,11 +5513,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.journal_entry.line_no",
-        "fingerprint": "fdc7ed0be1f8a4e7",
+        "fingerprint": "93cae9fea9066d24",
         "title": "속성 JOURNAL_ENTRY.line_no",
         "reason": "자료형 INTEGER(선언 int), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -5611,11 +5611,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.journal_entry.entry_date",
-        "fingerprint": "199817fa5ca2f8aa",
+        "fingerprint": "114f3fd671fdb02b",
         "title": "속성 JOURNAL_ENTRY.entry_date",
         "reason": "자료형 DATE(선언 date), 빈 값 없음(관찰)",
         "items": [
@@ -5709,11 +5709,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.journal_entry.account_code",
-        "fingerprint": "953167c5d68fb932",
+        "fingerprint": "605f953b6628d836",
         "title": "속성 JOURNAL_ENTRY.account_code",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -5807,11 +5807,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.journal_entry.vendor_code",
-        "fingerprint": "e6b96ae44ecd8ae0",
+        "fingerprint": "63d325f915f06ec8",
         "title": "속성 JOURNAL_ENTRY.vendor_code",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -5905,11 +5905,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.journal_entry.debit",
-        "fingerprint": "786d5ad832f5b0cd",
+        "fingerprint": "3122f83bbc92e4c8",
         "title": "속성 JOURNAL_ENTRY.debit",
         "reason": "자료형 DECIMAL(선언 numeric(16,2)), 빈 값 없음(관찰)",
         "items": [
@@ -6003,11 +6003,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.journal_entry.credit",
-        "fingerprint": "b5cc5c0823dd77be",
+        "fingerprint": "35c2848f5823609e",
         "title": "속성 JOURNAL_ENTRY.credit",
         "reason": "자료형 DECIMAL(선언 numeric(16,2)), 빈 값 없음(관찰)",
         "items": [
@@ -6101,11 +6101,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.journal_entry.description",
-        "fingerprint": "4efa8c656f0a9694",
+        "fingerprint": "a0050664d6a2bd4e",
         "title": "속성 JOURNAL_ENTRY.description",
         "reason": "자료형 STRING(선언 varchar(100)), 빈 값 없음(관찰)",
         "items": [
@@ -6279,11 +6279,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_invoice.invoice_no",
-        "fingerprint": "63033cd42fffb47e",
+        "fingerprint": "b4a294fbf4c765a4",
         "title": "속성 PURCHASE_INVOICE.invoice_no",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -6377,11 +6377,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_invoice.vendor_code",
-        "fingerprint": "1d9874c214ed6c46",
+        "fingerprint": "fc04b3065310c93b",
         "title": "속성 PURCHASE_INVOICE.vendor_code",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -6475,11 +6475,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_invoice.invoice_date",
-        "fingerprint": "3f7278f639e2fce7",
+        "fingerprint": "918e1a54374780d1",
         "title": "속성 PURCHASE_INVOICE.invoice_date",
         "reason": "자료형 DATE(선언 date), 빈 값 없음(관찰)",
         "items": [
@@ -6573,11 +6573,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_invoice.supply_amount",
-        "fingerprint": "22b0603312b3d313",
+        "fingerprint": "70f78a28e7f378b3",
         "title": "속성 PURCHASE_INVOICE.supply_amount",
         "reason": "자료형 DECIMAL(선언 numeric(16,2)), 빈 값 없음(관찰)",
         "items": [
@@ -6671,11 +6671,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_invoice.vat",
-        "fingerprint": "d67fccfd9089bcae",
+        "fingerprint": "d6dd468fd21d570f",
         "title": "속성 PURCHASE_INVOICE.vat",
         "reason": "자료형 DECIMAL(선언 numeric(16,2)), 빈 값 없음(관찰)",
         "items": [
@@ -6769,11 +6769,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_invoice.total_amount",
-        "fingerprint": "a4a4c8f130c3e967",
+        "fingerprint": "b15152a2cf3fde85",
         "title": "속성 PURCHASE_INVOICE.total_amount",
         "reason": "자료형 DECIMAL(선언 numeric(16,2)), 빈 값 없음(관찰)",
         "items": [
@@ -6867,11 +6867,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_invoice.paid_yn",
-        "fingerprint": "9c2cef8115d1505b",
+        "fingerprint": "22cdf352112ceef0",
         "title": "속성 PURCHASE_INVOICE.paid_yn",
         "reason": "자료형 STRING(선언 char(1)), 빈 값 없음(관찰)",
         "items": [
@@ -6963,11 +6963,11 @@
         "isIdentifier": false,
         "isRequired": false,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_invoice.paid_date",
-        "fingerprint": "170473c98017e9c2",
+        "fingerprint": "7dcc79177c8f3758",
         "title": "속성 PURCHASE_INVOICE.paid_date",
         "reason": "자료형 DATE(선언 date), 빈 값 3행",
         "items": [
@@ -7144,11 +7144,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_order.po_no",
-        "fingerprint": "4c6236bed1f9914f",
+        "fingerprint": "02946b17ad918d30",
         "title": "속성 PURCHASE_ORDER.po_no",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -7242,11 +7242,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_order.vendor_code",
-        "fingerprint": "e3f0c03859d6d070",
+        "fingerprint": "c4faea89969f5a4b",
         "title": "속성 PURCHASE_ORDER.vendor_code",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -7340,11 +7340,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_order.po_date",
-        "fingerprint": "b4e3529cc6971556",
+        "fingerprint": "16e1a93ed7212084",
         "title": "속성 PURCHASE_ORDER.po_date",
         "reason": "자료형 DATE(선언 date), 빈 값 없음(관찰)",
         "items": [
@@ -7438,11 +7438,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_order.due_date",
-        "fingerprint": "687f9b66b5ca38d8",
+        "fingerprint": "17bcd49d2142164c",
         "title": "속성 PURCHASE_ORDER.due_date",
         "reason": "자료형 DATE(선언 date), 빈 값 없음(관찰)",
         "items": [
@@ -7536,11 +7536,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_order.status",
-        "fingerprint": "6d0b0f20cf147be7",
+        "fingerprint": "3c678097a4ff2fc3",
         "title": "속성 PURCHASE_ORDER.status",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -7630,11 +7630,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_order.total_amount",
-        "fingerprint": "1f44a745022145ba",
+        "fingerprint": "c6bf6c5f7548d668",
         "title": "속성 PURCHASE_ORDER.total_amount",
         "reason": "자료형 DECIMAL(선언 numeric(16,2)), 빈 값 없음(관찰)",
         "items": [
@@ -7728,11 +7728,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_order.buyer",
-        "fingerprint": "83c209942065aa6a",
+        "fingerprint": "9472180062bad80a",
         "title": "속성 PURCHASE_ORDER.buyer",
         "reason": "자료형 STRING(선언 varchar(50)), 빈 값 없음(관찰)",
         "items": [
@@ -7822,11 +7822,11 @@
         "isIdentifier": false,
         "isRequired": false,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_order.remark",
-        "fingerprint": "62ab337e95dd412c",
+        "fingerprint": "32fed73cb1d63097",
         "title": "속성 PURCHASE_ORDER.remark",
         "reason": "자료형 STRING(선언 varchar(100)), 빈 값 25행",
         "items": [
@@ -7997,11 +7997,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_order_line.po_no",
-        "fingerprint": "1cb1222e81a6f937",
+        "fingerprint": "691ef90869d2bf04",
         "title": "속성 PURCHASE_ORDER_LINE.po_no",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -8095,11 +8095,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_order_line.line_no",
-        "fingerprint": "52793e3e321ecbf0",
+        "fingerprint": "f5282a423b317fc3",
         "title": "속성 PURCHASE_ORDER_LINE.line_no",
         "reason": "자료형 INTEGER(선언 int), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -8189,11 +8189,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_order_line.item_code",
-        "fingerprint": "3340f67d0649a54b",
+        "fingerprint": "ddce7fac21cb4c82",
         "title": "속성 PURCHASE_ORDER_LINE.item_code",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -8287,11 +8287,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_order_line.qty",
-        "fingerprint": "1336b364b19eb7aa",
+        "fingerprint": "4bb689dd1bff8f0d",
         "title": "속성 PURCHASE_ORDER_LINE.qty",
         "reason": "자료형 DECIMAL(선언 numeric(14,3)), 빈 값 없음(관찰)",
         "items": [
@@ -8385,11 +8385,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_order_line.unit_price",
-        "fingerprint": "017dc1e5dbdb053f",
+        "fingerprint": "f8bcfc93d65ca486",
         "title": "속성 PURCHASE_ORDER_LINE.unit_price",
         "reason": "자료형 DECIMAL(선언 numeric(12,2)), 빈 값 없음(관찰)",
         "items": [
@@ -8483,11 +8483,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_order_line.received_qty",
-        "fingerprint": "4a4ae04a8a9ad9ef",
+        "fingerprint": "d680f2446701bab8",
         "title": "속성 PURCHASE_ORDER_LINE.received_qty",
         "reason": "자료형 DECIMAL(선언 numeric(14,3)), 빈 값 없음(관찰)",
         "items": [
@@ -8581,11 +8581,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.purchase_order_line.due_date",
-        "fingerprint": "0fcbf43dacbd88dd",
+        "fingerprint": "c3b80e20452dfda6",
         "title": "속성 PURCHASE_ORDER_LINE.due_date",
         "reason": "자료형 DATE(선언 date), 빈 값 없음(관찰)",
         "items": [
@@ -8759,11 +8759,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_invoice.invoice_no",
-        "fingerprint": "3b261d35b156ff26",
+        "fingerprint": "95ac1948512c84ee",
         "title": "속성 SALES_INVOICE.invoice_no",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -8857,11 +8857,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_invoice.customer_code",
-        "fingerprint": "9f21a7b55b30cf16",
+        "fingerprint": "8d24f7c4b9c2fadf",
         "title": "속성 SALES_INVOICE.customer_code",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -8955,11 +8955,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_invoice.invoice_date",
-        "fingerprint": "42d711687f397313",
+        "fingerprint": "88611fb0b2c9f69b",
         "title": "속성 SALES_INVOICE.invoice_date",
         "reason": "자료형 DATE(선언 date), 빈 값 없음(관찰)",
         "items": [
@@ -9053,11 +9053,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_invoice.supply_amount",
-        "fingerprint": "18f074fbfe440fb6",
+        "fingerprint": "cb2f37bdd293d8fa",
         "title": "속성 SALES_INVOICE.supply_amount",
         "reason": "자료형 DECIMAL(선언 numeric(16,2)), 빈 값 없음(관찰)",
         "items": [
@@ -9151,11 +9151,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_invoice.vat",
-        "fingerprint": "53abf2d28e94f247",
+        "fingerprint": "062e8ceadab84deb",
         "title": "속성 SALES_INVOICE.vat",
         "reason": "자료형 DECIMAL(선언 numeric(16,2)), 빈 값 없음(관찰)",
         "items": [
@@ -9249,11 +9249,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_invoice.total_amount",
-        "fingerprint": "20d980fbdb08d750",
+        "fingerprint": "1d41334c8eefdf18",
         "title": "속성 SALES_INVOICE.total_amount",
         "reason": "자료형 DECIMAL(선언 numeric(16,2)), 빈 값 없음(관찰)",
         "items": [
@@ -9347,11 +9347,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_invoice.collected_yn",
-        "fingerprint": "32d4bc675ec046d7",
+        "fingerprint": "d6e6912ca857c16a",
         "title": "속성 SALES_INVOICE.collected_yn",
         "reason": "자료형 STRING(선언 char(1)), 빈 값 없음(관찰)",
         "items": [
@@ -9443,11 +9443,11 @@
         "isIdentifier": false,
         "isRequired": false,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_invoice.collected_date",
-        "fingerprint": "c1e585cdcafb94b8",
+        "fingerprint": "9b14b2a4add46229",
         "title": "속성 SALES_INVOICE.collected_date",
         "reason": "자료형 DATE(선언 date), 빈 값 3행",
         "items": [
@@ -9624,11 +9624,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_order.so_no",
-        "fingerprint": "5a17eab109bb8dd7",
+        "fingerprint": "ff295f04aab4d4ff",
         "title": "속성 SALES_ORDER.so_no",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -9722,11 +9722,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_order.customer_code",
-        "fingerprint": "5c57fbfcca8f2162",
+        "fingerprint": "e57808db64fa1259",
         "title": "속성 SALES_ORDER.customer_code",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -9820,11 +9820,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_order.so_date",
-        "fingerprint": "b2d388023c7fe878",
+        "fingerprint": "4691da3bebc38863",
         "title": "속성 SALES_ORDER.so_date",
         "reason": "자료형 DATE(선언 date), 빈 값 없음(관찰)",
         "items": [
@@ -9918,11 +9918,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_order.due_date",
-        "fingerprint": "fb12aac061b1c7fc",
+        "fingerprint": "e5e9a67f50cb5279",
         "title": "속성 SALES_ORDER.due_date",
         "reason": "자료형 DATE(선언 date), 빈 값 없음(관찰)",
         "items": [
@@ -10016,11 +10016,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_order.status",
-        "fingerprint": "f0cc7935a28dd14d",
+        "fingerprint": "d39ab39d200f0c00",
         "title": "속성 SALES_ORDER.status",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -10114,11 +10114,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_order.total_amount",
-        "fingerprint": "771364817922c741",
+        "fingerprint": "8896fa146417305b",
         "title": "속성 SALES_ORDER.total_amount",
         "reason": "자료형 DECIMAL(선언 numeric(16,2)), 빈 값 없음(관찰)",
         "items": [
@@ -10212,11 +10212,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_order.sales_rep",
-        "fingerprint": "712d6be5a949ed81",
+        "fingerprint": "1c1b73d931fa65fa",
         "title": "속성 SALES_ORDER.sales_rep",
         "reason": "자료형 STRING(선언 varchar(50)), 빈 값 없음(관찰)",
         "items": [
@@ -10387,11 +10387,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_order_line.so_no",
-        "fingerprint": "02350e9c290e02db",
+        "fingerprint": "17978eca22192f84",
         "title": "속성 SALES_ORDER_LINE.so_no",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -10485,11 +10485,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_order_line.line_no",
-        "fingerprint": "77544cd101b29efb",
+        "fingerprint": "a48e5b66eaf13b04",
         "title": "속성 SALES_ORDER_LINE.line_no",
         "reason": "자료형 INTEGER(선언 int), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -10581,11 +10581,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_order_line.item_code",
-        "fingerprint": "9ef668c6d22098ce",
+        "fingerprint": "556f9f2e49aaccbe",
         "title": "속성 SALES_ORDER_LINE.item_code",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -10679,11 +10679,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_order_line.qty",
-        "fingerprint": "b8198e2da58d60c5",
+        "fingerprint": "ee91bf6c1d7dcf10",
         "title": "속성 SALES_ORDER_LINE.qty",
         "reason": "자료형 DECIMAL(선언 numeric(14,3)), 빈 값 없음(관찰)",
         "items": [
@@ -10777,11 +10777,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_order_line.unit_price",
-        "fingerprint": "eed677f31624bfb7",
+        "fingerprint": "97df394abde34382",
         "title": "속성 SALES_ORDER_LINE.unit_price",
         "reason": "자료형 DECIMAL(선언 numeric(12,2)), 빈 값 없음(관찰)",
         "items": [
@@ -10875,11 +10875,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.sales_order_line.shipped_qty",
-        "fingerprint": "3fba347f9a426b1f",
+        "fingerprint": "fbdba7822b9514b2",
         "title": "속성 SALES_ORDER_LINE.shipped_qty",
         "reason": "자료형 DECIMAL(선언 numeric(14,3)), 빈 값 없음(관찰)",
         "items": [
@@ -11053,11 +11053,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.shipment.ship_no",
-        "fingerprint": "dca86bb0aeef6d44",
+        "fingerprint": "4c506cfa753a68a4",
         "title": "속성 SHIPMENT.ship_no",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -11151,11 +11151,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.shipment.so_no",
-        "fingerprint": "b24ad7708e404af8",
+        "fingerprint": "c1653e12aa553144",
         "title": "속성 SHIPMENT.so_no",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -11249,11 +11249,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.shipment.item_code",
-        "fingerprint": "81d6bdadb37a491d",
+        "fingerprint": "6c43629f9e42d00b",
         "title": "속성 SHIPMENT.item_code",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -11347,11 +11347,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.shipment.ship_date",
-        "fingerprint": "2ea4f682a8bfbc15",
+        "fingerprint": "f752fae935977ae7",
         "title": "속성 SHIPMENT.ship_date",
         "reason": "자료형 DATE(선언 date), 빈 값 없음(관찰)",
         "items": [
@@ -11445,11 +11445,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.shipment.qty",
-        "fingerprint": "6be06fce9c8e09ec",
+        "fingerprint": "d5a5d77420a114d1",
         "title": "속성 SHIPMENT.qty",
         "reason": "자료형 DECIMAL(선언 numeric(14,3)), 빈 값 없음(관찰)",
         "items": [
@@ -11543,11 +11543,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.shipment.carrier",
-        "fingerprint": "be06877031c30637",
+        "fingerprint": "490149450cbe39e7",
         "title": "속성 SHIPMENT.carrier",
         "reason": "자료형 STRING(선언 varchar(50)), 빈 값 없음(관찰)",
         "items": [
@@ -11639,11 +11639,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.shipment.lot_no",
-        "fingerprint": "941a25a772db2ce9",
+        "fingerprint": "5d415a9aa4b847da",
         "title": "속성 SHIPMENT.lot_no",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -11818,11 +11818,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.stock.warehouse",
-        "fingerprint": "f83ed1076959659c",
+        "fingerprint": "3107c6501200bdb9",
         "title": "속성 STOCK.warehouse",
         "reason": "자료형 STRING(선언 varchar(50)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -11916,11 +11916,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.stock.item_code",
-        "fingerprint": "5a1e8b7faaba7d42",
+        "fingerprint": "280533e741740a27",
         "title": "속성 STOCK.item_code",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -12014,11 +12014,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.stock.qty",
-        "fingerprint": "f1cb0f641266a04c",
+        "fingerprint": "0f6abca5808f0d89",
         "title": "속성 STOCK.qty",
         "reason": "자료형 DECIMAL(선언 numeric(14,3)), 빈 값 없음(관찰)",
         "items": [
@@ -12112,11 +12112,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.stock.reserved_qty",
-        "fingerprint": "31694f1cdbbd2a7f",
+        "fingerprint": "d157cc6589fef1c9",
         "title": "속성 STOCK.reserved_qty",
         "reason": "자료형 DECIMAL(선언 numeric(14,3)), 빈 값 없음(관찰)",
         "items": [
@@ -12210,11 +12210,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.stock.available_qty",
-        "fingerprint": "090ca932c7603d97",
+        "fingerprint": "7d56dccc0b8969ac",
         "title": "속성 STOCK.available_qty",
         "reason": "자료형 DECIMAL(선언 numeric(14,3)), 빈 값 없음(관찰)",
         "items": [
@@ -12308,11 +12308,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.stock.last_in_date",
-        "fingerprint": "4c05ce9c55fc0b5f",
+        "fingerprint": "4b217804913e0c12",
         "title": "속성 STOCK.last_in_date",
         "reason": "자료형 DATE(선언 date), 빈 값 없음(관찰)",
         "items": [
@@ -12406,11 +12406,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.stock.last_out_date",
-        "fingerprint": "c6757d1bf66bf171",
+        "fingerprint": "aa541d0bf7fe72e8",
         "title": "속성 STOCK.last_out_date",
         "reason": "자료형 DATE(선언 date), 빈 값 없음(관찰)",
         "items": [
@@ -12589,11 +12589,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.vendor.vendor_code",
-        "fingerprint": "668848ba770dc3ab",
+        "fingerprint": "ca8cffa4b5f0d60c",
         "title": "속성 VENDOR.vendor_code",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -12687,11 +12687,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.vendor.vendor_name",
-        "fingerprint": "0547080e0ecd326b",
+        "fingerprint": "f046f76335c03274",
         "title": "속성 VENDOR.vendor_name",
         "reason": "자료형 STRING(선언 varchar(100)), 빈 값 없음(관찰)",
         "items": [
@@ -12785,11 +12785,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.vendor.biz_no",
-        "fingerprint": "99968afe01a7d283",
+        "fingerprint": "6ebc36012bc014f0",
         "title": "속성 VENDOR.biz_no",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -12883,11 +12883,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.vendor.vendor_type",
-        "fingerprint": "e9ca47fd4a3bc377",
+        "fingerprint": "12c55c560aff1be8",
         "title": "속성 VENDOR.vendor_type",
         "reason": "자료형 STRING(선언 char(1)), 빈 값 없음(관찰)",
         "items": [
@@ -12979,11 +12979,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": true
+        "sensitivity": "RESTRICTED"
       },
       "evidence": {
         "candidateId": "P-erp.vendor.contact_name",
-        "fingerprint": "bf4240fc2b094319",
+        "fingerprint": "85ed11a69cf00941",
         "title": "속성 VENDOR.contact_name",
         "reason": "자료형 STRING(선언 varchar(50)), 빈 값 없음(관찰), 개인정보: 이름·주석이 개인정보를 가리킴",
         "items": [
@@ -13069,11 +13069,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.vendor.payment_terms",
-        "fingerprint": "bb253fb627e4223e",
+        "fingerprint": "f9774a4262f55d8d",
         "title": "속성 VENDOR.payment_terms",
         "reason": "자료형 STRING(선언 varchar(50)), 빈 값 없음(관찰)",
         "items": [
@@ -13167,11 +13167,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-erp.vendor.use_yn",
-        "fingerprint": "72604b909795852b",
+        "fingerprint": "67c53894a85cdc58",
         "title": "속성 VENDOR.use_yn",
         "reason": "자료형 STRING(선언 char(1)), 빈 값 없음(관찰)",
         "items": [
@@ -13341,11 +13341,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.defect.defect_id",
-        "fingerprint": "c6453bae3ee70a38",
+        "fingerprint": "c310fd523d0db2ad",
         "title": "속성 DEFECT.defect_id",
         "reason": "자료형 INTEGER(선언 bigint), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -13439,11 +13439,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.defect.wo_no",
-        "fingerprint": "34f6ff1bdf849c9f",
+        "fingerprint": "f040a0deb6677bca",
         "title": "속성 DEFECT.wo_no",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -13537,11 +13537,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.defect.op_seq",
-        "fingerprint": "9ce604d93b7c74f1",
+        "fingerprint": "489ee835eaa09a28",
         "title": "속성 DEFECT.op_seq",
         "reason": "자료형 INTEGER(선언 int), 빈 값 없음(관찰)",
         "items": [
@@ -13635,11 +13635,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.defect.equipment_code",
-        "fingerprint": "6a94bcdcea3e2d81",
+        "fingerprint": "39f6b777fe4fe915",
         "title": "속성 DEFECT.equipment_code",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -13733,11 +13733,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.defect.defect_type",
-        "fingerprint": "ce1fb16ed24943d7",
+        "fingerprint": "3f5bc567f282a25f",
         "title": "속성 DEFECT.defect_type",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -13831,11 +13831,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.defect.qty",
-        "fingerprint": "8502b898ea7c722a",
+        "fingerprint": "7fbddf84312ce978",
         "title": "속성 DEFECT.qty",
         "reason": "자료형 INTEGER(선언 int), 빈 값 없음(관찰)",
         "items": [
@@ -13929,11 +13929,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.defect.disposition",
-        "fingerprint": "4a1f557061eb6234",
+        "fingerprint": "dedd6d2ea3e20df3",
         "title": "속성 DEFECT.disposition",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -14025,11 +14025,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.defect.detected_at",
-        "fingerprint": "57e2a9ba8c5c64da",
+        "fingerprint": "709fea3a94798c4f",
         "title": "속성 DEFECT.detected_at",
         "reason": "자료형 DATETIME(선언 timestamp), 빈 값 없음(관찰)",
         "items": [
@@ -14123,11 +14123,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.defect.detected_by",
-        "fingerprint": "989b48566225323d",
+        "fingerprint": "5179450639ccdc54",
         "title": "속성 DEFECT.detected_by",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -14301,11 +14301,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.die.die_code",
-        "fingerprint": "602e33cd436cc92a",
+        "fingerprint": "86918253843c7e43",
         "title": "속성 DIE.die_code",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -14399,11 +14399,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.die.drawing_code",
-        "fingerprint": "03ba4312bd267110",
+        "fingerprint": "75e76046472ffe6a",
         "title": "속성 DIE.drawing_code",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -14497,11 +14497,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.die.product_code",
-        "fingerprint": "424caa773ab2fd07",
+        "fingerprint": "25de0db52a0d1fe8",
         "title": "속성 DIE.product_code",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -14595,11 +14595,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.die.total_strokes",
-        "fingerprint": "af5db814216d6dcd",
+        "fingerprint": "cf170d46a4338e61",
         "title": "속성 DIE.total_strokes",
         "reason": "자료형 INTEGER(선언 bigint), 빈 값 없음(관찰)",
         "items": [
@@ -14693,11 +14693,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.die.pm_interval_strokes",
-        "fingerprint": "c93ae3db307e2cb9",
+        "fingerprint": "994787cee5da2ba0",
         "title": "속성 DIE.pm_interval_strokes",
         "reason": "자료형 INTEGER(선언 int), 빈 값 없음(관찰)",
         "items": [
@@ -14787,11 +14787,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.die.last_pm_at",
-        "fingerprint": "037a30e0c1b71d76",
+        "fingerprint": "cd2412edc44e5c17",
         "title": "속성 DIE.last_pm_at",
         "reason": "자료형 DATE(선언 date), 빈 값 없음(관찰)",
         "items": [
@@ -14885,11 +14885,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.die.status",
-        "fingerprint": "f1e61bfbc26eb574",
+        "fingerprint": "13f0bbc37e375a56",
         "title": "속성 DIE.status",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -14981,11 +14981,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.die.location",
-        "fingerprint": "52ebaced3271cd0f",
+        "fingerprint": "252f27403a40cbe2",
         "title": "속성 DIE.location",
         "reason": "자료형 STRING(선언 varchar(50)), 빈 값 없음(관찰)",
         "items": [
@@ -15159,11 +15159,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.downtime.downtime_id",
-        "fingerprint": "4b7db3b092c470e2",
+        "fingerprint": "ec16a30c1901d8e5",
         "title": "속성 DOWNTIME.downtime_id",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -15257,11 +15257,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.downtime.equipment_code",
-        "fingerprint": "56a9bd5aa0f7e981",
+        "fingerprint": "aa5d99879d7d8692",
         "title": "속성 DOWNTIME.equipment_code",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -15355,11 +15355,11 @@
         "isIdentifier": false,
         "isRequired": false,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.downtime.wo_no",
-        "fingerprint": "4421fa5cbaa60ca5",
+        "fingerprint": "a0cb3d9ef4f50200",
         "title": "속성 DOWNTIME.wo_no",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 27행",
         "items": [
@@ -15453,11 +15453,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.downtime.reason_code",
-        "fingerprint": "2b217368330536fd",
+        "fingerprint": "3125eeb6681fd3bc",
         "title": "속성 DOWNTIME.reason_code",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -15551,11 +15551,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.downtime.reason",
-        "fingerprint": "eca6a3f001f302a5",
+        "fingerprint": "1eb06eb24c6b32b8",
         "title": "속성 DOWNTIME.reason",
         "reason": "자료형 STRING(선언 varchar(100)), 빈 값 없음(관찰)",
         "items": [
@@ -15649,11 +15649,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.downtime.started_at",
-        "fingerprint": "7c3a2454dc661214",
+        "fingerprint": "7167eea3bed009e7",
         "title": "속성 DOWNTIME.started_at",
         "reason": "자료형 DATETIME(선언 timestamp), 빈 값 없음(관찰)",
         "items": [
@@ -15747,11 +15747,11 @@
         "isIdentifier": false,
         "isRequired": false,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.downtime.ended_at",
-        "fingerprint": "29b0c4515a29d5b7",
+        "fingerprint": "1f3402367bca9463",
         "title": "속성 DOWNTIME.ended_at",
         "reason": "자료형 DATETIME(선언 timestamp), 빈 값 1행",
         "items": [
@@ -15845,11 +15845,11 @@
         "isIdentifier": false,
         "isRequired": false,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.downtime.minutes",
-        "fingerprint": "95dfe3c05d46341a",
+        "fingerprint": "e12045a28df7cf88",
         "title": "속성 DOWNTIME.minutes",
         "reason": "자료형 INTEGER(선언 int), 빈 값 1행",
         "items": [
@@ -16028,11 +16028,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.equipment.code",
-        "fingerprint": "06ed21341fd3a3df",
+        "fingerprint": "6ff9431056cfca4d",
         "title": "속성 EQUIPMENT.code",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -16126,11 +16126,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.equipment.name",
-        "fingerprint": "c3a92faa2db4f0ef",
+        "fingerprint": "30faaf0521f1d1f1",
         "title": "속성 EQUIPMENT.name",
         "reason": "자료형 STRING(선언 varchar(50)), 빈 값 없음(관찰)",
         "items": [
@@ -16224,11 +16224,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.equipment.kind",
-        "fingerprint": "77629049e76733ac",
+        "fingerprint": "da8613e008d57823",
         "title": "속성 EQUIPMENT.kind",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -16322,11 +16322,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.equipment.line",
-        "fingerprint": "9ac17106d866b474",
+        "fingerprint": "d2081a8fa77eea8c",
         "title": "속성 EQUIPMENT.line",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -16418,11 +16418,11 @@
         "isIdentifier": false,
         "isRequired": false,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.equipment.capacity_ton",
-        "fingerprint": "17f703e90590ba3b",
+        "fingerprint": "f2c1baa42c9ed95b",
         "title": "속성 EQUIPMENT.capacity_ton",
         "reason": "자료형 INTEGER(선언 int), 빈 값 2행",
         "items": [
@@ -16516,11 +16516,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.equipment.status",
-        "fingerprint": "26b379c042c67297",
+        "fingerprint": "c9eaec748cea03ac",
         "title": "속성 EQUIPMENT.status",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -16612,11 +16612,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.equipment.installed_on",
-        "fingerprint": "e33bd4a767a7e661",
+        "fingerprint": "42e48cf2d730960b",
         "title": "속성 EQUIPMENT.installed_on",
         "reason": "자료형 DATE(선언 date), 빈 값 없음(관찰)",
         "items": [
@@ -16710,11 +16710,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.equipment.maker",
-        "fingerprint": "9157e76ca512363a",
+        "fingerprint": "af5bef3a317e5d65",
         "title": "속성 EQUIPMENT.maker",
         "reason": "자료형 STRING(선언 varchar(50)), 빈 값 없음(관찰)",
         "items": [
@@ -16888,11 +16888,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.handover_note.note_id",
-        "fingerprint": "67b8618c9b541e4b",
+        "fingerprint": "604b3caa5b5a31ad",
         "title": "속성 HANDOVER_NOTE.note_id",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -16986,11 +16986,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.handover_note.shift_date",
-        "fingerprint": "7304762fbfff0434",
+        "fingerprint": "39d5e525f547d97a",
         "title": "속성 HANDOVER_NOTE.shift_date",
         "reason": "자료형 DATE(선언 date), 빈 값 없음(관찰)",
         "items": [
@@ -17084,11 +17084,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.handover_note.shift",
-        "fingerprint": "6d3386d586bfe872",
+        "fingerprint": "99950e75d2b47290",
         "title": "속성 HANDOVER_NOTE.shift",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -17180,11 +17180,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.handover_note.author_id",
-        "fingerprint": "d839c7fa2d1a1cc9",
+        "fingerprint": "dd356d7989b54b53",
         "title": "속성 HANDOVER_NOTE.author_id",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -17278,11 +17278,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.handover_note.written_at",
-        "fingerprint": "7153df3b7d5ab32b",
+        "fingerprint": "f7908e1fb2fb88ca",
         "title": "속성 HANDOVER_NOTE.written_at",
         "reason": "자료형 DATETIME(선언 timestamp), 빈 값 없음(관찰)",
         "items": [
@@ -17376,11 +17376,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.handover_note.content",
-        "fingerprint": "764d1842957c4a6d",
+        "fingerprint": "6a3c89eb3855f6d1",
         "title": "속성 HANDOVER_NOTE.content",
         "reason": "자료형 STRING(선언 text), 빈 값 없음(관찰)",
         "items": [
@@ -17554,11 +17554,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.inspection.inspection_id",
-        "fingerprint": "36fcb82b926f54b3",
+        "fingerprint": "0b78427dfe007eec",
         "title": "속성 INSPECTION.inspection_id",
         "reason": "자료형 INTEGER(선언 bigint), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -17652,11 +17652,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.inspection.wo_no",
-        "fingerprint": "6fbece4996acf9f8",
+        "fingerprint": "1d42967ca956eaca",
         "title": "속성 INSPECTION.wo_no",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -17750,11 +17750,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.inspection.lot_no",
-        "fingerprint": "901d986d73127845",
+        "fingerprint": "80b44502b8551733",
         "title": "속성 INSPECTION.lot_no",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -17848,11 +17848,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.inspection.inspection_type",
-        "fingerprint": "ce6dea0feb5a907b",
+        "fingerprint": "d7999826127ebff0",
         "title": "속성 INSPECTION.inspection_type",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -17942,11 +17942,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.inspection.item",
-        "fingerprint": "ac32a3579e364da3",
+        "fingerprint": "f3e314999036a5df",
         "title": "속성 INSPECTION.item",
         "reason": "자료형 STRING(선언 varchar(50)), 빈 값 없음(관찰)",
         "items": [
@@ -18036,11 +18036,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.inspection.spec_low",
-        "fingerprint": "5455997c3068406b",
+        "fingerprint": "c11b0861d5a5e8bf",
         "title": "속성 INSPECTION.spec_low",
         "reason": "자료형 DECIMAL(선언 numeric(10,3)), 빈 값 없음(관찰)",
         "items": [
@@ -18130,11 +18130,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.inspection.spec_high",
-        "fingerprint": "c63b9db5d11d6374",
+        "fingerprint": "8e67113f14a28877",
         "title": "속성 INSPECTION.spec_high",
         "reason": "자료형 DECIMAL(선언 numeric(10,3)), 빈 값 없음(관찰)",
         "items": [
@@ -18224,11 +18224,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.inspection.measured",
-        "fingerprint": "a9c430046a17238f",
+        "fingerprint": "d58f5c08881c07b7",
         "title": "속성 INSPECTION.measured",
         "reason": "자료형 DECIMAL(선언 numeric(10,3)), 빈 값 없음(관찰)",
         "items": [
@@ -18322,11 +18322,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.inspection.result",
-        "fingerprint": "4cbc09de19a5f5c8",
+        "fingerprint": "e7c00f5e61663dc6",
         "title": "속성 INSPECTION.result",
         "reason": "자료형 STRING(선언 varchar(5)), 빈 값 없음(관찰)",
         "items": [
@@ -18418,11 +18418,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.inspection.inspected_at",
-        "fingerprint": "a516d124b7943e57",
+        "fingerprint": "0e69b98ced7ccf08",
         "title": "속성 INSPECTION.inspected_at",
         "reason": "자료형 DATETIME(선언 timestamp), 빈 값 없음(관찰)",
         "items": [
@@ -18596,11 +18596,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.maintenance_order.mo_no",
-        "fingerprint": "db12b1ecc72a4cce",
+        "fingerprint": "135d2ce78aa70484",
         "title": "속성 MAINTENANCE_ORDER.mo_no",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -18694,11 +18694,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.maintenance_order.target_type",
-        "fingerprint": "b06e029cf6e29992",
+        "fingerprint": "d116cee617d36066",
         "title": "속성 MAINTENANCE_ORDER.target_type",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -18790,11 +18790,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.maintenance_order.target_code",
-        "fingerprint": "bbfe78f8aee7b16b",
+        "fingerprint": "137e315b48e47927",
         "title": "속성 MAINTENANCE_ORDER.target_code",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -18888,11 +18888,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.maintenance_order.mo_type",
-        "fingerprint": "d6847ad894d8b824",
+        "fingerprint": "c075f195f600eed3",
         "title": "속성 MAINTENANCE_ORDER.mo_type",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -18984,11 +18984,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.maintenance_order.status",
-        "fingerprint": "f5ea41ceb7e919fd",
+        "fingerprint": "ed94af3f549e5bb8",
         "title": "속성 MAINTENANCE_ORDER.status",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -19080,11 +19080,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.maintenance_order.planned_date",
-        "fingerprint": "71919ec8ec14c72c",
+        "fingerprint": "c46e7f05e274cf10",
         "title": "속성 MAINTENANCE_ORDER.planned_date",
         "reason": "자료형 DATE(선언 date), 빈 값 없음(관찰)",
         "items": [
@@ -19178,11 +19178,11 @@
         "isIdentifier": false,
         "isRequired": false,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.maintenance_order.completed_at",
-        "fingerprint": "7f304924e8947078",
+        "fingerprint": "01f12d1e0cd50698",
         "title": "속성 MAINTENANCE_ORDER.completed_at",
         "reason": "자료형 DATETIME(선언 timestamp), 빈 값 1행",
         "items": [
@@ -19276,11 +19276,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.maintenance_order.technician",
-        "fingerprint": "c00236a046c8a5ee",
+        "fingerprint": "9d64aa76ac19c504",
         "title": "속성 MAINTENANCE_ORDER.technician",
         "reason": "자료형 STRING(선언 varchar(50)), 빈 값 없음(관찰)",
         "items": [
@@ -19372,11 +19372,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.maintenance_order.parts_cost",
-        "fingerprint": "0a851fee775d6ea1",
+        "fingerprint": "7eafc086437e3f98",
         "title": "속성 MAINTENANCE_ORDER.parts_cost",
         "reason": "자료형 DECIMAL(선언 numeric(12,2)), 빈 값 없음(관찰)",
         "items": [
@@ -19470,11 +19470,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.maintenance_order.note",
-        "fingerprint": "82aba4de53c63181",
+        "fingerprint": "c6f90c7768ce5b8f",
         "title": "속성 MAINTENANCE_ORDER.note",
         "reason": "자료형 STRING(선언 varchar(100)), 빈 값 없음(관찰)",
         "items": [
@@ -19648,11 +19648,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.material_issue.issue_id",
-        "fingerprint": "18cca1f3852e61e8",
+        "fingerprint": "c75fd4156362a6ff",
         "title": "속성 MATERIAL_ISSUE.issue_id",
         "reason": "자료형 INTEGER(선언 bigint), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -19746,11 +19746,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.material_issue.wo_no",
-        "fingerprint": "49ef3e28b668deec",
+        "fingerprint": "d5ee11fb126620c7",
         "title": "속성 MATERIAL_ISSUE.wo_no",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -19844,11 +19844,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.material_issue.item_code",
-        "fingerprint": "464ef6f273ef50a9",
+        "fingerprint": "7e465e69b4416e18",
         "title": "속성 MATERIAL_ISSUE.item_code",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -19942,11 +19942,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.material_issue.lot_no",
-        "fingerprint": "6ad440f72a5ed10f",
+        "fingerprint": "d2f9706ae01b1ac8",
         "title": "속성 MATERIAL_ISSUE.lot_no",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -20040,11 +20040,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.material_issue.qty",
-        "fingerprint": "ffc41db5d231ee40",
+        "fingerprint": "01a3c5b81b7d4cdf",
         "title": "속성 MATERIAL_ISSUE.qty",
         "reason": "자료형 DECIMAL(선언 numeric(14,3)), 빈 값 없음(관찰)",
         "items": [
@@ -20138,11 +20138,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.material_issue.unit",
-        "fingerprint": "3f025b688db8baa6",
+        "fingerprint": "83bdd1adff2adcc3",
         "title": "속성 MATERIAL_ISSUE.unit",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -20234,11 +20234,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.material_issue.issued_at",
-        "fingerprint": "44d0f3a6b89666b4",
+        "fingerprint": "b26b17d09a7c0c5e",
         "title": "속성 MATERIAL_ISSUE.issued_at",
         "reason": "자료형 DATETIME(선언 timestamp), 빈 값 없음(관찰)",
         "items": [
@@ -20412,11 +20412,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.production_result.result_id",
-        "fingerprint": "4e6a42cd026e8dcf",
+        "fingerprint": "ba4ba035ad17109d",
         "title": "속성 PRODUCTION_RESULT.result_id",
         "reason": "자료형 INTEGER(선언 bigint), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -20510,11 +20510,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.production_result.wo_no",
-        "fingerprint": "bed505cd2593c72f",
+        "fingerprint": "182d601a1697ebee",
         "title": "속성 PRODUCTION_RESULT.wo_no",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -20608,11 +20608,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.production_result.op_seq",
-        "fingerprint": "c7088eb963fe6019",
+        "fingerprint": "4ce5ae8e6b8898f6",
         "title": "속성 PRODUCTION_RESULT.op_seq",
         "reason": "자료형 INTEGER(선언 int), 빈 값 없음(관찰)",
         "items": [
@@ -20706,11 +20706,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.production_result.equipment_code",
-        "fingerprint": "d092c384259892fc",
+        "fingerprint": "98a5efa84a9be55f",
         "title": "속성 PRODUCTION_RESULT.equipment_code",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -20804,11 +20804,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.production_result.worker_id",
-        "fingerprint": "f5e320fa70172b80",
+        "fingerprint": "78b99f9e96dafee5",
         "title": "속성 PRODUCTION_RESULT.worker_id",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -20902,11 +20902,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.production_result.shift",
-        "fingerprint": "317d9ed1f57be095",
+        "fingerprint": "85c69deb2d689922",
         "title": "속성 PRODUCTION_RESULT.shift",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -20998,11 +20998,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.production_result.started_at",
-        "fingerprint": "1f1707a8fb3daf25",
+        "fingerprint": "edd0e23ba83fd706",
         "title": "속성 PRODUCTION_RESULT.started_at",
         "reason": "자료형 DATETIME(선언 timestamp), 빈 값 없음(관찰)",
         "items": [
@@ -21096,11 +21096,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.production_result.ended_at",
-        "fingerprint": "c9b598618b01ac79",
+        "fingerprint": "b4022cbe14f645aa",
         "title": "속성 PRODUCTION_RESULT.ended_at",
         "reason": "자료형 DATETIME(선언 timestamp), 빈 값 없음(관찰)",
         "items": [
@@ -21194,11 +21194,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.production_result.good_qty",
-        "fingerprint": "5ad91fcd7cb4cdbc",
+        "fingerprint": "08a468445e90526f",
         "title": "속성 PRODUCTION_RESULT.good_qty",
         "reason": "자료형 INTEGER(선언 int), 빈 값 없음(관찰)",
         "items": [
@@ -21292,11 +21292,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.production_result.ng_qty",
-        "fingerprint": "68ad670c74e21f59",
+        "fingerprint": "b5a13c203d723c5f",
         "title": "속성 PRODUCTION_RESULT.ng_qty",
         "reason": "자료형 INTEGER(선언 int), 빈 값 없음(관찰)",
         "items": [
@@ -21471,11 +21471,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.routing.product_code",
-        "fingerprint": "7b7a2cb4e32d9c2b",
+        "fingerprint": "12601f6abd33e77e",
         "title": "속성 ROUTING.product_code",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -21569,11 +21569,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.routing.op_seq",
-        "fingerprint": "dc0ed9adfa50a265",
+        "fingerprint": "55efa2f2e72da6e6",
         "title": "속성 ROUTING.op_seq",
         "reason": "자료형 INTEGER(선언 int), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -21667,11 +21667,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.routing.op_name",
-        "fingerprint": "dca93967529b31c2",
+        "fingerprint": "61a6a1105f7297d2",
         "title": "속성 ROUTING.op_name",
         "reason": "자료형 STRING(선언 varchar(50)), 빈 값 없음(관찰)",
         "items": [
@@ -21765,11 +21765,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.routing.equipment_kind",
-        "fingerprint": "4b8d1f9536c120a3",
+        "fingerprint": "5c3f13895a872ee3",
         "title": "속성 ROUTING.equipment_kind",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -21863,11 +21863,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.routing.std_cycle_sec",
-        "fingerprint": "78eeb25052fc9f98",
+        "fingerprint": "a13de1d8b7643dd8",
         "title": "속성 ROUTING.std_cycle_sec",
         "reason": "자료형 DECIMAL(선언 numeric(8,2)), 빈 값 없음(관찰)",
         "items": [
@@ -21961,11 +21961,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.routing.std_setup_min",
-        "fingerprint": "295ee6cb2c063a0d",
+        "fingerprint": "33e958bd366cc90d",
         "title": "속성 ROUTING.std_setup_min",
         "reason": "자료형 INTEGER(선언 int), 빈 값 없음(관찰)",
         "items": [
@@ -22059,11 +22059,11 @@
         "isIdentifier": false,
         "isRequired": false,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.routing.min_tonnage",
-        "fingerprint": "f71c712d8d20e37e",
+        "fingerprint": "4a68ab730f4ce007",
         "title": "속성 ROUTING.min_tonnage",
         "reason": "자료형 INTEGER(선언 int), 빈 값 6행",
         "items": [
@@ -22239,11 +22239,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.sensor_reading.equipment_code",
-        "fingerprint": "71f928c056317cb3",
+        "fingerprint": "4a9d291a2799f4bf",
         "title": "속성 SENSOR_READING.equipment_code",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -22337,11 +22337,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.sensor_reading.measured_at",
-        "fingerprint": "5d3d8bc20f6c0a70",
+        "fingerprint": "a67e5d2acb319eb5",
         "title": "속성 SENSOR_READING.measured_at",
         "reason": "자료형 DATETIME(선언 timestamp), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -22435,11 +22435,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.sensor_reading.metric",
-        "fingerprint": "6352c20cbe90e7b0",
+        "fingerprint": "2391c8c29b023d45",
         "title": "속성 SENSOR_READING.metric",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -22531,11 +22531,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.sensor_reading.value",
-        "fingerprint": "47c6467f2e27c067",
+        "fingerprint": "a4482588b2ec903a",
         "title": "속성 SENSOR_READING.value",
         "reason": "자료형 DECIMAL(선언 numeric(10,2)), 빈 값 없음(관찰)",
         "items": [
@@ -22629,11 +22629,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.sensor_reading.threshold_high",
-        "fingerprint": "c454f4e21fd4b03c",
+        "fingerprint": "9e90eebd0f1d54bc",
         "title": "속성 SENSOR_READING.threshold_high",
         "reason": "자료형 DECIMAL(선언 numeric(10,2)), 빈 값 없음(관찰)",
         "items": [
@@ -22810,11 +22810,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.work_order.wo_no",
-        "fingerprint": "876c3707d278f440",
+        "fingerprint": "1ae5ea6d458c25da",
         "title": "속성 WORK_ORDER.wo_no",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -22908,11 +22908,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.work_order.product_code",
-        "fingerprint": "f7a203eabaf8c81a",
+        "fingerprint": "a112bcdecd2df2ba",
         "title": "속성 WORK_ORDER.product_code",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -23006,11 +23006,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.work_order.die_drawing_code",
-        "fingerprint": "1fa6f7a16858c9fc",
+        "fingerprint": "a2d06d01fd1b4717",
         "title": "속성 WORK_ORDER.die_drawing_code",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -23104,11 +23104,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.work_order.status",
-        "fingerprint": "9ddb2672ac550f30",
+        "fingerprint": "8373aee52d0d2bcb",
         "title": "속성 WORK_ORDER.status",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -23202,11 +23202,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.work_order.priority",
-        "fingerprint": "6a11576508b8c764",
+        "fingerprint": "8f6a0634a2845b17",
         "title": "속성 WORK_ORDER.priority",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -23300,11 +23300,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.work_order.line",
-        "fingerprint": "8047b66c8f97763d",
+        "fingerprint": "f3e74d6418392b32",
         "title": "속성 WORK_ORDER.line",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -23396,11 +23396,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.work_order.planned_qty",
-        "fingerprint": "9a66b0a80d30f8eb",
+        "fingerprint": "5ba29fab5e7378f4",
         "title": "속성 WORK_ORDER.planned_qty",
         "reason": "자료형 INTEGER(선언 int), 빈 값 없음(관찰)",
         "items": [
@@ -23494,11 +23494,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.work_order.produced_qty",
-        "fingerprint": "37908b954b83a558",
+        "fingerprint": "aae4829b84e50a76",
         "title": "속성 WORK_ORDER.produced_qty",
         "reason": "자료형 INTEGER(선언 int), 빈 값 없음(관찰)",
         "items": [
@@ -23592,11 +23592,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.work_order.defect_qty",
-        "fingerprint": "599faa60cb61ff28",
+        "fingerprint": "3038dced0f6a57f4",
         "title": "속성 WORK_ORDER.defect_qty",
         "reason": "자료형 INTEGER(선언 int), 빈 값 없음(관찰)",
         "items": [
@@ -23690,11 +23690,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.work_order.planned_start",
-        "fingerprint": "99a6bfabbe3a44df",
+        "fingerprint": "23515ee7b19c5a38",
         "title": "속성 WORK_ORDER.planned_start",
         "reason": "자료형 DATE(선언 date), 빈 값 없음(관찰)",
         "items": [
@@ -23788,11 +23788,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.work_order.planned_end",
-        "fingerprint": "86ffb12a39656bc5",
+        "fingerprint": "7c06ac8032fb57f4",
         "title": "속성 WORK_ORDER.planned_end",
         "reason": "자료형 DATE(선언 date), 빈 값 없음(관찰)",
         "items": [
@@ -23886,11 +23886,11 @@
         "isIdentifier": false,
         "isRequired": false,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.work_order.actual_start",
-        "fingerprint": "5d9debd1de94ee26",
+        "fingerprint": "6830bf25d9dfe628",
         "title": "속성 WORK_ORDER.actual_start",
         "reason": "자료형 DATETIME(선언 timestamp), 빈 값 2행",
         "items": [
@@ -23984,11 +23984,11 @@
         "isIdentifier": false,
         "isRequired": false,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.work_order.actual_end",
-        "fingerprint": "353a251d8f4d0042",
+        "fingerprint": "1c39050ac360bb73",
         "title": "속성 WORK_ORDER.actual_end",
         "reason": "자료형 DATETIME(선언 timestamp), 빈 값 5행",
         "items": [
@@ -24082,11 +24082,11 @@
         "isIdentifier": false,
         "isRequired": false,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.work_order.so_ref",
-        "fingerprint": "60016eba2e674c5f",
+        "fingerprint": "8b1a72e5df747524",
         "title": "속성 WORK_ORDER.so_ref",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 3행",
         "items": [
@@ -24261,11 +24261,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.work_order_operation.wo_no",
-        "fingerprint": "64e83d26c0aa37b3",
+        "fingerprint": "e0adbd3e173be143",
         "title": "속성 WORK_ORDER_OPERATION.wo_no",
         "reason": "자료형 STRING(선언 varchar(20)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -24359,11 +24359,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.work_order_operation.op_seq",
-        "fingerprint": "b80a28b99a09d20b",
+        "fingerprint": "7cd998acee95dd56",
         "title": "속성 WORK_ORDER_OPERATION.op_seq",
         "reason": "자료형 INTEGER(선언 int), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -24457,11 +24457,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.work_order_operation.equipment_code",
-        "fingerprint": "103f4a97f0e73689",
+        "fingerprint": "e343664733ea0559",
         "title": "속성 WORK_ORDER_OPERATION.equipment_code",
         "reason": "자료형 STRING(선언 varchar(20)), 빈 값 없음(관찰)",
         "items": [
@@ -24555,11 +24555,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.work_order_operation.status",
-        "fingerprint": "4434db1ab7fbcfc9",
+        "fingerprint": "9fae6ae30c0f42d0",
         "title": "속성 WORK_ORDER_OPERATION.status",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -24653,11 +24653,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.work_order_operation.remaining_qty",
-        "fingerprint": "cafd0e77ac2959b8",
+        "fingerprint": "3bbc8e94a93a7365",
         "title": "속성 WORK_ORDER_OPERATION.remaining_qty",
         "reason": "자료형 INTEGER(선언 int), 빈 값 없음(관찰)",
         "items": [
@@ -24836,11 +24836,11 @@
         "isIdentifier": true,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.worker.id",
-        "fingerprint": "4a5954e035868919",
+        "fingerprint": "927852a53c74ec5c",
         "title": "속성 WORKER.id",
         "reason": "자료형 STRING(선언 varchar(10)), 식별 키, 빈 값 없음(관찰)",
         "items": [
@@ -24934,11 +24934,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": true
+        "sensitivity": "RESTRICTED"
       },
       "evidence": {
         "candidateId": "P-mes.worker.name",
-        "fingerprint": "17ffc7474f0f7bc8",
+        "fingerprint": "824949d295002593",
         "title": "속성 WORKER.name",
         "reason": "자료형 STRING(선언 varchar(50)), 빈 값 없음(관찰), 개인정보: 이름·주석이 개인정보를 가리킴",
         "items": [
@@ -25024,11 +25024,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.worker.shift",
-        "fingerprint": "b4c869bcb5388c4b",
+        "fingerprint": "3ed236114b930c3a",
         "title": "속성 WORKER.shift",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -25120,11 +25120,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.worker.line",
-        "fingerprint": "efa0aab044f7cc9d",
+        "fingerprint": "57904fd9bdbe8e9c",
         "title": "속성 WORKER.line",
         "reason": "자료형 STRING(선언 varchar(10)), 빈 값 없음(관찰)",
         "items": [
@@ -25216,11 +25216,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.worker.skill_level",
-        "fingerprint": "6c95561a323dbb31",
+        "fingerprint": "8dcee75e13194f4d",
         "title": "속성 WORKER.skill_level",
         "reason": "자료형 INTEGER(선언 int), 빈 값 없음(관찰)",
         "items": [
@@ -25314,11 +25314,11 @@
         "isIdentifier": false,
         "isRequired": true,
         "unit": null,
-        "isPersonal": false
+        "sensitivity": "NORMAL"
       },
       "evidence": {
         "candidateId": "P-mes.worker.active_yn",
-        "fingerprint": "9a9c6744d9327f25",
+        "fingerprint": "4ae0b762968ef725",
         "title": "속성 WORKER.active_yn",
         "reason": "자료형 STRING(선언 char(1)), 빈 값 없음(관찰)",
         "items": [
@@ -33004,84 +33004,16 @@
             "group": "구조"
           }
         ],
-        "confidenceCap": null,
+        "confidenceCap": {
+          "cap": 0.49,
+          "reason": "mes.work_order를 거쳐야 이어지는 관계라 연결 규칙(두 객체의 속성 비교)으로 표현할 수 없음. 관계 유형만 제안"
+        },
         "method": "rule",
-        "holdRecommended": false,
-        "holdReason": null,
+        "holdRecommended": true,
+        "holdReason": "mes.work_order를 거쳐야 이어지는 관계라 연결 규칙(두 객체의 속성 비교)으로 표현할 수 없음. 관계 유형만 제안",
         "llmJudgement": null
       },
-      "aiConfidence": 0.7,
-      "options": []
-    },
-    {
-      "itemKind": "LINK_RULE",
-      "payload": {
-        "code": "DEFECT_WO_NO_OP_SEQ_TO_ROUTING_VIA_WORK_ORDER",
-        "linkTypeCode": "DEFECT_WO_NO_OP_SEQ_TO_ROUTING_VIA_WORK_ORDER",
-        "pattern": "same_value",
-        "conditions": [
-          {
-            "sourceProperty": "DEFECT.wo_no",
-            "targetProperty": "ROUTING.product_code",
-            "sourceVia": {
-              "matchProperty": "WORK_ORDER.wo_no",
-              "takeProperty": "WORK_ORDER.product_code"
-            },
-            "operator": "EQ",
-            "sourceTransforms": [],
-            "targetTransforms": []
-          },
-          {
-            "sourceProperty": "DEFECT.op_seq",
-            "targetProperty": "ROUTING.op_seq",
-            "operator": "EQ",
-            "sourceTransforms": [],
-            "targetTransforms": []
-          }
-        ],
-        "sourceFilter": null,
-        "description": "값을 그대로 비교"
-      },
-      "evidence": {
-        "candidateId": "LR-defect_wo_no_op_seq_to_routing_via_work_order",
-        "fingerprint": "3bfd166bff77fe56",
-        "title": "연결 규칙 DEFECT_WO_NO_OP_SEQ_TO_ROUTING_VIA_WORK_ORDER",
-        "reason": "mes.defect.wo_no + mes.defect.op_seq의 값이 mes.routing의 기본키 product_code + op_seq로 이어진다 (wo_no로 mes.work_order를 찾아 그 product_code로 비교). 값을 그대로 비교. 서로 다른 값 기준 100%, 행 기준 100% 이어짐.",
-        "items": [
-          {
-            "sourceId": "mes",
-            "locator": "mes.defect.wo_no+op_seq",
-            "snippet": "출발 값 예 ['RNF-320L|10', 'RNF-320L|20', 'RNF-320L|30']",
-            "values": [],
-            "verified": true
-          },
-          {
-            "sourceId": "mes",
-            "locator": "mes.routing.product_code+op_seq",
-            "snippet": "도착 값 예 ['RNF-320L|10', 'RNF-320L|20', 'RNF-320L|30']",
-            "values": [],
-            "verified": true
-          }
-        ],
-        "confidenceItems": [
-          {
-            "label": "값 포함 100%",
-            "weight": 0.5,
-            "group": "값 비교"
-          },
-          {
-            "label": "도착이 기본키",
-            "weight": 0.2,
-            "group": "구조"
-          }
-        ],
-        "confidenceCap": null,
-        "method": "rule",
-        "holdRecommended": false,
-        "holdReason": null,
-        "llmJudgement": null
-      },
-      "aiConfidence": 0.7,
+      "aiConfidence": 0.49,
       "options": []
     },
     {
@@ -33127,84 +33059,16 @@
             "group": "구조"
           }
         ],
-        "confidenceCap": null,
+        "confidenceCap": {
+          "cap": 0.49,
+          "reason": "mes.work_order를 거쳐야 이어지는 관계라 연결 규칙(두 객체의 속성 비교)으로 표현할 수 없음. 관계 유형만 제안"
+        },
         "method": "rule",
-        "holdRecommended": false,
-        "holdReason": null,
+        "holdRecommended": true,
+        "holdReason": "mes.work_order를 거쳐야 이어지는 관계라 연결 규칙(두 객체의 속성 비교)으로 표현할 수 없음. 관계 유형만 제안",
         "llmJudgement": null
       },
-      "aiConfidence": 0.7,
-      "options": []
-    },
-    {
-      "itemKind": "LINK_RULE",
-      "payload": {
-        "code": "PRODUCTION_RESULT_WO_NO_OP_SEQ_TO_ROUTING_VIA_WORK_ORDER",
-        "linkTypeCode": "PRODUCTION_RESULT_WO_NO_OP_SEQ_TO_ROUTING_VIA_WORK_ORDER",
-        "pattern": "same_value",
-        "conditions": [
-          {
-            "sourceProperty": "PRODUCTION_RESULT.wo_no",
-            "targetProperty": "ROUTING.product_code",
-            "sourceVia": {
-              "matchProperty": "WORK_ORDER.wo_no",
-              "takeProperty": "WORK_ORDER.product_code"
-            },
-            "operator": "EQ",
-            "sourceTransforms": [],
-            "targetTransforms": []
-          },
-          {
-            "sourceProperty": "PRODUCTION_RESULT.op_seq",
-            "targetProperty": "ROUTING.op_seq",
-            "operator": "EQ",
-            "sourceTransforms": [],
-            "targetTransforms": []
-          }
-        ],
-        "sourceFilter": null,
-        "description": "값을 그대로 비교"
-      },
-      "evidence": {
-        "candidateId": "LR-production_result_wo_no_op_seq_to_routing_via_work_order",
-        "fingerprint": "812c27dbfa80d7c7",
-        "title": "연결 규칙 PRODUCTION_RESULT_WO_NO_OP_SEQ_TO_ROUTING_VIA_WORK_ORDER",
-        "reason": "mes.production_result.wo_no + mes.production_result.op_seq의 값이 mes.routing의 기본키 product_code + op_seq로 이어진다 (wo_no로 mes.work_order를 찾아 그 product_code로 비교). 값을 그대로 비교. 서로 다른 값 기준 100%, 행 기준 100% 이어짐.",
-        "items": [
-          {
-            "sourceId": "mes",
-            "locator": "mes.production_result.wo_no+op_seq",
-            "snippet": "출발 값 예 ['RNF-320L|10', 'RNF-320L|20', 'RNF-320L|30']",
-            "values": [],
-            "verified": true
-          },
-          {
-            "sourceId": "mes",
-            "locator": "mes.routing.product_code+op_seq",
-            "snippet": "도착 값 예 ['RNF-320L|10', 'RNF-320L|20', 'RNF-320L|30']",
-            "values": [],
-            "verified": true
-          }
-        ],
-        "confidenceItems": [
-          {
-            "label": "값 포함 100%",
-            "weight": 0.5,
-            "group": "값 비교"
-          },
-          {
-            "label": "도착이 기본키",
-            "weight": 0.2,
-            "group": "구조"
-          }
-        ],
-        "confidenceCap": null,
-        "method": "rule",
-        "holdRecommended": false,
-        "holdReason": null,
-        "llmJudgement": null
-      },
-      "aiConfidence": 0.7,
+      "aiConfidence": 0.49,
       "options": []
     },
     {
@@ -33250,84 +33114,16 @@
             "group": "구조"
           }
         ],
-        "confidenceCap": null,
+        "confidenceCap": {
+          "cap": 0.49,
+          "reason": "mes.work_order를 거쳐야 이어지는 관계라 연결 규칙(두 객체의 속성 비교)으로 표현할 수 없음. 관계 유형만 제안"
+        },
         "method": "rule",
-        "holdRecommended": false,
-        "holdReason": null,
+        "holdRecommended": true,
+        "holdReason": "mes.work_order를 거쳐야 이어지는 관계라 연결 규칙(두 객체의 속성 비교)으로 표현할 수 없음. 관계 유형만 제안",
         "llmJudgement": null
       },
-      "aiConfidence": 0.7,
-      "options": []
-    },
-    {
-      "itemKind": "LINK_RULE",
-      "payload": {
-        "code": "WORK_ORDER_OPERATION_WO_NO_OP_SEQ_TO_ROUTING_VIA_WORK_ORDER",
-        "linkTypeCode": "WORK_ORDER_OPERATION_WO_NO_OP_SEQ_TO_ROUTING_VIA_WORK_ORDER",
-        "pattern": "same_value",
-        "conditions": [
-          {
-            "sourceProperty": "WORK_ORDER_OPERATION.wo_no",
-            "targetProperty": "ROUTING.product_code",
-            "sourceVia": {
-              "matchProperty": "WORK_ORDER.wo_no",
-              "takeProperty": "WORK_ORDER.product_code"
-            },
-            "operator": "EQ",
-            "sourceTransforms": [],
-            "targetTransforms": []
-          },
-          {
-            "sourceProperty": "WORK_ORDER_OPERATION.op_seq",
-            "targetProperty": "ROUTING.op_seq",
-            "operator": "EQ",
-            "sourceTransforms": [],
-            "targetTransforms": []
-          }
-        ],
-        "sourceFilter": null,
-        "description": "값을 그대로 비교"
-      },
-      "evidence": {
-        "candidateId": "LR-work_order_operation_wo_no_op_seq_to_routing_via_work_order",
-        "fingerprint": "5365c412e1973c6f",
-        "title": "연결 규칙 WORK_ORDER_OPERATION_WO_NO_OP_SEQ_TO_ROUTING_VIA_WORK_ORDER",
-        "reason": "mes.work_order_operation.wo_no + mes.work_order_operation.op_seq의 값이 mes.routing의 기본키 product_code + op_seq로 이어진다 (wo_no로 mes.work_order를 찾아 그 product_code로 비교). 값을 그대로 비교. 서로 다른 값 기준 100%, 행 기준 100% 이어짐.",
-        "items": [
-          {
-            "sourceId": "mes",
-            "locator": "mes.work_order_operation.wo_no+op_seq",
-            "snippet": "출발 값 예 ['RNF-320L|10', 'RNF-320L|20', 'RNF-320L|30']",
-            "values": [],
-            "verified": true
-          },
-          {
-            "sourceId": "mes",
-            "locator": "mes.routing.product_code+op_seq",
-            "snippet": "도착 값 예 ['RNF-320L|10', 'RNF-320L|20', 'RNF-320L|30']",
-            "values": [],
-            "verified": true
-          }
-        ],
-        "confidenceItems": [
-          {
-            "label": "값 포함 100%",
-            "weight": 0.5,
-            "group": "값 비교"
-          },
-          {
-            "label": "도착이 기본키",
-            "weight": 0.2,
-            "group": "구조"
-          }
-        ],
-        "confidenceCap": null,
-        "method": "rule",
-        "holdRecommended": false,
-        "holdReason": null,
-        "llmJudgement": null
-      },
-      "aiConfidence": 0.7,
+      "aiConfidence": 0.49,
       "options": []
     },
     {
