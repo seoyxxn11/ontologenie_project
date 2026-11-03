@@ -12,6 +12,8 @@ import LoginPage from './features/auth/LoginPage'
 import PasswordChangePage from './features/auth/PasswordChangePage'
 import SourcesPage from './features/sources/SourcesPage'
 import RequireAccess from './features/auth/RequireAccess'
+import ProposalsPage from './features/review/ProposalsPage'
+import ProposalDetail from './features/review/ProposalDetail'
 
 function App() {
   return (
@@ -40,10 +42,8 @@ function App() {
                 />
                 <Route path="history" element={<HistoryPage />} />
                 <Route path="sources" element={<SourcesPage />} />
-                <Route
-                  path="rules"
-                  element={<PagePlaceholder title="연결 규칙" />}
-                />
+                <Route path="rules" element={<ProposalsPage />} />
+                <Route path="rules/:id" element={<ProposalDetail />} />
                 <Route
                   path="accounts"
                   element={<PagePlaceholder title="계정·권한" />}

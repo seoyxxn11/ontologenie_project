@@ -1,5 +1,6 @@
 import { delay, http, HttpResponse } from 'msw'
 import { authHandlers } from './auth'
+import { proposalHandlers } from './proposalHandlers'
 import { sourceHandlers } from './sourceHandlers'
 import type { Execution } from '../features/audit/types'
 import type {
@@ -608,6 +609,7 @@ function ruleSummaries(): RuleSummary[] {
 }
 
 export const handlers = [
+  ...proposalHandlers,
   ...authHandlers,
   ...sourceHandlers,
   // 042 객체 유형 관계도
