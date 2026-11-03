@@ -1,7 +1,7 @@
 # 분석 연동 (FastAPI 쪽)
 
 - 기준: 노션 "API 명세서"의 API 공통 규칙, 018 분석 실행, 105 분석 결과 내부 저장, 043 모델 요약 (모두 초안, 2026-10-27 확인)
-- 후보 샘플: `results/proposals-v1.0.api.json` (data-v1.0 전체를 분석한 105 요청 본문)
+- 후보 샘플: `results/proposals-v1.0.api.json` (data-v1.0 전체를 원천 코드 `ERP_MAIN`·`MES_MAIN`으로 분석한 105 요청 본문, LLM 없이)
 
 ## 1. 흐름
 
@@ -30,7 +30,7 @@
 | 필드 | 내용 |
 | --- | --- |
 | `itemKind` | OBJECT_TYPE · PROPERTY · LINK_TYPE · OBJECT_MAPPING · PROPERTY_MAPPING · LINK_RULE · DOCUMENT_LINK |
-| `payload` | 후보 내용. 객체·관계 유형 코드는 대문자(`WORK_ORDER`), 속성은 컬럼 이름 그대로 |
+| `payload` | 후보 내용. 객체·관계 유형 코드는 대문자(`WORK_ORDER`), 속성은 컬럼 이름 그대로. `sourceId`는 `data_source.code`(예: `MES_MAIN`), `resourceKey`는 `source_resource.resource_key`(예: `mes.work_order`) |
 | `evidence` | 아래 표 |
 | `aiConfidence` | 0~1. 근거 신호 점수의 합이고 정답 확률이 아님. 매칭률과 섞지 않음 |
 | `options[]` | 같은 대상에 후보가 여럿일 때 `{optionNo, payload, evidence, aiConfidence}` |
@@ -111,7 +111,7 @@ PROPERTY `payload.sensitivity`는 ERD `property_definition.sensitivity`와 같�
 | 경우 | 메시지 |
 | --- | --- |
 | AI 계정이 고른 표를 못 읽음 | `AI 계정이 이 테이블을 읽을 수 없습니다: mes.employee` (명세 018 E3) |
-| 원천 접속 실패 | `원천에 접속하지 못했습니다` · `원천 계정 인증에 실패했다` 등 (접속 정보 없이) |
+| 원천 접속 실패 | `원천에 접속하지 못했습니다 (erp)` · `원천 계정 인증에 실패했습니다 (erp)` 등. SSL 없이 붙어 거절된 경우도 인증 실패. 접속 정보는 넣지 않음 |
 | 그 밖 | `분석 중 오류가 났습니다` (자세한 원인은 FastAPI 로그) |
 
 LLM 설정이 없거나 LLM 호출이 실패해도 실행은 실패로 끝내지 않고 코드 분석 후보만 `SUCCEEDED`로 보냅니다. `resultSummary`에 아래 값이 함께 갑니다.
@@ -132,6 +132,6 @@ LLM 설정이 없거나 LLM 호출이 실패해도 실행은 실패로 끝내지
 ## 6. 지금 구현 범위
 
 - LLM: `.env`의 `AI_ONTOLOGY_LLM_PROVIDER`·`_API_KEY`·`_BASE_URL`·`_MODEL`만 바꾸면 제공사를 바꿀 수 있습니다. `gms`(기본), `openai`(OpenAI·Azure OpenAI v1, Responses API 형식), `openai-chat`(사내 LLM 서버 등 Chat Completions 형식), `none`(코드 분석만). 실제 호출로 확인한 것은 GMS뿐입니다.
-- 원천: CSV 폴더와 PostgreSQL(읽기 전용). PostgreSQL 드라이버(psycopg)를 설치하기 전이라 가짜 연결로만 테스트했습니다.
+- 원천: CSV 폴더와 PostgreSQL(읽기 전용, psycopg). 로컬 PostgreSQL 18.6(SSL만 허용, 조회 전용 계정)에 data-v1.0을 넣고 확인했습니다. CSV로 분석한 후보 653개와 같게 나옵니다. 조회 전용 계정은 `information_schema`의 제약 조건이 안 보여 기본키는 `pg_catalog`로 읽습니다.
 - 고른 표·컬럼만 임시 폴더로 옮겨 분석하고, 끝나면 지웁니다. 기본키는 늘 함께 읽습니다.
 - 재분석: 원천 변경은 CDC로 수집하고 다시 분석할 표는 백엔드가 고릅니다(V5). 고른 표 전체를 다시 분석하고 이전 후보와 비교해 `changeType`을 붙입니다. 이전에 있다가 이번에 안 나온 후보는 판단하지 않습니다.
