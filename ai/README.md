@@ -52,7 +52,7 @@ docker inspect --format '{{.State.Health.Status}}' axcore-ai-local
 - 헬스체크는 프로세스의 HTTP 응답을 확인합니다. LLM 호출·backend 연동 성공을 의미하지 않습니다.
 - `.env`는 빌드 컨텍스트에서 제외하고 `AI_ONTOLOGY_SKIP_ENV_FILE=1`로 파일 로딩을 끕니다. 필요한 값은 실행 환경변수로 주입하며 키·토큰을 Dockerfile에 넣지 않습니다.
 - 위 단독 실행에는 backend가 없습니다. `http://backend:8080`은 이후 같은 Docker 네트워크에서 사용할 compose 서비스 주소이며 실제 통신은 compose 단계에서 검증합니다.
-- 현재 등록된 API는 `/health`입니다. 분석 실행·결과 전달은 후속 작업이며, compose와 Jenkins 배포 절차는 아래 서버 자동 배포 안내를 참고합니다.
+- 현재 등록된 API는 `/health`와 분석 시작 알림 수신(`POST /internal/v1/analysis-runs`, [분석 연동](docs/api-internal.md) 3절)입니다. 분석 엔진은 아직 없어 원천 확인 뒤 실패로 알립니다. compose와 Jenkins 배포 절차는 아래 서버 자동 배포 안내를 참고합니다.
 - 검증 후 실행한 터미널에서 Ctrl+C로 종료합니다. 실제 배포 이미지 태그는 `test` 대신 커밋 SHA를 사용합니다.
 
 ## 서버 자동 배포

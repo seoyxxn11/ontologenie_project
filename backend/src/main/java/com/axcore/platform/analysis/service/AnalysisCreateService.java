@@ -1,5 +1,6 @@
 package com.axcore.platform.analysis.service;
 
+import com.axcore.platform.analysis.domain.AnalysisRunCreated;
 import com.axcore.platform.analysis.dto.AnalysisCreateRequest;
 import com.axcore.platform.analysis.dto.AnalysisRunResponse;
 import com.axcore.platform.analysis.repository.AnalysisCreateRepository;
@@ -28,6 +29,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
@@ -39,6 +41,7 @@ public class AnalysisCreateService {
     private final AuditRecorder audits;
     private final Clock clock;
     private final JsonMapper json;
+    private final ApplicationEventPublisher events;
 
     @Transactional
     public AnalysisRunResponse create(AnalysisCreateRequest request, LoginAccount account) {
@@ -74,6 +77,10 @@ public class AnalysisCreateService {
                 break;
             }
             // 충돌한 실행이 기다리는 동안 끝났으면 활성 실행 생성을 다시 시도한다.
+        }
+        if (!response.joined()) {
+            // 커밋 뒤 AnalysisStartNotifier가 AI에 시작을 알린다. 합류한 요청은 이미 알린 실행이라 보내지 않는다.
+            events.publishEvent(new AnalysisRunCreated(response.id()));
         }
         audits.record(
                 AuditEntry.builder()

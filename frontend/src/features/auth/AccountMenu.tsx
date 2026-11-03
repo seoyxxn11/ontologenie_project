@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import Button from '../../components/Button'
 import { ErrorState } from '../../components/Feedback'
 import { useAuth } from './auth-context'
+import { roleLabels } from './access'
 
 function AccountMenu({ disabled = false }: { disabled?: boolean }) {
   const { account, signOut } = useAuth()
@@ -28,6 +29,11 @@ function AccountMenu({ disabled = false }: { disabled?: boolean }) {
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-end gap-2 text-sm">
         <span>{account?.displayName}</span>
+        {account && (
+          <span className="text-xs text-slate-500">
+            {roleLabels[account.roleCode] ?? '알 수 없는 역할'}
+          </span>
+        )}
         <Button
           variant="secondary"
           disabled={disabled}

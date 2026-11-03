@@ -72,13 +72,13 @@ class PasswordChangeApiTests {
     void unlocksBusinessApiInSameSession() throws Exception {
         TestAccount account = createAccount(true);
         LoginSession session = login(account.loginId(), PASSWORD);
-        mockMvc.perform(get("/api/v1/sources").cookie(session.session()))
+        mockMvc.perform(get("/api/v1/not-implemented").cookie(session.session()))
                 .andExpect(status().isForbidden());
 
         changePassword(session, PASSWORD, NEW_PASSWORD).andExpect(status().isNoContent());
 
-        // 인가를 통과해 실제 경로 처리(아직 없는 API라 404)까지 간다.
-        mockMvc.perform(get("/api/v1/sources").cookie(session.session()))
+        // 인가를 통과해 실제 경로 처리(없는 경로라 404)까지 간다.
+        mockMvc.perform(get("/api/v1/not-implemented").cookie(session.session()))
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/v1/auth/me").cookie(session.session()))
                 .andExpect(jsonPath("$.data.mustChangePassword").value(false));

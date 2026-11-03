@@ -61,6 +61,30 @@ nginx는 정확한 `/api/v1/internal` 및 `/api/v1/internal/` 하위 경로를 4
 
 리뷰·병합 후 서버 기존 Compose·nginx 설정을 백업·비교한다. 서버에서만 무작위 토큰 하나를 생성해 `.env`의 두 토큰 변수에 같은 값을 지정한다. 값이 이미 있다면 임의로 교체하지 않고 관련 서비스의 공유 상태를 먼저 확인한다. Compose 검사와 실제 인증서를 사용한 nginx 문법 검사 후 backend·AI 재생성 및 nginx reload를 수행한다. 외부 internal 경로 차단·일반 API 유지·앱 상태를 확인하고, 270 및 관련 내부 API 구현 상태에 맞춰 내부망 인증과 연동을 검증한다. 완료되지 않은 서버 작업은 Jira 274에 잔여 항목으로 남긴다. 54 배치 작업과 67 서버 반영은 별도 범위다.
 
+## 원천 접속 정보 (64)
+
+원천(ERP·MES) DB에는 세 계정으로 접속한다. 비밀번호를 두는 곳이 계정마다 다르다.
+
+| 계정 | 쓰는 곳 | 비밀번호 위치 |
+| --- | --- | --- |
+| `platform_ro` (SYNC) | batch: 수집·연결 검사·전체 읽기 | 플랫폼 DB `data_source_credential`에 암호문으로. 관리자가 원천 등록(API 010·012)에서 넣는다 |
+| `platform_ai` (AI) | FastAPI 분석 | 위와 같다. backend가 풀어 분석 시작 요청으로 AI에 넘긴다 |
+| `platform_cdc` | Kafka Connect(Debezium) | `~/axcore/cdc/.env`의 `ERP_CDC_PASSWORD`·`MES_CDC_PASSWORD` (`cdc/README.md`) |
+
+**암호화 키**
+
+- 서버 `~/axcore/.env`의 `AXCORE_SOURCE_CREDENTIAL_KEY_1`에 둔다. backend·batch에만 전달하고 ai에는 전달하지 않는다.
+- 원천을 처음 등록하기 전에 한 번만 만든다: `openssl rand -base64 32`. 값은 화면·채팅·MR·Jira에 남기지 않는다.
+- 원천을 등록한 뒤에는 키를 바꾸거나 잃으면 저장된 비밀번호를 풀 수 없다(모든 원천을 다시 등록해야 함). 서버 밖 안전한 곳에 따로 보관한다.
+- 키가 비어 있어도 backend·batch는 뜬다. 원천 등록·분석 시작·수집에서 암·복호화만 실패한다.
+- `AXCORE_SOURCE_CREDENTIAL_KEY_VERSION`은 비워 두면 1이다. 키 교체 절차는 개발 가이드 11.3 "원천 접속 비밀번호"에 있다.
+
+**비밀번호를 바꿀 때**
+
+- `platform_ro`·`platform_ai`: 원천 서버 `~/source-db/.env`의 값을 바꾸고 `setup.sh`를 다시 실행해 계정 비밀번호를 바꾼다(`source-db/README.md`). 그다음 화면 또는 API 012로 해당 용도(SYNC·AI)의 계정을 다시 넣는다. 다시 넣기 전까지 그 용도의 접속은 실패한다.
+- `platform_cdc`: 원천 계정 비밀번호를 위와 같이 바꾼 뒤 `~/axcore/cdc/.env`의 두 값을 같은 값으로 바꾸고 `cd ~/axcore/cdc && docker compose up -d kafka-connect`로 컨테이너를 다시 만든다. `docker restart`는 바뀐 `.env`를 읽지 않는다.
+- 암호화 키: 위 "암호화 키"를 따른다.
+
 ## 서버에 적용하는 방법
 
 backend · AI · frontend 이미지는 develop 머지 시 Jenkins가 서비스별 변경을 감지해 자동 배포합니다. 상세 흐름은 아래 "자동 배포" 절을 참고합니다.

@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test } from 'vitest'
 import App from './App'
-import { setMockAccount } from './mocks/auth'
+import { demoAccount, setMockAccount } from './mocks/auth'
 
 function openAt(path: string) {
   window.history.pushState({}, '', path)
@@ -40,6 +40,8 @@ test.each([
   ['/admin/rules', '연결 규칙'],
   ['/admin/accounts', '계정·권한'],
 ])('주소 %s로 바로 들어오면 %s 화면을 보여준다', async (path, title) => {
+  if (path.startsWith('/admin/'))
+    setMockAccount({ ...demoAccount, roleCode: 'ADMIN' })
   openAt(path)
 
   expect(

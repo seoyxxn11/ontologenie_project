@@ -60,6 +60,20 @@ public class AnalysisRunRepository {
                 .update();
     }
 
+    /** 아직 QUEUED인 실행만 FAILED로 바꾼다. 바꿨으면 true. */
+    public boolean failIfQueued(long id, String error, Instant now) {
+        return jdbc.sql(
+                                """
+                update analysis_run set status='FAILED', finished_at=:now, error_message=:error
+                where id=:id and status='QUEUED'
+                """)
+                        .param("id", id)
+                        .param("now", Timestamp.from(now))
+                        .param("error", error)
+                        .update()
+                == 1;
+    }
+
     private static Instant instant(Timestamp value) {
         return value == null ? null : value.toInstant();
     }

@@ -10,6 +10,8 @@ import AuthProvider from './features/auth/AuthProvider'
 import RequireAuth from './features/auth/RequireAuth'
 import LoginPage from './features/auth/LoginPage'
 import PasswordChangePage from './features/auth/PasswordChangePage'
+import SourcesPage from './features/sources/SourcesPage'
+import RequireAccess from './features/auth/RequireAccess'
 
 function App() {
   return (
@@ -21,24 +23,33 @@ function App() {
           <Route element={<RequireAuth />}>
             <Route path="/change-password" element={<PasswordChangePage />} />
             <Route element={<AppLayout />}>
-              <Route path="/" element={<Navigate to="/explorer" replace />} />
-              <Route path="/explorer" element={<ExplorerPage />} />
-              <Route path="/agent" element={<AgentPage />} />
-              <Route path="/audit" element={<AuditPage />} />
-              <Route path="/admin/history" element={<HistoryPage />} />
+              <Route element={<RequireAccess access="workspace" />}>
+                <Route path="/" element={<Navigate to="/explorer" replace />} />
+                <Route path="/explorer" element={<ExplorerPage />} />
+                <Route path="/agent" element={<AgentPage />} />
+                <Route path="/audit" element={<AuditPage />} />
+                <Route path="*" element={<NotFoundPage />} />
+              </Route>
               <Route
-                path="/admin/sources"
-                element={<PagePlaceholder title="데이터 연결" />}
-              />
-              <Route
-                path="/admin/rules"
-                element={<PagePlaceholder title="연결 규칙" />}
-              />
-              <Route
-                path="/admin/accounts"
-                element={<PagePlaceholder title="계정·권한" />}
-              />
-              <Route path="*" element={<NotFoundPage />} />
+                path="/admin"
+                element={<RequireAccess access="administration" />}
+              >
+                <Route
+                  index
+                  element={<Navigate to="/admin/sources" replace />}
+                />
+                <Route path="history" element={<HistoryPage />} />
+                <Route path="sources" element={<SourcesPage />} />
+                <Route
+                  path="rules"
+                  element={<PagePlaceholder title="연결 규칙" />}
+                />
+                <Route
+                  path="accounts"
+                  element={<PagePlaceholder title="계정·권한" />}
+                />
+                <Route path="*" element={<NotFoundPage />} />
+              </Route>
             </Route>
           </Route>
         </Routes>

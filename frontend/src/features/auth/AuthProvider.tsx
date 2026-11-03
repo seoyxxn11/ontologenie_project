@@ -3,7 +3,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { ApiError } from '../../api/errors'
 import { fetchMyAccount, login, logout } from './api'
 import { AuthContext } from './auth-context'
-import type { LoginInput } from './types'
+import type { Account, LoginInput } from './types'
 
 const accountKey = ['auth', 'me'] as const
 
@@ -12,7 +12,27 @@ function AuthProvider({ children }: { children: ReactNode }) {
   const operation = useRef(false)
   const accountQuery = useQuery({
     queryKey: accountKey,
-    queryFn: ({ signal }) => fetchMyAccount(signal),
+    queryFn: async ({ signal }) => {
+      const next = await fetchMyAccount(signal)
+      const previous = client.getQueryData<Account | null>(accountKey)
+      if (
+        previous &&
+        (!next ||
+          previous.id !== next.id ||
+          previous.roleCode !== next.roleCode ||
+          previous.status !== next.status ||
+          previous.mustChangePassword !== next.mustChangePassword)
+      ) {
+        await client.cancelQueries({
+          predicate: (query) => query.queryKey[0] !== 'auth',
+        })
+        client.removeQueries({
+          predicate: (query) => query.queryKey[0] !== 'auth',
+        })
+        client.getMutationCache().clear()
+      }
+      return next
+    },
     retry: false,
   })
 

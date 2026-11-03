@@ -40,9 +40,19 @@ export const authHandlers = [
       loginId?: string
       password?: string
     }
-    if (body.loginId !== 'demo-user' || body.password !== 'demo-only')
+    const demos: Record<string, Account['roleCode']> = {
+      'demo-user': 'PLANNER',
+      'demo-admin': 'ADMIN',
+      'demo-maintenance': 'MAINTENANCE',
+      'demo-viewer': 'VIEWER',
+    }
+    const roleCode =
+      typeof body.loginId === 'string' && Object.hasOwn(demos, body.loginId)
+        ? demos[body.loginId]
+        : undefined
+    if (!roleCode || body.password !== 'demo-only')
       return denied('로그인 ID 또는 비밀번호가 올바르지 않습니다.')
-    currentAccount = { ...demoAccount }
+    currentAccount = { ...demoAccount, loginId: body.loginId!, roleCode }
     return HttpResponse.json({ data: currentAccount })
   }),
   http.post('/api/v1/auth/logout', () => {

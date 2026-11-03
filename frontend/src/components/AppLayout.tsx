@@ -1,12 +1,13 @@
 import { NavLink, Outlet } from 'react-router'
 import AccountMenu from '../features/auth/AccountMenu'
+import { useAuth } from '../features/auth/auth-context'
+import { canAccess } from '../features/auth/access'
 
 const userMenus = [
   { to: '/explorer', label: '업무 데이터' },
   { to: '/agent', label: 'AI 업무 도우미' },
 ]
 
-// 역할에 따라 숨기는 것은 S15P31C106-104에서 처리합니다.
 const adminMenus = [
   { to: '/admin/sources', label: '데이터 연결' },
   { to: '/admin/rules', label: '연결 규칙' },
@@ -35,6 +36,9 @@ function headerLinkClassName({ isActive }: { isActive: boolean }) {
 }
 
 function AppLayout() {
+  const { account } = useAuth()
+  const workspaceAllowed = canAccess(account, 'workspace')
+  const administrationAllowed = canAccess(account, 'administration')
   return (
     <div className="min-h-screen bg-slate-100 p-4">
       <div className="mx-auto max-w-7xl overflow-clip rounded-lg border border-slate-300 bg-white">
@@ -44,15 +48,21 @@ function AppLayout() {
           </span>
           <div className="flex flex-wrap items-center justify-end gap-3">
             <nav aria-label="계정 메뉴" className="flex flex-wrap gap-1">
-              {headerLinks.map((link) => (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  className={headerLinkClassName}
-                >
-                  {link.label}
-                </NavLink>
-              ))}
+              {headerLinks
+                .filter((link) =>
+                  link.to.startsWith('/admin/')
+                    ? administrationAllowed
+                    : workspaceAllowed,
+                )
+                .map((link) => (
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    className={headerLinkClassName}
+                  >
+                    {link.label}
+                  </NavLink>
+                ))}
             </nav>
             <AccountMenu />
           </div>
@@ -62,17 +72,19 @@ function AppLayout() {
           aria-label="주 메뉴"
           className="flex items-center border-b border-slate-300 px-5"
         >
-          {userMenus.map((menu) => (
-            <NavLink key={menu.to} to={menu.to} className={menuClassName}>
-              {menu.label}
-            </NavLink>
-          ))}
+          {workspaceAllowed &&
+            userMenus.map((menu) => (
+              <NavLink key={menu.to} to={menu.to} className={menuClassName}>
+                {menu.label}
+              </NavLink>
+            ))}
 
-          {adminMenus.map((menu) => (
-            <NavLink key={menu.to} to={menu.to} className={menuClassName}>
-              {menu.label}
-            </NavLink>
-          ))}
+          {administrationAllowed &&
+            adminMenus.map((menu) => (
+              <NavLink key={menu.to} to={menu.to} className={menuClassName}>
+                {menu.label}
+              </NavLink>
+            ))}
         </nav>
 
         <main className="p-5">

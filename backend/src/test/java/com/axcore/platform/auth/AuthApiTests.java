@@ -249,12 +249,12 @@ class AuthApiTests {
                                 .andReturn());
         Cookie changedSession = sessionCookie(login(changed.loginId(), PASSWORD).andReturn());
 
-        mockMvc.perform(get("/api/v1/sources").cookie(temporarySession))
+        mockMvc.perform(get("/api/v1/not-implemented").cookie(temporarySession))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error.message").value("비밀번호를 변경한 뒤 이용할 수 있습니다."));
         mockMvc.perform(get("/api/v1/auth/me").cookie(temporarySession)).andExpect(status().isOk());
-        // 비밀번호를 바꾼 계정은 인가를 통과해 실제 경로 처리(아직 없는 API라 404)까지 간다.
-        mockMvc.perform(get("/api/v1/sources").cookie(changedSession))
+        // 비밀번호를 바꾼 계정은 인가를 통과해 실제 경로 처리(없는 경로라 404)까지 간다.
+        mockMvc.perform(get("/api/v1/not-implemented").cookie(changedSession))
                 .andExpect(status().isNotFound());
     }
 

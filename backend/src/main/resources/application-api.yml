@@ -24,6 +24,12 @@ springdoc:
 axcore:
   internal-api:
     token: ${AXCORE_INTERNAL_API_TOKEN:}
+  # FastAPI 분석 서비스. 018로 새 실행을 만들면 커밋 뒤 시작을 알린다(API 018 하단). 서버 값은 http://ai:8000(compose).
+  # 비어 있으면 알리지 않고 새 실행은 QUEUED로 남는다. 알리지 못하면 실행을 FAILED로 바꾼다.
+  ai:
+    base-url: ${AXCORE_AI_BASE_URL:}
+    connect-timeout: 2s
+    read-timeout: 5s
 
 # 수집기는 Docker 내부망으로 접근한다. nginx에 관리 경로를 프록시하지 않는다.
 management:

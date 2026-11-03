@@ -87,6 +87,9 @@ services:
       # 첫 관리자 계정 (관리자가 없을 때 한 번만 사용). 값은 서버 .env에만. 비어 있으면 경고 로그만 남긴다.
       AXCORE_INITIAL_ADMIN_LOGIN_ID: ${AXCORE_INITIAL_ADMIN_LOGIN_ID:-}
       AXCORE_INITIAL_ADMIN_PASSWORD: ${AXCORE_INITIAL_ADMIN_PASSWORD:-}
+      # 원천 접속 비밀번호 암호화 키(64·275). 원천 등록 때 암호화, 분석 시작 때 AI 계정 복호화. ai 컨테이너에는 넣지 않는다.
+      AXCORE_SOURCE_CREDENTIAL_KEY_1: ${AXCORE_SOURCE_CREDENTIAL_KEY_1:-}
+      AXCORE_SOURCE_CREDENTIAL_KEY_VERSION: ${AXCORE_SOURCE_CREDENTIAL_KEY_VERSION:-1}
     ports:
       - "127.0.0.1:18080:8080"
     depends_on:
@@ -118,6 +121,9 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       JAVA_TOOL_OPTIONS: -Xmx768m
       TZ: Asia/Seoul
+      # 원천 접속 비밀번호 암호화 키(64·275). 수집·연결 검사 때 SYNC 계정 복호화. backend와 같은 값이다.
+      AXCORE_SOURCE_CREDENTIAL_KEY_1: ${AXCORE_SOURCE_CREDENTIAL_KEY_1:-}
+      AXCORE_SOURCE_CREDENTIAL_KEY_VERSION: ${AXCORE_SOURCE_CREDENTIAL_KEY_VERSION:-1}
     depends_on:
       postgres:
         condition: service_healthy
