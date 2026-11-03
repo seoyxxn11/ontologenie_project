@@ -1,0 +1,62 @@
+# 단일 프로세스·단일 테넌트 구성. Docker 내부망에서만 사용하며 외부 포트는 열지 않는다.
+auth_enabled: false
+target: all
+
+server:
+  http_listen_port: 3100
+  log_level: info
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+
+schema_config:
+  configs:
+    - from: "2024-04-01"
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+storage_config:
+  tsdb_shipper:
+    active_index_directory: /loki/index
+    cache_location: /loki/index-cache
+
+ingester:
+  wal:
+    enabled: true
+    dir: /loki/wal
+
+# 보존은 Compactor가 수행한다. 작업·삭제 대기 기록도 /loki 영속 볼륨에 저장한다.
+compactor:
+  working_directory: /loki/compactor
+  compaction_interval: 10m
+  retention_enabled: true
+  retention_delete_delay: 2h
+  retention_delete_worker_count: 2
+  delete_request_store: filesystem
+
+limits_config:
+  retention_period: 168h
+
+# 초기 조회 동시성·캐시 크기이며 실제 로그 수집·조회 부하를 측정한 뒤 조정한다.
+querier:
+  max_concurrent: 2
+
+query_range:
+  results_cache:
+    cache:
+      embedded_cache:
+        enabled: true
+        max_size_mb: 32

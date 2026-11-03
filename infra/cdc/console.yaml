@@ -1,0 +1,17 @@
+# Redpanda Console 설정. 브로커·토픽·메시지·소비자 그룹과 Kafka Connect 커넥터 상태를 웹으로 본다.
+# 로그인 기능이 없으므로 컨테이너 포트는 127.0.0.1에만 열고, 외부에서는 nginx /kafka-ui/(Basic Auth, Swagger와 같은 계정)로만 들어온다.
+kafka:
+  brokers:
+    - kafka:9092
+kafkaConnect:
+  enabled: true
+  clusters:
+    - name: axcore-connect
+      url: http://kafka-connect:8083
+server:
+  listenPort: 8080
+  # https://k15c106.p.ssafy.io/kafka-ui/ 아래에서 화면과 API를 낸다. SSH 터널로 볼 때도 http://localhost:18082/kafka-ui/
+  basePath: /kafka-ui
+# 화면이 외부 분석 스크립트(HubSpot 등)를 불러오지 않게 끈다.
+analytics:
+  enabled: false

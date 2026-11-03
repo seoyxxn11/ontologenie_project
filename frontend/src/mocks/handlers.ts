@@ -1,5 +1,15 @@
 import { delay, http, HttpResponse } from 'msw'
-import type { ObjectInstance } from '../features/explorer/types'
+import type { Execution } from '../features/audit/types'
+import type {
+  DefinitionChange,
+  RuleRevision,
+  RuleSummary,
+} from '../features/history/types'
+import type {
+  ModelGraph,
+  ObjectInstance,
+  ObjectLink,
+} from '../features/explorer/types'
 
 const objects: ObjectInstance[] = [
   {
@@ -11,7 +21,10 @@ const objects: ObjectInstance[] = [
       equipment_code: 'PR-03',
       process: '프레스',
       status: '정지',
+      maintenance_note: null,
+      purchase_price: null,
     },
+    restrictedPropertyCodes: ['purchase_price'],
     status: 'ACTIVE',
     sourceMappingId: 21,
     sourceKey: { equipment_code: 'PR-03' },
@@ -28,7 +41,10 @@ const objects: ObjectInstance[] = [
       equipment_code: 'PR-01',
       process: '프레스',
       status: '가동',
+      maintenance_note: null,
+      purchase_price: null,
     },
+    restrictedPropertyCodes: ['purchase_price'],
     status: 'ACTIVE',
     sourceMappingId: 21,
     sourceKey: { equipment_code: 'PR-01' },
@@ -48,6 +64,7 @@ const objects: ObjectInstance[] = [
       sales_order_no: 'SO-101',
       status: '미착수',
     },
+    restrictedPropertyCodes: [],
     status: 'ACTIVE',
     sourceMappingId: 22,
     sourceKey: { work_order_no: 'WO-101' },
@@ -64,6 +81,7 @@ const objects: ObjectInstance[] = [
       sales_order_no: 'SO-101',
       status: '진행 중',
     },
+    restrictedPropertyCodes: [],
     status: 'ACTIVE',
     sourceMappingId: 31,
     sourceKey: { sales_order_no: 'SO-101' },
@@ -80,6 +98,7 @@ const objects: ObjectInstance[] = [
       note_id: 'NOTE-01',
       content: '야간에 3호기 진동이 커졌다.',
     },
+    restrictedPropertyCodes: [],
     status: 'ACTIVE',
     sourceMappingId: 41,
     sourceKey: { note_id: 'NOTE-01' },
@@ -98,6 +117,7 @@ const objects: ObjectInstance[] = [
       logged_at: '2026-10-20 22:00',
       content: '진동 증가에 따른 설비 정지 및 점검',
     },
+    restrictedPropertyCodes: [],
     status: 'ACTIVE',
     sourceMappingId: 51,
     sourceKey: { log_id: 'MAINT-01' },
@@ -121,17 +141,547 @@ const sourceMappings: Record<number, SourceLocation> = {
   51: { systemName: '정비 로그', resourceKey: 'maint.maintenance_log' },
 }
 
+// 객체 유형 ID → 속성 코드별 표시 이름 (077 응답의 propertyNames를 만들 때 사용)
+const propertyNamesByType: Record<number, Record<string, string>> = {
+  3: {
+    equipment_code: '설비 코드',
+    process: '공정',
+    status: '상태',
+    maintenance_note: '정비 메모',
+    purchase_price: '구매 가격',
+  },
+  4: {
+    work_order_no: '작업지시 번호',
+    process: '공정',
+    assigned_equipment: '배정 설비',
+    sales_order_no: '수주 번호',
+    status: '상태',
+  },
+  5: { sales_order_no: '수주 번호', status: '상태' },
+  6: { note_id: '메모 번호', content: '내용' },
+  7: {
+    log_id: '로그 번호',
+    equipment_code: '설비 코드',
+    logged_at: '기록 시각',
+    content: '내용',
+  },
+}
+
+// 078 응답의 연결 (relatedObject는 조회한 객체에 따라 달라서 응답할 때 채운다)
+const links: Omit<ObjectLink, 'relatedObject'>[] = [
+  {
+    id: 22,
+    linkTypeId: 2,
+    linkTypeName: '현재 배정 설비',
+    sourceObjectId: 1101,
+    targetObjectId: 301,
+    origin: 'RULE',
+    status: 'ACTIVE',
+    linkMappingId: 610,
+    evidence: {
+      sourceKey: { work_order_no: 'WO-101' },
+      rawValue: 'PR03',
+      transformedValue: 'PR-03',
+    },
+    expressionKind: null,
+    confirmedBy: null,
+  },
+  {
+    id: 23,
+    linkTypeId: 3,
+    linkTypeName: '생산 대상 수주',
+    sourceObjectId: 1101,
+    targetObjectId: 1201,
+    origin: 'RULE',
+    status: 'ACTIVE',
+    linkMappingId: 611,
+    evidence: {
+      sourceKey: { work_order_no: 'WO-101' },
+      rawValue: 'SO-101',
+      transformedValue: 'SO-101',
+    },
+    expressionKind: null,
+    confirmedBy: null,
+  },
+  {
+    id: 35,
+    linkTypeId: 7,
+    linkTypeName: '언급된 설비',
+    sourceObjectId: 2001,
+    targetObjectId: 301,
+    origin: 'DOCUMENT',
+    status: 'ACTIVE',
+    linkMappingId: null,
+    evidence: {
+      quote: '야간에 3호기 진동이 커졌다.',
+      event: '진동 증가',
+      timeExpression: '야간',
+    },
+    expressionKind: 'ESTIMATED',
+    confirmedBy: 1,
+  },
+  {
+    id: 41,
+    linkTypeId: 8,
+    linkTypeName: '대체 가능 설비',
+    sourceObjectId: 1101,
+    targetObjectId: 302,
+    origin: 'MANUAL',
+    status: 'ACTIVE',
+    linkMappingId: null,
+    evidence: {},
+    expressionKind: null,
+    confirmedBy: 1,
+  },
+]
+
+// 객체 번호 → 078 relatedObject 모양의 요약
+function objectSummary(id: number) {
+  const object = objects.find((item) => item.id === id)
+  return {
+    id,
+    displayName: object?.displayName ?? '',
+    objectTypeId: object?.objectTypeId ?? 0,
+    objectTypeName: object?.objectTypeName ?? '',
+  }
+}
+
+// 가짜 로그인 사용자. 096은 역할이 ADMIN이면 전체, 아니면 본인 실행만 돌려준다고 가정한다.
+// 관리자 화면을 보려면 roleCode를 'ADMIN'으로 바꾼다.
+export const mockUser = { accountId: 7, roleCode: 'PLANNER' }
+
+// 080·096 응답의 실행 이력 (최근 실행이 앞에 오도록 적어 둔다)
+const executions: Execution[] = [
+  {
+    id: 9004,
+    requestId: '55555555-5555-4555-8555-555555555555',
+    eventKind: 'ACTION',
+    actionDefinitionId: 1,
+    actorType: 'USER',
+    actorId: 1,
+    actorRoleCode: 'ADMIN',
+    checkedPermissionCode: 'ONTOLOGY_MANAGE',
+    entryPoint: 'WEB',
+    targetType: 'object_type',
+    targetId: 3,
+    input: { name: '프레스 설비' },
+    status: 'SUCCEEDED',
+    blockedReason: null,
+    result: { updated: true },
+    requestedAt: '2026-10-28T10:00:00+09:00',
+    finishedAt: '2026-10-28T10:00:01+09:00',
+    entityChanges: [
+      {
+        tableName: 'object_type',
+        rowKey: { id: 3 },
+        changeKind: 'UPDATE',
+        beforeData: { name: '설비' },
+        afterData: { name: '프레스 설비' },
+      },
+    ],
+  },
+  {
+    id: 9003,
+    requestId: '44444444-4444-4444-8444-444444444444',
+    eventKind: 'SYNC_RUN',
+    actionDefinitionId: null,
+    actorType: 'USER',
+    actorId: 7,
+    actorRoleCode: 'PLANNER',
+    checkedPermissionCode: 'SYNC_REQUEST',
+    entryPoint: 'WEB',
+    targetType: 'sync_run',
+    targetId: 77,
+    input: { sourceName: 'MES' },
+    status: 'SUCCEEDED',
+    blockedReason: null,
+    result: { collected: 120 },
+    requestedAt: '2026-10-28T08:00:00+09:00',
+    finishedAt: '2026-10-28T08:03:00+09:00',
+    entityChanges: [],
+  },
+  {
+    id: 9002,
+    requestId: '11111111-1111-4111-8111-111111111111',
+    eventKind: 'ACTION',
+    actionDefinitionId: 3,
+    actorType: 'USER',
+    actorId: 7,
+    actorRoleCode: 'PLANNER',
+    checkedPermissionCode: 'ACTION_EXECUTE',
+    entryPoint: 'WEB',
+    targetType: 'object_instance',
+    targetId: 301,
+    input: { workOrderNo: 'WO-101', toEquipment: 'PR-01' },
+    status: 'SUCCEEDED',
+    blockedReason: null,
+    result: { planId: 501, message: '재배정 계획을 만들었습니다.' },
+    requestedAt: '2026-10-27T09:10:00+09:00',
+    finishedAt: '2026-10-27T09:10:02+09:00',
+    entityChanges: [
+      {
+        tableName: 'reassignment_plan',
+        rowKey: { id: 501 },
+        changeKind: 'INSERT',
+        beforeData: null,
+        afterData: {
+          status: 'DRAFT',
+          fromEquipment: 'PR-03',
+          toEquipment: 'PR-01',
+        },
+      },
+    ],
+  },
+  {
+    id: 9001,
+    requestId: '22222222-2222-4222-8222-222222222222',
+    eventKind: 'ACTION',
+    actionDefinitionId: 3,
+    actorType: 'USER',
+    actorId: 7,
+    actorRoleCode: 'PLANNER',
+    checkedPermissionCode: 'ACTION_EXECUTE',
+    entryPoint: 'WEB',
+    targetType: 'object_instance',
+    targetId: 301,
+    input: { workOrderNo: 'WO-101', toEquipment: 'PR-02' },
+    status: 'BLOCKED',
+    blockedReason: '대체 설비 PR-02는 프레스 공정을 처리할 수 없습니다.',
+    result: {},
+    requestedAt: '2026-10-26T18:00:00+09:00',
+    finishedAt: '2026-10-26T18:00:01+09:00',
+    entityChanges: [],
+  },
+  {
+    id: 9000,
+    requestId: '33333333-3333-4333-8333-333333333333',
+    eventKind: 'ACTION',
+    actionDefinitionId: 5,
+    actorType: 'AGENT',
+    actorId: 7,
+    actorRoleCode: 'PLANNER',
+    checkedPermissionCode: 'ACTION_EXECUTE',
+    entryPoint: 'AGENT',
+    targetType: 'object_instance',
+    targetId: 301,
+    input: { equipmentCode: 'PR-03', reason: '진동 증가' },
+    status: 'FAILED',
+    blockedReason: null,
+    result: { error: '정비 시스템 응답 시간이 초과되었습니다.' },
+    requestedAt: '2026-10-25T14:00:00+09:00',
+    finishedAt: '2026-10-25T14:00:30+09:00',
+    entityChanges: [],
+  },
+]
+
+// 080·096이 같이 쓰는 조회 조건(status, from, to)으로 실행 이력을 거른다.
+function filterExecutions(items: Execution[], searchParams: URLSearchParams) {
+  const status = searchParams.get('status')
+  const from = searchParams.get('from')
+  const to = searchParams.get('to')
+  return items
+    .filter((item) => !status || item.status === status)
+    .filter((item) => !from || new Date(item.requestedAt) >= new Date(from))
+    .filter((item) => !to || new Date(item.requestedAt) < new Date(to))
+}
+
+// 042 객체 유형 관계도 응답 (노드는 객체 유형, 선은 관계 유형)
+// 관계 유형 번호·이름과 연결 수는 078 목의 연결(objectLinks)과 맞춘다.
+const modelGraph: ModelGraph = {
+  nodes: [
+    { id: 3, code: 'EQUIPMENT', name: '설비' },
+    { id: 4, code: 'WORK_ORDER', name: '작업지시' },
+    { id: 5, code: 'SALES_ORDER', name: '수주' },
+    { id: 6, code: 'HANDOVER_NOTE', name: '메모' },
+    { id: 7, code: 'MAINTENANCE_LOG', name: '정비 로그' },
+    { id: 8, code: 'INSPECTION_REQUEST', name: '점검 요청' },
+  ],
+  edges: [
+    {
+      id: 2,
+      code: 'ASSIGNED_EQUIPMENT',
+      name: '현재 배정 설비',
+      sourceTypeId: 4,
+      targetTypeId: 3,
+      cardinality: 'MANY_TO_ONE',
+      relationCount: 2,
+      activeLinkCount: 1,
+    },
+    {
+      id: 3,
+      code: 'PRODUCTION_ORDER',
+      name: '생산 대상 수주',
+      sourceTypeId: 4,
+      targetTypeId: 5,
+      cardinality: 'MANY_TO_ONE',
+      relationCount: 1,
+      activeLinkCount: 1,
+    },
+    {
+      id: 7,
+      code: 'MENTIONED_EQUIPMENT',
+      name: '언급된 설비',
+      sourceTypeId: 6,
+      targetTypeId: 3,
+      cardinality: 'MANY_TO_MANY',
+      relationCount: 1,
+      activeLinkCount: 1,
+    },
+    {
+      id: 8,
+      code: 'ALTERNATIVE_EQUIPMENT',
+      name: '대체 가능 설비',
+      sourceTypeId: 4,
+      targetTypeId: 3,
+      cardinality: 'MANY_TO_MANY',
+      relationCount: 1,
+      activeLinkCount: 1,
+    },
+    {
+      id: 9,
+      code: 'MAINTAINED_EQUIPMENT',
+      name: '정비 대상 설비',
+      sourceTypeId: 7,
+      targetTypeId: 3,
+      cardinality: 'MANY_TO_ONE',
+      relationCount: 0,
+      activeLinkCount: 0,
+    },
+  ],
+}
+
+// 044 정의 변경 이력 응답 (최근 변경이 앞에 오도록 적어 둔다)
+// 객체 유형 이름 변경은 096 목의 관리자 실행(9004)과 같은 기록이다.
+const definitionChanges: DefinitionChange[] = [
+  {
+    id: 703,
+    actionExecutionId: 9004,
+    tableName: 'object_type',
+    rowKey: { id: 3 },
+    changeKind: 'UPDATE',
+    beforeData: { name: '설비', row_version: 1 },
+    afterData: { name: '프레스 설비', row_version: 2 },
+    actorId: 1,
+    actorType: 'USER',
+    requestedAt: '2026-10-28T10:00:00+09:00',
+    actionCode: 'UPDATE_OBJECT_TYPE',
+  },
+  {
+    id: 702,
+    actionExecutionId: 8802,
+    tableName: 'property_definition',
+    rowKey: { id: 31 },
+    changeKind: 'INSERT',
+    beforeData: null,
+    afterData: {
+      code: 'vibration_level',
+      name: '진동 수준',
+      data_type: 'NUMBER',
+    },
+    actorId: 1,
+    actorType: 'USER',
+    requestedAt: '2026-10-27T15:00:00+09:00',
+    actionCode: 'CREATE_PROPERTY',
+  },
+  {
+    id: 701,
+    actionExecutionId: 8801,
+    tableName: 'link_type',
+    rowKey: { id: 2 },
+    changeKind: 'UPDATE',
+    beforeData: { name: '배정 설비' },
+    afterData: { name: '현재 배정 설비' },
+    actorId: 1,
+    actorType: 'USER',
+    requestedAt: '2026-10-26T11:00:00+09:00',
+    actionCode: 'UPDATE_LINK_TYPE',
+  },
+]
+
+// 046 연결 규칙 개정 이력 응답 (규칙 코드별)
+const ruleRevisions: Record<string, RuleRevision[]> = {
+  NOTE_EQUIPMENT_MENTION: [
+    {
+      id: 20,
+      code: 'NOTE_EQUIPMENT_MENTION',
+      revision: 1,
+      linkTypeId: 7,
+      linkTypeName: '언급된 설비',
+      status: 'ACTIVE',
+      conditions: [
+        {
+          sequenceNo: 1,
+          sourcePropertyId: 61,
+          targetPropertyId: 21,
+          sourcePropertyName: '언급 설비 코드',
+          targetPropertyName: '설비 코드',
+          operator: 'EQ',
+          sourceTransforms: [],
+          targetTransforms: [],
+        },
+      ],
+      sourceFilter: {},
+      targetFilter: {},
+      retiredAt: null,
+      description: '인수인계 메모에 언급된 설비 연결',
+      createdAt: '2026-10-25T13:00:00+09:00',
+      createdBy: 1,
+      origin: 'MANUAL',
+      proposalItemId: null,
+    },
+  ],
+  WO_EQUIPMENT_CODE: [
+    {
+      id: 10,
+      code: 'WO_EQUIPMENT_CODE',
+      revision: 1,
+      linkTypeId: 2,
+      linkTypeName: '현재 배정 설비',
+      status: 'RETIRED',
+      conditions: [
+        {
+          sequenceNo: 1,
+          sourcePropertyId: 31,
+          targetPropertyId: 21,
+          sourcePropertyName: '배정 설비 코드',
+          targetPropertyName: '설비 코드',
+          operator: 'EQ',
+          sourceTransforms: [],
+          targetTransforms: [],
+        },
+      ],
+      sourceFilter: {},
+      targetFilter: {},
+      retiredAt: '2026-10-27T09:00:00+09:00',
+      description: '작업지시의 설비 코드로 설비 연결(초판)',
+      createdAt: '2026-10-24T09:00:00+09:00',
+      createdBy: 1,
+      origin: 'AI_PROPOSAL',
+      proposalItemId: 280,
+    },
+    {
+      id: 12,
+      code: 'WO_EQUIPMENT_CODE',
+      revision: 2,
+      linkTypeId: 2,
+      linkTypeName: '현재 배정 설비',
+      status: 'ACTIVE',
+      conditions: [
+        {
+          sequenceNo: 1,
+          sourcePropertyId: 31,
+          targetPropertyId: 21,
+          sourcePropertyName: '배정 설비 코드',
+          targetPropertyName: '설비 코드',
+          operator: 'EQ',
+          sourceTransforms: [{ function: 'UPPER' }],
+          targetTransforms: [],
+        },
+      ],
+      sourceFilter: {},
+      targetFilter: {},
+      retiredAt: null,
+      description: '작업지시의 설비 코드로 설비 연결',
+      createdAt: '2026-10-27T09:00:00+09:00',
+      createdBy: 1,
+      origin: 'AI_PROPOSAL',
+      proposalItemId: 300,
+    },
+  ],
+}
+
+// 연결 규칙 목록 응답 (백엔드 신설 예정): 규칙 코드별 최신 개정본
+function ruleSummaries(): RuleSummary[] {
+  return Object.values(ruleRevisions).map((revisions) => {
+    const latest = revisions.reduce((a, b) => (a.revision > b.revision ? a : b))
+    return {
+      code: latest.code,
+      revision: latest.revision,
+      linkTypeId: latest.linkTypeId,
+      linkTypeName: latest.linkTypeName ?? '',
+      status: latest.status,
+      description: latest.description,
+    }
+  })
+}
+
 export const handlers = [
-  // 076 권한 범위 객체 검색
-  http.get('/api/v1/objects', async () => {
+  // 042 객체 유형 관계도
+  http.get('/api/v1/ontology/model-graph', async () => {
     await delay()
+    // objectCount는 백엔드에 추가를 요청할 값이라, 목에서는 목 객체 수로 채운다.
+    const nodes = modelGraph.nodes.map((node) => ({
+      ...node,
+      objectCount: objects.filter((item) => item.objectTypeId === node.id)
+        .length,
+    }))
+    return HttpResponse.json({ data: { ...modelGraph, nodes } })
+  }),
+
+  // 044 정의 변경 이력 조회
+  http.get('/api/v1/ontology/changes', async ({ request }) => {
+    await delay()
+    const params = new URL(request.url).searchParams
+    const tableName = params.get('tableName')
+    const from = params.get('from')
+    const to = params.get('to')
+    const matched = definitionChanges
+      .filter((item) => !tableName || item.tableName === tableName)
+      .filter((item) => !from || new Date(item.requestedAt) >= new Date(from))
+      .filter((item) => !to || new Date(item.requestedAt) < new Date(to))
     return HttpResponse.json({
-      data: objects,
+      data: matched,
       meta: {
         page: 0,
         size: 20,
-        totalElements: objects.length,
+        totalElements: matched.length,
         hasNext: false,
+      },
+    })
+  }),
+
+  // 연결 규칙 목록 (백엔드 신설 예정)
+  http.get('/api/v1/ontology/rules', async ({ request }) => {
+    await delay()
+    const params = new URL(request.url).searchParams
+    const linkTypeId = Number(params.get('linkTypeId'))
+    const status = params.get('status')
+    const matched = ruleSummaries()
+      .filter((rule) => !linkTypeId || rule.linkTypeId === linkTypeId)
+      .filter((rule) => !status || rule.status === status)
+    return HttpResponse.json({ data: matched })
+  }),
+
+  // 046 연결 규칙 개정 이력 조회
+  http.get('/api/v1/ontology/rules/:code/revisions', async ({ params }) => {
+    await delay()
+    return HttpResponse.json({ data: ruleRevisions[String(params.code)] ?? [] })
+  }),
+
+  // 076 권한 범위 객체 검색
+  http.get('/api/v1/objects', async ({ request }) => {
+    await delay()
+    const params = new URL(request.url).searchParams
+    const q = params.get('q') ?? ''
+    const page = Number(params.get('page') ?? 0)
+    const size = Number(params.get('size') ?? 20)
+    const objectTypeId = Number(params.get('objectTypeId'))
+    const matched = objects.filter((item) => {
+      const numbers = Object.values(item.sourceKey ?? {}).map(String)
+      const matchesType = !objectTypeId || item.objectTypeId === objectTypeId
+      return (
+        matchesType &&
+        [item.displayName, ...numbers].some((text) => text.includes(q))
+      )
+    })
+    const start = page * size
+    return HttpResponse.json({
+      data: matched.slice(start, start + size),
+      meta: {
+        page,
+        size,
+        totalElements: matched.length,
+        hasNext: start + size < matched.length,
       },
     })
   }),
@@ -160,8 +710,78 @@ export const handlers = [
     return HttpResponse.json({
       data: {
         ...object,
+        propertyNames: propertyNamesByType[object.objectTypeId] ?? {},
         sourceSystemName: source?.systemName ?? null,
         sourceResourceKey: source?.resourceKey ?? null,
+      },
+    })
+  }),
+  // 078 확정 관계·원천 근거 조회
+  http.get('/api/v1/objects/:id/links', async ({ params }) => {
+    await delay()
+    const id = Number(params.id)
+    const matched = links
+      .filter(
+        (link) => link.sourceObjectId === id || link.targetObjectId === id,
+      )
+      .map((link) => {
+        const relatedId =
+          link.sourceObjectId === id ? link.targetObjectId : link.sourceObjectId
+        return { ...link, relatedObject: objectSummary(relatedId) }
+      })
+    return HttpResponse.json({
+      data: matched,
+      meta: {
+        page: 0,
+        size: 20,
+        totalElements: matched.length,
+        hasNext: false,
+      },
+    })
+  }),
+
+  // 080 객체 관련 실행 이력 조회
+  http.get('/api/v1/objects/:id/executions', async ({ params, request }) => {
+    await delay()
+    const objectExecutions = executions.filter(
+      (item) =>
+        item.targetType === 'object_instance' &&
+        item.targetId === Number(params.id),
+    )
+    const matched = filterExecutions(
+      objectExecutions,
+      new URL(request.url).searchParams,
+    )
+    return HttpResponse.json({
+      data: matched,
+      meta: {
+        page: 0,
+        size: 20,
+        totalElements: matched.length,
+        hasNext: false,
+      },
+    })
+  }),
+
+  // 096 실행·감사 이력 (관리자면 전체, 아니면 본인 실행)
+  http.get('/api/v1/audit/actions', async ({ request }) => {
+    await delay()
+    const isAdmin = mockUser.roleCode === 'ADMIN'
+    const visible = isAdmin
+      ? executions
+      : executions.filter(
+          (item) =>
+            item.actorId === mockUser.accountId && item.actorType !== 'SYSTEM',
+        )
+    const matched = filterExecutions(visible, new URL(request.url).searchParams)
+    return HttpResponse.json({
+      data: matched,
+      meta: {
+        page: 0,
+        size: 20,
+        totalElements: matched.length,
+        hasNext: false,
+        scope: isAdmin ? 'ALL' : 'MINE',
       },
     })
   }),

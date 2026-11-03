@@ -3,3 +3,14 @@ spring:
   main:
     web-application-type: none
     keep-alive: true
+  # 끄는 신호를 받으면 처리 중인 작업이 끝나기를 잠깐 기다린다. 그 안에 못 끝난 작업은 RUNNING으로 남는다.
+  task:
+    scheduling:
+      shutdown:
+        await-termination: true
+        await-termination-period: 30s
+
+axcore:
+  batch:
+    # 작업 표에서 QUEUED 행을 확인하는 간격(QueuedJobPoller). 한 번에 작업 종류마다 최대 20건을 처리한다.
+    poll-delay: 2s

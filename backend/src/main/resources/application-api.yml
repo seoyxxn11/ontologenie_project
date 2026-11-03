@@ -18,3 +18,16 @@ springdoc:
   swagger-ui:
     enabled: true
   paths-to-exclude: /error
+
+# 내부 API(/api/v1/internal/**)를 부르는 FastAPI와 나눠 가진 공유 비밀(X-Internal-Token). 값은 환경변수로만 넣는다.
+# 비어 있으면 내부 API를 모두 막는다. AI 쪽 AI_ONTOLOGY_INTERNAL_TOKEN과 같은 값이어야 한다.
+axcore:
+  internal-api:
+    token: ${AXCORE_INTERNAL_API_TOKEN:}
+
+# 수집기는 Docker 내부망으로 접근한다. nginx에 관리 경로를 프록시하지 않는다.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus

@@ -3,6 +3,7 @@ package com.axcore.platform;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.axcore.platform.audit.service.AuditRecorder;
+import com.axcore.platform.batch.service.QueuedJobPoller;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,5 +38,10 @@ class BatchProfileTests {
     @Test
     void sharesAuditRecorderWithApi() {
         assertThat(context.getBean(AuditRecorder.class)).isNotNull();
+    }
+
+    @Test
+    void pollsQueuedJobs() {
+        assertThat(context.getBean(QueuedJobPoller.class)).isNotNull();
     }
 }

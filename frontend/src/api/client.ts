@@ -1,4 +1,4 @@
-import type { ApiErrorBody, ApiResponse } from './types'
+import type { ApiErrorBody, ApiResponse, PageMeta } from './types'
 
 const API_BASE = '/api/v1'
 
@@ -11,7 +11,9 @@ async function readErrorMessage(response: Response) {
   }
 }
 
-export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
+export async function apiGet<T, M = PageMeta>(
+  path: string,
+): Promise<ApiResponse<T, M>> {
   const response = await fetch(`${API_BASE}${path}`)
   if (!response.ok) {
     throw new Error(await readErrorMessage(response))

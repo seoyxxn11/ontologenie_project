@@ -62,12 +62,13 @@ ERP, MES, 현장 메모처럼 서로 다른 시스템에 저장된 데이터는 
             v                              v
    플랫폼 DB (PostgreSQL)             원천 ERP · MES (PostgreSQL)
             ^                              ^
-            | upsert                       | 읽기 전용 (변경분)
-            +------ 수집 배치 (별도 컨테이너) --+
+            | upsert                       | WAL (로그 기반 CDC)
+            |                              v
+            +-- 수집 배치 <-- Kafka <-- Kafka Connect(Debezium)
 ```
 
-- **원천 연결:** 원천 ERP·MES의 PostgreSQL에 읽기 전용 계정으로 직접 접속합니다. 별도의 REST API는 두지 않습니다.
-- **수집 배치:** 별도 컨테이너에서 정해진 주기(N시간)와 수동 요청으로 실행합니다. 처음에는 전체를 적재하고, 이후에는 변경 이력 기준으로 바뀐 데이터만 반영합니다.
+- **원천 연결:** 원천 ERP·MES의 PostgreSQL에 직접 접속합니다. 플랫폼은 조회 전용 계정, Debezium은 CDC 복제 계정을 씁니다. 원천에는 변경 이력 테이블·트리거를 만들지 않습니다. 별도의 REST API는 두지 않습니다.
+- **수집 배치:** 별도 컨테이너에서 Kafka 토픽의 원천 변경 이벤트를 계속 읽어 반영합니다. 매핑이 바뀐 테이블과 뷰는 전체를 읽어 저장된 값과 비교합니다.
 - **AI 분석:** FastAPI는 분석·제안 결과를 Spring Boot에 돌려줄 뿐 플랫폼 DB에 직접 쓰지 않습니다.
 - **AI Agent:** Spring Boot 안에서 Spring AI로 구현합니다. Agent가 쓸 수 있는 Tool은 조회와 재배정 계획 생성으로 제한합니다.
 
@@ -125,6 +126,7 @@ ERP, MES, 현장 메모처럼 서로 다른 시스템에 저장된 데이터는 
 | --- | --- | --- |
 | Backend | Java 21, Spring Boot 4.1, Spring Data JPA, Flyway, Spring Security(세션 인증), Spring Session JDBC | 확정 |
 | Batch | Spring Batch 6 (별도 컨테이너) | 확정 |
+| 원천 CDC | Debezium 3.6 (Kafka Connect), Kafka 4.2 (KRaft 단일 노드), Redpanda Console | 확정 (2026-10-30). 인프라 기동 2026-11-02 |
 | AI Agent | Spring AI 2.x | 확정 |
 | AI 분석·제안 | Python, FastAPI, Pydantic, pytest, Ruff | 확정 |
 | LLM | SSAFY GMS 제공 모델 | AI 분석·제안에 사용. Agent 모델은 미정 |
@@ -136,7 +138,7 @@ ERP, MES, 현장 메모처럼 서로 다른 시스템에 저장된 데이터는 
 | 모니터링 | Spring Boot Actuator, Prometheus | 백엔드 지표 노출 방식 확정. 수집·대시보드 구성 예정 |
 | 배포 알림 | - | 미정 |
 
-캐시(Redis)와 메시지 큐는 쓰지 않습니다. 오래 걸리는 작업은 DB의 실행 기록 테이블로 넘깁니다. 백엔드 세부 스택은 [개발 가이드 6.2](docs/development-guide.md#62-백엔드-기술-스택)에 있습니다.
+캐시(Redis)는 쓰지 않습니다. Kafka는 원천 변경 수집(CDC)에만 쓰고, 오래 걸리는 작업은 지금처럼 DB의 실행 기록 테이블로 넘깁니다. 백엔드 세부 스택은 [개발 가이드 6.2](docs/development-guide.md#62-백엔드-기술-스택)에 있습니다.
 
 ## 6. 사용자 시나리오 (예시)
 

@@ -5,9 +5,9 @@ export type PageMeta = {
   hasNext: boolean
 }
 
-export type ApiResponse<T> = {
+export type ApiResponse<T, M = PageMeta> = {
   data: T
-  meta?: PageMeta
+  meta?: M
 }
 
 export type ApiErrorBody = {

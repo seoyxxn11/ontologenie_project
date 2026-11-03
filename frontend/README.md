@@ -128,3 +128,8 @@ src/
 ## 팀 결정이 필요한 항목
 
 - 백엔드 개발 서버 주소·포트 (인증은 API 명세 001에 따라 세션 쿠키 + `X-XSRF-TOKEN` 헤더)
+
+## 배포
+
+- `develop`에 머지되면 Jenkins가 `frontend/` 변경을 감지해 `frontend/Dockerfile`로 이미지를 굽고 서버의 frontend 컨테이너를 교체합니다. 헬스체크를 통과하지 못하면 직전 버전으로 자동 롤백됩니다. 절차는 `infra/README.md`의 "자동 배포"를 참고합니다.
+- 서비스 주소는 `https://k15c106.p.ssafy.io/` 이고, `/api/v1` 요청은 메인 nginx가 backend로 넘깁니다.

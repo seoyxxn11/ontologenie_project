@@ -1,0 +1,103 @@
+prometheus.exporter.self "alloy" {}
+
+prometheus.scrape "alloy" {
+  targets         = prometheus.exporter.self.alloy.targets
+  job_name        = "alloy"
+  scrape_interval = "30s"
+  scrape_timeout  = "10s"
+  forward_to      = [prometheus.remote_write.local.receiver]
+}
+
+// CPU 시간, 메모리, 디스크 용량·I/O와 시스템 부하만 수집한다.
+prometheus.exporter.unix "host" {
+  rootfs_path = sys.env("HOST_ROOTFS_PATH")
+  procfs_path = sys.env("HOST_PROCFS_PATH")
+  sysfs_path  = sys.env("HOST_SYSFS_PATH")
+  udev_data_path = sys.env("HOST_UDEV_DATA_PATH")
+
+  set_collectors = ["cpu", "meminfo", "filesystem", "diskstats", "loadavg", "stat", "uname"]
+
+  filesystem {
+    mount_points_exclude = "^/(dev|proc|sys|run|var/lib/docker|var/lib/containerd)($|/)"
+  }
+}
+
+discovery.relabel "host" {
+  targets = prometheus.exporter.unix.host.targets
+
+  rule {
+    target_label = "instance"
+    replacement  = sys.env("HOST_METRICS_INSTANCE")
+  }
+
+  rule {
+    target_label = "job"
+    replacement  = "node"
+  }
+}
+
+prometheus.scrape "host" {
+  targets         = discovery.relabel.host.output
+  scrape_interval = "30s"
+  scrape_timeout  = "10s"
+  forward_to      = [prometheus.remote_write.local.receiver]
+}
+
+// 앱 내부 지표(JVM·HTTP 등). 기존 컨테이너 CPU·메모리 지표와 별도로 수집한다.
+prometheus.scrape "backend" {
+  targets = [{
+    __address__ = "backend:8080",
+    instance    = sys.env("HOST_METRICS_INSTANCE"),
+    service     = "backend",
+  }]
+  job_name        = "backend"
+  metrics_path    = "/actuator/prometheus"
+  scrape_interval = "30s"
+  scrape_timeout  = "10s"
+  forward_to      = [prometheus.remote_write.local.receiver]
+}
+
+prometheus.remote_write "local" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}
+
+// 같은 내부망의 서비스만 수집한다. DB·Jenkins 로그는 대상에서 제외한다.
+discovery.docker "logs" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "10s"
+
+  filter {
+    name   = "network"
+    values = [sys.env("DOCKER_LOG_NETWORK")]
+  }
+}
+
+discovery.relabel "logs" {
+  targets = discovery.docker.logs.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    regex         = "backend|ai|frontend|batch|nginx|alloy|prometheus|loki|grafana"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+}
+
+loki.source.docker "services" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.logs.output
+  labels     = {job = "docker", instance = sys.env("HOST_METRICS_INSTANCE")}
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

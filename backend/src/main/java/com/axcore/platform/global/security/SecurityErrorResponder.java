@@ -68,7 +68,7 @@ public class SecurityErrorResponder implements AuthenticationEntryPoint, AccessD
         return CommonErrorCode.FORBIDDEN.message();
     }
 
-    private void write(
+    void write(
             HttpServletRequest request,
             HttpServletResponse response,
             CommonErrorCode errorCode,

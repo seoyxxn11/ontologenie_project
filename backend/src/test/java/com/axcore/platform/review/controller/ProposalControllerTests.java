@@ -156,7 +156,8 @@ class ProposalControllerTests {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"/api/v1/proposals", "/api/v1/proposals/10"})
+    @ValueSource(
+            strings = {"/api/v1/proposals", "/api/v1/proposals/10", "/api/v1/proposals/10/options"})
     void requiresAuthentication(String path) throws Exception {
         mockMvc.perform(get(path))
                 .andExpect(status().isUnauthorized())
@@ -169,7 +170,11 @@ class ProposalControllerTests {
     @ParameterizedTest
     @ValueSource(strings = {"PLANNER", "MAINTENANCE", "VIEWER"})
     void rejectsNonAdminRole(String roleCode) throws Exception {
-        for (String path : List.of("/api/v1/proposals", "/api/v1/proposals/10")) {
+        for (String path :
+                List.of(
+                        "/api/v1/proposals",
+                        "/api/v1/proposals/10",
+                        "/api/v1/proposals/10/options")) {
 
             mockMvc.perform(get(path).with(loggedIn(roleCode)))
                     .andExpect(status().isForbidden())
@@ -180,7 +185,8 @@ class ProposalControllerTests {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"/api/v1/proposals", "/api/v1/proposals/10"})
+    @ValueSource(
+            strings = {"/api/v1/proposals", "/api/v1/proposals/10", "/api/v1/proposals/10/options"})
     void blocksAdminWhoMustChangePassword(String path) throws Exception {
         LoginAccount account = new LoginAccount(1L, "test-admin", "ADMIN", true);
 

@@ -23,6 +23,29 @@ import org.hibernate.type.SqlTypes;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ProposalItem extends BaseAuditEntity {
 
+    public static ProposalItem manual(Map<String, Object> payload, Map<String, Object> evidence) {
+        ProposalItem item = new ProposalItem();
+        item.origin = "MANUAL";
+        item.itemKind = "LINK_RULE";
+        item.revision = 1;
+        item.payload = payload;
+        item.evidence = evidence;
+        item.reviewStatus = "PENDING";
+        item.applyStatus = "NOT_APPLIED";
+        return item;
+    }
+
+    public void revise(Map<String, Object> payload, Map<String, Object> evidence) {
+        if (!"PENDING".equals(reviewStatus) && !"HELD".equals(reviewStatus)) {
+            throw new IllegalStateException("검토 중이거나 보류된 후보만 수정할 수 있습니다.");
+        }
+        revision++;
+        this.payload = payload;
+        this.evidence = evidence;
+        aiConfidence = null;
+        reviewStatus = "PENDING";
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

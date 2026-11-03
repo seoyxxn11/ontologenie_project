@@ -13,6 +13,7 @@ const adminMenus = [
 
 const headerLinks = [
   { to: '/audit', label: '실행 이력' },
+  { to: '/admin/history', label: '정의·규칙 이력' },
   { to: '/admin/accounts', label: '계정·권한' },
 ]
 

@@ -60,3 +60,6 @@ infra/logs/
 infra/backup/
 infra/nginx/htpasswd
 *.pem
+
+# CI 테스트 결과 파일 (Jenkins junit 수집용, 로컬에서 만들어져도 올리지 않음)
+test-results/

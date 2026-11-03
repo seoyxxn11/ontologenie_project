@@ -1,0 +1,20 @@
+{
+  "name": "cdc-erp",
+  "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+  "tasks.max": "1",
+  "plugin.name": "pgoutput",
+  "database.hostname": "3.35.230.145",
+  "database.port": "15432",
+  "database.dbname": "erp",
+  "database.user": "platform_cdc",
+  "database.password": "${env:ERP_CDC_PASSWORD}",
+  "database.sslmode": "require",
+  "topic.prefix": "ERP_MAIN",
+  "slot.name": "axcore_erp",
+  "publication.name": "axcore_cdc",
+  "publication.autocreate.mode": "disabled",
+  "snapshot.mode": "no_data",
+  "decimal.handling.mode": "string",
+  "tombstones.on.delete": "false",
+  "heartbeat.interval.ms": "60000"
+}

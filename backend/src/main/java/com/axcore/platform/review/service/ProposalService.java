@@ -4,11 +4,15 @@ import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
 import com.axcore.platform.review.domain.ProposalItem;
 import com.axcore.platform.review.dto.LatestCheckResponse;
+import com.axcore.platform.review.dto.ProposalOptionResponse;
 import com.axcore.platform.review.dto.ProposalResponse;
+import com.axcore.platform.review.dto.ProposalRevisionResponse;
 import com.axcore.platform.review.dto.ProposalSearchRequest;
 import com.axcore.platform.review.repository.ProposalItemRepository;
 import com.axcore.platform.review.repository.ProposalItemSpecifications;
 import com.axcore.platform.review.repository.ProposalLatestCheckRepository;
+import com.axcore.platform.review.repository.ProposalOptionRepository;
+import com.axcore.platform.review.repository.ProposalRevisionQueryRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -25,6 +29,8 @@ public class ProposalService {
 
     private final ProposalItemRepository proposalItemRepository;
     private final ProposalLatestCheckRepository proposalLatestCheckRepository;
+    private final ProposalOptionRepository proposalOptionRepository;
+    private final ProposalRevisionQueryRepository proposalRevisionQueryRepository;
 
     public ProposalResponse getProposal(long id) {
         ProposalItem proposal =
@@ -42,7 +48,6 @@ public class ProposalService {
     }
 
     public Page<ProposalResponse> search(ProposalSearchRequest request, Pageable pageable) {
-
         Page<ProposalItem> proposals =
                 proposalItemRepository.findAll(
                         ProposalItemSpecifications.byFilters(
@@ -57,8 +62,44 @@ public class ProposalService {
         return proposals.map(proposal -> toResponse(proposal, latestChecks.get(proposal.getId())));
     }
 
-    private Map<Long, LatestCheckResponse> loadLatestChecks(List<ProposalItem> proposals) {
+    public List<ProposalOptionResponse> getOptions(long id, Integer revision) {
+        ProposalItem proposal =
+                proposalItemRepository
+                        .findById(id)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                CommonErrorCode.RESOURCE_NOT_FOUND,
+                                                Map.of("resource", "proposal_item", "id", id)));
 
+        int targetRevision = revision == null ? proposal.getRevision() : revision;
+        if (!proposalOptionRepository.existsRevision(id, targetRevision)) {
+            throw new BusinessException(
+                    CommonErrorCode.RESOURCE_NOT_FOUND,
+                    Map.of(
+                            "resource", "proposal_revision",
+                            "proposalItemId", id,
+                            "revision", targetRevision));
+        }
+
+        return proposalOptionRepository
+                .findByProposalItemIdAndRevisionOrderByOptionNo(id, targetRevision)
+                .stream()
+                .map(ProposalOptionResponse::from)
+                .toList();
+    }
+
+    public Page<ProposalRevisionResponse> getRevisions(long id, Pageable pageable) {
+        if (!proposalItemRepository.existsById(id)) {
+            throw new BusinessException(
+                    CommonErrorCode.RESOURCE_NOT_FOUND,
+                    Map.of("resource", "proposal_item", "id", id));
+        }
+
+        return proposalRevisionQueryRepository.findByProposalItemId(id, pageable);
+    }
+
+    private Map<Long, LatestCheckResponse> loadLatestChecks(List<ProposalItem> proposals) {
         if (proposals.isEmpty()) {
             return Map.of();
         }
@@ -71,7 +112,6 @@ public class ProposalService {
     }
 
     private ProposalResponse toResponse(ProposalItem proposal, LatestCheckResponse latestCheck) {
-
         return new ProposalResponse(
                 proposal.getId(),
                 proposal.getAnalysisRunId(),

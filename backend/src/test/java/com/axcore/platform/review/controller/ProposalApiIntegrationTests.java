@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.axcore.platform.TestcontainersConfiguration;
 import com.axcore.platform.global.security.LoginAccount;
+import java.math.BigDecimal;
+import java.sql.Types;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -236,6 +238,148 @@ class ProposalApiIntegrationTests {
                 .andExpect(jsonPath("$.error.details.resource").value("proposal_item"))
                 .andExpect(jsonPath("$.error.details.id").value(Long.MAX_VALUE))
                 .andExpect(jsonPath("$.error.requestId").isNotEmpty());
+    }
+
+    @Test
+    void returnsOnlyCurrentRevisionOptionsInOptionNumberOrder() throws Exception {
+        long proposalId = insertProposal("AI", "PENDING");
+        insertOption(proposalId, 1, 1, new BigDecimal("0.9900"));
+        addRevision(proposalId, 2);
+        long secondOptionId = insertOption(proposalId, 2, 2, null);
+        long firstOptionId = insertOption(proposalId, 2, 1, new BigDecimal("0.8600"));
+        long otherProposalId = insertProposal("MANUAL", "PENDING");
+        addRevision(otherProposalId, 2);
+        insertOption(otherProposalId, 2, 1, null);
+
+        mockMvc.perform(get("/api/v1/proposals/{id}/options", proposalId).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].id").value(firstOptionId))
+                .andExpect(jsonPath("$.data[0].optionNo").value(1))
+                .andExpect(jsonPath("$.data[0].revision").value(2))
+                .andExpect(jsonPath("$.data[0].payload.linkTypeId").value(5))
+                .andExpect(jsonPath("$.data[0].payload.conditions[0].operator").value("EQ"))
+                .andExpect(jsonPath("$.data[0].evidence.reason").value("대체 후보 근거"))
+                .andExpect(jsonPath("$.data[0].aiConfidence").value(0.86))
+                .andExpect(jsonPath("$.data[1].id").value(secondOptionId))
+                .andExpect(jsonPath("$.data[1].optionNo").value(2))
+                .andExpect(jsonPath("$.data[1].revision").value(2))
+                .andExpect(jsonPath("$.data[1].aiConfidence").hasJsonPath())
+                .andExpect(jsonPath("$.data[1].aiConfidence").value(nullValue()))
+                .andExpect(jsonPath("$.meta").doesNotExist());
+    }
+
+    @Test
+    void returnsRequestedPastRevisionOptions() throws Exception {
+        long proposalId = insertProposal("MANUAL", "PENDING");
+        long oldOptionId = insertOption(proposalId, 1, 1, null);
+        addRevision(proposalId, 2);
+        insertOption(proposalId, 2, 1, new BigDecimal("0.7500"));
+
+        mockMvc.perform(
+                        get("/api/v1/proposals/{id}/options", proposalId)
+                                .with(admin())
+                                .param("revision", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].id").value(oldOptionId))
+                .andExpect(jsonPath("$.data[0].revision").value(1));
+    }
+
+    @Test
+    void returnsEmptyForCurrentRevisionWithoutOptionsInsteadOfOlderOptions() throws Exception {
+        long proposalId = insertProposal("MANUAL", "PENDING");
+        insertOption(proposalId, 1, 1, null);
+        addRevision(proposalId, 2);
+
+        mockMvc.perform(get("/api/v1/proposals/{id}/options", proposalId).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data").isEmpty())
+                .andExpect(jsonPath("$.meta").doesNotExist());
+    }
+
+    @Test
+    void returnsEmptyForExistingPastRevisionWithoutOptions() throws Exception {
+        long proposalId = insertProposal("MANUAL", "PENDING");
+        addRevision(proposalId, 2);
+        insertOption(proposalId, 2, 1, null);
+
+        mockMvc.perform(
+                        get("/api/v1/proposals/{id}/options", proposalId)
+                                .with(admin())
+                                .param("revision", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    void rejectsUnknownRevisionEvenWhenAnotherProposalHasIt() throws Exception {
+        long proposalId = insertProposal("MANUAL", "PENDING");
+        long otherProposalId = insertProposal("MANUAL", "PENDING");
+        addRevision(otherProposalId, 2);
+        insertOption(otherProposalId, 2, 1, null);
+
+        mockMvc.perform(
+                        get("/api/v1/proposals/{id}/options", proposalId)
+                                .with(admin())
+                                .param("revision", "2"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("RESOURCE_NOT_FOUND"))
+                .andExpect(jsonPath("$.error.details.resource").value("proposal_revision"))
+                .andExpect(jsonPath("$.error.details.proposalItemId").value(proposalId))
+                .andExpect(jsonPath("$.error.details.revision").value(2));
+    }
+
+    @Test
+    void returnsNotFoundForUnknownOptionsProposal() throws Exception {
+        mockMvc.perform(get("/api/v1/proposals/{id}/options", Long.MAX_VALUE).with(admin()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("RESOURCE_NOT_FOUND"))
+                .andExpect(jsonPath("$.error.details.resource").value("proposal_item"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"0", "-1", "abc", "2147483648"})
+    void rejectsInvalidOptionsRevision(String revision) throws Exception {
+        mockMvc.perform(
+                        get("/api/v1/proposals/1/options")
+                                .with(admin())
+                                .param("revision", revision))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"0", "-1", "abc"})
+    void rejectsInvalidOptionsProposalId(String id) throws Exception {
+        mockMvc.perform(get("/api/v1/proposals/" + id + "/options").with(admin()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+    }
+
+    private long insertOption(long proposalId, int revision, int optionNo, BigDecimal confidence) {
+        return jdbcClient
+                .sql(
+                        """
+                        insert into proposal_option (
+                            proposal_item_id, revision, option_no, payload, evidence, ai_confidence
+                        )
+                        values (
+                            :proposalId, :revision, :optionNo,
+                            '{"linkTypeId":5,"conditions":[{"sourceProperty":"worker_code",
+                              "targetProperty":"employee_no","operator":"EQ"}]}'::jsonb,
+                            '{"reason":"대체 후보 근거"}'::jsonb, :confidence
+                        )
+                        returning id
+                        """)
+                .param("proposalId", proposalId)
+                .param("revision", revision)
+                .param("optionNo", optionNo)
+                .param("confidence", confidence, Types.NUMERIC)
+                .query(Long.class)
+                .single();
     }
 
     private RequestPostProcessor admin() {

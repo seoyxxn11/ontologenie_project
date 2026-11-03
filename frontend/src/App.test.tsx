@@ -33,6 +33,7 @@ test('첫 주소(/)로 들어오면 업무 데이터로 이동한다', async () 
 test.each([
   ['/agent', 'AI 업무 도우미'],
   ['/audit', '실행 이력'],
+  ['/admin/history', '정의·규칙 이력'],
   ['/admin/sources', '데이터 연결'],
   ['/admin/rules', '연결 규칙'],
   ['/admin/accounts', '계정·권한'],

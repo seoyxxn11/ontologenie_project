@@ -1,0 +1,47 @@
+// Linux 서버 전용. CPU·메모리만 수집해 디스크 용량 스캔 등의 부하를 줄인다.
+prometheus.exporter.cadvisor "docker" {
+  docker_host               = "unix:///var/run/docker.sock"
+  containerd_host           = "/run/containerd/containerd.sock"
+  // containerd 수집기는 기본 namespace를 사용한다. Docker의 moby는 Docker 처리기가 조회한다.
+  // moby를 여기에도 지정하면 containerd 처리기가 먼저 선택되어 Docker 이름·라벨이 빠질 수 있다.
+  containerd_namespace      = "k8s.io"
+  docker_only               = true
+  disable_root_cgroup_stats = true
+  enabled_metrics           = ["cpu", "memory"]
+  storage_duration          = "1m"
+  store_container_labels    = false
+  allowlisted_container_labels = ["com.docker.compose.service", "com.docker.compose.project"]
+}
+
+discovery.relabel "containers" {
+  targets = prometheus.exporter.cadvisor.docker.targets
+
+  rule {
+    target_label = "instance"
+    replacement  = sys.env("HOST_METRICS_INSTANCE")
+  }
+
+  rule {
+    target_label = "job"
+    replacement  = "cadvisor"
+  }
+}
+
+prometheus.scrape "containers" {
+  targets         = discovery.relabel.containers.output
+  scrape_interval = "30s"
+  scrape_timeout  = "10s"
+  forward_to      = [prometheus.relabel.container_service.receiver]
+}
+
+// 대시보드에서 긴 Compose 라벨 대신 service="backend" 등으로 조회한다.
+prometheus.relabel "container_service" {
+  forward_to = [prometheus.remote_write.local.receiver]
+
+  rule {
+    source_labels = ["container_label_com_docker_compose_service"]
+    regex         = "(.+)"
+    target_label  = "service"
+    replacement   = "$1"
+  }
+}

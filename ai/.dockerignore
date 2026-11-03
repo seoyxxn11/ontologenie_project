@@ -1,0 +1,23 @@
+# 실행에 필요한 파일만 빌드 컨텍스트에 보낸다.
+**
+!Dockerfile
+!.dockerignore
+!requirements.txt
+!main.py
+!app/
+!app/**
+
+# 허용된 소스 폴더 안에서도 비밀값·가상환경·캐시는 제외한다.
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/.venv
+**/venv
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/.git

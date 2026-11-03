@@ -385,10 +385,11 @@ action/
 | 웹 | Spring MVC, Bean Validation, `@RestControllerAdvice` 공통 오류 처리 |
 | API 문서 | springdoc-openapi 3.x (OpenAPI 3.1, Swagger UI) |
 | 데이터 | PostgreSQL 18, Spring Data JPA(`@Version`, jsonb), JdbcClient(대량 upsert), Flyway |
-| 원천 DB | 읽기 전용 HikariCP 커넥션 풀을 따로 둔다. |
+| 원천 DB | 조회 전용 계정용 HikariCP 커넥션 풀을 따로 둔다(전체 다시 읽기·연결 검사). |
+| 원천 CDC | Debezium(Kafka Connect) + Kafka, 소비는 `spring-kafka`(배치 컨테이너). 원천 변경 수집 전용이며 서비스 사이 메시징에는 쓰지 않는다. 인프라는 `infra/cdc/`·`infra/source-db/` |
 | CSV | Jackson CSV |
 | 오래 걸리는 작업 | 실행 기록 테이블에 요청을 넣고 202를 응답한다. 작업자가 `FOR UPDATE SKIP LOCKED`로 가져가 처리한다. 여러 인스턴스 운영을 기준으로 한다. |
-| 배치 | Spring Batch 6(JDBC JobRepository) + `@Scheduled`. 주기 실행은 배치 컨테이너에만 둔다. |
+| 배치 | `@Scheduled` + Spring Batch 6(JDBC JobRepository, 실행 기록 테이블은 Flyway V6). 주기 실행은 배치 컨테이너에만 둔다. 정합성 검사(수동 검사·재검증·후보 시험·수집 중 분류)도 배치 컨테이너에서 실행한다. api는 요청을 받아 실행 기록 테이블에 넣기만 한다(2026-10-30 결정). Spring Batch Job은 첫 적재처럼 큰 작업에만 쓰고, 작은 작업은 10.3의 작업 표 방식으로 처리한다. |
 | 인증 | Spring Security(세션 인증), Spring Session JDBC(세션을 플랫폼 DB에 저장), BCrypt |
 | 외부 호출 | RestClient (시간 제한 필수) |
 | AI Agent | Spring AI 2.0.x (GMS 연결) |
@@ -396,7 +397,7 @@ action/
 | 코드 품질 | Spotless + google-java-format(AOSP), Lombok(7.2 허용 범위) |
 | 테스트 | JUnit, Mockito, Spring MVC Test, Testcontainers(PostgreSQL 18) |
 
-사용하지 않는 것: Redis, 메시지 큐, WebFlux·SSE, QueryDSL, Spring AI 기본 대화 메모리(대화는 플랫폼 DB에 저장한다).
+사용하지 않는 것: Redis, WebFlux·SSE, QueryDSL, Spring AI 기본 대화 메모리(대화는 플랫폼 DB에 저장한다). Kafka는 원천 CDC에만 쓰고, 서비스 사이 작업 전달은 지금처럼 실행 기록 테이블로 한다(2026-10-30 CDC 결정, S15P31C106-266).
 
 - 같은 프로세스를 여러 개 띄워도 맞게 동작해야 한다. 작업·잠금·카운터 같은 상태를 인스턴스 메모리에만 두지 않는다.
 - 의존성은 그 기능을 구현하는 이슈에서 설정과 함께 추가한다.
@@ -786,22 +787,38 @@ AI가 생성한 객체 유형이나 연결 규칙은 곧바로 활성 데이터�
 
 ### 10.2 ERP/MES 원천 연결
 
-- PostgreSQL 원천에는 읽기 전용 계정으로 접속한다.
-- 서버 수준에서 허용한 접근 경로만 사용한다.
-- 원천 DB 자격 증명을 API 응답이나 로그에 포함하지 않는다.
-- 새로 연결한 자원은 최초 전체 적재를 수행한다.
-- 이후 변경 이력 번호를 기준으로 증분 적재한다.
-- 체크포인트는 성공적으로 반영한 데이터 범위까지만 이동한다.
+2026-10-30 원천 수집을 로그 기반 CDC(Debezium + Kafka)로 정했다. 원천에는 변경 이력 테이블·트리거를 만들지 않고 `wal_level=logical`, 복제 계정, publication만 둔다(S15P31C106-266, V5).
+
+- PostgreSQL 원천에는 두 계정으로 접속한다. 플랫폼은 조회 전용 계정(SELECT)을, Debezium은 CDC 복제 계정(REPLICATION, superuser 아님)을 쓴다.
+- 서버 수준에서 허용한 접근 경로만 사용한다(원천은 메인 서버 IP만 허용).
+- 원천 DB 자격 증명을 API 응답이나 로그에 포함하지 않는다. CDC 복제 계정 비밀번호는 Kafka Connect에 config provider로만 넘긴다.
+- 원천 테이블마다 수집 방식이 있다(`source_resource.sync_strategy`). `CDC`는 변경 이벤트로, `FULL_COMPARE`는 테이블 전체를 읽고 저장된 값과 비교해 반영한다. 뷰는 늘 `FULL_COMPARE`다.
+- 매핑이 승인·변경된 테이블은 플랫폼이 조회 전용 계정으로 전체를 읽어 적재한다. 읽기 직전 LSN을 `source_resource.loaded_lsn`에 남기고, 그보다 앞선 CDC 이벤트는 버린다. 객체마다 마지막으로 반영한 LSN(`object_instance.source_lsn`)보다 앞선 변경도 반영하지 않는다.
+- 체크포인트는 소비자의 토픽 offset이다(`cdc_offset`). 객체 반영과 같은 트랜잭션에서만 전진한다. offset이 토픽 보관 기간을 넘었거나 원천 복제 슬롯이 깨졌으면 그 원천의 CDC 테이블을 전체 다시 읽어 복구한다.
 
 ### 10.3 배치 실행
 
-- 같은 원천의 수집을 중복 실행하지 않는다.
+- CDC 반영은 배치 컨테이너의 상시 소비자가 한다. 소비자 그룹이 토픽마다 소비자 하나만 돌게 하고, 한 번에 가져온 묶음을 한 트랜잭션으로 반영하며 그 묶음을 `sync_run`(`trigger_kind=CDC`) 하나로 남긴다.
+- 같은 테이블의 전체 다시 읽기를 중복 실행하지 않는다.
 - 이미 실행 중이면 기존 실행 ID를 반환한다.
 - 실행 시작·완료·실패 시각을 기록한다.
 - 실행 중에는 heartbeat를 갱신한다.
 - heartbeat가 중단된 작업은 정해진 시간 초과 기준으로 실패 처리한다.
 - 수동 실행과 예약 실행은 같은 수집 로직을 사용한다.
 - 반복 실행해도 같은 원천 데이터가 중복 생성되지 않도록 한다.
+
+배치 앱 구조(2026-10-30, S15P31C106-215):
+
+- 배치 컨테이너는 백엔드와 같은 이미지를 `SPRING_PROFILES_ACTIVE=batch`로 띄운다. 웹 서버는 없다.
+- `@Scheduled`는 batch 프로필에서만 켜진다(`batch.config.BatchSchedulingConfig`). 정기 자동 검사는 두지 않는다.
+- api가 접수하는 작업(연결 검사, 원천 표본·매핑 미리보기, 정합성 검사, 수동 수집)은 모두 작업 표 방식이다.
+  - api가 작업 표(`source_connection_check`, `source_preview`, `check_run`, `sync_run`)에 `QUEUED` 행을 넣고 202를 응답한다.
+  - 배치의 `QueuedJobPoller`가 `axcore.batch.poll-delay`(기본 2초)마다 확인한다. `QueuedJobRunner`가 `FOR UPDATE SKIP LOCKED`로 한 건씩 가져간다.
+  - 도메인은 작업 종류마다 `QueuedJobHandler` Bean 하나만 만든다. `run`은 트랜잭션 밖에서 원천을 읽고, `complete`는 결과를 저장하며 행을 `SUCCEEDED`로 바꾼다.
+  - 실패 이유를 화면에 보여 주려면 `QueuedJobFailure`를 던진다. 다른 예외는 일반 문구로 남기고 자세한 내용은 서버 로그에만 쓴다.
+  - 감사 기록 결과 줄(SYSTEM + BATCH)은 `QueuedJobRunner`가 남긴다. Handler가 따로 남기지 않는다.
+- 큰 작업(첫 적재, 테이블 전체 다시 읽기)은 Spring Batch Job으로 만들고, Handler의 `run`에서 그 Job을 시작한다. 실패하면 마지막으로 커밋한 청크 다음부터 이어서 실행한다. 업무 상태는 `sync_run`에 두고, Spring Batch 실행 기록 테이블(`batch_*`)은 화면과 API에서 읽지 않는다.
+- 멈춘 작업(RUNNING인 채로 남은 행)의 정리는 heartbeat 작업(S15P31C106-218)에서 한다.
 
 ---
 
@@ -841,7 +858,7 @@ AI가 생성한 객체 유형이나 연결 규칙은 곧바로 활성 데이터�
 **구현에서 쓰는 방법**
 
 - 로그인 사용자는 Controller에서 `@AuthenticationPrincipal LoginAccount`로 받는다. 계정 ID, 로그인 ID, 역할 코드, 임시 비밀번호 여부가 들어 있다.
-- 로그인 없이 부를 수 있는 경로는 로그인(`POST /api/v1/auth/login`), API 문서(`/swagger-ui/**`, `/v3/api-docs/**`), `/actuator/health`뿐이다. 새 공개 경로가 필요하면 `global.security.SecurityConfig`를 고치고 리뷰를 받는다.
+- 로그인 없이 부를 수 있는 경로는 로그인(`POST /api/v1/auth/login`), API 문서(`/swagger-ui/**`, `/v3/api-docs/**`), `/actuator/health`, 내부 모니터링용 `GET /actuator/prometheus`다. 지표 경로는 nginx 외부 프록시에 추가하지 않으며 Docker 내부망 수집에 사용한다. 새 공개 경로가 필요하면 `global.security.SecurityConfig`를 고치고 리뷰를 받는다.
 - 임시 비밀번호 상태(`mustChangePassword=true`)에서는 내 계정 조회, 로그아웃, 비밀번호 변경만 쓸 수 있다. 나머지는 403이다.
 - 계정의 세션을 끊을 때는 `auth.service.AccountSessionService`를 쓴다. 비밀번호 변경은 `expireOthers`, 잠금·비활성화·역할 변경·비밀번호 초기화는 `expireAll`이다.
 - 로그인 요청은 CSRF 검사에서 뺀다. 로그인에 성공하면 세션 ID를 새로 만들고 `XSRF-TOKEN` 쿠키를 준다. `GET /api/v1/auth/me`도 쿠키가 없으면 다시 준다.
@@ -849,6 +866,19 @@ AI가 생성한 객체 유형이나 연결 규칙은 곧바로 활성 데이터�
 - 사용자가 정하는 비밀번호는 `account.service.PasswordPolicy`로 검사한다. 8자 이상, 영문·숫자·특수문자 모두 포함, 로그인 ID와 다름, 72바이트 이하(BCrypt 한계)다. 비밀번호 변경(003)은 현재 비밀번호와 같은 값도 거절한다.
 - Service에서 찾은 입력 오류는 `BusinessException.invalidField(field, reason)`으로 던진다. 응답은 Bean Validation 오류와 같은 400 형식이다.
 - 세션 테이블은 Flyway `V4__create_spring_session.sql`이 만든다.
+
+**내부 API**
+
+FastAPI 같은 내부 서비스가 부르는 `/api/v1/internal/**`는 세션 대신 서비스 토큰으로 인증한다(API 105·043, S15P31C106-270).
+
+- 요청 헤더 `X-Internal-Token`에 공유 비밀을 넣는다. backend는 환경변수 `AXCORE_INTERNAL_API_TOKEN`, AI는 `AI_ONTOLOGY_INTERNAL_TOKEN`에 같은 값을 넣는다. 값은 서버 `.env`에만 둔다.
+- 설정값이 비어 있으면 내부 API를 모두 막는다. 기본값을 두지 않는다.
+- 토큰이 없거나 틀리면 401이다. 토큰 없이 사용자 세션 쿠키로 부르면 403이다.
+- 세션을 만들거나 읽지 않고, 쿠키를 쓰지 않으므로 CSRF도 검사하지 않는다.
+- 토큰은 내부 API에서만 통한다. 다른 API에 토큰을 보내도 인증되지 않는다.
+- 인증된 요청의 사용자는 내부 서비스(`internal-service`)다. `LoginAccount`가 없으므로 `created_by`·`updated_by`는 빈 값이다.
+- 보안 설정은 `global.security.SecurityConfig`의 내부 API 체인과 `InternalApiTokenFilter`다.
+- nginx는 외부에서 오는 `/api/v1/internal/**` 요청을 막는다.
 
 **첫 관리자**
 
@@ -927,11 +957,11 @@ CI에서 반드시 통과해야 하는 테스트 범위는 아직 정하지 않�
 - 규칙 개정 후 유효하지 않은 기존 연결은 비활성화된다.
 
 **수집·배치**
-- 최초 수집은 전체 적재를 수행한다.
-- 다음 수집은 변경분만 반영한다.
+- 매핑된 테이블의 첫 적재는 전체를 읽는다.
+- 이후 CDC 이벤트로 변경분만 반영한다. 전체 읽기보다 앞선 이벤트가 늦게 와도 값이 되돌아가지 않는다.
 - 반복 수집해도 동일 객체의 ID가 유지된다.
 - 동시 수집 요청은 하나의 실행으로 처리한다.
-- 실패한 작업이 체크포인트를 잘못 전진시키지 않는다.
+- 실패한 작업이 체크포인트(소비 offset)를 잘못 전진시키지 않는다.
 
 **Action·재배정**
 - 권한이 없으면 Action을 실행할 수 없다.

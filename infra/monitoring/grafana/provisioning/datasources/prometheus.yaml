@@ -1,0 +1,14 @@
+# Grafana 시작 시 Docker 내부망의 Prometheus를 자동 등록한다.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: axcore-prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      httpMethod: POST
+      timeInterval: 30s

@@ -1,0 +1,41 @@
+# 노트북 검증 시 compose.yaml 뒤에 추가한다. 서버에서는 사용하지 않는다.
+# !override는 Docker Compose 2.24.4 이상에서 지원한다.
+services:
+  alloy:
+    # Docker Desktop에서는 호스트 지표와 Docker 로그를 수집한다. cAdvisor는 서버에서 검증한다.
+    privileged: false
+    cgroup: private
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    environment:
+      HOST_ROOTFS_PATH: /
+      HOST_PROCFS_PATH: /proc
+      HOST_SYSFS_PATH: /sys
+      HOST_UDEV_DATA_PATH: /host/udev
+      HOST_METRICS_INSTANCE: docker-desktop
+      DOCKER_LOG_NETWORK: axcore-monitoring-check-net
+    # Windows 드라이브를 서버 루트로 연결하지 않고 Linux 컨테이너 환경에서 수집 경로를 검증한다.
+    # 서버 전체 디스크 용량의 정확성은 Linux 서버 반영 후 별도로 확인한다.
+    volumes: !override
+      - ./monitoring:/etc/alloy:ro
+      - alloy-data:/var/lib/alloy/data
+      # Docker API로 로그를 읽는다. ro 마운트가 API 쓰기 요청까지 차단하지는 않는다.
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        read_only: true
+        bind:
+          create_host_path: false
+      # Docker Desktop에서는 udev 추가 장치 정보를 사용하지 않는다.
+      - type: tmpfs
+        target: /host/udev
+        read_only: true
+        tmpfs:
+          size: 1048576
+
+networks:
+  axcore-net:
+    name: axcore-monitoring-check-net
