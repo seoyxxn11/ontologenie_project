@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,13 +49,27 @@ public class ProposalService {
     }
 
     public Page<ProposalResponse> search(ProposalSearchRequest request, Pageable pageable) {
+        return search(request, pageable, Specification.unrestricted());
+    }
+
+    public Page<ProposalResponse> searchByAnalysis(
+            long analysisRunId, ProposalSearchRequest request, Pageable pageable) {
+        return search(
+                request,
+                pageable,
+                (root, query, builder) -> builder.equal(root.get("analysisRunId"), analysisRunId));
+    }
+
+    private Page<ProposalResponse> search(
+            ProposalSearchRequest request, Pageable pageable, Specification<ProposalItem> scope) {
         Page<ProposalItem> proposals =
                 proposalItemRepository.findAll(
                         ProposalItemSpecifications.byFilters(
-                                request.origin(),
-                                request.itemKind(),
-                                request.reviewStatus(),
-                                request.applyStatus()),
+                                        request.origin(),
+                                        request.itemKind(),
+                                        request.reviewStatus(),
+                                        request.applyStatus())
+                                .and(scope),
                         pageable);
 
         Map<Long, LatestCheckResponse> latestChecks = loadLatestChecks(proposals.getContent());

@@ -68,7 +68,7 @@ public class CandidateCheckRepository {
     }
 
     public long enqueue(
-            long id, int revision, long accountId, String workKey, Object basis, Instant now) {
+            long id, int revision, Long accountId, String workKey, Object basis, Instant now) {
         var existing =
                 jdbc.sql(
                                 """
@@ -92,7 +92,7 @@ public class CandidateCheckRepository {
                 .param("revision", revision)
                 .param("key", workKey)
                 .param("basis", json.writeValueAsString(basis))
-                .param("account", accountId)
+                .param("account", accountId, java.sql.Types.BIGINT)
                 .param("now", java.sql.Timestamp.from(now))
                 .query(Long.class)
                 .single();

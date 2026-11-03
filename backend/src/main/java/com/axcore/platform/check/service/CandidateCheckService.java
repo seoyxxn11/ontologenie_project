@@ -23,7 +23,7 @@ public class CandidateCheckService {
 
     @Transactional
     public long enqueue(
-            long proposalId, int revision, Long analysisRunId, Set<Long> types, long accountId) {
+            long proposalId, int revision, Long analysisRunId, Set<Long> types, Long accountId) {
         var basis =
                 new CheckDataBasis(
                         repository.loadBasis(proposalId, revision, types, analysisRunId));

@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test } from 'vitest'
 import App from './App'
+import { setMockAccount } from './mocks/auth'
 
 function openAt(path: string) {
   window.history.pushState({}, '', path)
@@ -20,6 +21,7 @@ beforeEach(() => {
 test('첫 주소(/)로 들어오면 업무 데이터로 이동한다', async () => {
   openAt('/')
 
+  await screen.findByRole('heading', { name: '객체 목록' })
   expect(window.location.pathname).toBe('/explorer')
   expect(screen.getByRole('link', { name: '업무 데이터' })).toHaveAttribute(
     'aria-current',
@@ -37,20 +39,25 @@ test.each([
   ['/admin/sources', '데이터 연결'],
   ['/admin/rules', '연결 규칙'],
   ['/admin/accounts', '계정·권한'],
-])('주소 %s로 바로 들어오면 %s 화면을 보여준다', (path, title) => {
+])('주소 %s로 바로 들어오면 %s 화면을 보여준다', async (path, title) => {
   openAt(path)
 
-  expect(screen.getByRole('heading', { name: title })).toBeInTheDocument()
+  expect(
+    await screen.findByRole('heading', { name: title }),
+  ).toBeInTheDocument()
   expect(screen.getByRole('link', { name: title })).toHaveAttribute(
     'aria-current',
     'page',
   )
 })
 
-test('로그인 화면은 공통 메뉴 없이 보여준다', () => {
+test('로그인 화면은 공통 메뉴 없이 보여준다', async () => {
+  setMockAccount(null)
   openAt('/login')
 
-  expect(screen.getByRole('heading', { name: '로그인' })).toBeInTheDocument()
+  expect(
+    await screen.findByRole('heading', { name: '워크스페이스에 로그인' }),
+  ).toBeInTheDocument()
   expect(
     screen.queryByRole('navigation', { name: '주 메뉴' }),
   ).not.toBeInTheDocument()
@@ -61,7 +68,7 @@ test('없는 주소로 들어오면 안내와 돌아가기 링크를 보여준�
   openAt('/no-such-page')
 
   expect(
-    screen.getByRole('heading', { name: '페이지를 찾을 수 없어요' }),
+    await screen.findByRole('heading', { name: '페이지를 찾을 수 없어요' }),
   ).toBeInTheDocument()
   expect(
     screen.getByRole('navigation', { name: '주 메뉴' }),
@@ -79,7 +86,7 @@ test('주 메뉴를 누르면 화면과 선택된 메뉴가 바뀐다', async ()
   const user = userEvent.setup()
   openAt('/explorer')
 
-  await user.click(screen.getByRole('link', { name: 'AI 업무 도우미' }))
+  await user.click(await screen.findByRole('link', { name: 'AI 업무 도우미' }))
 
   expect(window.location.pathname).toBe('/agent')
   expect(

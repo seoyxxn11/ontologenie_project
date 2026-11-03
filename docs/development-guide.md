@@ -397,6 +397,8 @@ action/
 | 코드 품질 | Spotless + google-java-format(AOSP), Lombok(7.2 허용 범위) |
 | 테스트 | JUnit, Mockito, Spring MVC Test, Testcontainers(PostgreSQL 18) |
 
+Agent 답변(API 085)은 오래 걸리는 작업의 예외다. 202로 접수하는 것은 같지만 작업자가 가져가지 않고 질문을 받은 api 서버가 바로 처리하며, 화면은 084를 반복 조회해 진행 단계와 결과를 확인한다(2026-11-03, `docs/agent-response-policy.md`).
+
 사용하지 않는 것: Redis, WebFlux·SSE, QueryDSL, Spring AI 기본 대화 메모리(대화는 플랫폼 DB에 저장한다). Kafka는 원천 CDC에만 쓰고, 서비스 사이 작업 전달은 지금처럼 실행 기록 테이블로 한다(2026-10-30 CDC 결정, S15P31C106-266).
 
 - 같은 프로세스를 여러 개 띄워도 맞게 동작해야 한다. 작업·잠금·카운터 같은 상태를 인스턴스 메모리에만 두지 않는다.
@@ -915,6 +917,23 @@ GitLab에 다음 정보를 저장하지 않는다.
 - 원천 DB 접속 비밀값
 
 설정값은 서버 환경변수와 Jenkins Credentials로 관리한다. `.env.example`에는 변수 이름과 설명만 둔다.
+
+**원천 접속 비밀번호**
+
+관리자가 등록한 원천 계정 비밀번호는 `data_source_credential`에 AES-256-GCM 암호문으로만 저장한다(S15P31C106-64·275).
+
+- 암·복호화는 `source.service.SourceCredentialCipher`로만 한다. 계정을 풀어 쓸 때는 `source.service.SourceCredentialService.findAccount`를 쓴다.
+- AAD는 `{data_source_id}:{purpose}`다. 암호문을 다른 원천이나 용도의 행에 옮기면 풀리지 않는다. 새 원천은 `data_source` 행을 먼저 만든 뒤 암호화한다.
+- 키는 32바이트를 base64로 만들어(`openssl rand -base64 32`) 서버 `~/axcore/.env`의 `AXCORE_SOURCE_CREDENTIAL_KEY_1`에 둔다. backend·batch 컨테이너에만 넣고 ai 컨테이너에는 넣지 않는다. AI 계정은 분석 시작 요청으로 전달한다.
+- 키가 없거나 형식이 틀려도 서버는 뜬다. 시작할 때 경고 로그를 남기고 암·복호화할 때 `SourceCredentialException`으로 실패한다.
+- 푼 비밀번호(`SourceAccount`)를 로그·응답·감사 기록에 넣지 않는다.
+
+키를 바꿀 때는 다음 순서를 따른다.
+
+1. `application.yml`의 `axcore.source-credential.keys`에 다음 번호(예: `2: ${AXCORE_SOURCE_CREDENTIAL_KEY_2:}`)를 추가해 배포한다.
+2. 서버 `.env`에 새 키를 넣고 `AXCORE_SOURCE_CREDENTIAL_KEY_VERSION`을 새 번호로 올린 뒤 backend·batch를 다시 띄운다. 이후 새로 저장하는 값은 새 키로 암호화된다.
+3. 기존 행을 모두 새 키로 다시 암호화한다. 옛 행은 저장된 `key_version`의 키로 계속 풀린다.
+4. 옛 버전 행이 남지 않은 것을 확인한 뒤에 옛 키를 지운다.
 
 ---
 

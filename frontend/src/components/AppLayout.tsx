@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router'
+import AccountMenu from '../features/auth/AccountMenu'
 
 const userMenus = [
   { to: '/explorer', label: '업무 데이터' },
@@ -41,17 +42,20 @@ function AppLayout() {
           <span className="font-semibold tracking-tight text-slate-900">
             OntoloGenie
           </span>
-          <nav aria-label="계정 메뉴" className="flex gap-1">
-            {headerLinks.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                className={headerLinkClassName}
-              >
-                {link.label}
-              </NavLink>
-            ))}
-          </nav>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <nav aria-label="계정 메뉴" className="flex flex-wrap gap-1">
+              {headerLinks.map((link) => (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  className={headerLinkClassName}
+                >
+                  {link.label}
+                </NavLink>
+              ))}
+            </nav>
+            <AccountMenu />
+          </div>
         </header>
 
         <nav

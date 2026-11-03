@@ -44,6 +44,14 @@ axcore:
     login-id: ${AXCORE_INITIAL_ADMIN_LOGIN_ID:}
     password: ${AXCORE_INITIAL_ADMIN_PASSWORD:}
     display-name: 관리자
+  # 원천 접속 비밀번호(data_source_credential) 암호화 키. api(등록 때 암호화, 분석 시작 때 AI 계정 복호화)와
+  # batch(SYNC 계정 복호화)가 쓴다. 키는 32바이트를 base64로 적고 값은 환경변수로만 넣는다.
+  # 새로 암호화할 때는 current-key-version의 키를, 풀 때는 행에 저장된 key_version의 키를 쓴다.
+  # 키를 바꿀 때는 keys에 다음 번호를 추가하고 버전을 올린다. 옛 키는 모든 행을 다시 암호화할 때까지 지우지 않는다.
+  source-credential:
+    current-key-version: ${AXCORE_SOURCE_CREDENTIAL_KEY_VERSION:1}
+    keys:
+      1: ${AXCORE_SOURCE_CREDENTIAL_KEY_1:}
 
 # 로그 줄마다 요청 추적 ID(RequestIdFilter)를 붙인다. 요청 밖의 로그는 빈 칸이다.
 logging:

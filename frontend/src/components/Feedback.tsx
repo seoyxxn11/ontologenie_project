@@ -52,9 +52,11 @@ const errorTitles = {
 export function ErrorState({
   error,
   onRetry,
+  title,
 }: {
   error: Error
   onRetry?: () => void
+  title?: string
 }) {
   const apiError = error instanceof ApiError ? error : undefined
   const retryAllowed =
@@ -66,7 +68,10 @@ export function ErrorState({
       className="space-y-2 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
     >
       <p className="font-semibold">
-        {apiError ? errorTitles[apiError.kind] : '요청을 처리하지 못했습니다.'}
+        {title ??
+          (apiError
+            ? errorTitles[apiError.kind]
+            : '요청을 처리하지 못했습니다.')}
       </p>
       <p>{error.message}</p>
       {apiError?.fieldErrors.length ? (
