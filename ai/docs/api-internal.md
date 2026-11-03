@@ -64,7 +64,7 @@ PROPERTY `payload.sensitivity`는 ERD `property_definition.sensitivity`와 같�
 - 토큰이 없거나 틀리면 401(공통 오류 형식). `AI_ONTOLOGY_INTERNAL_TOKEN`이 비어 있으면 모두 거절합니다. 토큰은 본문보다 먼저 봅니다.
 - 받으면 바로 202로 답하고 백그라운드에서 105 `RUNNING` → 원천 확인 → 분석 → 105 `SUCCEEDED`/`FAILED` 순서로 돕니다. `RUNNING` 알림이 실패하면(예: 백엔드가 이미 끝낸 실행, 409) 분석하지 않습니다.
 - 원천 확인: POSTGRES는 AI 계정으로 `schema`에 접속해 고른 표(`resourceKey`의 점 뒤)를 읽을 수 있는지 봅니다. CSV는 `path` 폴더에 `<표>.csv`가 있는지 봅니다. 실패 문구는 4절입니다.
-- 분석 엔진은 `app/analysis/engine.py`의 `analyze()` 자리에 들어옵니다(#165·168·169·170). 아직 없어서 원천 확인 뒤 `AI 분석 기능이 아직 준비되지 않았습니다`로 FAILED를 보냅니다.
+- 분석 엔진은 `app/analysis/engine.py`의 `analyze()`입니다(#168). 고른 표·컬럼만 임시 폴더로 옮겨 구조·분포를 분석하고 후보를 만듭니다. LLM 설정이 있으면 표 의미 해석을 더합니다. 메모 추출(#166·167), 043·과거 결정 반영(#168 후속), 재분석 비교(#170)는 아직 연결하지 않았습니다.
 - 진행 중인 `runId`는 프로세스 메모리에만 둡니다. AI 컨테이너는 하나만 띄웁니다.
 - 선택 필드(`allowedTransforms`·`pastDecisions`·`previousProposals`·`options.useLlm`)는 Spring이 아직 보내지 않고(11-03 결정), 받아도 버립니다.
 - Spring은 알리지 못하면(AI 오류·시간 초과·응답 형식 오류) 실행을 직접 FAILED로 바꿉니다(`AI 서비스에 분석 시작을 알리지 못했습니다`). AI 계정 없음, 한 원천에 schema 둘 이상, CSV `path` 없음, DOCUMENT 원천도 보내기 전에 FAILED입니다.
@@ -123,7 +123,6 @@ PROPERTY `payload.sensitivity`는 ERD `property_definition.sensitivity`와 같�
 | AI 계정이 고른 표를 못 읽음 | `AI 계정이 이 테이블을 읽을 수 없습니다: mes.employee` (명세 018 E3) |
 | 원천 접속 실패 | `원천에 접속하지 못했습니다 (erp)` · `원천 계정 인증에 실패했습니다 (erp)` 등. SSL 없이 붙어 거절된 경우도 인증 실패. 접속 정보는 넣지 않음 |
 | CSV 폴더·파일 없음 | `CSV 원천 폴더를 읽을 수 없습니다 (erp)` · `CSV 원천에서 이 테이블을 찾을 수 없습니다: erp.item` |
-| 분석 엔진이 아직 없음 | `AI 분석 기능이 아직 준비되지 않았습니다` |
 | 그 밖 | `분석 중 오류가 났습니다` (FastAPI 로그에는 오류 종류만 남김) |
 
 LLM 설정이 없거나 LLM 호출이 실패해도 실행은 실패로 끝내지 않고 코드 분석 후보만 `SUCCEEDED`로 보냅니다. `resultSummary`에 아래 값이 함께 갑니다.
@@ -143,7 +142,7 @@ LLM 설정이 없거나 LLM 호출이 실패해도 실행은 실패로 끝내지
 
 ## 6. 지금 구현 범위
 
-- 저장소에 있는 것: 시작 알림 수신·105 전송·원천 확인(#272, `app/api/analysis_runs.py`, `app/analysis/`), PostgreSQL 읽기(#163). 아래 분석기·LLM·CSV 읽기는 아직 저장소에 없고 `engine.analyze()` 자리로 들어옵니다.
+- 저장소에 있는 것: 시작 알림 수신·105 전송·원천 확인(#272), PostgreSQL 읽기(#163), CSV 읽기·스냅샷(#164), 구조·분포 분석(#165), 후보 모델·근거·신뢰도(#169), 후보 생성·LLM 해석·엔진(#168). 메모 추출과 재분석 비교는 아직 로컬에만 있습니다.
 - LLM: `.env`의 `AI_ONTOLOGY_LLM_PROVIDER`·`_API_KEY`·`_BASE_URL`·`_MODEL`만 바꾸면 제공사를 바꿀 수 있습니다. `gms`(기본), `openai`(OpenAI·Azure OpenAI v1, Responses API 형식), `openai-chat`(사내 LLM 서버 등 Chat Completions 형식), `none`(코드 분석만). 실제 호출로 확인한 것은 GMS뿐입니다.
 - 원천: CSV 폴더와 PostgreSQL(읽기 전용, psycopg). 로컬 PostgreSQL 18.6(SSL만 허용, 조회 전용 계정)에 data-v1.0을 넣고 확인했습니다. CSV로 분석한 후보 653개와 같게 나옵니다. 조회 전용 계정은 `information_schema`의 제약 조건이 안 보여 기본키는 `pg_catalog`로 읽습니다.
 - 고른 표·컬럼만 임시 폴더로 옮겨 분석하고, 끝나면 지웁니다. 기본키는 늘 함께 읽습니다.

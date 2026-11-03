@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.analysis.backend import BackendError, results_reporter
-from app.analysis.engine import NOT_READY, AnalysisResult
+from app.analysis.engine import AnalysisResult
 from app.analysis.runner import UNEXPECTED, AnalysisRunner
 from app.api.analysis_runs import get_runner
 from app.config import Settings, get_settings
@@ -114,7 +114,7 @@ def test_rejects_everything_when_token_is_not_configured(monkeypatch):
         get_settings.cache_clear()
 
 
-def test_accepts_checks_source_and_reports_running_then_engine_not_ready(token):
+def test_accepts_checks_source_and_reports_running_then_engine_result(token):
     backend = Backend()
     use(AnalysisRunner(backend, connector=lambda c: FakeConn))
 
@@ -122,10 +122,12 @@ def test_accepts_checks_source_and_reports_running_then_engine_not_ready(token):
 
     assert response.status_code == 202
     assert response.json() == {"runId": 7, "accepted": True}
-    assert backend.reports == [
-        (7, {"status": "RUNNING"}),
-        (7, {"status": "FAILED", "errorMessage": NOT_READY}),
-    ]
+    assert backend.reports[0] == (7, {"status": "RUNNING"})
+    result = backend.reports[1][1]
+    assert result["status"] == "SUCCEEDED"
+    mapping = next(p for p in result["proposals"] if p["itemKind"] == "OBJECT_MAPPING")
+    assert mapping["payload"]["sourceId"] == "MES_MAIN"
+    assert mapping["payload"]["resourceKey"] == "mes.work_order"
 
 
 def test_engine_gets_open_sources_and_success_is_reported(token):
@@ -240,7 +242,7 @@ def test_csv_source_checks_folder_and_table_files(token, tmp_path):
     use(AnalysisRunner(backend))
 
     post(body(**csv))
-    assert backend.reports[-1][1]["errorMessage"] == NOT_READY
+    assert backend.reports[-1][1]["status"] == "SUCCEEDED"
 
     post(body(resource_key="mes.lot", **csv))
     assert backend.reports[-1][1]["errorMessage"] == (
