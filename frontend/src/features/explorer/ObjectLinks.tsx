@@ -1,3 +1,6 @@
+import StatusBadge from '../../components/StatusBadge'
+import DataTable from '../../components/DataTable'
+import { LoadingState, EmptyState, ErrorState } from '../../components/Feedback'
 import { useQuery } from '@tanstack/react-query'
 import { fetchObjectLinks } from './api'
 import { formatPropertyValue, formatSourceKey } from './format'
@@ -21,9 +24,7 @@ function LinkSummary({ link }: LinkEvidenceProps) {
     return (
       <p>
         {`원문: “${evidence.quote ?? '-'}”`}
-        <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
-          {expression}
-        </span>
+        <StatusBadge tone="warning">{expression}</StatusBadge>
       </p>
     )
   }
@@ -77,25 +78,33 @@ function ObjectLinks({ objectId }: ObjectLinksProps) {
     isPending,
     isError,
     error,
+    refetch,
   } = useQuery({
     queryKey: ['objects', objectId, 'links'],
     queryFn: () => fetchObjectLinks(objectId),
   })
 
   if (isPending) {
-    return <p className="text-slate-500">연결을 불러오는 중…</p>
+    return <LoadingState message="연결을 불러오는 중…" />
   }
 
   if (isError) {
-    return <p className="text-red-600">{error.message}</p>
+    return (
+      <ErrorState
+        error={error}
+        onRetry={() => {
+          void refetch()
+        }}
+      />
+    )
   }
 
   if (linkPage.data.length === 0) {
-    return <p className="text-slate-500">현재 연결된 정보가 없습니다.</p>
+    return <EmptyState message="현재 연결된 정보가 없습니다." />
   }
 
   return (
-    <table className="w-full text-left">
+    <DataTable label="연결 근거" className="min-w-[480px]">
       <thead className="text-xs text-slate-500">
         <tr>
           <th className="py-2 pr-3 font-normal">연결된 정보</th>
@@ -127,7 +136,7 @@ function ObjectLinks({ objectId }: ObjectLinksProps) {
           </tr>
         ))}
       </tbody>
-    </table>
+    </DataTable>
   )
 }
 

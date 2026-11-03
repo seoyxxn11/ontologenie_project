@@ -1,4 +1,5 @@
-import { useEffect, useId, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
+import Button from './Button'
 
 type DialogProps = {
   title: string
@@ -9,16 +10,69 @@ type DialogProps = {
 // 화면 위에 뜨는 팝업 공통 틀. [닫기], Esc 키, 바깥 배경 클릭으로 닫힌다.
 function Dialog({ title, onClose, children }: DialogProps) {
   const titleId = useId()
+  const panelRef = useRef<HTMLDivElement>(null)
+  const closeRef = useRef(onClose)
 
   useEffect(() => {
+    closeRef.current = onClose
+  }, [onClose])
+
+  useEffect(() => {
+    const previousFocus = document.activeElement
+    const panel = panelRef.current
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    panel?.focus()
+
+    function focusableElements() {
+      return Array.from(
+        panel?.querySelectorAll<HTMLElement>(
+          'button, a[href], input, select, textarea, summary, [tabindex]',
+        ) ?? [],
+      ).filter(
+        (element) =>
+          element.tabIndex >= 0 &&
+          !element.matches(':disabled, [hidden], input[type="hidden"]') &&
+          !element.closest('[hidden], [inert]'),
+      )
+    }
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        onClose()
+        event.preventDefault()
+        event.stopPropagation()
+        closeRef.current()
+      }
+      if (event.key === 'Tab') {
+        const elements = focusableElements()
+        const first = elements[0]
+        const last = elements[elements.length - 1]
+        const active = document.activeElement
+        if (!first) {
+          event.preventDefault()
+          panel?.focus()
+        } else if (event.shiftKey && (active === first || active === panel)) {
+          event.preventDefault()
+          last.focus()
+        } else if (!event.shiftKey && (active === last || active === panel)) {
+          event.preventDefault()
+          first.focus()
+        }
       }
     }
+    function containFocus(event: FocusEvent) {
+      if (event.target instanceof Node && !panel?.contains(event.target))
+        panel?.focus()
+    }
     document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
+    document.addEventListener('focusin', containFocus)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      document.removeEventListener('focusin', containFocus)
+      document.body.style.overflow = previousOverflow
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected)
+        previousFocus.focus()
+    }
+  }, [])
 
   return (
     <div
@@ -30,6 +84,8 @@ function Dialog({ title, onClose, children }: DialogProps) {
       }}
     >
       <div
+        ref={panelRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -39,13 +95,9 @@ function Dialog({ title, onClose, children }: DialogProps) {
           <h2 id={titleId} className="text-lg font-semibold text-slate-900">
             {title}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-slate-300 px-3 py-1 text-sm text-slate-700"
-          >
+          <Button variant="secondary" onClick={onClose}>
             닫기
-          </button>
+          </Button>
         </div>
         {children}
       </div>

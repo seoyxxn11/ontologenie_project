@@ -97,6 +97,44 @@ src/
 - 관리자 화면은 `/admin/` 아래에 둡니다. 역할에 따라 메뉴를 숨기고 접근을 막는 것은 S15P31C106-104에서 처리합니다.
 - 운영 서버에서 하위 주소를 새로고침해도 화면이 뜨려면 nginx가 모르는 주소를 `index.html`로 돌려줘야 합니다(S15P31C106-53).
 
+## API 클라이언트·공통 오류 (101)
+
+기능별 `api.ts`에서 `src/api/client.ts`의 `apiGet`, `apiPost`, `apiPatch`, `apiDelete`를 사용합니다. 기본 경로는 `/api/v1`이고 세션 쿠키는 같은 출처 요청에 브라우저가 전달합니다. Authorization 헤더나 브라우저 저장소의 인증 토큰을 만들지 않습니다.
+
+```typescript
+import { ApiError, apiGet, apiPatch } from '../../api/client'
+
+const result = await apiGet<MyData>('/명세에-정의된-경로')
+// result.data, result.meta를 사용합니다.
+
+try {
+  await apiPatch('/명세에-정의된-경로', {/* API별 요청 필드 */})
+} catch (error) {
+  if (error instanceof ApiError) {
+    // kind로 공통 처리하고 code로 도메인 오류를 구분합니다.
+    // error.fieldErrors는 입력 폼에, error.requestId는 문의 시 추적에 사용합니다.
+  }
+}
+```
+
+- `apiGet`은 기존처럼 `{ data, meta? }`를 반환합니다. POST·PATCH·DELETE는 본문이 있으면 같은 응답을 반환하고, 204이면 `undefined`입니다. 204를 빈 JSON 객체로 위장하지 않습니다. 조회 GET은 명세상 data 응답이 필요하므로 204를 응답 형식 오류로 처리합니다.
+- POST·PATCH·DELETE는 요청할 때마다 `XSRF-TOKEN` 쿠키를 읽어 URL 디코딩한 뒤 `X-XSRF-TOKEN` 헤더로 전달합니다. 로그인은 서버에서 CSRF 검사 예외이므로 쿠키가 없어도 요청할 수 있습니다. 다른 변경 요청에 쿠키가 없으면 서버가 검사·거절합니다. 토큰을 임의 생성하거나 CSRF 실패 요청을 자동 재전송하지 않습니다.
+- 로그인 성공 시 서버가 CSRF 쿠키를 발급하며, 인증 상태 복원 시 `GET /auth/me`가 쿠키를 재발급할 수 있습니다. 이 인증 흐름 연결은 103에서 구현합니다.
+- `ApiError`는 `Error`를 상속해 기존 화면의 `error.message` 사용과 호환됩니다. HTTP `status`, 서버 오류 `code`·`details`·`requestId`, 공통 분류 `kind`, 폼 오류 `fieldErrors`를 제공합니다. 오류 본문에 추적 ID가 없으면 `X-Request-Id` 응답 헤더를 확인합니다.
+- `kind`는 401 `unauthenticated`, 403 `forbidden`, 400·422 `validation`, 409 `conflict`, 404 `not-found`, 5xx `server`입니다. 그 외 HTTP 오류는 `http`, 연결 실패는 `network`, 취소는 `aborted`, 성공 상태의 잘못된 JSON·공통 응답 구조는 `invalid-response`로 구분합니다. HTTP 응답이 없으면 status는 null이며 서버 오류 코드가 없으면 code는 null입니다.
+- 서버의 오류 메시지를 우선 사용합니다. HTML·빈 본문·잘못된 오류 구조면 HTTP 상태별 기본 문구를 사용합니다. 로그인 실패·CSRF 거절·임시 비밀번호 등 API별 메시지를 공통 문구로 덮어쓰지 않습니다.
+- 이 계층은 화면 이동·세션 상태 변경·토스트 표시를 직접 수행하지 않습니다. 103의 인증 상태 처리와 102·104의 화면·권한 안내에서 분류된 오류를 사용합니다. 403을 일괄 로그아웃으로 처리하지 않습니다.
+- 마지막 인자의 `{ signal }`로 요청을 취소할 수 있습니다. 요청 함수 자체는 자동 재시도하지 않습니다. TanStack Query 등의 상위 계층 재시도 정책은 별도입니다. 변경 요청 실패 시 서버에서 이미 처리했을 가능성이 있으므로 무조건 다시 보내지 않습니다.
+- 오류·요청 본문·쿠키·비밀번호를 콘솔이나 저장소에 남기지 않습니다. 이 변경은 API·DB 계약을 바꾸지 않습니다.
+
+검사는 fetch를 가짜 응답으로 대체해 요청 헤더·메서드·응답·오류를 확인합니다. 실제 서버 세션·쿠키·CSRF 연동이나 브라우저 로그인 완료를 검증하는 검사는 아닙니다. Notion의 개별 API 001·099 페이지는 이번 연결에서 접근되지 않아 저장소 개발 가이드 8.3·11.1과 백엔드 AuthController·SecurityErrorResponder의 계약을 대조했습니다. 운영 Swagger와 `/v3/api-docs`에서도 기본 경로·data/meta 응답·로그인 200·로그아웃 및 비밀번호 변경 204를 확인했습니다. Swagger에는 세션·CSRF·공통 오류 문서가 충분하지 않고 `/auth/me`의 서버 주입 인자 `csrfToken`이 필수 query로 노출됩니다. 프론트에서는 이를 query로 만들지 않으며 백엔드 문서 보완이 필요합니다.
+
+```bash
+npm test -- --run src/api/client.test.ts
+```
+
+2026-11-03 사용자 실행 결과: API 클라이언트 검사 37개 통과를 출력으로 확인했습니다. 이어 lint·전체 테스트·포맷 검사·빌드까지 완료했다고 보고했으며, `tsc -b && vite build` 성공 출력을 확인했습니다. 서버에서 이 클라이언트를 사용한 실제 로그인·쿠키·CSRF 통합 검증은 아직 수행하지 않았으며 103의 인증 화면 연결 시 확인합니다.
+
 ## 코드 모양 (Prettier)
 
 코드 모양은 사람이 맞추지 않고 Prettier에 맡깁니다. 규칙은 `.prettierrc.json`에 있습니다.
@@ -124,6 +162,19 @@ src/
 - 개발 서버(`npm run dev`)에서만 켜집니다. 배포용 빌드에는 들어가지 않습니다.
 - 테스트에서는 `mocks/handlers.ts`에 없는 요청이 오면 실패로 처리합니다.
 - `public/mockServiceWorker.js`는 MSW가 생성한 파일입니다. 직접 고치지 않습니다.
+
+## 공통 UI (102)
+
+- `components/Button.tsx`: 기본 버튼은 `type="button"`입니다. 폼 전송 시 `type="submit"`을 지정합니다. 요청 중에는 `pending`을 전달해 클릭을 막고 `aria-busy`로 알립니다. 실제 중복 실행 방지와 권한 검사는 서버 책임입니다.
+- `components/DataTable.tsx`: `label`로 표 이름을 지정하고 기존 `thead`·`tbody`를 전달합니다. 좁은 화면에서 표 영역을 가로로 스크롤합니다.
+- `components/StatusBadge.tsx`: 상태 문구와 `tone`을 전달합니다. 업무 상태 코드와 색상의 매핑은 해당 기능 화면이 결정하며 색상만으로 상태를 구분하지 않습니다.
+- `components/Feedback.tsx`: `LoadingState`, `EmptyState`, `ErrorState`로 로딩·빈 결과·실패를 구분합니다. 실패 시 서버 안내·필드 오류·요청 ID를 표시하고 내부 상세 데이터는 펼쳐 출력하지 않습니다.
+- `ErrorState`의 `onRetry`에는 조회 함수만 연결합니다. 401·403·입력 오류·409 상태 충돌에는 재시도 버튼이 없습니다. 로그인 이동·권한별 화면은 103·104에서 연결합니다.
+- `components/Dialog.tsx`: 제목 연결, 모달 내부 탭 이동, Esc·배경·닫기 버튼으로 종료, 배경 스크롤 제한, 닫힌 뒤 호출 위치 포커스 복귀를 제공합니다. 한 번에 하나의 모달을 사용합니다.
+
+실행 이력·정의 변경 이력·객체 연결 근거 화면에서 공통 표와 상태 표시를 재사용합니다. 기존 조회 조건과 API 계약은 유지합니다. 모달은 기존 연결 근거 화면에서 사용합니다.
+
+검증 명령은 `npm test -- --run src/components/CommonUi.test.tsx`이며, 기존 화면 회귀 검증은 전체 테스트로 확인합니다. 102의 자동 테스트·브라우저 표시·피그마 디자인 대조는 변경 후 별도로 확인해야 합니다.
 
 ## 팀 결정이 필요한 항목
 

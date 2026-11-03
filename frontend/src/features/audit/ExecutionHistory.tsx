@@ -1,3 +1,7 @@
+import Button from '../../components/Button'
+import StatusBadge from '../../components/StatusBadge'
+import DataTable from '../../components/DataTable'
+import { LoadingState, EmptyState, ErrorState } from '../../components/Feedback'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import {
@@ -117,6 +121,7 @@ function ExecutionHistory({ objectId, targetLabel }: ExecutionHistoryProps) {
     isPending,
     isError,
     error,
+    refetch,
   } = useQuery({
     queryKey:
       objectId === undefined
@@ -152,14 +157,21 @@ function ExecutionHistory({ objectId, targetLabel }: ExecutionHistoryProps) {
 
   let content
   if (isPending) {
-    content = <p className="text-slate-500">실행 이력을 불러오는 중…</p>
+    content = <LoadingState message="실행 이력을 불러오는 중…" />
   } else if (isError) {
-    content = <p className="text-red-600">{error.message}</p>
+    content = (
+      <ErrorState
+        error={error}
+        onRetry={() => {
+          void refetch()
+        }}
+      />
+    )
   } else if (executionPage.data.length === 0) {
-    content = <p className="text-slate-500">조건에 맞는 이력이 없습니다.</p>
+    content = <EmptyState message="조건에 맞는 이력이 없습니다." />
   } else {
     content = (
-      <table className="w-full table-fixed text-left">
+      <DataTable label="실행 이력" className="table-fixed min-w-[640px]">
         <thead className="bg-slate-50 text-xs text-slate-500">
           <tr>
             <th className="w-[22%] px-3 py-2 font-normal">시각·실행자</th>
@@ -186,7 +198,19 @@ function ExecutionHistory({ objectId, targetLabel }: ExecutionHistoryProps) {
                   </p>
                 </td>
                 <td className="px-3 py-3 font-semibold">
-                  {executionStatusLabels[execution.status]}
+                  <StatusBadge
+                    tone={
+                      execution.status === 'SUCCEEDED'
+                        ? 'success'
+                        : execution.status === 'FAILED'
+                          ? 'danger'
+                          : execution.status === 'BLOCKED'
+                            ? 'warning'
+                            : 'info'
+                    }
+                  >
+                    {executionStatusLabels[execution.status]}
+                  </StatusBadge>
                 </td>
                 <td className="px-3 py-3">
                   <ExecutionDetail execution={execution} />
@@ -195,7 +219,7 @@ function ExecutionHistory({ objectId, targetLabel }: ExecutionHistoryProps) {
             )
           })}
         </tbody>
-      </table>
+      </DataTable>
     )
   }
 
@@ -258,19 +282,19 @@ function ExecutionHistory({ objectId, targetLabel }: ExecutionHistoryProps) {
             ))}
           </select>
         </label>
-        <button
+        <Button
           type="submit"
           className="rounded-lg bg-slate-900 px-3 py-1.5 font-medium text-white"
         >
           검색
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="secondary"
           onClick={reset}
           className="rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700"
         >
           초기화
-        </button>
+        </Button>
       </form>
       {formError && (
         <p role="alert" className="mt-2 text-sm text-red-600">

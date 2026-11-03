@@ -5,6 +5,11 @@ export type PageMeta = {
   hasNext: boolean
 }
 
+export type ApiFieldError = {
+  field: string
+  reason: string
+}
+
 export type ApiResponse<T, M = PageMeta> = {
   data: T
   meta?: M

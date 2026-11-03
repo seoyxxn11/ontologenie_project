@@ -1,3 +1,6 @@
+import Button from '../../components/Button'
+import DataTable from '../../components/DataTable'
+import { LoadingState, EmptyState, ErrorState } from '../../components/Feedback'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import Pagination from '../../components/Pagination'
@@ -35,6 +38,7 @@ function DefinitionChanges() {
     isPending,
     isError,
     error,
+    refetch,
   } = useQuery({
     queryKey: ['ontology', 'changes', filters, page],
     queryFn: () => fetchDefinitionChanges(filters, page),
@@ -68,16 +72,21 @@ function DefinitionChanges() {
 
   let content
   if (isPending) {
-    content = <p className="text-slate-500">정의 변경 이력을 불러오는 중…</p>
+    content = <LoadingState message="정의 변경 이력을 불러오는 중…" />
   } else if (isError) {
-    content = <p className="text-red-600">{error.message}</p>
-  } else if (changePage.data.length === 0) {
     content = (
-      <p className="text-slate-500">조건에 맞는 변경 이력이 없습니다.</p>
+      <ErrorState
+        error={error}
+        onRetry={() => {
+          void refetch()
+        }}
+      />
     )
+  } else if (changePage.data.length === 0) {
+    content = <EmptyState message="조건에 맞는 변경 이력이 없습니다." />
   } else {
     content = (
-      <table className="w-full table-fixed text-left">
+      <DataTable label="정의 변경 이력" className="table-fixed min-w-[640px]">
         <thead className="bg-slate-50 text-xs text-slate-500">
           <tr>
             <th className="w-[22%] px-3 py-2 font-normal">시각·실행자</th>
@@ -118,7 +127,7 @@ function DefinitionChanges() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </DataTable>
     )
   }
 
@@ -164,19 +173,19 @@ function DefinitionChanges() {
             ))}
           </select>
         </label>
-        <button
+        <Button
           type="submit"
           className="rounded-lg bg-slate-900 px-3 py-1.5 font-medium text-white"
         >
           검색
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="secondary"
           onClick={reset}
           className="rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700"
         >
           초기화
-        </button>
+        </Button>
       </form>
       {formError && (
         <p role="alert" className="mt-2 text-sm text-red-600">
