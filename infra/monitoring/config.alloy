@@ -8,14 +8,18 @@ prometheus.scrape "alloy" {
   forward_to      = [prometheus.remote_write.local.receiver]
 }
 
-// CPU 시간, 메모리, 디스크 용량·I/O와 시스템 부하만 수집한다.
+// 네트워크는 호스트 스크립트의 textfile 지표를 사용해 네트워크 namespace 혼동을 피한다.
 prometheus.exporter.unix "host" {
   rootfs_path = sys.env("HOST_ROOTFS_PATH")
   procfs_path = sys.env("HOST_PROCFS_PATH")
   sysfs_path  = sys.env("HOST_SYSFS_PATH")
   udev_data_path = sys.env("HOST_UDEV_DATA_PATH")
 
-  set_collectors = ["cpu", "meminfo", "filesystem", "diskstats", "loadavg", "stat", "uname"]
+  set_collectors = ["cpu", "meminfo", "filesystem", "diskstats", "loadavg", "stat", "uname", "textfile"]
+
+  textfile {
+    directory = "/etc/alloy/textfile"
+  }
 
   filesystem {
     mount_points_exclude = "^/(dev|proc|sys|run|var/lib/docker|var/lib/containerd)($|/)"

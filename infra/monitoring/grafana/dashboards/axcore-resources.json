@@ -327,7 +327,7 @@
         "type": "prometheus",
         "uid": "axcore-prometheus"
       },
-      "description": "서비스별 메모리 working set. 로컬에서는 No data이며 서버 반영 후 검증.",
+      "description": "컨테이너별 working set과 cAdvisor가 보고한 메모리 한도. 한도 미설정 컨테이너는 호스트 메모리가 표시될 수 있으므로 Compose 설정과 대조한다.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -413,13 +413,24 @@
             "uid": "axcore-prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (service) (\r\n  container_memory_working_set_bytes{job=\"cadvisor\", service!=\"\"}\r\n)",
-          "legendFormat": "{{service}}",
+          "expr": "container_memory_working_set_bytes{job=\"cadvisor\", service!=\"\"}",
+          "legendFormat": "{{service}} / {{name}} 사용량",
           "range": true,
           "refId": "A"
+        },
+        {
+          "range": true,
+          "refId": "B",
+          "editorMode": "code",
+          "expr": "container_spec_memory_limit_bytes{job=\"cadvisor\", service!=\"\"} > 0",
+          "legendFormat": "{{service}} / {{name}} 한도",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "axcore-prometheus"
+          }
         }
       ],
-      "title": "서비스별 메모리 사용량",
+      "title": "컨테이너 메모리 사용량·한도",
       "type": "timeseries"
     },
     {
@@ -520,6 +531,1079 @@
       ],
       "title": "서비스별 CPU 사용률",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "axcore-prometheus"
+      },
+      "description": "working set / cAdvisor 보고 한도 × 100. 0인 한도는 제외한다. 한도 미설정 시 호스트 메모리가 분모가 될 수 있으므로 실제 제한 유무와 구분한다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "gridPos": {
+        "h": 9,
+        "y": 9,
+        "x": 16,
+        "w": 8
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "13.3.0",
+      "targets": [
+        {
+          "range": true,
+          "refId": "A",
+          "editorMode": "code",
+          "expr": "100 * container_memory_working_set_bytes{job=\"cadvisor\", service!=\"\"} / on(instance, id) group_left() (container_spec_memory_limit_bytes{job=\"cadvisor\", service!=\"\"} > 0)",
+          "legendFormat": "{{service}} / {{name}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "axcore-prometheus"
+          }
+        }
+      ],
+      "title": "컨테이너 메모리 한도 대비 사용률",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "axcore-prometheus"
+      },
+      "description": "스왑 전체 용량과 현재 사용량. 스왑이 설정되지 않은 서버는 두 값이 0이며, 지표가 없으면 데이터 없음으로 표시한다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 1,
+          "min": 0,
+          "thresholds": {
+            "steps": [
+              {
+                "value": 0,
+                "color": "green"
+              }
+            ],
+            "mode": "absolute"
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "y": 18,
+        "x": 0,
+        "h": 9,
+        "w": 8
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "13.3.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "axcore-prometheus",
+            "type": "prometheus"
+          },
+          "legendFormat": "{{instance}} 사용량",
+          "range": true,
+          "refId": "A",
+          "expr": "clamp_min(node_memory_SwapTotal_bytes{job=\"node\"} - node_memory_SwapFree_bytes{job=\"node\"}, 0)",
+          "editorMode": "code"
+        },
+        {
+          "datasource": {
+            "uid": "axcore-prometheus",
+            "type": "prometheus"
+          },
+          "legendFormat": "{{instance}} 전체 용량",
+          "range": true,
+          "refId": "B",
+          "expr": "node_memory_SwapTotal_bytes{job=\"node\"}",
+          "editorMode": "code"
+        }
+      ],
+      "title": "서버 스왑 사용량·전체 용량",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "axcore-prometheus"
+      },
+      "description": "일반 프로세스가 사용할 수 있는 루트 파일시스템 잔여 용량(avail). root 예약 공간까지 포함하는 free와 다르다. 서버 반영 후 실제 루트 파일시스템과 대조한다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 1,
+          "min": 0,
+          "thresholds": {
+            "steps": [
+              {
+                "value": 0,
+                "color": "green"
+              }
+            ],
+            "mode": "absolute"
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "y": 18,
+        "x": 8,
+        "h": 9,
+        "w": 8
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "13.3.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "axcore-prometheus",
+            "type": "prometheus"
+          },
+          "legendFormat": "{{instance}} / {{device}}",
+          "range": true,
+          "refId": "A",
+          "expr": "node_filesystem_avail_bytes{job=\"node\", mountpoint=\"/\"}",
+          "editorMode": "code"
+        }
+      ],
+      "title": "서버 루트 디스크 잔여 용량",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "axcore-prometheus"
+      },
+      "description": "서버 호스트에서 직접 읽은 /proc/net/dev의 송수신 바이트를 초당 전송량으로 계산한다. lo 제외. 성공한 수집 후 90초 미만인 데이터만 표시한다. Windows 로컬에서는 호스트 네트워크를 수집하지 않아 데이터 없음이 정상이다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 1,
+          "min": 0,
+          "thresholds": {
+            "steps": [
+              {
+                "value": 0,
+                "color": "green"
+              }
+            ],
+            "mode": "absolute"
+          },
+          "unit": "Bps"
+        }
+      },
+      "gridPos": {
+        "w": 8,
+        "x": 16,
+        "y": 18,
+        "h": 9
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "13.3.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "axcore-prometheus",
+            "type": "prometheus"
+          },
+          "legendFormat": "{{instance}} / {{device}} 수신",
+          "range": true,
+          "refId": "A",
+          "expr": "rate(axcore_host_network_receive_bytes_total{job=\"node\", device!=\"lo\"}[$__rate_interval]) and on(instance, job) (axcore_host_network_collection_success{job=\"node\"} == 1) and on(instance, job) ((time() - axcore_host_network_collection_timestamp_seconds{job=\"node\"}) < 90)",
+          "editorMode": "code"
+        },
+        {
+          "datasource": {
+            "uid": "axcore-prometheus",
+            "type": "prometheus"
+          },
+          "legendFormat": "{{instance}} / {{device}} 송신",
+          "range": true,
+          "refId": "B",
+          "expr": "rate(axcore_host_network_transmit_bytes_total{job=\"node\", device!=\"lo\"}[$__rate_interval]) and on(instance, job) (axcore_host_network_collection_success{job=\"node\"} == 1) and on(instance, job) ((time() - axcore_host_network_collection_timestamp_seconds{job=\"node\"}) < 90)",
+          "editorMode": "code"
+        }
+      ],
+      "title": "서버 네트워크 인터페이스별 송수신량",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "axcore-prometheus"
+      },
+      "description": "현재 관측되는 컨테이너의 시작 시각부터 경과한 시간. 재시작 횟수나 배치 작업 실행 시간을 뜻하지 않는다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 1,
+          "min": 0,
+          "thresholds": {
+            "steps": [
+              {
+                "value": 0,
+                "color": "green"
+              }
+            ],
+            "mode": "absolute"
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "w": 12,
+        "y": 27,
+        "h": 9,
+        "x": 0
+      },
+      "id": 10,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "13.3.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "axcore-prometheus",
+            "type": "prometheus"
+          },
+          "legendFormat": "{{service}} / {{name}}",
+          "range": true,
+          "refId": "A",
+          "expr": "clamp_min(time() - container_start_time_seconds{job=\"cadvisor\", service!=\"\"}, 0)",
+          "editorMode": "code"
+        }
+      ],
+      "title": "컨테이너 시작 후 경과 시간",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "axcore-prometheus"
+      },
+      "description": "cAdvisor가 컨테이너를 마지막으로 관측한 뒤 경과한 시간. 증가하면 수집 상태와 컨테이너 상태를 함께 점검한다. 실행 중 여부를 확정하는 지표는 아니며 시계열이 사라지면 데이터 없음으로 표시한다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 1,
+          "min": 0,
+          "thresholds": {
+            "steps": [
+              {
+                "value": 0,
+                "color": "green"
+              }
+            ],
+            "mode": "absolute"
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "w": 12,
+        "y": 27,
+        "h": 9,
+        "x": 12
+      },
+      "id": 11,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "13.3.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "axcore-prometheus",
+            "type": "prometheus"
+          },
+          "legendFormat": "{{service}} / {{name}}",
+          "range": true,
+          "refId": "A",
+          "expr": "clamp_min(time() - container_last_seen{job=\"cadvisor\", service!=\"\"}, 0)",
+          "editorMode": "code"
+        }
+      ],
+      "title": "컨테이너 마지막 관측 후 경과 시간",
+      "type": "timeseries"
+    },
+    {
+      "gridPos": {
+        "w": 24,
+        "x": 0,
+        "y": 36,
+        "h": 12
+      },
+      "id": 12,
+      "datasource": {
+        "uid": "axcore-loki",
+        "type": "loki"
+      },
+      "title": "서비스별 로그",
+      "description": "상단 로그 서비스·로그 수준 필터로 조회한다. 전체 수준에는 수준이 없는 로그도 포함한다. 감지된 로그 수준은 원문 형식에 따라 실제 심각도와 다를 수 있다. 로그가 없으면 시간 범위를 넓혀 확인한다.",
+      "fieldConfig": {
+        "overrides": [],
+        "defaults": {}
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "axcore-loki",
+            "type": "loki"
+          },
+          "maxLines": 1000,
+          "direction": "backward",
+          "refId": "A",
+          "editorMode": "code",
+          "expr": "{job=\"docker\", service=~\"${log_service:regex}\"} | detected_level=~\"${log_level:regex}\"",
+          "queryType": "range"
+        }
+      ],
+      "type": "logs",
+      "pluginVersion": "13.3.0",
+      "options": {
+        "wrapLogMessage": true,
+        "dedupStrategy": "none",
+        "showTime": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "showCommonLabels": false,
+        "prettifyLogMessage": false,
+        "showLabels": true
+      }
+    },
+    {
+      "gridPos": {
+        "w": 24,
+        "x": 0,
+        "y": 48,
+        "h": 12
+      },
+      "id": 13,
+      "datasource": {
+        "uid": "axcore-loki",
+        "type": "loki"
+      },
+      "title": "배치 로그",
+      "description": "batch 컨테이너 로그를 표시하며 로그 수준 필터만 적용한다. 애플리케이션 기동 로그는 배치 작업 완료를 뜻하지 않는다. 실제 작업 시작·완료·실패 로그는 해당 작업 구현 후 검증한다.",
+      "fieldConfig": {
+        "overrides": [],
+        "defaults": {}
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "axcore-loki",
+            "type": "loki"
+          },
+          "maxLines": 1000,
+          "direction": "backward",
+          "refId": "A",
+          "editorMode": "code",
+          "expr": "{job=\"docker\", service=\"batch\"} | detected_level=~\"${log_level:regex}\"",
+          "queryType": "range"
+        }
+      ],
+      "type": "logs",
+      "pluginVersion": "13.3.0",
+      "options": {
+        "wrapLogMessage": true,
+        "dedupStrategy": "none",
+        "showTime": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "showCommonLabels": false,
+        "prettifyLogMessage": false,
+        "showLabels": true
+      }
+    },
+    {
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "project": true,
+              "container_id": true,
+              "instance": true,
+              "job": true
+            },
+            "renameByName": {
+              "service": "서비스",
+              "name": "컨테이너",
+              "Value": "재시작 횟수"
+            }
+          }
+        }
+      ],
+      "id": 14,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true
+      },
+      "gridPos": {
+        "x": 0,
+        "w": 12,
+        "y": 60,
+        "h": 9
+      },
+      "targets": [
+        {
+          "instant": true,
+          "refId": "A",
+          "expr": "axcore_docker_container_restart_count{job=\"node\"} and on(instance, job) (axcore_docker_state_collection_success{job=\"node\"} == 1) and on(instance, job) ((time() - axcore_docker_state_collection_timestamp_seconds{job=\"node\"}) < 90)",
+          "range": false,
+          "format": "table",
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "axcore-prometheus"
+          }
+        }
+      ],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "axcore-prometheus"
+      },
+      "type": "table",
+      "pluginVersion": "13.3.0",
+      "fieldConfig": {
+        "overrides": [],
+        "defaults": {
+          "decimals": 0,
+          "unit": "short"
+        }
+      },
+      "description": "Docker RestartCount 원본 값. 전체 수동 재시작·배포 횟수가 아니며 컨테이너 재생성 시 초기화된다. 수집 실패 또는 마지막 수집 후 90초 이상이면 이전 값을 숨긴다.",
+      "title": "컨테이너 재시작 횟수"
+    },
+    {
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "project": true,
+              "container_id": true,
+              "instance": true,
+              "job": true,
+              "Value": true
+            },
+            "renameByName": {
+              "service": "서비스",
+              "name": "컨테이너",
+              "state": "상태"
+            }
+          }
+        }
+      ],
+      "id": 15,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true
+      },
+      "gridPos": {
+        "x": 12,
+        "w": 12,
+        "y": 60,
+        "h": 9
+      },
+      "targets": [
+        {
+          "instant": true,
+          "refId": "A",
+          "expr": "(axcore_docker_container_state{job=\"node\"} == 1) and on(instance, job) (axcore_docker_state_collection_success{job=\"node\"} == 1) and on(instance, job) ((time() - axcore_docker_state_collection_timestamp_seconds{job=\"node\"}) < 90)",
+          "range": false,
+          "format": "table",
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "axcore-prometheus"
+          }
+        }
+      ],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "axcore-prometheus"
+      },
+      "type": "table",
+      "pluginVersion": "13.3.0",
+      "fieldConfig": {
+        "overrides": [],
+        "defaults": {
+          "decimals": 0,
+          "unit": "short"
+        }
+      },
+      "description": "Docker State.Status를 표시한다. running은 애플리케이션 준비 완료나 healthy를 뜻하지 않는다. 중지 컨테이너도 포함하고 일회성 Compose run은 제외한다. 수집 실패 또는 90초 이상 지연 시 값을 숨긴다.",
+      "title": "컨테이너 상태"
+    },
+    {
+      "id": 16,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false,
+          "fields": ""
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "w": 24,
+        "y": 69,
+        "h": 4
+      },
+      "targets": [
+        {
+          "instant": true,
+          "refId": "A",
+          "expr": "axcore_docker_state_collection_success{job=\"node\"} * on(instance, job) ((time() - axcore_docker_state_collection_timestamp_seconds{job=\"node\"}) < bool 90) or axcore_docker_state_collection_success{job=\"node\"}",
+          "range": false,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "axcore-prometheus"
+          }
+        }
+      ],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "axcore-prometheus"
+      },
+      "type": "stat",
+      "pluginVersion": "13.3.0",
+      "fieldConfig": {
+        "overrides": [],
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              {
+                "value": null,
+                "color": "red"
+              },
+              {
+                "value": 1,
+                "color": "green"
+              }
+            ],
+            "mode": "absolute"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "정상",
+                  "color": "green"
+                },
+                "0": {
+                  "text": "수집 지연/실패",
+                  "color": "red"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "description": "수집 성공이며 지표 파일 갱신 후 90초 미만이면 정상. 주기 실행이 중단되면 지연/실패로 표시한다. 파일·시계열 자체가 없으면 데이터 없음이다.",
+      "title": "Docker 상태 수집 정상 여부"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "axcore-prometheus"
+      },
+      "description": "초당 CPU 사용 코어 수 / Docker에 명시한 CPU 한도 × 100. NanoCpus·CFS quota·cpuset 중 가장 작은 설정값을 사용한다. 명시적 제한이 없으면 계산에서 제외한다. 부모 cgroup 제한·호스트 경합은 반영하지 않는다. Windows 로컬에서는 cAdvisor가 없어 데이터 없음이 정상이다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 9,
+        "x": 0,
+        "y": 73
+      },
+      "id": 17,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "13.3.0",
+      "targets": [
+        {
+          "range": true,
+          "refId": "A",
+          "editorMode": "code",
+          "expr": "100 * sum by(instance, name, service) (rate(container_cpu_usage_seconds_total{job=\"cadvisor\", service!=\"\"}[$__rate_interval]) and container_cpu_usage_seconds_total{job=\"cadvisor\", service!=\"\"}) / on(instance, name) group_left() (axcore_docker_container_cpu_limit_cores{job=\"node\"} > 0 and on(instance, job) (axcore_docker_state_collection_success{job=\"node\"} == 1) and on(instance, job) ((time() - axcore_docker_state_collection_timestamp_seconds{job=\"node\"}) < 90))",
+          "legendFormat": "{{service}} / {{name}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "axcore-prometheus"
+          }
+        }
+      ],
+      "title": "컨테이너 CPU 설정 한도 대비 사용률",
+      "type": "timeseries"
+    },
+    {
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "project": true,
+              "container_id": true,
+              "instance": true,
+              "job": true
+            },
+            "renameByName": {
+              "service": "서비스",
+              "name": "컨테이너",
+              "Value": "CPU 한도(코어)"
+            }
+          }
+        }
+      ],
+      "id": 18,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 9,
+        "x": 12,
+        "y": 73
+      },
+      "targets": [
+        {
+          "instant": true,
+          "refId": "A",
+          "expr": "axcore_docker_container_cpu_limit_cores{job=\"node\"} and on(instance, job) (axcore_docker_state_collection_success{job=\"node\"} == 1) and on(instance, job) ((time() - axcore_docker_state_collection_timestamp_seconds{job=\"node\"}) < 90)",
+          "range": false,
+          "format": "table",
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "axcore-prometheus"
+          }
+        }
+      ],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "axcore-prometheus"
+      },
+      "type": "table",
+      "pluginVersion": "13.3.0",
+      "fieldConfig": {
+        "overrides": [],
+        "defaults": {
+          "decimals": 2,
+          "unit": "short",
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "text": "명시적 제한 없음"
+                }
+              },
+              "type": "value"
+            }
+          ]
+        }
+      },
+      "description": "Docker의 명시적 CPU 제한을 코어 수로 표시한다. 0은 명시적 제한 없음이며 실제 사용 가능한 호스트 코어 수를 뜻하지 않는다.",
+      "title": "컨테이너 CPU 설정 한도"
     }
   ],
   "preload": false,
@@ -545,7 +1629,153 @@
   },
   "timezone": "browser",
   "title": "AXCORE 자원 모니터링",
-  "version": 6,
+  "version": 14,
   "uid": "axjnjgr",
-  "id": 250960337928192
+  "id": 250960337928192,
+  "templating": {
+    "list": [
+      {
+        "name": "log_service",
+        "current": {
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "label": "로그 서비스",
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          },
+          {
+            "selected": false,
+            "text": "backend",
+            "value": "backend"
+          },
+          {
+            "selected": false,
+            "text": "ai",
+            "value": "ai"
+          },
+          {
+            "selected": false,
+            "text": "frontend",
+            "value": "frontend"
+          },
+          {
+            "selected": false,
+            "text": "batch",
+            "value": "batch"
+          },
+          {
+            "selected": false,
+            "text": "nginx",
+            "value": "nginx"
+          },
+          {
+            "selected": false,
+            "text": "alloy",
+            "value": "alloy"
+          },
+          {
+            "selected": false,
+            "text": "prometheus",
+            "value": "prometheus"
+          },
+          {
+            "selected": false,
+            "text": "loki",
+            "value": "loki"
+          },
+          {
+            "selected": false,
+            "text": "grafana",
+            "value": "grafana"
+          }
+        ],
+        "skipUrlSync": false,
+        "type": "custom",
+        "multi": true,
+        "query": "backend,ai,frontend,batch,nginx,alloy,prometheus,loki,grafana",
+        "hide": 0,
+        "allValue": ".+",
+        "includeAll": true
+      },
+      {
+        "name": "log_level",
+        "current": {
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "label": "로그 수준",
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          },
+          {
+            "selected": false,
+            "text": "trace",
+            "value": "trace"
+          },
+          {
+            "selected": false,
+            "text": "debug",
+            "value": "debug"
+          },
+          {
+            "selected": false,
+            "text": "info",
+            "value": "info"
+          },
+          {
+            "selected": false,
+            "text": "warn",
+            "value": "warn"
+          },
+          {
+            "selected": false,
+            "text": "warning",
+            "value": "warning"
+          },
+          {
+            "selected": false,
+            "text": "error",
+            "value": "error"
+          },
+          {
+            "selected": false,
+            "text": "critical",
+            "value": "critical"
+          },
+          {
+            "selected": false,
+            "text": "fatal",
+            "value": "fatal"
+          },
+          {
+            "selected": false,
+            "text": "unknown",
+            "value": "unknown"
+          }
+        ],
+        "skipUrlSync": false,
+        "type": "custom",
+        "multi": true,
+        "query": "trace,debug,info,warn,warning,error,critical,fatal,unknown",
+        "hide": 0,
+        "allValue": ".*",
+        "includeAll": true
+      }
+    ]
+  }
 }
