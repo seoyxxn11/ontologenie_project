@@ -23,7 +23,7 @@
 | API | 언제 | 보내는 것 |
 | --- | --- | --- |
 | 105 `POST /api/v1/internal/analyses/{id}/results` | 시작·끝·실패 | `status`, `resultSummary`, `proposals[]` 또는 `errorMessage` |
-| 043 `GET /api/v1/internal/ontology/model-summary` | 분석 전 | 없음. 이미 있는 정의와 같은 후보를 내지 않으려고 받음. 실패하면 빈 요약으로 계속함 |
+| 043 `GET /api/v1/internal/ontology/model-summary` | 분석 전 | 없음. 이미 있는 정의와 같은 후보를 내지 않으려고 받음. `objectTypes[].code`, `properties[].objectTypeId`·`code`, `linkTypes[].code`를 씀. 실패하면 빈 요약으로 계속함 |
 
 **105 `proposals[]` 한 건**
 
@@ -53,9 +53,9 @@ PROPERTY `payload.sensitivity`는 ERD `property_definition.sensitivity`와 같�
 
 관계 개수 `MANY_TO_MANY`는 도착이 키가 아닌 종류 관계(라우팅 설비 종류 → 설비 종류)에 씁니다. 다른 표를 거쳐야 이어지는 관계(공정 실적 → 작업지시 → 라우팅)는 연결 규칙(`link_mapping_condition`, 두 객체의 속성 비교)으로 표현할 수 없어 LINK_RULE 없이 LINK_TYPE만 보류 권고로 냅니다.
 
-## 3. 시작 알림 (제안, 명세에 없음)
+## 3. 시작 알림 (API 명세 018 "FastAPI 분석 시작 알림")
 
-명세는 "FastAPI가 QUEUED 분석을 시작할 때 105로 RUNNING"이라고만 하고, FastAPI가 실행을 어떻게 알게 되는지는 없습니다. 아래처럼 Spring이 실행을 만든 직후 한 번 알려 주는 방식을 제안합니다.
+명세는 "FastAPI가 QUEUED 분석을 시작할 때 105로 RUNNING"이라고만 하고, FastAPI가 실행을 어떻게 알게 되는지는 없습니다. 그래서 Spring이 실행을 만든 직후 한 번 알려 줍니다(#176).
 
 `POST /internal/v1/analysis-runs` → `202 {runId, accepted}`. 같은 실행이 아직 돌고 있으면 `accepted: false`를 돌려줍니다.
 
@@ -63,8 +63,8 @@ PROPERTY `payload.sensitivity`는 ERD `property_definition.sensitivity`와 같�
 | --- | --- | --- |
 | `runId` | O | `analysis_run.id` |
 | `runKind` | O | INITIAL · REANALYSIS |
-| `targets[]` | O | `{sourceResourceId, dataSourceCode, resourceKey(원천.표), columns, sourceMetadata, changeSeqFrom, changeSeqTo}`. REANALYSIS면 변경 번호 필수 |
-| `sources[]` | O | `{dataSourceCode, sourceKind(POSTGRES·CSV), connection(AI 계정), schema}`. 접속 정보는 로그·결과에 남기지 않음 |
+| `targets[]` | O | `{sourceResourceId, dataSourceCode, resourceKey(원천.표), columns, sourceMetadata}` |
+| `sources[]` | O | `{dataSourceCode, sourceKind(POSTGRES·CSV), connection, schema, path}`. 아래 `sources[].connection` |
 | `allowedTransforms` | 선택 | 041 허용 변환. 목록 밖 변환을 쓰는 후보는 내지 않음 |
 | `pastDecisions` | 선택 | `[{candidateId, itemKind, revision, fingerprint 또는 payload, decision, reason}]`. 같은 내용이 승인·거절됐으면 다시 내지 않음 |
 | `previousProposals` | 재분석 | `[{candidateId, fingerprint}]`. 이전 후보 evidence에서 꺼낸 값 |
@@ -88,6 +88,24 @@ PROPERTY `payload.sensitivity`는 ERD `property_definition.sensitivity`와 같�
 | `description` | 원천 주석이 없을 때만 표 주석·컬럼 주석으로 씀. 주석은 객체·속성 이름이 되므로 원천 주석을 덮어쓰지 않음 |
 | `synonyms`, `memo` | 표는 LLM 해석의 참고 문장으로, 컬럼은 주석 뒤 괄호로 덧붙임 |
 
+**`sources[].connection`** (2026-11-03 결정: Spring이 복호화해 보냄)
+
+| 원천 | 보내는 값 |
+| --- | --- |
+| POSTGRES | `{host, port, database, sslmode, username, password}`. `host`·`port`·`database`·`sslmode`는 `data_source.connection_config`, `username`·`password`는 `data_source_credential`(purpose=AI)을 복호화한 값. `schema`는 `sources[].schema`로 따로 보냄 |
+| CSV | `connection`은 빈 객체. `path`에 AI 컨테이너가 읽을 수 있는 폴더를 넣음(개발·시험용) |
+| DOCUMENT | 아직 읽지 않음. 대상에 있으면 분석이 실패함 |
+
+- `sslmode`가 없으면 `prefer`(SSL 먼저 시도)로 접속합니다. 원천 AI 계정(`platform_ai`)은 SSL만 받으므로 `require`를 권장합니다.
+- AI는 이 계정으로 읽기 전용 세션만 엽니다(`default_transaction_read_only=on`, `statement_timeout` 30초).
+
+**접속 정보 보안**
+
+- 내부망 주소(`http://ai:8000`)로만 보내고 `X-Internal-Token`을 붙입니다. 없거나 틀리면 401입니다.
+- Spring과 AI 모두 요청 본문과 접속 정보를 로그에 남기지 않습니다.
+- AI는 접속 정보를 저장하지 않고 분석이 끝나면 버립니다.
+- 105 결과와 `errorMessage`에 접속 정보를 넣지 않습니다. 접속 실패는 원인 코드(인증 실패·권한 없음 등)만 보냅니다.
+
 ## 4. 실패 메시지 (105 `errorMessage`, 019에 그대로 보임)
 
 | 경우 | 메시지 |
@@ -109,14 +127,11 @@ LLM 설정이 없거나 LLM 호출이 실패해도 실행은 실패로 끝내지
 
 | 항목 | 제안 |
 | --- | --- |
-| 시작 알림 방식 | 3절. 아니면 FastAPI가 대기 실행을 조회하는 내부 API가 필요함 |
-| AI 계정 접속 정보 전달 | 3절 `sources[].connection`으로 Spring이 복호화해 내부망으로 보냄 |
 | 과거 결정·허용 변환 | 3절 요청에 함께 넣음. 따로 받을 내부 API가 명세에 없음 |
-| 043 응답 형식 | `{objectTypes:[{code}], properties:[{objectTypeCode, code}], linkTypes:[{code}]}`로 가정함 |
 
 ## 6. 지금 구현 범위
 
 - LLM: `.env`의 `AI_ONTOLOGY_LLM_PROVIDER`·`_API_KEY`·`_BASE_URL`·`_MODEL`만 바꾸면 제공사를 바꿀 수 있습니다. `gms`(기본), `openai`(OpenAI·Azure OpenAI v1, Responses API 형식), `openai-chat`(사내 LLM 서버 등 Chat Completions 형식), `none`(코드 분석만). 실제 호출로 확인한 것은 GMS뿐입니다.
 - 원천: CSV 폴더와 PostgreSQL(읽기 전용). PostgreSQL 드라이버(psycopg)를 설치하기 전이라 가짜 연결로만 테스트했습니다.
 - 고른 표·컬럼만 임시 폴더로 옮겨 분석하고, 끝나면 지웁니다. 기본키는 늘 함께 읽습니다.
-- 재분석: 원천별 `change_log`에서 변경 번호 구간의 행을 보고 바뀐 표·메모만 다시 분석합니다. 이전에 있다가 이번에 안 나온 후보는 판단하지 않습니다.
+- 재분석: 원천 변경은 CDC로 수집하고 다시 분석할 표는 백엔드가 고릅니다(V5). 고른 표 전체를 다시 분석하고 이전 후보와 비교해 `changeType`을 붙입니다. 이전에 있다가 이번에 안 나온 후보는 판단하지 않습니다.
