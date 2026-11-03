@@ -1,0 +1,36 @@
+{
+  "tables": {
+    "sales_orders": {
+      "description": "고객 주문(수주)",
+      "primary_key": ["order_no"],
+      "columns": {
+        "order_no": {"type": "varchar(20)", "comment": "수주 번호"},
+        "customer_name": {"type": "varchar(100)", "comment": "고객사 이름"},
+        "order_date": {"type": "date", "comment": "수주일"},
+        "due_date": {"type": "date", "comment": "납기일"},
+        "qty": {"type": "int", "comment": "주문 수량"}
+      }
+    },
+    "employees": {
+      "description": "직원",
+      "primary_key": ["emp_id"],
+      "columns": {
+        "emp_id": {"type": "varchar(10)", "comment": "사번"},
+        "name": {"type": "varchar(50)", "comment": "이름(개인정보)"},
+        "dept": {"type": "varchar(50)", "comment": "소속 부서"},
+        "join_date": {"type": "date", "comment": "입사일"}
+      }
+    },
+    "assets": {
+      "description": "고정자산 대장",
+      "primary_key": ["asset_no"],
+      "columns": {
+        "asset_no": {"type": "varchar(10)", "comment": "자산 번호"},
+        "asset_name": {"type": "varchar(100)", "comment": "자산 이름"},
+        "acquired_on": {"type": "date", "comment": "취득일"},
+        "book_value": {"type": "numeric(16,2)", "comment": "장부가(원)"},
+        "mes_machine_code": {"type": "varchar(20)", "comment": "생산 설비이면 현장 시스템의 설비 코드"}
+      }
+    }
+  }
+}

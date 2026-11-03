@@ -1,0 +1,4 @@
+asset_no,asset_name,acquired_on,book_value,mes_machine_code
+AS-01,A라인 1번 성형기,2019-04-01,85000000,M-A1
+AS-02,A라인 2번 성형기,2021-09-15,120000000,M-A2
+AS-03,지게차,2022-02-10,14000000,

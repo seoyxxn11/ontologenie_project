@@ -1,0 +1,4 @@
+machine_code,machine_name,line,status
+M-A1,A라인 1번 성형기,A,가동
+M-A2,A라인 2번 성형기,A,가동
+M-B1,B라인 1번 성형기,B,점검

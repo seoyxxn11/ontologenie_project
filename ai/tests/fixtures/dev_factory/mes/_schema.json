@@ -1,0 +1,26 @@
+{
+  "tables": {
+    "jobs": {
+      "description": "작업지시",
+      "primary_key": ["job_no"],
+      "columns": {
+        "job_no": {"type": "varchar(20)", "comment": "작업지시 번호"},
+        "order_code": {"type": "varchar(20)", "comment": "주문 참조 번호"},
+        "machine_code": {"type": "varchar(20)", "comment": "배정 설비"},
+        "operator_code": {"type": "varchar(10)", "comment": "담당 작업자"},
+        "status": {"type": "varchar(10)", "comment": "상태(대기·진행·완료)"},
+        "planned_qty": {"type": "int", "comment": "계획 수량"}
+      }
+    },
+    "machines": {
+      "description": "설비",
+      "primary_key": ["machine_code"],
+      "columns": {
+        "machine_code": {"type": "varchar(20)", "comment": "설비 코드"},
+        "machine_name": {"type": "varchar(50)", "comment": "설비 이름"},
+        "line": {"type": "varchar(10)", "comment": "라인"},
+        "status": {"type": "varchar(10)", "comment": "상태(가동·정지·점검)"}
+      }
+    }
+  }
+}
