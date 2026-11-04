@@ -1,5 +1,5 @@
 import { delay, http, HttpResponse } from 'msw'
-import type { Proposal } from '../features/review/types'
+import type { Proposal, ProposalOption } from '../features/review/types'
 
 export const proposalFixtures: Proposal[] = [
   {
@@ -13,7 +13,13 @@ export const proposalFixtures: Proposal[] = [
       code: 'WO_EQUIPMENT_CODE',
       linkTypeId: 2,
       conditions: [
-        { sourcePropertyId: 31, targetPropertyId: 21, operator: 'EQ' },
+        {
+          sourceProperty: 'WORK_ORDER.equipment_code',
+          targetProperty: 'EQUIPMENT.code',
+          operator: 'EQ',
+          sourceTransforms: [{ op: 'UPPER', arg: null }],
+          targetTransforms: [],
+        },
       ],
     },
     evidence: {
@@ -42,6 +48,16 @@ export const proposalFixtures: Proposal[] = [
     payload: {
       name: '직접 추가한 대체 설비 연결',
       code: 'ALTERNATIVE_EQUIPMENT',
+      linkTypeId: 2,
+      conditions: [
+        {
+          sourceProperty: 'WORK_ORDER.equipment_code',
+          targetProperty: 'EQUIPMENT.code',
+          operator: 'EQ',
+          sourceTransforms: [],
+          targetTransforms: [],
+        },
+      ],
     },
     evidence: {},
     aiConfidence: null,
@@ -71,13 +87,111 @@ export const proposalFixtures: Proposal[] = [
   },
 ]
 
+let proposals: Proposal[] = structuredClone(proposalFixtures)
+let savedOptions: Record<string, ProposalOption[]> = {}
+export function resetProposalMocks() {
+  proposals = structuredClone(proposalFixtures)
+  savedOptions = {}
+}
+function failed(status: number, code: string, message: string) {
+  return HttpResponse.json(
+    { error: { code, message, details: {}, requestId: 'mock-proposal' } },
+    { status },
+  )
+}
+
 export const proposalHandlers = [
+  http.post('/api/v1/proposals/manual', async ({ request }) => {
+    await delay()
+    const body = (await request.json()) as {
+      itemKind: string
+      payload: Record<string, unknown>
+      evidence: Record<string, unknown>
+    }
+    if (body.itemKind !== 'LINK_RULE')
+      return failed(
+        400,
+        'VALIDATION_FAILED',
+        '연결 규칙만 직접 추가할 수 있습니다.',
+      )
+    const id = Math.max(...proposals.map((item) => item.id), 300) + 1
+    const item: Proposal = {
+      ...proposalFixtures[1],
+      id,
+      origin: 'MANUAL',
+      revision: 1,
+      payload: body.payload,
+      evidence: body.evidence,
+      reviewStatus: 'PENDING',
+      latestCheck: {
+        checkRunId: id + 1000,
+        status: 'QUEUED',
+        matchedCount: null,
+        totalCount: null,
+        matchRate: null,
+      },
+    }
+    proposals.unshift(item)
+    return HttpResponse.json(
+      { data: { ...item, checkRunId: id + 1000 } },
+      { status: 201 },
+    )
+  }),
+  http.get('/api/v1/proposals/:id/options', async ({ params, request }) => {
+    await delay()
+    const id = Number(params.id)
+    const revision = Number(new URL(request.url).searchParams.get('revision'))
+    if (!proposals.some((item) => item.id === id))
+      return failed(404, 'RESOURCE_NOT_FOUND', '제안을 찾을 수 없습니다.')
+    return HttpResponse.json({ data: savedOptions[`${id}:${revision}`] ?? [] })
+  }),
+  http.post('/api/v1/proposals/:id/revisions', async ({ params, request }) => {
+    await delay()
+    const item = proposals.find((value) => value.id === Number(params.id))
+    if (!item)
+      return failed(404, 'RESOURCE_NOT_FOUND', '제안을 찾을 수 없습니다.')
+    if (!['PENDING', 'HELD'].includes(item.reviewStatus))
+      return failed(409, 'PROPOSAL_ALREADY_DECIDED', '이미 결정된 제안입니다.')
+    const body = (await request.json()) as {
+      baseRevision: number
+      payload: Record<string, unknown>
+      evidence: Record<string, unknown>
+      options: Pick<ProposalOption, 'payload' | 'evidence'>[]
+    }
+    if (body.baseRevision !== item.revision)
+      return failed(409, 'REVISION_CONFLICT', '다른 사람이 먼저 수정했습니다.')
+    item.revision += 1
+    item.payload = body.payload
+    item.evidence = body.evidence
+    item.reviewStatus = 'PENDING'
+    item.aiConfidence = null
+    item.latestCheck = {
+      checkRunId: item.id + 1000 + item.revision,
+      status: 'QUEUED',
+      matchedCount: null,
+      totalCount: null,
+      matchRate: null,
+    }
+    savedOptions[`${item.id}:${item.revision}`] = body.options.map(
+      (option, index) => ({
+        ...option,
+        id: index + 1,
+        optionNo: index + 1,
+        revision: item.revision,
+        aiConfidence: null,
+      }),
+    )
+    return HttpResponse.json(
+      { data: { ...item, checkRunId: item.latestCheck.checkRunId } },
+      { status: 201 },
+    )
+  }),
   http.get('/api/v1/proposals', async ({ request }) => {
     await delay()
     const params = new URL(request.url).searchParams
     const page = Number(params.get('page') ?? 0)
     const size = Number(params.get('size') ?? 20)
-    const matches = proposalFixtures.filter((item) =>
+    const matches = proposals.filter((item) =>
       ['origin', 'itemKind', 'reviewStatus', 'applyStatus'].every(
         (key) =>
           !params.get(key) || item[key as keyof Proposal] === params.get(key),
@@ -95,7 +209,7 @@ export const proposalHandlers = [
   }),
   http.get('/api/v1/proposals/:id', async ({ params }) => {
     await delay()
-    const item = proposalFixtures.find((item) => item.id === Number(params.id))
+    const item = proposals.find((item) => item.id === Number(params.id))
     return item
       ? HttpResponse.json({ data: item })
       : HttpResponse.json(

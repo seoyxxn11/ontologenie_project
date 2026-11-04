@@ -15,6 +15,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class AgentConversation {
 
+    private static final int TITLE_MAX_LENGTH = 200;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -36,5 +38,16 @@ public class AgentConversation {
     /** API 082. 로그인 사용자를 소유자로 빈 대화를 연다. */
     public static AgentConversation start(Long accountId, Instant now) {
         return new AgentConversation(accountId, now);
+    }
+
+    /** API 085. 메시지를 저장할 때 마지막 메시지 시각을 갱신하고, 첫 질문이면 그 내용으로 제목을 정한다. */
+    public void recordMessage(String question, Instant at) {
+        if (title == null) {
+            title =
+                    question.length() > TITLE_MAX_LENGTH
+                            ? question.substring(0, TITLE_MAX_LENGTH)
+                            : question;
+        }
+        lastMessageAt = at;
     }
 }

@@ -6,6 +6,8 @@ import DataTable from '../../components/DataTable'
 import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
 import Pagination from '../../components/Pagination'
 import StatusBadge from '../../components/StatusBadge'
+import AnalysisPanel from '../analysis/AnalysisPanel'
+import { fetchAnalysisProposals } from '../analysis/api'
 import { fetchProposals, PROPOSAL_PAGE_SIZE } from './api'
 import {
   applyLabels,
@@ -86,13 +88,30 @@ export default function ProposalsPage() {
   }
   const pageValue = Number(params.get('page') ?? 0)
   const page = Number.isSafeInteger(pageValue) && pageValue >= 0 ? pageValue : 0
+  // 분석을 고르면 그 분석이 만든 제안만 본다(020, S15P31C106-108).
+  const analysisValue = Number(params.get('analysis'))
+  const analysisId =
+    Number.isSafeInteger(analysisValue) && analysisValue > 0
+      ? analysisValue
+      : undefined
   const query = useQuery({
-    queryKey: ['proposals', 'list', filters, page],
-    queryFn: ({ signal }) => fetchProposals(filters, page, signal),
+    queryKey: ['proposals', 'list', filters, page, analysisId],
+    queryFn: ({ signal }) =>
+      analysisId === undefined
+        ? fetchProposals(filters, page, signal)
+        : fetchAnalysisProposals(analysisId, filters, page, signal),
     retry: false,
   })
-  function update(next: ProposalFilters, nextPage = 0) {
+  function update(
+    next: ProposalFilters,
+    nextPage = 0,
+    nextAnalysis: { id?: number; joined?: boolean } = { id: analysisId },
+  ) {
     const search = new URLSearchParams()
+    if (nextAnalysis.id !== undefined) {
+      search.set('analysis', String(nextAnalysis.id))
+      if (nextAnalysis.joined) search.set('joined', '1')
+    }
     for (const [key, value] of Object.entries(next))
       if (value) search.set(key, value)
     if (nextPage) search.set('page', String(nextPage))
@@ -185,8 +204,20 @@ export default function ProposalsPage() {
           확인하세요.
         </p>
       </header>
+      <AnalysisPanel
+        currentId={analysisId}
+        joined={params.get('joined') === '1'}
+        onSelect={(id) => update(filters, 0, { id })}
+        onStarted={(run) => update({}, 0, { id: run.id, joined: run.joined })}
+      />
       <section className="space-y-5 rounded-xl border border-slate-200 p-5">
         <h2 className="text-lg font-semibold">검토 제안</h2>
+        <Link
+          to="/admin/rules/new"
+          className="inline-block rounded-lg bg-violet-700 px-4 py-2 text-sm font-medium text-white"
+        >
+          규칙 후보 추가
+        </Link>
         <ProposalFilterForm
           key={params.toString()}
           initialFilters={filters}

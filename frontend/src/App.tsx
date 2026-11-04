@@ -1,7 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import AppLayout from './components/AppLayout'
 import NotFoundPage from './components/NotFoundPage'
-import PagePlaceholder from './components/PagePlaceholder'
 import AgentPage from './features/agent/AgentPage'
 import AuditPage from './features/audit/AuditPage'
 import ExplorerPage from './features/explorer/ExplorerPage'
@@ -14,6 +13,9 @@ import SourcesPage from './features/sources/SourcesPage'
 import RequireAccess from './features/auth/RequireAccess'
 import ProposalsPage from './features/review/ProposalsPage'
 import ProposalDetail from './features/review/ProposalDetail'
+import RuleEditorPage from './features/review/RuleEditorPage'
+import AccountsPage from './features/accounts/AccountsPage'
+import AccountEditorPage from './features/accounts/AccountEditorPage'
 
 function App() {
   return (
@@ -43,11 +45,12 @@ function App() {
                 <Route path="history" element={<HistoryPage />} />
                 <Route path="sources" element={<SourcesPage />} />
                 <Route path="rules" element={<ProposalsPage />} />
+                <Route path="rules/new" element={<RuleEditorPage />} />
+                <Route path="rules/:id/edit" element={<RuleEditorPage />} />
                 <Route path="rules/:id" element={<ProposalDetail />} />
-                <Route
-                  path="accounts"
-                  element={<PagePlaceholder title="계정·권한" />}
-                />
+                <Route path="accounts" element={<AccountsPage />} />
+                <Route path="accounts/new" element={<AccountEditorPage />} />
+                <Route path="accounts/:id" element={<AccountEditorPage />} />
                 <Route path="*" element={<NotFoundPage />} />
               </Route>
             </Route>

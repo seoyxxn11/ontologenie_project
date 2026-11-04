@@ -10,8 +10,12 @@ BACKUP_DIR=/home/ubuntu/axcore/backup
 KEEP_DAYS=7
 STAMP=$(date +%Y%m%d_%H%M)
 
-# .env 에서 DB 이름과 계정 이름을 읽는다.
-set -a; source ./.env; set +a
+# 비밀값이 포함된 dotenv를 셸 코드로 실행하지 않는다.
+# DB 컨테이너에 이미 전달된 이름만 읽으며 비밀번호는 꺼내지 않는다.
+POSTGRES_DB=$(docker exec postgres printenv POSTGRES_DB)
+POSTGRES_USER=$(docker exec postgres printenv POSTGRES_USER)
+[[ "$POSTGRES_DB" =~ ^[a-zA-Z0-9_]+$ ]] || { echo 'DB 이름 형식 오류'; exit 1; }
+[[ "$POSTGRES_USER" =~ ^[a-zA-Z0-9_]+$ ]] || { echo 'DB 사용자 이름 형식 오류'; exit 1; }
 
 mkdir -p "$BACKUP_DIR"
 FILE="$BACKUP_DIR/${POSTGRES_DB}_${STAMP}.dump"

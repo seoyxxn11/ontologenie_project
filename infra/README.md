@@ -4,11 +4,13 @@
 
 ## 구성
 
+Credentials 전환 작업의 등록 ID·실행 파일 구분·검증 절차는 [배포 Credentials 안내](deploy/README.md)를 따른다. 아래 기존 서버 `.env` 관리 설명은 전환 전 운영 기록이며, 새 배포 단계의 실제 서버 검증 완료 전까지 기존 파일을 삭제하지 않는다.
+
 | 파일 | 역할 |
 | --- | --- |
 | `compose.yaml` | nginx · Jenkins · PostgreSQL 18 · backend · AI · frontend · Prometheus · Alloy 및 도구 프로필 certbot 정의 (이미지 버전 고정, 내부망 `axcore-net`) |
 | `monitoring/` | Prometheus·Alloy 설정, Linux 서버 전용 컨테이너 지표 수집과 노트북 검증 설정. 상세는 `monitoring/README.md` |
-| `.env.example` | `compose.yaml`이 읽는 환경 변수 이름 목록 (실제 값은 서버의 `.env`에만) |
+| `.env.example` | Compose 변수 목록. 운영 비밀값 원본은 Credentials, 일반 설정은 `.env.config`, `.env`는 배포 실행용 산출물 |
 | `nginx/conf.d/default.conf` | HTTP → HTTPS 리다이렉트, TLS 설정, `/jenkins/` 리버스 프록시, `/api/` → backend, `/` → frontend, Swagger Basic Auth |
 | `jenkins/Dockerfile` | Jenkins 공식 이미지 + docker CLI · compose 플러그인 |
 | `scripts/renew-cert.sh` | 인증서 자동 갱신 + nginx reload (cron에서 매일 03:00 실행) |
@@ -16,6 +18,34 @@
 | backend | Spring Boot 백엔드 (api 모드) · `backend/Dockerfile` · 호스트 `127.0.0.1:18080` · 이미지 태그 `.env`의 `BACKEND_TAG` |
 | frontend | React 정적 파일 · `frontend/Dockerfile`(node 24.18.0로 빌드 → `nginx:1.30-alpine`이 dist 서빙, SPA fallback은 `frontend/nginx.conf`) · 호스트 `127.0.0.1:10080`(컨테이너 80) · 이미지 태그 `.env`의 `FRONTEND_TAG` · 메인 nginx `/` → frontend |
 | AI | FastAPI · `ai/Dockerfile`(Python 3.11 slim, 비 root 실행) · 호스트 `127.0.0.1:18000`(컨테이너 8000) · 이미지 태그 `.env`의 `AI_TAG` · nginx 외부 경로 없음 |
+
+## 서비스 도메인 추가 (278)
+
+대표 서비스 주소는 `https://ontologenie.com`, Grafana 주소는 `https://ontologenie.com/grafana/`로 지정한다. 기존 `k15c106.p.ssafy.io`도 nginx에서 계속 처리한다. Grafana의 절대 링크·외부 URL은 새 대표 주소를 사용한다. 두 호스트의 로그인 쿠키는 서로 공유되지 않으므로 주소별로 로그인한다. `www`는 이번 범위에 포함하지 않는다.
+
+가비아 DNS에 `@` A 레코드 `13.125.73.49`, TTL 600을 등록했고, 2026-11-03 사용자 공용 DNS 조회로 연결을 확인했다. 서버 nginx 문법 검사도 통과했고, 변경 전 Compose·nginx 설정은 `/home/ubuntu/axcore/backup/domain-20261103-225602`에 백업했다. 아래 인증서 확장·설정 적용·접속 검증은 아직 실행 전이다.
+
+사용자 실행 로컬 검증: Compose `config --quiet` 종료 코드 0, 인증서 지시문과 TLS listen 옵션만 제외한 임시 사본의 nginx 1.30 문법 검사 통과. 임시 nginx에 `Host: ontologenie.com`으로 요청해 `/login`은 `https://ontologenie.com/login`으로 301, `/api/v1/internal`은 403을 확인했다. 이는 라우팅 검사이며 실제 인증서·앱 연결·Grafana 검증을 대신하지 않는다.
+
+기존 인증서 이름 `k15c106.p.ssafy.io`와 파일 경로를 유지하면서 SAN에 `ontologenie.com`을 추가한다. 두 도메인의 HTTP 인증 경로가 같은 서버의 `/var/www/certbot`으로 연결되는지 먼저 임시 파일로 확인한다. 현재 nginx의 기본 HTTP 서버가 신규 호스트의 인증 경로를 처리하는지도 외부 요청으로 확인하고, 실패하면 인증서 발급을 진행하지 않는다. certbot은 `webroot` 방식으로 실행해 nginx를 중지하지 않는다.
+
+서버에서 인증서 확장(HTTP 경로 확인 후):
+
+```bash
+cd ~/axcore
+docker compose run --rm -T certbot certonly --webroot \
+  -w /var/www/certbot \
+  --cert-name k15c106.p.ssafy.io --expand --non-interactive \
+  -d k15c106.p.ssafy.io -d ontologenie.com
+```
+
+발급 성공 후에만 병합된 `compose.yaml`과 `nginx/conf.d/default.conf`를 서버 파일과 비교해 반영한다. `docker compose config --quiet`, `docker compose exec -T nginx nginx -t`를 통과한 뒤 nginx를 reload하고 Grafana만 `docker compose up -d --no-deps grafana`로 재생성한다. 앱 이미지·DB·배치 컨테이너는 이번 설정 적용 때문에 재생성하지 않는다.
+
+검증: 두 도메인의 HTTPS 인증서 검증(검증 생략 옵션 사용 금지), HTTP→같은 호스트 HTTPS 리다이렉트, 일반 서비스 로그인·로그아웃·세션 유지·CSRF, internal 경로 403, Grafana 로그인·지표·로그·Live WebSocket, 기존 Jenkins·Swagger·Kafka UI 경로를 확인한다. Jenkins의 대표 URL·GitLab Webhook은 현재 기존 주소를 유지하며 새 주소로 일괄 변경하지 않는다.
+
+`docker compose run --rm -T certbot renew --dry-run --cert-name k15c106.p.ssafy.io`로 갱신을 검증한다. 기존 `scripts/renew-cert.sh`는 갱신 후 nginx reload를 수행하므로 계속 사용한다. 서버의 실제 cron 등록·최근 성공 기록은 별도 확인한다. 두 도메인을 한 인증서로 묶었으므로 향후에도 두 도메인의 DNS·HTTP 인증 경로를 유지해야 한다.
+
+복구 시 이번 백업의 Compose·nginx 파일을 복원하고 설정 검사 후 nginx reload·Grafana 재생성을 수행한다. 기존 도메인을 포함해 확장 발급된 인증서는 그대로 사용할 수 있으므로 인증서 파일·개인키를 삭제하거나 저장소에 복사하지 않는다. 인증서 발급에 실패하면 nginx reload·Grafana URL 변경을 진행하지 않는다.
 
 ## 포트 규칙
 
@@ -35,7 +65,7 @@ SSAFY 클라우드 방화벽은 tcp · udp 1024~65535를 열어 두므로, 서�
 | `/grafana/` | grafana:3000 | Grafana 로그인 필요. 하위 경로 유지, Live WebSocket 전달. 67 서버 반영 후 외부 검증 필요 |
 | `/swagger-ui.html` · `/swagger-ui/` · `/v3/api-docs` | backend:8080 | nginx Basic Auth (아이디 · 비밀번호는 서버 `nginx/htpasswd`, 팀 DM으로 공유). 백엔드 로그인과 별개 |
 
-바깥에 열지 않는 것: backend `/actuator/*`와 AI 서비스. backend Actuator 전용 nginx 프록시 경로는 없으며, AI도 nginx에 외부 경로를 추가하지 않는다. backend 헬스체크는 `/actuator/health`, Alloy의 앱 지표 수집은 내부 `backend:8080/actuator/prometheus`를 사용한다. backend 변경은 자동 배포되지만 Alloy 설정은 별도로 서버 반영해야 한다.
+바깥에 열지 않는 것: backend `/actuator/*`와 AI 서비스. backend Actuator 전용 nginx 프록시 경로는 없으며, AI도 nginx에 외부 경로를 추가하지 않는다. backend 헬스체크는 `/actuator/health`, Alloy의 앱 지표 수집은 내부 `backend:8080/actuator/prometheus`를 사용한다. Alloy 설정도 Credentials 전환 후 관리 대상 설정 자동 배포에 포함한다. 전환 전 운영에서는 별도 수동 반영했다.
 
 공통 보호: 모든 HTTPS 응답에 보안 헤더 3개(HSTS 1주 · `X-Content-Type-Options nosniff` · `X-Frame-Options SAMEORIGIN`). 로그인 `/api/v1/auth/login`만 IP별 요청 제한(20회 즉시 통과, 이후 분당 30회, 초과 시 429). 교육장은 팀이 공인 IP 하나를 같이 쓰므로 느슨하게 둔다.
 
@@ -53,13 +83,13 @@ Swagger 열쇠 파일 만들기 (서버): `echo "swagger:$(openssl passwd -apr1)
 
 ## backend–AI 내부 통신 설정 (274)
 
-backend에 `AXCORE_INTERNAL_API_TOKEN`을 서버 `.env`에서 전달하고 `AXCORE_AI_BASE_URL=http://ai:8000`을 지정한다. AI의 `AI_ONTOLOGY_INTERNAL_TOKEN`과 backend 토큰은 서버에서 같은 값으로 관리한다. 토큰 값은 저장소·MR·Jira·로그에 기록하지 않는다. 토큰이 비어 있을 때 요청을 거부하는 인증 구현은 270번 범위이며 이 설정만으로 인증 코드가 구현되는 것은 아니다. batch에는 두 변수를 추가하지 않는다.
+backend에 `AXCORE_INTERNAL_API_TOKEN`을 전달하고 `AXCORE_AI_BASE_URL=http://ai:8000`을 지정한다. 운영 원본은 Credentials `axcore-internal-api-token` 하나이며, 배포 시 backend 변수와 AI의 `AI_ONTOLOGY_INTERNAL_TOKEN`에 같은 값을 넣는다. 서버 `.env`는 실행용 산출물이다. 토큰 값은 저장소·MR·Jira·로그에 기록하지 않는다. 토큰이 비어 있을 때 요청을 거부하는 인증 구현은 270번 범위이며 이 설정만으로 인증 코드가 구현되는 것은 아니다. batch에는 두 변수를 추가하지 않는다.
 
-nginx는 정확한 `/api/v1/internal` 및 `/api/v1/internal/` 하위 경로를 403으로 차단한다. Docker 내부망에서는 AI가 `http://backend:8080`으로 직접 호출하므로 nginx를 경유하지 않는다. 기존 일반 `/api/` 프록시는 유지한다. 명세의 토큰 관리 방식 설명은 176번에서 서버 `.env` 기준으로 맞춘다.
+nginx는 정확한 `/api/v1/internal` 및 `/api/v1/internal/` 하위 경로를 403으로 차단한다. Docker 내부망에서는 AI가 `http://backend:8080`으로 직접 호출하므로 nginx를 경유하지 않는다. 기존 일반 `/api/` 프록시는 유지한다. 명세의 토큰 관리 방식도 Credentials 원본·실행용 `.env` 생성 기준으로 맞춘다.
 
 2026-11-02 사용자 실행 로컬 검증: Compose config 종료 코드 0, 인증서 설정을 제외한 nginx 1.30 문법 검사 통과. 임시 nginx에서 정확한 internal 경로, 모델 요약 GET, 분석 결과 POST 모두 403을 확인했다. 일반 `/api/v1/auth/me`와 유사 접두사 `/api/v1/internal-test`는 backend 부재로 502였다. 이는 차단 규칙과의 경로 구분 확인이며 실제 backend의 정상 응답 검증은 아니다. 임시 nginx는 정리했다. 실제 토큰은 생성하지 않았으며 서버 반영·내부 인증·API 연동 검증은 남아 있다.
 
-리뷰·병합 후 서버 기존 Compose·nginx 설정을 백업·비교한다. 서버에서만 무작위 토큰 하나를 생성해 `.env`의 두 토큰 변수에 같은 값을 지정한다. 값이 이미 있다면 임의로 교체하지 않고 관련 서비스의 공유 상태를 먼저 확인한다. Compose 검사와 실제 인증서를 사용한 nginx 문법 검사 후 backend·AI 재생성 및 nginx reload를 수행한다. 외부 internal 경로 차단·일반 API 유지·앱 상태를 확인하고, 270 및 관련 내부 API 구현 상태에 맞춰 내부망 인증과 연동을 검증한다. 완료되지 않은 서버 작업은 Jira 274에 잔여 항목으로 남긴다. 54 배치 작업과 67 서버 반영은 별도 범위다.
+274 최초 서버 반영 당시에는 기존 파일 백업·비교 후 서버에서 공유 토큰을 생성해 `.env` 두 변수에 같은 값을 지정했다. Credentials 전환에서는 기존 토큰을 재사용하며 새로 생성하지 않는다. 변경 후에도 외부 internal 경로 차단·일반 API 유지·내부 인증을 확인한다. 2026-11-02 로컬 검증 기록과 현재 서버 적용 결과는 구분하며, 서버의 완료 증빙은 Jira 274를 참고한다.
 
 ## 원천 접속 정보 (64)
 
@@ -69,12 +99,12 @@ nginx는 정확한 `/api/v1/internal` 및 `/api/v1/internal/` 하위 경로를 4
 | --- | --- | --- |
 | `platform_ro` (SYNC) | batch: 수집·연결 검사·전체 읽기 | 플랫폼 DB `data_source_credential`에 암호문으로. 관리자가 원천 등록(API 010·012)에서 넣는다 |
 | `platform_ai` (AI) | FastAPI 분석 | 위와 같다. backend가 풀어 분석 시작 요청으로 AI에 넘긴다 |
-| `platform_cdc` | Kafka Connect(Debezium) | `~/axcore/cdc/.env`의 `ERP_CDC_PASSWORD`·`MES_CDC_PASSWORD` (`cdc/README.md`) |
+| `platform_cdc` | Kafka Connect(Debezium) | Credentials `axcore-erp-cdc-password`·`axcore-mes-cdc-password`에서 실행용 `cdc/.env`로 전달 (`cdc/README.md`) |
 
 **암호화 키**
 
-- 서버 `~/axcore/.env`의 `AXCORE_SOURCE_CREDENTIAL_KEY_1`에 둔다. backend·batch에만 전달하고 ai에는 전달하지 않는다.
-- 원천을 처음 등록하기 전에 한 번만 만든다: `openssl rand -base64 32`. 값은 화면·채팅·MR·Jira에 남기지 않는다.
+- 기존 Jenkins Credentials `source-credential-key-1`을 실행용 `AXCORE_SOURCE_CREDENTIAL_KEY_1`로 전달한다. backend·batch에만 넣고 ai에는 넣지 않는다.
+- 최초 구축 때만 32바이트 base64 키를 만든다. 이번 전환에서는 기존 키를 재생성하지 않는다. 값은 화면·채팅·MR·Jira에 남기지 않는다.
 - 원천을 등록한 뒤에는 키를 바꾸거나 잃으면 저장된 비밀번호를 풀 수 없다(모든 원천을 다시 등록해야 함). 서버 밖 안전한 곳에 따로 보관한다.
 - 키가 비어 있어도 backend·batch는 뜬다. 원천 등록·분석 시작·수집에서 암·복호화만 실패한다.
 - `AXCORE_SOURCE_CREDENTIAL_KEY_VERSION`은 비워 두면 1이다. 키 교체 절차는 개발 가이드 11.3 "원천 접속 비밀번호"에 있다.
@@ -82,14 +112,14 @@ nginx는 정확한 `/api/v1/internal` 및 `/api/v1/internal/` 하위 경로를 4
 **비밀번호를 바꿀 때**
 
 - `platform_ro`·`platform_ai`: 원천 서버 `~/source-db/.env`의 값을 바꾸고 `setup.sh`를 다시 실행해 계정 비밀번호를 바꾼다(`source-db/README.md`). 그다음 화면 또는 API 012로 해당 용도(SYNC·AI)의 계정을 다시 넣는다. 다시 넣기 전까지 그 용도의 접속은 실패한다.
-- `platform_cdc`: 원천 계정 비밀번호를 위와 같이 바꾼 뒤 `~/axcore/cdc/.env`의 두 값을 같은 값으로 바꾸고 `cd ~/axcore/cdc && docker compose up -d kafka-connect`로 컨테이너를 다시 만든다. `docker restart`는 바뀐 `.env`를 읽지 않는다.
+- `platform_cdc`: 원천 계정 비밀번호 회전과 해당 Credentials 변경·Kafka Connect 재생성을 함께 계획한다. 이번 전환은 기존 값 일치만 허용하므로 비밀번호 교체에는 별도 회전 절차가 필요하다. `docker restart`만으로 환경변수가 갱신되지는 않는다.
 - 암호화 키: 위 "암호화 키"를 따른다.
 
 ## 서버에 적용하는 방법
 
 backend · AI · frontend 이미지는 develop 머지 시 Jenkins가 서비스별 변경을 감지해 자동 배포합니다. 상세 흐름은 아래 "자동 배포" 절을 참고합니다.
 
-`infra/compose.yaml` · nginx 설정 · 스크립트 같은 서버 설정 파일은 자동 복사되지 않습니다. 저장소에서 수정·리뷰·머지한 설정을 서버 파일과 비교하고, 기존 파일을 백업한 뒤 필요한 파일만 수동 반영합니다. 아래는 머지된 nginx 설정을 노트북의 저장소 루트에서 복사하는 예시입니다.
+2026-11-04 Credentials 전환·앱 배포 정상 경로를 확인했습니다. [허용 목록과 중단 조건](deploy/README.md#설정-자동-반영)에 따라 Compose·nginx·모니터링·일부 스크립트를 자동 검사·백업·반영합니다. 실제 설정 변경·운영 롤백의 추가 검증은 [운영 기록](deploy/README.md)에 구분했습니다. Jenkins 자신·DB 정의·볼륨·네트워크·서비스 추가·삭제·호스트 systemd 변경은 별도 적용합니다. 아래는 자동 적용 제외 변경이나 장애 복구 시 필요한 수동 반영 예시입니다.
 
 ```bash
 # 1. 바뀐 파일을 서버로 복사 (예: nginx 설정)
@@ -178,6 +208,8 @@ frontend · ai 컨테이너에는 docker.sock을 붙이지 않는다. 작업 폴
 - 보안 메모: MR 브랜치의 `build.gradle`이 docker.sock이 있는 Jenkins 컨테이너 안에서 실행된다. 팀원 GitLab 계정을 신뢰하는 구성이다. 분리(docker.sock 없는 일회용 컨테이너 + 외부 테스트 DB)는 보안 후속 과제로 둔다.
 
 ## 자동 배포 (develop 머지 → Jenkins axcore-deploy)
+
+Credentials 전환 후에는 앱 변경 감지 전에 운영 비밀값 일치 검증·실행용 환경 생성·허용 설정 자동 반영 및 상태 검사를 수행한다. 실패하면 앱 배포 전에 중단하고 설정을 복구한다. 적용 범위와 제한은 [배포 안내](deploy/README.md)를 따른다. 아래 서비스별 이미지 배포·롤백은 그 다음 단계다.
 
 `Jenkinsfile`의 배포 단계는 Job `axcore-deploy`에서만 켜진다 (MR 검증 Job은 배포하지 않는다).
 

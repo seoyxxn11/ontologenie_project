@@ -17,6 +17,10 @@ export function setMockAccount(account: Account | null) {
   currentAccount = account
 }
 
+export function getMockAccount() {
+  return currentAccount
+}
+
 function denied(message = '로그인이 필요합니다.') {
   return HttpResponse.json(
     {

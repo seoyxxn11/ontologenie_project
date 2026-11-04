@@ -5,10 +5,12 @@ type DialogProps = {
   title: string
   onClose: () => void
   children: ReactNode
+  // wide: 표 두 개를 나란히 두는 선택 창처럼 넓은 내용
+  size?: 'default' | 'wide'
 }
 
 // 화면 위에 뜨는 팝업 공통 틀. [닫기], Esc 키, 바깥 배경 클릭으로 닫힌다.
-function Dialog({ title, onClose, children }: DialogProps) {
+function Dialog({ title, onClose, children, size = 'default' }: DialogProps) {
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef(onClose)
@@ -89,7 +91,7 @@ function Dialog({ title, onClose, children }: DialogProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6"
+        className={`max-h-[85vh] w-full ${size === 'wide' ? 'max-w-5xl' : 'max-w-2xl'} overflow-y-auto rounded-xl bg-white p-6`}
       >
         <div className="flex items-start justify-between gap-4">
           <h2 id={titleId} className="text-lg font-semibold text-slate-900">

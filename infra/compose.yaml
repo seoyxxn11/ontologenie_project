@@ -84,7 +84,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=75
       TZ: Asia/Seoul
-      # 첫 관리자 계정 (관리자가 없을 때 한 번만 사용). 값은 서버 .env에만. 비어 있으면 경고 로그만 남긴다.
+      # 최초 관리자 ID는 일반 설정, 비밀번호는 Jenkins Credentials에서 실행용 .env로 전달한다.
       AXCORE_INITIAL_ADMIN_LOGIN_ID: ${AXCORE_INITIAL_ADMIN_LOGIN_ID:-}
       AXCORE_INITIAL_ADMIN_PASSWORD: ${AXCORE_INITIAL_ADMIN_PASSWORD:-}
       # 원천 접속 비밀번호 암호화 키(64·275). 원천 등록 때 암호화, 분석 시작 때 AI 계정 복호화. ai 컨테이너에는 넣지 않는다.
@@ -256,7 +256,7 @@ services:
     # 초기 상한이며 대시보드·조회 부하를 실측한 뒤 조정한다.
     mem_limit: 512m
     environment:
-      GF_SERVER_ROOT_URL: https://k15c106.p.ssafy.io/grafana/
+      GF_SERVER_ROOT_URL: https://ontologenie.com/grafana/
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
       GF_SECURITY_COOKIE_SECURE: "true"
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:?GRAFANA_ADMIN_USER must be set}

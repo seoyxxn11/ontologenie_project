@@ -35,7 +35,7 @@ docker compose up -d
 docker compose ps        # 둘 다 (healthy)
 ```
 
-`~/axcore/cdc/.env`(권한 600)에는 `ERP_CDC_PASSWORD`, `MES_CDC_PASSWORD`가 있습니다. 값은 원천 서버의 `PLATFORM_CDC_PASSWORD`와 같습니다(`infra/source-db/README.md`).
+운영 비밀값 원본은 Jenkins Credentials의 `axcore-erp-cdc-password`, `axcore-mes-cdc-password`입니다. Jenkins가 권한 600의 실행용 `~/axcore/cdc/.env`에 `ERP_CDC_PASSWORD`, `MES_CDC_PASSWORD`로 전달합니다. 원천 서버의 기존 `PLATFORM_CDC_PASSWORD`와 같은 값을 유지합니다(`infra/source-db/README.md`). 전환·자동 반영 범위와 운영 적용 여부는 [배포 안내](../deploy/README.md)를 확인합니다. 원천 서버 비밀번호 자체를 변경하는 작업은 포함하지 않습니다.
 
 ## 상태 확인
 

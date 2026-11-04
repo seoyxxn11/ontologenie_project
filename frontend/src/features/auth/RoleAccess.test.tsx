@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
-import { expect, test, vi } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 import App from '../../App'
 import { demoAccount, setMockAccount } from '../../mocks/auth'
 import { server } from '../../mocks/node'
@@ -28,12 +28,22 @@ const adminPages = [
   ['/admin/accounts', '계정·권한'],
 ] as const
 
+const clients: QueryClient[] = []
+
+afterEach(async () => {
+  cleanup()
+  await Promise.all(clients.map((client) => client.cancelQueries()))
+  for (const client of clients) client.clear()
+  clients.length = 0
+})
+
 function openAt(path: string, roleCode: Account['roleCode']) {
   setMockAccount({ ...demoAccount, roleCode })
   window.history.pushState({}, '', path)
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
+  clients.push(client)
   render(
     <QueryClientProvider client={client}>
       <App />
@@ -45,7 +55,7 @@ function openAt(path: string, roleCode: Account['roleCode']) {
 test.each(roles)(
   '%s는 업무 메뉴와 본인 실행 이력 메뉴를 사용할 수 있다',
   async (role) => {
-    openAt('/explorer', role)
+    const client = openAt('/explorer', role)
     await screen.findByRole('heading', { name: '업무 데이터' })
     for (const name of ['업무 데이터', 'AI 업무 도우미', '실행 이력']) {
       expect(screen.getByRole('link', { name })).toBeInTheDocument()
@@ -55,6 +65,7 @@ test.each(roles)(
         expect(screen.getByRole('link', { name })).toBeInTheDocument()
       else expect(screen.queryByRole('link', { name })).not.toBeInTheDocument()
     }
+    await waitFor(() => expect(client.isFetching()).toBe(0))
   },
 )
 
@@ -86,17 +97,40 @@ test.each(
 test.each(adminPages)(
   'ADMIN은 %s의 관리 화면을 사용할 수 있다',
   async (path, title) => {
-    openAt(path, 'ADMIN')
+    const client = openAt(path, 'ADMIN')
     await screen.findByRole('heading', { name: title })
     expect(
       screen.queryByRole('heading', { name: '접근 권한이 없습니다.' }),
     ).not.toBeInTheDocument()
+    await waitFor(() => expect(client.isFetching()).toBe(0))
   },
 )
 
 test('역할을 새로 조회해 ADMIN에서 VIEWER로 바뀌면 관리 화면·메뉴·이전 캐시를 제거한다', async () => {
+  const historyRequest = vi.fn(() =>
+    HttpResponse.json({
+      data: [
+        {
+          id: 991,
+          actionExecutionId: 992,
+          tableName: 'object_type',
+          rowKey: { id: 993 },
+          changeKind: 'UPDATE',
+          beforeData: { name: '수정 전' },
+          afterData: { name: '수정 후' },
+          actorId: 7,
+          actorType: 'USER',
+          requestedAt: '2026-11-03T00:00:00Z',
+          actionCode: 'UPDATE_OBJECT_TYPE',
+        },
+      ],
+      meta: { page: 0, size: 20, totalElements: 1, hasNext: false },
+    }),
+  )
+  server.use(http.get('/api/v1/ontology/changes', historyRequest))
   const client = openAt('/admin/history', 'ADMIN')
-  await screen.findByText('3건')
+  await screen.findByText('1건')
+  expect(historyRequest).toHaveBeenCalledTimes(1)
   client.setQueryData(['restricted-record'], {
     secret: '검사용 이전 역할 데이터',
   })
@@ -108,8 +142,11 @@ test('역할을 새로 조회해 ADMIN에서 VIEWER로 바뀌면 관리 화면·
   expect(
     screen.queryByRole('link', { name: '정의·규칙 이력' }),
   ).not.toBeInTheDocument()
-  expect(screen.queryByText('3건')).not.toBeInTheDocument()
+  expect(screen.queryByText('1건')).not.toBeInTheDocument()
   expect(client.getQueryData(['restricted-record'])).toBeUndefined()
+  expect(
+    client.getQueriesData({ queryKey: ['ontology', 'changes'] }),
+  ).toHaveLength(0)
 })
 
 test('관리자라도 서버가 403을 반환하면 실패 안내를 표시하고 세션은 유지한다', async () => {
@@ -143,6 +180,7 @@ test.each(roles)(
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     })
+    clients.push(client)
     render(
       <QueryClientProvider client={client}>
         <AuthProvider>

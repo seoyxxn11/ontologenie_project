@@ -48,4 +48,12 @@ public class SourceResource {
     private Long loadedLsn;
 
     private Instant lastSeenAt;
+
+    /**
+     * 매핑이 바뀌어 이 테이블을 처음부터 다시 읽어야 한다. CDC 테이블은 기준 LSN을 비워, 다음 전체 읽기가 끝날 때까지 CDC 이벤트를 반영하지 않게 한다(V5).
+     * FULL_COMPARE 테이블은 원래 매번 전체를 읽으므로 바꿀 것이 없다.
+     */
+    public void requireFullReload() {
+        this.loadedLsn = null;
+    }
 }

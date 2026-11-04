@@ -26,3 +26,16 @@ export type ProposalFilters = {
   reviewStatus?: string
   applyStatus?: string
 }
+
+export type ProposalOption = {
+  id: number
+  optionNo: number
+  revision: number
+  payload: Record<string, unknown>
+  evidence: Record<string, unknown>
+  aiConfidence: number | null
+}
+
+export type ProposalWriteResult = Omit<Proposal, 'latestCheck'> & {
+  checkRunId: number
+}

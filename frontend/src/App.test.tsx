@@ -1,18 +1,31 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, test } from 'vitest'
+import { afterEach, beforeEach, expect, test } from 'vitest'
 import App from './App'
 import { demoAccount, setMockAccount } from './mocks/auth'
 
+const clients: QueryClient[] = []
+
 function openAt(path: string) {
   window.history.pushState({}, '', path)
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  clients.push(client)
   render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider client={client}>
       <App />
     </QueryClientProvider>,
   )
 }
+
+afterEach(async () => {
+  cleanup()
+  await Promise.all(clients.map((client) => client.cancelQueries()))
+  for (const client of clients) client.clear()
+  clients.length = 0
+})
 
 beforeEach(() => {
   window.history.pushState({}, '', '/')
@@ -60,6 +73,8 @@ test('로그인 화면은 공통 메뉴 없이 보여준다', async () => {
   expect(
     await screen.findByRole('heading', { name: '워크스페이스에 로그인' }),
   ).toBeInTheDocument()
+  expect(await screen.findByRole('button', { name: '로그인' })).toBeEnabled()
+  expect(screen.queryByText('인증 상태를 확인하는 중…')).not.toBeInTheDocument()
   expect(
     screen.queryByRole('navigation', { name: '주 메뉴' }),
   ).not.toBeInTheDocument()
@@ -72,6 +87,7 @@ test('없는 주소로 들어오면 안내와 돌아가기 링크를 보여준�
   expect(
     await screen.findByRole('heading', { name: '페이지를 찾을 수 없어요' }),
   ).toBeInTheDocument()
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   expect(
     screen.getByRole('navigation', { name: '주 메뉴' }),
   ).toBeInTheDocument()

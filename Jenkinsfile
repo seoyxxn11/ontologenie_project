@@ -79,11 +79,13 @@ pipeline {
                             env.CHECK_BACKEND = 'true'
                             env.CHECK_FRONTEND = fileExists('frontend/package.json') ? 'true' : 'false'
                             env.CHECK_AI = fileExists('ai/requirements-dev.txt') ? 'true' : 'false'
+                            env.CHECK_INFRA = 'true'
                         } else {
                             def changed = { String dir -> sh(returnStatus: true, script: "git diff --quiet origin/develop...HEAD -- ${dir}/") != 0 }
                             env.CHECK_BACKEND = changed('backend') ? 'true' : 'false'
                             env.CHECK_FRONTEND = changed('frontend') ? 'true' : 'false'
                             env.CHECK_AI = changed('ai') ? 'true' : 'false'
+                            env.CHECK_INFRA = (changed('infra') || sh(returnStatus: true, script: 'git diff --quiet origin/develop...HEAD -- Jenkinsfile') != 0) ? 'true' : 'false'
                         }
                         echo "검사 대상 서비스: backend=${env.CHECK_BACKEND}, frontend=${env.CHECK_FRONTEND}, ai=${env.CHECK_AI} (true = 실행, false = 건너뜀)"
                     }
@@ -152,6 +154,65 @@ pipeline {
                 always {
                     junit allowEmptyResults: true, testResults: 'ai/test-results/*.xml'
                 }
+            }
+        }
+
+        stage('Infra check') {
+            when { expression { env.IS_DEPLOY_JOB != 'true' && env.CHECK_INFRA == 'true' } }
+            steps {
+                sh '''
+                    bash -n infra/deploy/sync-config.sh
+                    bash -n infra/scripts/pg-backup.sh
+                    HOST_WS=$(printf '%s' "$WORKSPACE" | sed 's#^/var/jenkins_home#/home/ubuntu/axcore/jenkins-data#')
+                    docker run --rm --network none --memory 256m \
+                        -e PYTHONDONTWRITEBYTECODE=1 \
+                        -v "$HOST_WS/infra/deploy:/work:ro" -w /work \
+                        python:3.11-slim python -m unittest discover -p 'test_*.py' -v
+                '''
+            }
+        }
+
+        stage('Prepare deployment credentials') {
+            // MR 검사·이미지 빌드에는 운영 비밀값을 바인딩하지 않는다.
+            when { expression { env.IS_DEPLOY_JOB == 'true' } }
+            steps {
+                withCredentials([
+                    string(credentialsId: 'axcore-postgres-password', variable: 'DEPLOY_POSTGRES_PASSWORD'),
+                    string(credentialsId: 'axcore-initial-admin-password', variable: 'DEPLOY_INITIAL_ADMIN_PASSWORD'),
+                    string(credentialsId: 'axcore-grafana-admin-password', variable: 'DEPLOY_GRAFANA_PASSWORD'),
+                    string(credentialsId: 'axcore-internal-api-token', variable: 'DEPLOY_INTERNAL_TOKEN'),
+                    string(credentialsId: 'source-credential-key-1', variable: 'DEPLOY_SOURCE_KEY'),
+                    string(credentialsId: 'axcore-erp-cdc-password', variable: 'DEPLOY_ERP_CDC_PASSWORD'),
+                    string(credentialsId: 'axcore-mes-cdc-password', variable: 'DEPLOY_MES_CDC_PASSWORD')
+                ]) {
+                    sh '''
+                        set +x
+                        set -eu
+                        # cron도 실행용 dotenv를 셸로 읽지 않도록 백업 스크립트부터 교체한다.
+                        mkdir -p "$DEPLOY_DIR/backup"
+                        cp -p "$DEPLOY_DIR/scripts/pg-backup.sh" "$DEPLOY_DIR/backup/pg-backup-before-credentials-${BUILD_NUMBER}.sh"
+                        install -m 750 infra/scripts/pg-backup.sh "$DEPLOY_DIR/scripts/pg-backup.sh.new"
+                        mv "$DEPLOY_DIR/scripts/pg-backup.sh.new" "$DEPLOY_DIR/scripts/pg-backup.sh"
+                        HOST_WS=$(printf '%s' "$WORKSPACE" | sed 's#^/var/jenkins_home#/home/ubuntu/axcore/jenkins-data#')
+                        docker run --rm --network none --memory 128m \
+                            --user "$(id -u):$(id -g)" \
+                            -e DEPLOY_POSTGRES_PASSWORD -e DEPLOY_INITIAL_ADMIN_PASSWORD \
+                            -e DEPLOY_GRAFANA_PASSWORD -e DEPLOY_INTERNAL_TOKEN -e DEPLOY_SOURCE_KEY \
+                            -e DEPLOY_ERP_CDC_PASSWORD -e DEPLOY_MES_CDC_PASSWORD \
+                            -v "$HOST_WS/infra/deploy:/work:ro" \
+                            -v "$DEPLOY_DIR:$DEPLOY_DIR" \
+                            python:3.11-slim \
+                            python /work/prepare_credentials.py --root "$DEPLOY_DIR"
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy configuration') {
+            // 설정·일반 설정을 먼저 검증한다. 실패 시 앱 이미지 배포 전에 중단한다.
+            when { expression { env.IS_DEPLOY_JOB == 'true' } }
+            steps {
+                sh 'bash infra/deploy/sync-config.sh'
             }
         }
 
@@ -337,7 +398,7 @@ def notifyMattermost(String result) {
 // 결과는 env.<KEY>_PREV_TAG · env.<KEY>_ROLLED_BACK 에 남겨 DM 문구에서 쓴다 (KEY = BACKEND / AI / FRONTEND).
 // 손으로 하던 절차와 같다: .env 태그 갱신 → docker compose up -d <svc> → docker compose ps (healthy).
 def deployBackendAndBatch() {
-    // 서버 Compose는 수동 반영한다. 54 설정 반영 전에는 기존 backend 배포를 유지한다.
+    // 초기 전환 전 서버에 batch가 없는 경우 기존 backend 단독 배포를 유지한다.
     def configuredServices = sh(returnStdout: true, script: "docker compose -f ${env.DEPLOY_DIR}/compose.yaml config --services").trim().tokenize()
     def hasBatch = configuredServices.contains('batch')
     if (!hasBatch) {

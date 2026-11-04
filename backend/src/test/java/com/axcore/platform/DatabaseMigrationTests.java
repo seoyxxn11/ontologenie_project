@@ -44,9 +44,48 @@ class DatabaseMigrationTests {
                         .toArray(MigrationInfo[]::new);
 
         assertThat(Arrays.stream(applied).map(info -> info.getVersion().getVersion()))
-                .containsExactly("1", "2", "3", "4", "5", "6");
+                .containsExactly("1", "2", "3", "4", "5", "6", "7", "8");
         assertThat(applied).allMatch(info -> info.getState() == MigrationState.SUCCESS);
         assertThat(flyway.info().pending()).isEmpty();
+    }
+
+    @Test
+    @Transactional
+    void agentConversationKeepsOnlyOneRunningAnswer() {
+        long accountId =
+                jdbcClient
+                        .sql(
+                                """
+                                insert into account
+                                    (login_id, display_name, password_hash, role_id, must_change_password)
+                                values ('agent-' || gen_random_uuid(), '대화 사용자', 'test-hash',
+                                        (select id from role where code = 'VIEWER'), false)
+                                returning id
+                                """)
+                        .query(Long.class)
+                        .single();
+        long conversationId =
+                jdbcClient
+                        .sql(
+                                "insert into agent_conversation (account_id) values (:account) returning id")
+                        .param("account", accountId)
+                        .query(Long.class)
+                        .single();
+        String runningAnswer =
+                """
+                insert into agent_message (conversation_id, sender, content, status)
+                values (:conversation, 'AGENT', '', 'RUNNING')
+                """;
+        jdbcClient.sql(runningAnswer).param("conversation", conversationId).update();
+
+        assertThatThrownBy(
+                        () ->
+                                jdbcClient
+                                        .sql(runningAnswer)
+                                        .param("conversation", conversationId)
+                                        .update())
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .hasMessageContaining("uq_agent_message_running");
     }
 
     @Test

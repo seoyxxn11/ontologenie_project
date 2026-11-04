@@ -873,7 +873,7 @@ AI가 생성한 객체 유형이나 연결 규칙은 곧바로 활성 데이터�
 
 FastAPI 같은 내부 서비스가 부르는 `/api/v1/internal/**`는 세션 대신 서비스 토큰으로 인증한다(API 105·043, S15P31C106-270).
 
-- 요청 헤더 `X-Internal-Token`에 공유 비밀을 넣는다. backend는 환경변수 `AXCORE_INTERNAL_API_TOKEN`, AI는 `AI_ONTOLOGY_INTERNAL_TOKEN`에 같은 값을 넣는다. 값은 서버 `.env`에만 둔다.
+- 요청 헤더 `X-Internal-Token`에 공유 비밀을 넣는다. backend는 환경변수 `AXCORE_INTERNAL_API_TOKEN`, AI는 `AI_ONTOLOGY_INTERNAL_TOKEN`에 같은 값을 넣는다. 운영 원본은 Jenkins Credentials `axcore-internal-api-token` 하나이며 서버 `.env`는 배포 시 생성하는 실행용 산출물이다.
 - 설정값이 비어 있으면 내부 API를 모두 막는다. 기본값을 두지 않는다.
 - 토큰이 없거나 틀리면 401이다. 토큰 없이 사용자 세션 쿠키로 부르면 403이다.
 - 세션을 만들거나 읽지 않고, 쿠키를 쓰지 않으므로 CSRF도 검사하지 않는다.
@@ -916,7 +916,7 @@ GitLab에 다음 정보를 저장하지 않는다.
 - SSH 개인 키
 - 원천 DB 접속 비밀값
 
-설정값은 서버 환경변수와 Jenkins Credentials로 관리한다. `.env.example`에는 변수 이름과 설명만 둔다.
+메인·CDC 운영 비밀값의 원본은 Jenkins Credentials로 각각 관리한다. 서버 `.env`는 Jenkins가 생성하는 권한 600의 Compose 실행용 산출물이며, 일반 설정은 `.env.config`, 이미지 태그는 실행용 `.env`에서 별도로 취급한다. `.env.example`에는 변수 이름과 설명만 둔다. [전환·자동 배포 안내](../infra/deploy/README.md)의 실제 검증 완료 전에는 기존 운영 파일을 삭제하지 않는다. 원천 서버 자체의 계정 비밀번호와 플랫폼 DB의 암호화 원천 접속 정보 저장은 별도 범위다.
 
 **원천 접속 비밀번호**
 
@@ -924,14 +924,14 @@ GitLab에 다음 정보를 저장하지 않는다.
 
 - 암·복호화는 `source.service.SourceCredentialCipher`로만 한다. 계정을 풀어 쓸 때는 `source.service.SourceCredentialService.findAccount`를 쓴다.
 - AAD는 `{data_source_id}:{purpose}`다. 암호문을 다른 원천이나 용도의 행에 옮기면 풀리지 않는다. 새 원천은 `data_source` 행을 먼저 만든 뒤 암호화한다.
-- 키는 32바이트를 base64로 만들어(`openssl rand -base64 32`) 서버 `~/axcore/.env`의 `AXCORE_SOURCE_CREDENTIAL_KEY_1`에 둔다. backend·batch 컨테이너에만 넣고 ai 컨테이너에는 넣지 않는다. AI 계정은 분석 시작 요청으로 전달한다.
+- 기존 32바이트 base64 키를 Jenkins Credentials `source-credential-key-1`에 보관하고 실행용 `AXCORE_SOURCE_CREDENTIAL_KEY_1`로 주입한다. 이번 관리 방식 전환에서 키를 재생성하지 않는다. backend·batch 컨테이너에만 넣고 ai 컨테이너에는 넣지 않는다. AI 계정은 분석 시작 요청으로 전달한다.
 - 키가 없거나 형식이 틀려도 서버는 뜬다. 시작할 때 경고 로그를 남기고 암·복호화할 때 `SourceCredentialException`으로 실패한다.
 - 푼 비밀번호(`SourceAccount`)를 로그·응답·감사 기록에 넣지 않는다.
 
 키를 바꿀 때는 다음 순서를 따른다.
 
 1. `application.yml`의 `axcore.source-credential.keys`에 다음 번호(예: `2: ${AXCORE_SOURCE_CREDENTIAL_KEY_2:}`)를 추가해 배포한다.
-2. 서버 `.env`에 새 키를 넣고 `AXCORE_SOURCE_CREDENTIAL_KEY_VERSION`을 새 번호로 올린 뒤 backend·batch를 다시 띄운다. 이후 새로 저장하는 값은 새 키로 암호화된다.
+2. 새 버전용 Credentials와 배포 매핑을 추가하고 `AXCORE_SOURCE_CREDENTIAL_KEY_VERSION`을 새 번호로 올린 뒤 backend·batch를 다시 띄운다. 이는 기존 값 일치만 허용하는 관리 방식 전환과 별도의 회전 작업이다. 이후 새로 저장하는 값은 새 키로 암호화된다.
 3. 기존 행을 모두 새 키로 다시 암호화한다. 옛 행은 저장된 `key_version`의 키로 계속 풀린다.
 4. 옛 버전 행이 남지 않은 것을 확인한 뒤에 옛 키를 지운다.
 

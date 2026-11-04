@@ -71,6 +71,22 @@ public class Account extends BaseAuditEntity {
         this.passwordChangedAt = changedAt;
     }
 
+    public void rename(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public void changeRole(Role role) {
+        this.role = role;
+    }
+
+    /** ACTIVE로 바꾸면 로그인 실패 횟수를 0으로 되돌린다. 5회 실패로 잠긴 계정은 이 방법으로만 푼다(API 007, D3). */
+    public void changeStatus(AccountStatus status) {
+        this.status = status;
+        if (status == AccountStatus.ACTIVE) {
+            this.failedLoginCount = 0;
+        }
+    }
+
     public boolean isActive() {
         return status == AccountStatus.ACTIVE;
     }

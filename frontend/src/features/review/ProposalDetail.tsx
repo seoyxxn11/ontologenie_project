@@ -86,6 +86,15 @@ export default function ProposalDetail() {
             제안 #{item.id} · 개정 {item.revision}
           </p>
           <h2 className="text-xl font-semibold">{proposalTitle(item)}</h2>
+          {item.itemKind === 'LINK_RULE' &&
+            ['PENDING', 'HELD'].includes(item.reviewStatus) && (
+              <Link
+                className="inline-block text-sm text-violet-700 underline"
+                to={`/admin/rules/${item.id}/edit`}
+              >
+                규칙 후보 수정
+              </Link>
+            )}
           <div className="flex flex-wrap gap-2">
             <StatusBadge>
               {kindLabels[item.itemKind] ?? item.itemKind}

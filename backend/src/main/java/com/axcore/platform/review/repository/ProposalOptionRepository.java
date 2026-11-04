@@ -8,6 +8,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface ProposalOptionRepository extends Repository<ProposalOption, Long> {
 
+    boolean existsByIdAndProposalItemIdAndRevision(long id, long proposalItemId, int revision);
+
     List<ProposalOption> findByProposalItemIdAndRevisionOrderByOptionNo(
             long proposalItemId, int revision);
 

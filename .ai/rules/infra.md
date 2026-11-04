@@ -8,7 +8,7 @@
 
 ## 서버 반영
 
-- `infra/`는 메인 서버 `/home/ubuntu/axcore/`의 사본이다. 저장소 파일을 고쳐도 서버에 자동으로 반영되지 않는다. 적용 방법은 [infra/README.md](../../infra/README.md)를 따른다.
+- `infra/`는 메인 서버 `/home/ubuntu/axcore/`의 사본이다. develop 배포 Job은 [배포 안내](../../infra/deploy/README.md)의 허용 목록에 한해 설정을 검사·백업·반영하고 실패 시 복구한다. Jenkins·DB 서비스 정의, 볼륨·네트워크·서비스 추가·삭제, systemd 단위 변경은 자동 반영에서 중단하며 사람이 별도 적용한다. 2026-11-04 운영 전환·앱 배포 정상 경로를 확인했으며, 실제 설정 변경·운영 롤백 등 미검증 범위는 배포 안내에 구분한다. 수동 절차는 자동 적용 제외 변경·장애 복구에 사용한다.
 - 서버 접속, 서버 파일 수정, 컨테이너 재시작은 외부 시스템에 영향을 주는 작업이다. 명시적 요청 없이 실행하지 않는다.
 - 서버에서 코드를 직접 고치지 않는다. 저장소에서 고치고 MR과 Jenkins를 거쳐 반영한다.
 - `Jenkinsfile`은 `develop` 병합 시 서버에서 실행된다. 바꾸면 서버에서 실행되는 명령과 영향을 보고한다.
@@ -29,7 +29,7 @@
 
 ## 비밀값
 
-- 실제 `.env`, `*.pem`, 토큰, 비밀번호를 저장소, compose 파일, `Jenkinsfile`, `Dockerfile`에 넣지 않는다. 서버 `.env`와 Jenkins Credentials로 관리한다.
+- 실제 `.env`, `*.pem`, 토큰, 비밀번호를 저장소, compose 파일, `Jenkinsfile`, `Dockerfile`에 넣지 않는다. 메인·CDC 운영 비밀값의 원본은 각각 Jenkins Credentials로 관리하고 서버 `.env`는 권한 600의 실행용 산출물로 생성한다. 일반 설정은 `.env.config`, 이미지 태그는 실행용 `.env`에서 분리 취급한다. 원천 서버 자체의 비밀값 관리와 플랫폼 DB의 암호화 원천 계정 저장은 별도 범위다.
 - `.env.example`에는 변수 이름과 설명만 둔다.
 - `certbot/`, `jenkins-data/`, `logs/`, `backup/`은 서버에만 둔다. 저장소에 올리지 않는다.
 - AI는 실제 `.env`, `*.pem`, 인증서, Jenkins 자격 증명 파일의 내용을 읽거나 출력하지 않는다. 필요한 변수 이름은 `.env.example`에서 확인한다.
