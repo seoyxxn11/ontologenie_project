@@ -40,7 +40,10 @@ def load_dictionary(root: Path) -> dict[str, tuple[EntityType, str]]:
             continue
         reader = CsvSourceReader(source, folder)
         pk = reader.read_schema(table).primary_key
-        rows = reader.read_rows(table).dropna(subset=[column])
+        rows = reader.read_rows(table)
+        if column not in rows.columns:  # 분석할 컬럼으로 고르지 않았다
+            continue
+        rows = rows.dropna(subset=[column])
         for value, key in zip(rows[column].astype(str), rows[pk[0]].astype(str)):
             # 값이 기본키가 아니면 그 값이 든 행의 기본키로 객체를 가리킨다 (예: 로트 → 출하 번호)
             if CODE_LIKE.fullmatch(value):

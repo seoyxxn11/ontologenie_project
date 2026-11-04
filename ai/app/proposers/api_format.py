@@ -59,6 +59,10 @@ def to_api(candidate: Candidate) -> dict:
         "holdReason": candidate.hold_reason,
         "llmJudgement": candidate.llm_judgement,
     }
+    if candidate.document is not None:
+        evidence["originalText"] = candidate.document.original_text
+        evidence["observations"] = camel_keys(data["document"]["observations"])
+        evidence["times"] = camel_keys(data["document"]["times"])
     return {
         "itemKind": candidate.item_kind.value,
         "payload": payload,

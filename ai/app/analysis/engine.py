@@ -1,10 +1,11 @@
 """분석 엔진. runner가 원천 접속과 고른 표 읽기 권한을 확인한 뒤 analyze()를 부른다.
 
 고른 표·컬럼만 임시 폴더로 옮겨(기본키는 늘 함께) 구조·분포를 분석하고 후보를 만든다. LLM 설정이 있으면
-표 의미 해석을 더하고, 없거나 실패해도 코드 분석 후보는 그대로 낸다. 결과는 105 SUCCEEDED 본문의
+표 의미 해석을 더하고, 없거나 실패해도 코드 분석 후보는 그대로 낸다. 메모·정비 기록 표를 고르면 글 속
+언급을 DOCUMENT_LINK 후보로 더한다(LLM이 없으면 원천 키 언급만). 결과는 105 SUCCEEDED 본문의
 resultSummary·proposals가 된다. 실패 사유는 AnalysisFailure로 던지면 105 FAILED의 errorMessage로 간다.
 
-아직 하지 않는 것: 메모 추출(#166·167), 043 모델 요약·과거 결정 반영(#168), 재분석 비교(#170).
+아직 하지 않는 것: 043 모델 요약·과거 결정 반영(#168), 재분석 비교(#170).
 """
 
 import shutil
@@ -13,6 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from app.config import get_settings
+from app.extractors.notes import document_link_types, document_links
 from app.llm.client import LLMClient, create_llm_client
 from app.models.analysis import AnalysisStartRequest
 from app.models.candidate import Candidate
@@ -23,6 +25,9 @@ from app.sources.base import UnknownTableError
 from app.sources.csv_reader import CsvSourceReader
 from app.sources.postgres_reader import PostgresSourceReader, SourceError
 from app.sources.snapshot import write_snapshot
+
+# 글을 읽어 DOCUMENT_LINK 후보를 만드는 표 (FN-AIP-02·03)
+NOTE_TABLES = {"mes.handover_note", "mes.maintenance_order"}
 
 
 class AnalysisFailure(Exception):
@@ -125,6 +130,14 @@ def _analyze(
         kept, report = interpret(root, kept, llm, only=scope)
         llm_calls, credits = report["tables"], report["credits_used"]
         llm_failed = len(report["failed"])
+    documents, links = 0, []
+    if scope & NOTE_TABLES:
+        # LLM이 있으면 설비 별명·증상·부정·추정도 뽑는다(10개 문서씩 한 번 호출)
+        documents, links, calls, failed = document_links(root, llm)
+        llm_calls += len(calls)
+        llm_failed += len(failed)
+        credits += sum(call["credits"] for call in calls)
+    kept += links + document_link_types(links)
 
     codes = {_prefix(t.resource_key): t.data_source_code for t in request.targets}
     proposals = [_with_source_codes(to_api(c), codes) for c in kept]
@@ -133,6 +146,8 @@ def _analyze(
         "proposals": len(proposals),
         "holdRecommended": sum(c.review_status == "HELD" for c in kept),
         "droppedNoEvidence": len(dropped),
+        "documents": documents,
+        "documentLinks": len(links),
         "llmUsed": llm_calls > llm_failed,
         "llmSkipReason": _llm_skip_reason(llm, llm_calls, llm_failed),
         "llmCalls": llm_calls,

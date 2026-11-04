@@ -241,6 +241,40 @@ CandidatePayload = Annotated[
 ]
 
 
+class Observation(BaseModel):
+    """언급에 붙은 증상·상태 표현과 그 단정 정도. 위치는 원문 글자 위치(end 미포함)."""
+
+    text: str = Field(min_length=1)
+    span_start: int = Field(ge=0)
+    span_end: int
+    assertion: Literal["AFFIRMED", "NEGATED", "UNCERTAIN"]
+
+
+class TimeExpression(BaseModel):
+    """글 속 시각 표현. normalized는 원천에서 기준을 알 때만 채우고, basis에 그 근거나 못 정한 이유를 둔다."""
+
+    text: str = Field(min_length=1)
+    span_start: int = Field(ge=0)
+    span_end: int
+    normalized: str | None = None
+    basis: str | None = None
+
+
+class DocumentContext(BaseModel):
+    """DOCUMENT_LINK 후보를 원문과 비교해 검토하도록 함께 보내는 원문·관찰 표현·시각 (FN-AIP-02)."""
+
+    original_text: str = Field(min_length=1)
+    observations: list[Observation] = Field(default_factory=list)
+    times: list[TimeExpression] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _spans_in_text(self) -> "DocumentContext":
+        for item in [*self.observations, *self.times]:
+            if self.original_text[item.span_start : item.span_end] != item.text:
+                raise ValueError(f"'{item.text}'의 위치가 원문과 다릅니다.")
+        return self
+
+
 class CandidateOption(BaseModel):
     """같은 대상에 후보가 여럿일 때의 선택지 (운영 ERD proposal_option)."""
 
@@ -272,6 +306,8 @@ class Candidate(BaseModel):
     hold_reason: str | None = None
     # LLM 판단. 신뢰도 점수에는 넣지 않는다(LLM 동의만으로 점수가 오르면 안 되므로)
     llm_judgement: str | None = None
+    # DOCUMENT_LINK만: 원문과 관찰 표현
+    document: DocumentContext | None = None
 
     @property
     def item_kind(self) -> ItemKind:
