@@ -281,9 +281,9 @@ class AuditRecorderTests {
         return jdbcClient
                 .sql(
                         """
-                        insert into action_definition (code, name, description, target_kind,
+                        insert into action_definition (code, name, description, target_kind, action_mode,
                                                        handler_key, action_kind, required_permission)
-                        values (:code, '테스트 Action', '감사 테스트', 'SYSTEM', 'test', 'WRITE', :code)
+                        values (:code, '테스트 Action', '감사 테스트', 'SYSTEM', 'EXECUTE', 'test', 'WRITE', :code)
                         returning id
                         """)
                 .param("code", code)

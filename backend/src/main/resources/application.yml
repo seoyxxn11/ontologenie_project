@@ -52,6 +52,11 @@ axcore:
     current-key-version: ${AXCORE_SOURCE_CREDENTIAL_KEY_VERSION:1}
     keys:
       1: ${AXCORE_SOURCE_CREDENTIAL_KEY_1:}
+  # 배치의 연결 검사가 원천 PostgreSQL에 접속할 때 쓰는 sslmode(PostgreSQL JDBC 값). AI 분석 접속과 같이 기본은 require다.
+  source-check:
+    ssl-mode: ${AXCORE_SOURCE_SSL_MODE:require}
+    # Debezium 커넥터가 쓰는 원천 publication 이름(infra/cdc/connectors). 여기 든 표만 수집 방식을 CDC로 둔다.
+    cdc-publication: ${AXCORE_SOURCE_CDC_PUBLICATION:axcore_cdc}
 
 # 로그 줄마다 요청 추적 ID(RequestIdFilter)를 붙인다. 요청 밖의 로그는 빈 칸이다.
 logging:

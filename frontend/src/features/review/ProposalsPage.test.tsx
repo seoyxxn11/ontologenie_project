@@ -62,7 +62,9 @@ test('AI·직접 추가 제안을 함께 표시하고 상세의 근거·신뢰�
   ).toBeInTheDocument()
   expect(screen.getByText('86.0%')).toBeInTheDocument()
   expect(screen.getByText(/AI가 제안한 신뢰도이며/)).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: '승인' })).not.toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: '승인' }),
+  ).toBeDisabled()
 })
 
 test('서버 필터를 전달하고 상세에서 돌아와도 선택한 조회 조건을 유지한다', async () => {

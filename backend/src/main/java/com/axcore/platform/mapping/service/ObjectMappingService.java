@@ -4,6 +4,7 @@ import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
 import com.axcore.platform.mapping.domain.MappingErrorCode;
 import com.axcore.platform.mapping.domain.ObjectSourceMapping;
+import com.axcore.platform.mapping.domain.ReloadReason;
 import com.axcore.platform.mapping.dto.ObjectMappingCreateRequest;
 import com.axcore.platform.mapping.dto.ObjectMappingResponse;
 import com.axcore.platform.mapping.dto.ObjectMappingUpdateRequest;
@@ -31,9 +32,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ObjectMappingService {
-
-    static final String RELOAD_IDENTITY_CHANGED = "IDENTITY_CHANGED";
-    static final String RELOAD_REACTIVATED = "REACTIVATED";
 
     private final ObjectSourceMappingRepository mappingRepository;
     private final ObjectTypeRepository objectTypeRepository;
@@ -129,11 +127,11 @@ public class ObjectMappingService {
             throw duplicateActive();
         }
 
-        String reloadReason = null;
+        ReloadReason reloadReason = null;
         if (active && identityChanged) {
-            reloadReason = RELOAD_IDENTITY_CHANGED;
+            reloadReason = ReloadReason.IDENTITY_CHANGED;
         } else if (active && !wasActive) {
-            reloadReason = RELOAD_REACTIVATED;
+            reloadReason = ReloadReason.REACTIVATED;
         }
         mapping.changeIdentity(
                 request.sourceResourceId(), request.objectTypeId(), request.keyColumns());

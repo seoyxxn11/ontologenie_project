@@ -1,5 +1,6 @@
 package com.axcore.platform.mapping.dto;
 
+import com.axcore.platform.mapping.domain.ReloadReason;
 import com.axcore.platform.ontology.domain.DefinitionOrigin;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
@@ -21,10 +22,10 @@ public record ObjectMappingUpdateResponse(
         Long proposalItemId,
         boolean isActive,
         boolean reloadRequired,
-        String reloadReason) {
+        ReloadReason reloadReason) {
 
     public static ObjectMappingUpdateResponse of(
-            ObjectMappingResponse mapping, String reloadReason) {
+            ObjectMappingResponse mapping, ReloadReason reloadReason) {
         return new ObjectMappingUpdateResponse(
                 mapping.id(),
                 mapping.sourceResourceId(),

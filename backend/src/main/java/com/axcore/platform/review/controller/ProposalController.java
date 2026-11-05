@@ -5,6 +5,8 @@ import com.axcore.platform.global.error.CommonErrorCode;
 import com.axcore.platform.global.response.ApiResponse;
 import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.review.dto.ManualProposalCreateRequest;
+import com.axcore.platform.review.dto.ProposalDecisionResponse;
+import com.axcore.platform.review.dto.ProposalDecisionSearchRequest;
 import com.axcore.platform.review.dto.ProposalOptionResponse;
 import com.axcore.platform.review.dto.ProposalResponse;
 import com.axcore.platform.review.dto.ProposalRevisionCreateRequest;
@@ -114,6 +116,17 @@ public class ProposalController {
         PageRequest pageable = PageRequest.of(page, size);
 
         return ApiResponse.ofPage(proposalService.getRevisions(id, pageable));
+    }
+
+    @GetMapping("/{id}/decisions")
+    public ApiResponse<List<ProposalDecisionResponse>> getDecisions(
+            @PathVariable("id") @Min(value = 1, message = "id는 1 이상이어야 합니다.") long id,
+            @Valid @ModelAttribute ProposalDecisionSearchRequest request,
+            @AuthenticationPrincipal LoginAccount loginAccount) {
+        requireAdmin(loginAccount);
+        int page = request.page() == null ? 0 : request.page();
+        int size = request.size() == null ? 20 : request.size();
+        return ApiResponse.ofPage(proposalService.getDecisions(id, PageRequest.of(page, size)));
     }
 
     private static void requireAdmin(LoginAccount loginAccount) {

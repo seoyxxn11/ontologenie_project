@@ -4,10 +4,12 @@ import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
 import com.axcore.platform.review.domain.ProposalItem;
 import com.axcore.platform.review.dto.LatestCheckResponse;
+import com.axcore.platform.review.dto.ProposalDecisionResponse;
 import com.axcore.platform.review.dto.ProposalOptionResponse;
 import com.axcore.platform.review.dto.ProposalResponse;
 import com.axcore.platform.review.dto.ProposalRevisionResponse;
 import com.axcore.platform.review.dto.ProposalSearchRequest;
+import com.axcore.platform.review.repository.ProposalDecisionQueryRepository;
 import com.axcore.platform.review.repository.ProposalItemRepository;
 import com.axcore.platform.review.repository.ProposalItemSpecifications;
 import com.axcore.platform.review.repository.ProposalLatestCheckRepository;
@@ -32,6 +34,7 @@ public class ProposalService {
     private final ProposalLatestCheckRepository proposalLatestCheckRepository;
     private final ProposalOptionRepository proposalOptionRepository;
     private final ProposalRevisionQueryRepository proposalRevisionQueryRepository;
+    private final ProposalDecisionQueryRepository proposalDecisionQueryRepository;
 
     public ProposalResponse getProposal(long id) {
         ProposalItem proposal =
@@ -112,6 +115,15 @@ public class ProposalService {
         }
 
         return proposalRevisionQueryRepository.findByProposalItemId(id, pageable);
+    }
+
+    public Page<ProposalDecisionResponse> getDecisions(long id, Pageable pageable) {
+        if (!proposalItemRepository.existsById(id)) {
+            throw new BusinessException(
+                    CommonErrorCode.RESOURCE_NOT_FOUND,
+                    Map.of("resource", "proposal_item", "id", id));
+        }
+        return proposalDecisionQueryRepository.findByProposalItemId(id, pageable);
     }
 
     private Map<Long, LatestCheckResponse> loadLatestChecks(List<ProposalItem> proposals) {

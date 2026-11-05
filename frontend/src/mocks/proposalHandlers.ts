@@ -1,5 +1,6 @@
 import { delay, http, HttpResponse } from 'msw'
 import type { Proposal, ProposalOption } from '../features/review/types'
+import type { ProposalDecisionRecord } from '../features/review/decisionApi'
 
 export const proposalFixtures: Proposal[] = [
   {
@@ -88,10 +89,51 @@ export const proposalFixtures: Proposal[] = [
 ]
 
 let proposals: Proposal[] = structuredClone(proposalFixtures)
-let savedOptions: Record<string, ProposalOption[]> = {}
+const comparisonFixtures: ProposalOption[] = [
+  {
+    id: 501,
+    optionNo: 1,
+    revision: 2,
+    payload: {
+      ...proposalFixtures[0].payload,
+      name: '설비 코드 공백 제거 후 연결',
+      conditions: [
+        {
+          sourceProperty: 'WORK_ORDER.equipment_code',
+          targetProperty: 'EQUIPMENT.code',
+          operator: 'EQ',
+          sourceTransforms: [{ op: 'TRIM', arg: null }],
+          targetTransforms: [],
+        },
+      ],
+    },
+    evidence: {
+      reason: '원천 설비 코드의 앞뒤 공백을 제거해 비교합니다.',
+      originalText: ' PR-03 ',
+    },
+    aiConfidence: 0.86,
+  },
+  {
+    id: 502,
+    optionNo: 2,
+    revision: 2,
+    payload: {
+      ...proposalFixtures[0].payload,
+      name: '설비 코드 대문자 변환 후 연결',
+    },
+    evidence: {
+      reason: '원천 설비 코드를 대문자로 통일해 비교합니다.',
+      originalText: 'pr-03',
+    },
+    aiConfidence: 0.72,
+  },
+]
+let savedOptions: Record<string, ProposalOption[]> = {
+  '303:2': structuredClone(comparisonFixtures),
+}
 export function resetProposalMocks() {
   proposals = structuredClone(proposalFixtures)
-  savedOptions = {}
+  savedOptions = { '303:2': structuredClone(comparisonFixtures) }
 }
 function failed(status: number, code: string, message: string) {
   return HttpResponse.json(
@@ -101,6 +143,109 @@ function failed(status: number, code: string, message: string) {
 }
 
 export const proposalHandlers = [
+  http.get('/api/v1/proposals/:id/decisions', async ({ params, request }) => {
+    await delay()
+    const item = proposals.find((proposal) => proposal.id === Number(params.id))
+    if (!item)
+      return failed(404, 'RESOURCE_NOT_FOUND', '제안을 찾을 수 없습니다.')
+    const search = new URL(request.url).searchParams
+    const page = Number(search.get('page') ?? 0)
+    const size = Number(search.get('size') ?? 20)
+    const records: ProposalDecisionRecord[] = [
+      {
+        id: 702,
+        proposalItemId: item.id,
+        itemRevision: 1,
+        decision: item.reviewStatus === 'APPROVED' ? 'APPROVE' : 'HOLD',
+        selectedOptionId: null,
+        reason: '대응 설비와 규칙 조건을 확인했습니다.',
+        decidedBy: 1,
+        decidedAt: '2026-10-28T03:00:00Z',
+      },
+      ...(item.id === 303
+        ? [
+            {
+              id: 701,
+              proposalItemId: item.id,
+              itemRevision: 1,
+              decision: 'HOLD',
+              selectedOptionId: null,
+              reason: '원천 설비 코드를 다시 확인합니다.',
+              decidedBy: 1,
+              decidedAt: '2026-10-27T03:00:00Z',
+            },
+          ]
+        : []),
+    ]
+    return HttpResponse.json({
+      data: records.slice(page * size, (page + 1) * size),
+      meta: {
+        page,
+        size,
+        totalElements: records.length,
+        hasNext: (page + 1) * size < records.length,
+      },
+    })
+  }),
+  http.get('/api/v1/checks/runs/:id/results', async ({ params, request }) => {
+    await delay()
+    const search = new URL(request.url).searchParams
+    const page = Number(search.get('page') ?? 0)
+    const size = Number(search.get('size') ?? 20)
+    const item = proposals.find(
+      (proposal) =>
+        proposal.id === Number(search.get('proposalItemId')) &&
+        proposal.latestCheck?.checkRunId === Number(params.id),
+    )
+    if (!item)
+      return failed(404, 'RESOURCE_NOT_FOUND', '검사 실행을 찾을 수 없습니다.')
+    const results =
+      item.latestCheck?.status === 'SUCCEEDED'
+        ? [
+            {
+              id: 601,
+              checkRunId: Number(params.id),
+              proposalItemId: item.id,
+              proposalItemRevision: item.revision,
+              linkMappingId: null,
+              previousResultId: null,
+              totalCount: 3,
+              matchedCount: 2,
+              unmatchedCount: 1,
+              duplicateCount: 0,
+              violationCount: 0,
+              matchRate: 0.6667,
+              sampleRows: [
+                {
+                  sourceKey: { id: 'WO-101' },
+                  rawValue: ' pr-03 ',
+                  transformedValue: 'PR-03',
+                  targetValue: 'PR-03',
+                  classification: 'MATCHED',
+                  reason: null,
+                },
+                {
+                  sourceKey: { id: 'WO-102' },
+                  rawValue: 'PR-99',
+                  transformedValue: 'PR-99',
+                  targetValue: null,
+                  classification: 'UNMATCHED',
+                  reason: '대상 설비가 없습니다.',
+                },
+              ],
+            },
+          ]
+        : []
+    return HttpResponse.json({
+      data: results.slice(page * size, (page + 1) * size),
+      meta: {
+        page,
+        size,
+        totalElements: results.length,
+        hasNext: (page + 1) * size < results.length,
+      },
+    })
+  }),
   http.post('/api/v1/proposals/manual', async ({ request }) => {
     await delay()
     const body = (await request.json()) as {

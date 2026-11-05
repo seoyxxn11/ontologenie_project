@@ -13,6 +13,7 @@ import SourcesPage from './features/sources/SourcesPage'
 import RequireAccess from './features/auth/RequireAccess'
 import ProposalsPage from './features/review/ProposalsPage'
 import ProposalDetail from './features/review/ProposalDetail'
+import ProposalHistoryPage from './features/review/ProposalHistoryPage'
 import RuleEditorPage from './features/review/RuleEditorPage'
 import AccountsPage from './features/accounts/AccountsPage'
 import AccountEditorPage from './features/accounts/AccountEditorPage'
@@ -47,6 +48,10 @@ function App() {
                 <Route path="rules" element={<ProposalsPage />} />
                 <Route path="rules/new" element={<RuleEditorPage />} />
                 <Route path="rules/:id/edit" element={<RuleEditorPage />} />
+                <Route
+                  path="rules/:id/history"
+                  element={<ProposalHistoryPage />}
+                />
                 <Route path="rules/:id" element={<ProposalDetail />} />
                 <Route path="accounts" element={<AccountsPage />} />
                 <Route path="accounts/new" element={<AccountEditorPage />} />

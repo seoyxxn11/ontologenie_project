@@ -27,6 +27,23 @@ export async function fetchProposal(id: number, signal?: AbortSignal) {
   return (await apiGet<Proposal>(`/proposals/${id}`, { signal })).data
 }
 
+export async function fetchProposalOptions(
+  id: number,
+  revision: number,
+  signal?: AbortSignal,
+) {
+  const response = await apiGet<ProposalOption[]>(
+    `/proposals/${id}/options?revision=${revision}`,
+    { signal },
+  )
+  if (response.data.some((option) => option.revision !== revision))
+    throw new ApiError(
+      '후보 개정이 일치하지 않습니다. 제안을 새로 조회해 주세요.',
+      { kind: 'conflict', status: 409 },
+    )
+  return response.data
+}
+
 export async function fetchRuleForEdit(id: number, signal?: AbortSignal) {
   const proposal = await fetchProposal(id, signal)
   const options = await apiGet<ProposalOption[]>(

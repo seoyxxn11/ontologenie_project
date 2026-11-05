@@ -28,12 +28,19 @@ GRANT USAGE ON SCHEMA :"src" TO platform_ro, platform_ai, platform_cdc;
 GRANT SELECT ON ALL TABLES IN SCHEMA :"src" TO platform_ro, platform_ai;
 ALTER DEFAULT PRIVILEGES IN SCHEMA :"src" GRANT SELECT ON TABLES TO platform_ro, platform_ai;
 
+-- ERP 일부 표는 조회·CDC 권한을 주지 않는다
+SELECT :'src' = 'erp' AS src_erp \gset
+\if :src_erp
+REVOKE SELECT ON erp.sales_invoice, erp.purchase_invoice, erp.gl_account, erp.journal_entry FROM platform_ro, platform_ai, platform_cdc;
+\endif
+
 -- CDC로 내보낼 표. 원천 변경 이력 표(change_log)는 CDC를 쓰면 필요 없어 뺀다.
 -- 금지 컬럼(A5)이 정해지면 표 이름 뒤에 컬럼 목록을 적어 그 컬럼을 뺀다(ALTER PUBLICATION ... SET TABLE).
 SELECT format('CREATE PUBLICATION axcore_cdc FOR TABLE %s',
               string_agg(format('%I.%I', schemaname, tablename), ', ' ORDER BY tablename))
 FROM pg_tables
 WHERE schemaname = :'src' AND tablename <> 'change_log'
+  AND has_table_privilege('platform_ro', format('%I.%I', schemaname, tablename), 'SELECT')
   AND NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'axcore_cdc')
 HAVING count(*) > 0 \gexec
 
