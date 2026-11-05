@@ -72,6 +72,11 @@ def test_source_id_is_data_source_code_and_resource_key_keeps_schema(data):
     assert mapping["sourceId"] == "MES_MAIN"
     assert mapping["resourceKey"] == "mes.work_order"
     assert "'sourceId': 'mes'" not in str(result.proposals)
+    # 속성 매핑도 원천 코드로 바뀐 sourceId와 같은 resourceKey로 표를 가리킨다
+    for p in kinds(result, "PROPERTY_MAPPING"):
+        column = p["payload"]["sourceColumn"]
+        assert column["sourceId"] == "MES_MAIN"
+        assert column["resourceKey"] == "mes.work_order"
 
 
 def test_only_chosen_columns_and_registered_metadata_are_used(data):

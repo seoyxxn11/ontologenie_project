@@ -317,7 +317,10 @@ def _table_candidates(
                     object_type_code=code,
                     property_code=col.name,
                     source_column=ColumnRef(
-                        source_id=source, table=table, column=col.name
+                        source_id=source,
+                        table=table,
+                        column=col.name,
+                        resource_key=key,  # OBJECT_MAPPING resourceKey와 같은 값
                     ),
                 ),
                 reason="원천 컬럼 값을 그대로 속성에 넣는다",

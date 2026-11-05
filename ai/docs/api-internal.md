@@ -30,7 +30,7 @@
 | 필드 | 내용 |
 | --- | --- |
 | `itemKind` | OBJECT_TYPE · PROPERTY · LINK_TYPE · OBJECT_MAPPING · PROPERTY_MAPPING · LINK_RULE · DOCUMENT_LINK |
-| `payload` | 후보 내용. 객체·관계 유형 코드는 대문자(`WORK_ORDER`), 속성은 컬럼 이름 그대로. `sourceId`는 `data_source.code`(예: `MES_MAIN`), `resourceKey`는 `source_resource.resource_key`(예: `mes.work_order`) |
+| `payload` | 후보 내용. 객체·관계 유형 코드는 대문자(`WORK_ORDER`), 속성은 컬럼 이름 그대로. `sourceId`는 `data_source.code`(예: `MES_MAIN`), `resourceKey`는 `source_resource.resource_key`(예: `mes.work_order`). 표를 가리키는 값은 늘 `sourceId` + `resourceKey`. 속성 매핑 `sourceColumn`은 `{sourceId, resourceKey, table, column}`이고 `resourceKey`가 백엔드가 원천 표를 찾는 값(`table`은 `resourceKey`의 첫 점 뒤, 이전 후보와 맞추려고 남김) |
 | `evidence` | 아래 표 |
 | `aiConfidence` | 0~1. 근거 신호 점수의 합이고 정답 확률이 아님. 매칭률과 섞지 않음 |
 | `options[]` | 같은 대상에 후보가 여럿일 때 `{optionNo, payload, evidence, aiConfidence}` |

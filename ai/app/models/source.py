@@ -7,6 +7,8 @@ class ColumnRef(BaseModel):
     source_id: str
     table: str
     column: str
+    # source_resource.resource_key와 같은 "원천.표"(예: erp.attendance). 백엔드는 이 값으로 표를 찾는다
+    resource_key: str | None = None
 
     def __str__(self) -> str:
         return f"{self.source_id}.{self.table}.{self.column}"

@@ -288,6 +288,18 @@ def test_api_format_is_camel_case(result):
     assert {"reason", "items", "holdRecommended"} <= set(api[0]["evidence"])
     types = [a["payload"]["code"] for a in api if a["itemKind"] == "OBJECT_TYPE"]
     assert types and all(t == t.upper() for t in types)  # 객체 유형 코드는 대문자
+    # 속성 매핑도 객체 매핑과 같은 resourceKey(source_resource.resource_key 형식)로 표를 가리킨다
+    tables = {
+        a["payload"]["objectTypeCode"]: a["payload"]["resourceKey"]
+        for a in api
+        if a["itemKind"] == "OBJECT_MAPPING"
+    }
+    mappings = [a["payload"] for a in api if a["itemKind"] == "PROPERTY_MAPPING"]
+    assert mappings and all(m["sourceColumn"]["resourceKey"] for m in mappings)
+    paired = [m for m in mappings if m["objectTypeCode"] in tables]
+    assert paired
+    for m in paired:
+        assert m["sourceColumn"]["resourceKey"] == tables[m["objectTypeCode"]]
 
 
 def test_sample_rows_show_blank_and_differently_shaped_values():
