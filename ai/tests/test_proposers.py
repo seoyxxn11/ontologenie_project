@@ -302,6 +302,207 @@ def test_api_format_is_camel_case(result):
         assert m["sourceColumn"]["resourceKey"] == tables[m["objectTypeCode"]]
 
 
+def _bundled(result):
+    from app.models.candidate import Candidate
+    from app.proposers.api_format import to_api_proposals
+
+    kept = [Candidate.model_validate(c) for c in result["candidates"]]
+    return kept, to_api_proposals(kept)
+
+
+def test_bundles_one_table_into_one_object_proposal_without_losing_columns(result):
+    kept, api = _bundled(result)
+    kinds = {a["itemKind"] for a in api}
+    # 컬럼 단위 후보는 객체 후보 안으로 들어가 따로 나가지 않는다
+    assert not kinds & {"PROPERTY", "OBJECT_MAPPING", "PROPERTY_MAPPING"}
+    objects = {a["payload"]["code"]: a for a in api if a["itemKind"] == "OBJECT_TYPE"}
+    assert len(objects) == sum(c.payload.kind.value == "OBJECT_TYPE" for c in kept)
+    # 속성·속성 매핑 하나도 빠지지 않고, 각 속성에 원천 컬럼이 붙는다
+    props = [c for c in kept if c.payload.kind.value == "PROPERTY"]
+    bundled = [
+        (code, p["code"])
+        for code, a in objects.items()
+        for p in a["payload"]["properties"]
+    ]
+    assert sorted(bundled) == sorted(
+        (c.payload.object_type_code, c.payload.code) for c in props
+    )
+    for a in objects.values():
+        payload, evidence = a["payload"], a["evidence"]
+        mapping = payload["objectMapping"]
+        assert mapping["keyColumns"] and "objectTypeCode" not in mapping
+        for prop in payload["properties"]:
+            assert prop["sourceColumn"]["resourceKey"] == mapping["resourceKey"]
+            assert "objectTypeCode" not in prop
+        # 속성마다 근거가 남아 원천에서 다시 확인한 값을 볼 수 있다
+        assert [e["code"] for e in evidence["properties"]] == [
+            p["code"] for p in payload["properties"]
+        ]
+        assert all(e["items"] and e["mapping"]["items"] for e in evidence["properties"])
+
+
+def test_bundles_link_type_and_its_rule_into_one_relation_proposal(result):
+    from app.proposers.api_format import to_api
+
+    kept, api = _bundled(result)
+    types = {c.payload.code: c for c in kept if c.payload.kind.value == "LINK_TYPE"}
+    rules = [c for c in kept if c.payload.kind.value == "LINK_RULE"]
+    bundled = [a for a in api if a["itemKind"] == "LINK_RULE"]
+    assert len(bundled) == len(rules)
+    for a in bundled:
+        link_type = a["payload"]["linkType"]
+        assert link_type["code"] == a["payload"]["linkTypeCode"]
+        assert link_type == to_api(types[link_type["code"]])["payload"]
+    # 규칙이 없는 관계 유형만 따로 남는다
+    alone = {a["payload"]["code"] for a in api if a["itemKind"] == "LINK_TYPE"}
+    assert alone == set(types) - {r.payload.link_type_code for r in rules}
+    # 묶어도 보류 권고 수는 관계 기준으로 그대로다
+    held_rules = sum(
+        r.review_status == "HELD"
+        or types[r.payload.link_type_code].review_status == "HELD"
+        for r in rules
+    )
+    assert sum(a["evidence"]["holdRecommended"] for a in bundled) == held_rules
+    assert len(api) < len(kept) / 3  # 검토 건수가 크게 준다
+
+
+def cand(cid, payload, **extra):
+    from app.models.candidate import Candidate
+
+    return Candidate(
+        candidate_id=cid,
+        title=cid,
+        payload=payload,
+        reason="r",
+        evidence=[{"source_id": "x", "locator": cid[3:], "snippet": "s"}],
+        **extra,
+    )
+
+
+def _ot(cid, code):
+    return cand(cid, {"kind": "OBJECT_TYPE", "code": code, "name": code})
+
+
+def _prop(cid, owner, code, **extra):
+    payload = {
+        "kind": "PROPERTY",
+        "object_type_code": owner,
+        "code": code,
+        "name": code,
+        "data_type": "STRING",
+    }
+    return cand(cid, payload, **extra)
+
+
+def _om(cid, owner, key):
+    payload = {
+        "kind": "OBJECT_MAPPING",
+        "object_type_code": owner,
+        "source_id": "x",
+        "resource_key": key,
+        "key_columns": ["id"],
+    }
+    return cand(cid, payload)
+
+
+def test_bundling_never_drops_parts_when_codes_or_mappings_repeat():
+    from app.proposers.api_format import to_api_proposals
+
+    parts = [
+        # erp·mes에 같은 이름의 표가 있으면 객체 유형 코드가 겹친다 → 묶지 않고 따로
+        _ot("OT-erp.log", "LOG"),
+        _ot("OT-mes.log", "LOG"),
+        _prop("P-erp.log.a", "LOG", "a"),
+        # 객체 매핑이 둘이면 하나만 묶고 나머지는 따로
+        _ot("OT-x.t", "T"),
+        _om("OM-x.t", "T", "x.t"),
+        _om("OM-x.t2", "T", "x.t2"),
+    ]
+
+    api = to_api_proposals(parts)
+
+    kinds = [a["itemKind"] for a in api]
+    assert kinds.count("OBJECT_TYPE") == 3
+    assert kinds.count("PROPERTY") == 1  # LOG 묶음이 없으니 속성은 따로
+    assert kinds.count("OBJECT_MAPPING") == 1
+    bundle = next(a for a in api if a["payload"]["code"] == "T")
+    assert bundle["payload"]["objectMapping"]["resourceKey"] == "x.t"
+    logs = [a for a in api if a["payload"].get("code") == "LOG"]
+    assert all("properties" not in a["payload"] for a in logs)
+
+
+def test_every_rule_sharing_a_link_type_carries_it():
+    from app.proposers.api_format import to_api_proposals
+
+    link_type = cand(
+        "LT-a",
+        {
+            "kind": "LINK_TYPE",
+            "code": "A_TO_B",
+            "name": "A → B",
+            "source_type_code": "A",
+            "target_type_code": "B",
+            "cardinality": "MANY_TO_ONE",
+        },
+    )
+
+    def rule(cid, prop):
+        payload = {
+            "kind": "LINK_RULE",
+            "code": cid,
+            "link_type_code": "A_TO_B",
+            "pattern": "same_value",
+            "conditions": [{"source_property": f"A.{prop}", "target_property": "B.id"}],
+        }
+        return cand(cid, payload)
+
+    api = to_api_proposals([link_type, rule("LR-1", "x"), rule("LR-2", "y")])
+
+    assert [a["itemKind"] for a in api] == ["LINK_RULE", "LINK_RULE"]
+    assert all(a["payload"]["linkType"]["code"] == "A_TO_B" for a in api)
+
+
+def test_hold_in_any_part_marks_the_whole_bundle_with_reasons():
+    from app.proposers.api_format import to_api_proposals
+
+    head = cand("OT-x.t", {"kind": "OBJECT_TYPE", "code": "T", "name": "t"})
+    prop = cand(
+        "P-x.t.a",
+        {
+            "kind": "PROPERTY",
+            "object_type_code": "T",
+            "code": "a",
+            "name": "a",
+            "data_type": "STRING",
+        },
+        review_status="HELD",
+        hold_reason="개인정보 확인 필요",
+    )
+    orphan = cand(
+        "P-x.u.b",
+        {
+            "kind": "PROPERTY",
+            "object_type_code": "U",
+            "code": "b",
+            "name": "b",
+            "data_type": "STRING",
+        },
+    )
+
+    api = to_api_proposals([head, prop, orphan])
+
+    obj = next(a for a in api if a["itemKind"] == "OBJECT_TYPE")
+    assert obj["evidence"]["holdRecommended"] is True
+    assert obj["evidence"]["holdReason"] == "개인정보 확인 필요"
+    # 어느 속성 때문인지 속성별 근거에도 남는다
+    part = obj["evidence"]["properties"][0]
+    assert part["holdRecommended"] is True
+    assert part["holdReason"] == "개인정보 확인 필요"
+    assert "objectMapping" not in obj["payload"]  # 객체 매핑 후보가 없으면 칸도 없다
+    # 묶을 객체 유형이 없는 속성은 원래 종류로 따로 나간다
+    assert [a["itemKind"] for a in api] == ["OBJECT_TYPE", "PROPERTY"]
+
+
 def test_sample_rows_show_blank_and_differently_shaped_values():
     import pandas as pd
 

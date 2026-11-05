@@ -18,7 +18,7 @@ from app.extractors.notes import document_link_types, document_links
 from app.llm.client import LLMClient, create_llm_client
 from app.models.analysis import AnalysisStartRequest
 from app.models.candidate import Candidate
-from app.proposers.api_format import to_api
+from app.proposers.api_format import to_api_proposals
 from app.proposers.run import generate
 from app.proposers.semantics import interpret
 from app.sources.base import UnknownTableError
@@ -140,11 +140,12 @@ def _analyze(
     kept += links + document_link_types(links)
 
     codes = {_prefix(t.resource_key): t.data_source_code for t in request.targets}
-    proposals = [_with_source_codes(to_api(c), codes) for c in kept]
+    # 표 하나·관계 하나를 검토 한 건으로 묶어 보낸다
+    proposals = [_with_source_codes(p, codes) for p in to_api_proposals(kept)]
     summary = {
         "analyzedTables": sorted(scope),
         "proposals": len(proposals),
-        "holdRecommended": sum(c.review_status == "HELD" for c in kept),
+        "holdRecommended": sum(p["evidence"]["holdRecommended"] for p in proposals),
         "droppedNoEvidence": len(dropped),
         "documents": documents,
         "documentLinks": len(links),

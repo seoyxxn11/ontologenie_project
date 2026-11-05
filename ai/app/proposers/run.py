@@ -17,7 +17,7 @@ from app.analyzers.structured import analyze_sources
 from app.config import get_settings
 from app.llm.client import LLMClient, create_llm_client
 from app.models.candidate import Candidate
-from app.proposers.api_format import to_api
+from app.proposers.api_format import to_api_proposals
 from app.proposers.evidence import verify
 from app.proposers.links import propose_links
 from app.proposers.objects import propose_objects
@@ -37,13 +37,14 @@ def generate(root: Path) -> tuple[list[Candidate], list[Candidate]]:
 
 def api_result(kept: list[Candidate]) -> dict:
     """105로 보낼 때와 같은 형식의 결과 (명령줄 실행에서 파일로 볼 때)."""
+    proposals = to_api_proposals(kept)
     return {
         "status": "SUCCEEDED",
         "resultSummary": {
-            "proposals": len(kept),
-            "holdRecommended": sum(c.review_status == "HELD" for c in kept),
+            "proposals": len(proposals),
+            "holdRecommended": sum(p["evidence"]["holdRecommended"] for p in proposals),
         },
-        "proposals": [to_api(c) for c in kept],
+        "proposals": proposals,
     }
 
 
@@ -57,6 +58,10 @@ def run(root: Path, llm: LLMClient | None = None, only: set[str] | None = None) 
         "created_at": datetime.now().isoformat(timespec="seconds"),
         "summary": {
             "by_kind": dict(Counter(c.payload.kind.value for c in kept)),
+            # 105로 보낼 때 관리자가 검토하는 건수 (표 하나·관계 하나로 묶은 뒤)
+            "review_units": dict(
+                Counter(p["itemKind"] for p in to_api_proposals(kept))
+            ),
             "held": sum(c.review_status == "HELD" for c in kept),
             "dropped_no_evidence": len(dropped),
         },

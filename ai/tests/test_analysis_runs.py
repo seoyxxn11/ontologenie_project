@@ -125,9 +125,11 @@ def test_accepts_checks_source_and_reports_running_then_engine_result(token):
     assert backend.reports[0] == (7, {"status": "RUNNING"})
     result = backend.reports[1][1]
     assert result["status"] == "SUCCEEDED"
-    mapping = next(p for p in result["proposals"] if p["itemKind"] == "OBJECT_MAPPING")
-    assert mapping["payload"]["sourceId"] == "MES_MAIN"
-    assert mapping["payload"]["resourceKey"] == "mes.work_order"
+    # 객체 매핑은 표 하나 = OBJECT_TYPE 한 건 안에 담겨 간다
+    work_order = next(p for p in result["proposals"] if p["itemKind"] == "OBJECT_TYPE")
+    mapping = work_order["payload"]["objectMapping"]
+    assert mapping["sourceId"] == "MES_MAIN"
+    assert mapping["resourceKey"] == "mes.work_order"
 
 
 def test_engine_gets_open_sources_and_success_is_reported(token):

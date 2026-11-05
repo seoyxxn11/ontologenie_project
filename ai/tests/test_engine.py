@@ -49,6 +49,10 @@ def kinds(result, kind):
     return [p for p in result.proposals if p["itemKind"] == kind]
 
 
+def object_bundle(result, code):
+    return next(p for p in kinds(result, "OBJECT_TYPE") if p["payload"]["code"] == code)
+
+
 def test_csv_source_gives_candidates_only_for_chosen_tables(data):
     req = request([("mes.work_order", {}), ("mes.production_result", {})])
 
@@ -56,7 +60,18 @@ def test_csv_source_gives_candidates_only_for_chosen_tables(data):
 
     objects = {p["payload"]["code"] for p in kinds(result, "OBJECT_TYPE")}
     assert objects == {"WORK_ORDER", "PRODUCTION_RESULT"}
-    assert kinds(result, "LINK_RULE")  # 작업지시 ↔ 공정 실적
+    # 검토 단위: 표 두 개 = 객체 두 건, 작업지시 ↔ 공정 실적 = 관계 한 건
+    assert [p["itemKind"] for p in result.proposals] == [
+        "OBJECT_TYPE",
+        "OBJECT_TYPE",
+        "LINK_RULE",
+    ]
+    rule = kinds(result, "LINK_RULE")[0]["payload"]
+    assert rule["linkType"]["code"] == rule["linkTypeCode"]
+    assert {rule["linkType"]["sourceTypeCode"], rule["linkType"]["targetTypeCode"]} == {
+        "PRODUCTION_RESULT",
+        "WORK_ORDER",
+    }
     assert result.summary["proposals"] == len(result.proposals)
     assert result.summary["analyzedTables"] == [
         "mes.production_result",
@@ -68,13 +83,15 @@ def test_csv_source_gives_candidates_only_for_chosen_tables(data):
 def test_source_id_is_data_source_code_and_resource_key_keeps_schema(data):
     result = analyze(request([("mes.work_order", {})]), {"MES_MAIN": data / "mes"})
 
-    mapping = kinds(result, "OBJECT_MAPPING")[0]["payload"]
+    bundle = object_bundle(result, "WORK_ORDER")["payload"]
+    mapping = bundle["objectMapping"]
     assert mapping["sourceId"] == "MES_MAIN"
     assert mapping["resourceKey"] == "mes.work_order"
     assert "'sourceId': 'mes'" not in str(result.proposals)
-    # 속성 매핑도 원천 코드로 바뀐 sourceId와 같은 resourceKey로 표를 가리킨다
-    for p in kinds(result, "PROPERTY_MAPPING"):
-        column = p["payload"]["sourceColumn"]
+    # 속성마다 원천 컬럼도 원천 코드로 바뀐 sourceId와 같은 resourceKey로 표를 가리킨다
+    assert bundle["properties"]
+    for prop in bundle["properties"]:
+        column = prop["sourceColumn"]
         assert column["sourceId"] == "MES_MAIN"
         assert column["resourceKey"] == "mes.work_order"
 
@@ -86,7 +103,8 @@ def test_only_chosen_columns_and_registered_metadata_are_used(data):
     }
     result = analyze(request([("mes.work_order", target)]), {"MES_MAIN": data / "mes"})
 
-    props = {p["payload"]["code"]: p["payload"] for p in kinds(result, "PROPERTY")}
+    bundle = object_bundle(result, "WORK_ORDER")["payload"]
+    props = {p["code"]: p for p in bundle["properties"]}
     assert set(props) == {"wo_no", "product_code"}  # 기본키는 행 구별용으로 함께 읽는다
     assert "동의어: 품번" in props["product_code"]["description"]
 
@@ -97,7 +115,7 @@ def test_open_postgres_reader_is_snapshotted_under_schema_name():
 
     result = analyze(req, {"MES_MAIN": reader})
 
-    mapping = kinds(result, "OBJECT_MAPPING")[0]["payload"]
+    mapping = object_bundle(result, "WORK_ORDER")["payload"]["objectMapping"]
     assert mapping["resourceKey"] == "mes.work_order"
     assert mapping["sourceId"] == "MES_MAIN"
 

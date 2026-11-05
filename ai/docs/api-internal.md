@@ -29,7 +29,7 @@
 
 | 필드 | 내용 |
 | --- | --- |
-| `itemKind` | OBJECT_TYPE · PROPERTY · LINK_TYPE · OBJECT_MAPPING · PROPERTY_MAPPING · LINK_RULE · DOCUMENT_LINK |
+| `itemKind` | AI가 보내는 것은 OBJECT_TYPE · LINK_RULE · LINK_TYPE · DOCUMENT_LINK (아래 "묶음 후보"). PROPERTY · OBJECT_MAPPING · PROPERTY_MAPPING은 묶을 객체 후보가 없을 때만 따로 보냄 |
 | `payload` | 후보 내용. 객체·관계 유형 코드는 대문자(`WORK_ORDER`), 속성은 컬럼 이름 그대로. `sourceId`는 `data_source.code`(예: `MES_MAIN`), `resourceKey`는 `source_resource.resource_key`(예: `mes.work_order`). 표를 가리키는 값은 늘 `sourceId` + `resourceKey`. 속성 매핑 `sourceColumn`은 `{sourceId, resourceKey, table, column}`이고 `resourceKey`가 백엔드가 원천 표를 찾는 값(`table`은 `resourceKey`의 첫 점 뒤, 이전 후보와 맞추려고 남김) |
 | `evidence` | 아래 표 |
 | `aiConfidence` | 0~1. 근거 신호 점수의 합이고 정답 확률이 아님. 매칭률과 섞지 않음 |
@@ -48,9 +48,26 @@
 | `changeType` | 재분석에서만. ADDED · CHANGED · UNCHANGED |
 | `originalText`, `observations[]`, `times[]` | DOCUMENT_LINK만. 원문 전체, 이 언급에 걸린 관찰 표현 `{text, spanStart, spanEnd, assertion}`, 글 속 시각 표현 `{text, spanStart, spanEnd, normalized, basis}`. `assertion`은 AFFIRMED(확인) · NEGATED(부정) · UNCERTAIN(추정). `normalized`는 원천에서 기준 시각을 알 때만 채움 |
 
+**묶음 후보 (11-05~)**
+
+관리자가 판단하는 단위로 묶어 보냅니다. 표 하나 = 객체 후보 한 건, 관계 하나 = 관계 후보 한 건입니다. 제안기 안에서는 지금처럼 컬럼 하나하나를 후보로 다루고(채점·근거 확인 단위), 보낼 때만 묶습니다.
+
+| 종류 | `payload` | `evidence`에 더해지는 것 |
+| --- | --- | --- |
+| OBJECT_TYPE | 객체 유형 칸(`code`, `name`, `description`, `synonyms`, `note`, `category`) + `objectMapping` {`sourceId`, `resourceKey`, `keyColumns`} + `properties[]` {`code`, `name`, `dataType`, `description`, `isIdentifier`, `isRequired`, `unit`, `sensitivity`, `sourceColumn`, `transformSteps`} | `objectMapping` {title, reason, items, …}, `properties[]` {code, title, reason, items, confidenceItems, mapping} |
+| LINK_RULE | 연결 규칙 칸(`code`, `linkTypeCode`, `pattern`, `conditions`, `sourceFilter`, `description`) + `linkType` {`code`, `name`, `sourceTypeCode`, `targetTypeCode`, `cardinality`, `description`} | 없음(규칙과 관계 유형의 근거가 같음) |
+
+- `aiConfidence`는 객체 후보면 객체 유형의, 관계 후보면 연결 규칙의 점수입니다.
+- 묶음 안 구성 후보 하나라도 보류 권고면 묶음도 `holdRecommended=true`이고, `holdReason`은 이유를 ` / `로 잇습니다. 어느 속성 때문인지는 `evidence.properties[].holdRecommended`·`holdReason`에 남습니다.
+- 같은 관계 유형을 쓰는 연결 규칙이 여럿이면 규칙마다 `linkType`을 담습니다.
+- 객체 유형 코드가 겹치거나 한 객체에 객체 매핑이 둘 이상이면, 묶을 곳이 모호한 후보는 원래 종류로 따로 보냅니다(빠지지 않음).
+- `fingerprint`는 묶은 payload의 지문입니다.
+- 연결 규칙이 없는 관계 유형(문서 연결용, 다른 표를 거치는 관계)은 지금처럼 LINK_TYPE 한 건으로 보냅니다.
+- 개수 예(개발용 데이터 A 전체): 구성 후보 653건 → 보내는 후보 93건(객체 31, 관계 59, 규칙 없는 관계 유형 3).
+
 DOCUMENT_LINK `payload`는 `linkTypeCode`, `documentId`, `spanStart`·`spanEnd`(원문 글자 위치, 끝 미포함), `mentionText`, `targetObjectRef`, `expressionKind`입니다. `expressionKind`는 OBSERVED(확인) · ESTIMATED(추정)입니다. 관찰이 모두 부정인 언급은 연결하지 않습니다. 설비 후보가 여럿이면 `options[]`에 후보마다 하나씩 두고 보류 권고(`holdRecommended`)로 보냅니다. 문서 연결이 쓰는 관계 유형(`MENTIONS_EQUIPMENT` 등, 메모 → 설비·작업지시·정비·출하, MANY_TO_MANY)도 LINK_TYPE 후보로 함께 냅니다. 관계 유형은 출발 객체 유형이 하나라서 정비 기록 연결은 `MAINTENANCE_ORDER_MENTIONS_EQUIPMENT`처럼 앞에 표 이름을 붙입니다.
 
-PROPERTY `payload.sensitivity`는 ERD `property_definition.sensitivity`와 같은 값(NORMAL · RESTRICTED)입니다. 개인정보로 본 컬럼은 RESTRICTED입니다.
+속성의 `sensitivity`(객체 후보 `payload.properties[].sensitivity`)는 ERD `property_definition.sensitivity`와 같은 값(NORMAL · RESTRICTED)입니다. 개인정보로 본 컬럼은 RESTRICTED입니다.
 
 관계 개수 `MANY_TO_MANY`는 도착이 키가 아닌 종류 관계(라우팅 설비 종류 → 설비 종류)에 씁니다. 다른 표를 거쳐야 이어지는 관계(공정 실적 → 작업지시 → 라우팅)는 연결 규칙(`link_mapping_condition`, 두 객체의 속성 비교)으로 표현할 수 없어 LINK_RULE 없이 LINK_TYPE만 보류 권고로 냅니다.
 
