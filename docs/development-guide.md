@@ -384,7 +384,7 @@ action/
 | 실행 모드 | 프로필 `api`(웹 서버), `batch`(배치 컨테이너, 웹 서버 없음), `local`(로컬 개발) |
 | 웹 | Spring MVC, Bean Validation, `@RestControllerAdvice` 공통 오류 처리 |
 | API 문서 | springdoc-openapi 3.x (OpenAPI 3.1, Swagger UI) |
-| 데이터 | PostgreSQL 18, Spring Data JPA(`@Version`, jsonb), JdbcClient(대량 upsert), Flyway |
+| 데이터 | PostgreSQL 18, Spring Data JPA(`@Version`, jsonb), JdbcClient(9.3 "조회·저장 방식 고르기"의 허용 경우만), Flyway |
 | 원천 DB | 조회 전용 계정용 HikariCP 커넥션 풀을 따로 둔다(전체 다시 읽기·연결 검사). |
 | 원천 CDC | Debezium(Kafka Connect) + Kafka, 소비는 `spring-kafka`(배치 컨테이너). 원천 변경 수집 전용이며 서비스 사이 메시징에는 쓰지 않는다. 인프라는 `infra/cdc/`·`infra/source-db/` |
 | CSV | Jackson CSV |
@@ -677,6 +677,7 @@ throw new BusinessException(
   - 현재 시각은 `Instant.now()` 대신 주입받은 `Clock`으로 구한다(`Instant.now(clock)`). 테스트에서 시각을 고정할 수 있다.
 - 선택적인 입력과 필수 입력을 명확히 구분한다.
 - 목록 조회는 `page`, `size` 등 명세된 파라미터를 사용한다.
+- 목록 정렬은 API 명세에 적힌 고정 정렬을 쓴다. `Pageable`의 sort를 받으려면 명세에 먼저 적는다.
 - 입력값 검사는 Controller 진입 시점부터 수행한다.
 
 JSON 숫자의 안전 범위와 실제 ID 증가 범위를 검토한 뒤 ID 표현을 최종 확정한다.
@@ -746,6 +747,44 @@ Migration은 DB 변경 SQL을 버전별로 실행하는 방식이다.
 - 생성·수정 계정은 로그인한 계정 ID다. 로그인 사용자가 없는 작업(배치, AI 제안)에서는 NULL로 남는다.
 - 위 표에 맞지 않는 테이블(예: `created_at`만 있음)은 공통 Entity를 상속하지 않는다. 필드를 직접 선언한다.
 - `row_version`은 공통 Entity에 없다. 컬럼이 있는 Entity가 `@Version`으로 직접 선언한다.
+
+**조회·저장 방식 고르기** (2026-11-05, S15P31C106-294·295)
+
+SQL 문자열 속 컬럼 이름은 컴파일러가 확인하지 못한다. 이름이 틀려도 그 SQL을 실행할 때에야 오류가 난다. 결과를 손으로 옮기는 코드도 SQL과 함께 고쳐야 한다. 그래서 기본은 Spring Data JPA로 쓰고, JPA로 쓰기 어렵거나 뜻이 달라지는 경우만 JdbcClient를 쓴다.
+
+- 이 기준은 새로 쓰거나 고치는 코드(메서드 단위)에 적용한다. 기존 코드는 요청 없이 고치지 않는다. 기준과 다른 기존 코드는 S15P31C106-294 분류표([기준 문서](../.ai/references.md))를 보고 도메인별 이슈를 만들어 고친다.
+- 다음 순서로 고른다. 앞의 방식으로 쓸 수 있으면 뒤로 넘어가지 않는다.
+  1. 단순 CRUD, ID·코드로 한 건 조회, 존재 확인: Repository 기본 메서드와 파생 쿼리
+  2. 고정 조건 목록: 파생 쿼리(`findByXxx(..., Pageable)`)
+  3. 선택 조건이 여러 개인 목록: Specification(`JpaSpecificationExecutor`)
+  4. 화면에 필요한 일부 컬럼만: JPQL `@Query` DTO projection
+  5. Entity가 있는 테이블의 고정 SQL(PostgreSQL 전용 구문, 조건부 갱신, 잠금 포함): `@Query(nativeQuery = true)`, `@Modifying`
+  6. 위로 쓰기 어려운 아래 표의 경우: JdbcClient
+- 이미 같은 일을 하는 JPA 메서드가 있으면 그것을 쓴다.
+- JdbcClient는 다음 경우만 쓴다. 클래스 주석에 어느 경우인지 적는다. 메서드마다 경우가 다르면 메서드 주석에 적는다.
+
+| 경우 | 예 |
+|---|---|
+| 대량 upsert, 조건부 insert | `ON CONFLICT ... DO UPDATE/NOTHING RETURNING`으로 여러 행을 한 번에 저장 |
+| Entity를 두지 않는 테이블(아래)의 조회·저장·잠금·갱신 | 작업 큐 잠금(`FOR UPDATE SKIP LOCKED`), `update ... where status = 'QUEUED' returning id` |
+| 조건에 따라 SQL 모양이 바뀌어 Specification·native `@Query`로 쓰기 어려운 조회 | 조건마다 바뀌는 jsonb 검색, `DISTINCT ON`·CTE·창 함수를 쓰는 동적 조회 |
+| 다른 도메인 테이블을 한 번의 SQL로 join·검사해야 하는 조회 | 검사 실행 전 승인 후보·원천 확인(`CandidateCheckRepository`), 제안이 가리키는 온톨로지 정의 확인(`ProposalReferenceRepository`) |
+| 시퀀스에서 ID를 먼저 받아야 하는 저장 | 실행 기록이 계획 ID를 먼저 알아야 하는 재배정 계획 |
+
+- Entity를 두지 않는 테이블
+  - 작업 테이블: `sync_run`, `check_run`, `source_connection_check`, `source_preview`(`QueuedJobType`의 테이블), `sync_run`의 하위 테이블 `sync_run_resource`, `analysis_run`과 그 하위 테이블 `analysis_run_target`. 배치와 API가 상태를 함께 바꾸므로 SQL로 다룬다. `check_result`는 작업 테이블이 아니다(Entity 있음).
+  - 비밀값 테이블: `data_source_credential`. toString·로그·감사 기록으로 새어 나가지 않게 Entity로 만들지 않는다.
+  - 그 밖에 아직 Entity가 없는 테이블(`object_instance`, `issue` 등)은 그 테이블을 다루는 기존 Repository 방식을 따른다. 새 Entity를 만들려면 담당 도메인과 정한다.
+- 다른 도메인이 소유한 테이블은 그 도메인의 Repository나 Service로 읽는다.
+  - 다만 한 번의 SQL로 끝내야 하는 join·존재 검사는 SQL로 직접 읽을 수 있다.
+  - 이때 다른 도메인 테이블은 읽기만 한다. 바꾸는 일은 그 도메인의 Service로 한다.
+- JdbcClient를 쓸 때 지킬 것
+  - JdbcClient 코드는 `repository` 패키지에 둔다.
+  - 요청 값(API 입력, 사용자 입력)은 반드시 바인딩한다.
+  - SQL에 이어 붙여도 되는 것은 코드가 정한 값뿐이다. 클래스 상수, enum 값, 코드 안 허용 목록에서 고른 컬럼 이름, 코드가 만든 파라미터 이름과 조건 조각이 여기에 들어간다.
+  - SQL과 행 변환을 한 클래스에 둔다. 같은 테이블의 변환 코드를 여러 클래스에 복사하지 않는다.
+  - 통합 테스트(Testcontainers)로 SQL을 실제로 실행해 확인한다.
+  - 같은 트랜잭션에서 Entity가 있는 테이블을 JdbcClient로 바꾸지 않는다. 꼭 섞어야 하면 SQL 전에 flush한다. SQL 뒤에 같은 Entity를 다시 읽으면 영속성 컨텍스트를 비우거나(`clear`) `refresh`한다. 비우지 않고 다시 조회하면 바뀌기 전 값이 그대로 나온다. 이유는 주석에 쓴다. native `@Modifying`도 같다(`clearAutomatically`, `flushAutomatically`).
 
 ### 9.4 동시성
 

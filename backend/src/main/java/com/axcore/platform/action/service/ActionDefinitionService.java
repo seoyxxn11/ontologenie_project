@@ -46,6 +46,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li>목록(087)·등록(088)·수정(090)은 ADMIN만 쓴다. 조회(089)는 ADMIN이거나 그 Action의 권한을 가진 역할이 쓴다.
  *   <li>API로는 업무 Action(EXECUTE)만 등록·수정한다. 관리 Action(RECORD)은 도메인 API의 감사 기록이 깨지지 않게 Flyway로만 넣고
  *       고치지 않는다.
+ *   <li>handlerKey는 서버에 아직 없는 Handler 이름도 받는다. 관리자가 정의를 먼저 등록하고 개발자가 Handler를 나중에 배포한다. 배포 전에는 응답의
+ *       handlerReady가 false이고 091이 BLOCKED를 남긴다(11-05 결정, Jira 287).
  *   <li>등록·수정은 관리 Action이라 성공하면 업무와 같은 트랜잭션에 ACTION 기록을 남기고, 막히면 트랜잭션이 끝난 뒤 BLOCKED를 따로 남긴다
  *       (AdminAccountService와 같은 방식).
  * </ul>
@@ -66,6 +68,7 @@ public class ActionDefinitionService {
     private final ActionDefinitionRepository definitions;
     private final ActionReferenceRepository references;
     private final ActionHandlerRegistry handlers;
+    private final InputSchemaValidator inputSchemas;
     private final AuditRecorder audits;
     private final ActionDefinitionLookup actionDefinitions;
     private final TransactionTemplate transactionTemplate;
@@ -74,12 +77,14 @@ public class ActionDefinitionService {
             ActionDefinitionRepository definitions,
             ActionReferenceRepository references,
             ActionHandlerRegistry handlers,
+            InputSchemaValidator inputSchemas,
             AuditRecorder audits,
             ActionDefinitionLookup actionDefinitions,
             PlatformTransactionManager transactionManager) {
         this.definitions = definitions;
         this.references = references;
         this.handlers = handlers;
+        this.inputSchemas = inputSchemas;
         this.audits = audits;
         this.actionDefinitions = actionDefinitions;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
@@ -90,7 +95,7 @@ public class ActionDefinitionService {
     public Page<ActionDefinitionResponse> search(
             LoginAccount actor, Boolean active, ActionKind actionKind, Pageable pageable) {
         requireAdmin(actor, RoleCode.ADMIN.name());
-        return definitions.search(active, actionKind, pageable).map(ActionDefinitionResponse::from);
+        return definitions.search(active, actionKind, pageable).map(this::toResponse);
     }
 
     /** API 089. 화면이 확인 창과 입력 형식을 정할 때 쓴다. ADMIN이 아니면 그 Action의 권한을 가진 역할만 본다. */
@@ -106,7 +111,7 @@ public class ActionDefinitionService {
                     CommonErrorCode.FORBIDDEN,
                     Map.of("requiredPermission", definition.getRequiredPermission()));
         }
-        return ActionDefinitionResponse.from(definition);
+        return toResponse(definition);
     }
 
     /** API 088. 새 정의는 rowVersion 0, isActive를 생략하면 true다. */
@@ -122,7 +127,7 @@ public class ActionDefinitionService {
                 () -> createInTransaction(actor, request, definitionId, input));
     }
 
-    /** API 090. 보낸 필드만 바꾼다. 바꾼 뒤의 값 전체가 정의 규칙(대상 종류·유형, Handler, 권한)을 지켜야 한다. */
+    /** API 090. 보낸 필드만 바꾼다. 바꾼 뒤의 값 전체가 정의 규칙(대상 종류·유형, 권한)을 지켜야 한다. */
     public ActionDefinitionResponse update(
             LoginAccount actor, String code, ActionDefinitionUpdateRequest request) {
         Long definitionId = actionDefinitions.idOf(UPDATE_ACTION);
@@ -147,7 +152,7 @@ public class ActionDefinitionService {
                     "actionMode", "API로는 업무 Action(EXECUTE)만 등록할 수 있습니다.");
         }
         requireTarget(request.targetKind(), request.targetObjectTypeId());
-        requireHandler(request.handlerKey());
+        requireInputSchema(request.inputSchema());
         requirePermission(request.requiredPermission());
         if (definitions.existsByCode(request.code())) {
             throw duplicateCode();
@@ -179,7 +184,7 @@ public class ActionDefinitionService {
                                                 Map.of("id", definition.getId()),
                                                 snapshot(definition))))
                         .build());
-        return ActionDefinitionResponse.from(definition);
+        return toResponse(definition);
     }
 
     private ActionDefinitionResponse updateInTransaction(
@@ -223,8 +228,8 @@ public class ActionDefinitionService {
                         ? request.getTargetObjectTypeId()
                         : definition.getTargetObjectTypeId();
         requireTarget(targetKind, targetObjectTypeId);
-        if (request.getHandlerKey() != null) {
-            requireHandler(request.getHandlerKey());
+        if (request.getInputSchema() != null) {
+            requireInputSchema(request.getInputSchema());
         }
         if (request.getRequiredPermission() != null) {
             requirePermission(request.getRequiredPermission());
@@ -279,7 +284,7 @@ public class ActionDefinitionService {
                                                         diff.before(),
                                                         diff.after()))));
         audits.record(entry.build());
-        return ActionDefinitionResponse.from(definition);
+        return toResponse(definition);
     }
 
     /** SYSTEM이면 대상 객체 유형이 없어야 한다. OBJECT는 유형을 비워도 되고, 정하면 있는 유형이어야 한다. */
@@ -296,9 +301,17 @@ public class ActionDefinitionService {
         }
     }
 
-    private void requireHandler(String handlerKey) {
-        if (!handlers.isRegistered(handlerKey)) {
-            throw BusinessException.invalidField("handlerKey", "서버에 등록되지 않은 Handler입니다.");
+    /** handlerReady는 저장하지 않고 응답할 때 서버의 Handler 목록으로 계산한다. */
+    private ActionDefinitionResponse toResponse(ActionDefinition definition) {
+        return ActionDefinitionResponse.from(
+                definition, handlers.isRegistered(definition.getHandlerKey()));
+    }
+
+    /** 091이 검사하지 못하는 키워드가 있으면 거절한다. 그대로 두면 정의에 적힌 규칙이 실행 때 조용히 무시된다. */
+    private void requireInputSchema(Map<String, Object> inputSchema) {
+        List<String> problems = inputSchemas.unsupported(inputSchema);
+        if (!problems.isEmpty()) {
+            throw BusinessException.invalidField("inputSchema", problems.get(0));
         }
     }
 

@@ -11,7 +11,7 @@ import java.util.Map;
  * 감사 기록에서 비밀값을 뺀다. 이름에 아래 단어가 들어간 키는 값과 함께 지운다. 대소문자와 {@code _}·{@code -}는 구분하지 않고, 안쪽 객체와 목록까지 본다.
  * 예: password, newPassword, credentials, apiKey, X-Internal-Token.
  */
-final class AuditSanitizer {
+public final class AuditSanitizer {
 
     private static final List<String> SECRET_WORDS =
             List.of(
@@ -28,7 +28,8 @@ final class AuditSanitizer {
 
     private AuditSanitizer() {}
 
-    static Map<String, Object> clean(Map<String, ?> values) {
+    /** 감사 기록에 남는 모양. 같은 요청인지 기록과 비교할 때도 쓴다(API 091 requestId 재전송). */
+    public static Map<String, Object> clean(Map<String, ?> values) {
         if (values == null) {
             return null;
         }

@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.axcore.platform.analysis.service.AnalysisTimeoutJob;
 import com.axcore.platform.batch.service.QueuedJobPoller;
 import com.axcore.platform.batch.service.QueuedJobRunner;
 import org.junit.jupiter.api.Test;
@@ -43,6 +44,7 @@ class ApiProfileTests {
         // api는 작업 표에 QUEUED 행을 넣기만 하고 실행은 배치 컨테이너가 한다(2026-10-30 결정).
         assertThat(context.getBeanNamesForType(QueuedJobPoller.class)).isEmpty();
         assertThat(context.getBeanNamesForType(QueuedJobRunner.class)).isEmpty();
+        assertThat(context.getBeanNamesForType(AnalysisTimeoutJob.class)).isEmpty();
     }
 
     @Test

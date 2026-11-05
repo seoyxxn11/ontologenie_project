@@ -71,6 +71,46 @@ public class IssueStatusRepository {
                 .single();
     }
 
+    /** 이 재검증에서 이 문제가 FAILED로 기록됐는지. 검사가 상태를 되돌릴 근거다. */
+    public boolean hasFailedVerification(long issueId, long checkRunId) {
+        return jdbc.sql(
+                        """
+                        select exists (
+                            select 1
+                            from issue_verification v
+                            join check_run r on r.id = v.check_run_id
+                            where v.issue_id = :issueId
+                              and v.check_run_id = :runId
+                              and v.outcome = 'FAILED'
+                              and r.trigger_kind = 'REVERIFY'
+                        )
+                        """)
+                .param("issueId", issueId)
+                .param("runId", checkRunId)
+                .query(Boolean.class)
+                .single();
+    }
+
+    /** 이 검사가 문제를 마지막으로 조치완료·재검증대기로 바꾼 뒤에 시작했는지. 그 전에 시작한 검사는 고치기 전 자료를 읽었다. */
+    public boolean startedAfterLastFix(long issueId, long checkRunId) {
+        return jdbc.sql(
+                        """
+                        select coalesce(r.started_at >= (
+                            select max(h.changed_at)
+                            from issue_history h
+                            where h.issue_id = :issueId
+                              and h.to_status = 'FIXED_PENDING_REVERIFY'
+                        ), false)
+                        from check_run r
+                        where r.id = :runId
+                        """)
+                .param("issueId", issueId)
+                .param("runId", checkRunId)
+                .query(Boolean.class)
+                .optional()
+                .orElse(false);
+    }
+
     public void updateStatus(
             long issueId, IssueStatus status, Long resolvedCheckRunId, Instant now) {
         jdbc.sql(
@@ -96,7 +136,7 @@ public class IssueStatusRepository {
             IssueStatus to,
             String note,
             Long checkRunId,
-            long changedBy,
+            Long changedBy,
             Instant now) {
         jdbc.sql(
                         """
@@ -108,9 +148,9 @@ public class IssueStatusRepository {
                 .param("issueId", issueId)
                 .param("from", from.name())
                 .param("to", to.name())
-                .param("note", note)
+                .param("note", note, Types.VARCHAR)
                 .param("runId", checkRunId, Types.BIGINT)
-                .param("changedBy", changedBy)
+                .param("changedBy", changedBy, Types.BIGINT)
                 .param("now", Timestamp.from(now))
                 .update();
     }

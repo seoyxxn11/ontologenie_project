@@ -107,22 +107,44 @@ public class ProposalPayloadValidator {
                         () -> {
                             List<Map<String, Object>> pending =
                                     references.pendingDefinitions(analysisRunId, "LINK_TYPE", code);
-                            if (pending.size() != 1) {
+                            if (pending.size() == 1) {
+                                return pendingRelation(
+                                        pending.getFirst(), analysisRunId, field, field);
+                            }
+                            // AI 관계 후보는 관계 유형을 payload.linkType에 함께 담아 보낸다(API-105).
+                            // 이미 있는 관계 유형이나 같은 분석의 관계 유형 후보가 없을 때만 쓴다.
+                            Map<String, Object> embedded =
+                                    pending.isEmpty()
+                                            ? embeddedLinkType(payload, code, field)
+                                            : null;
+                            if (embedded == null) {
                                 throw BusinessException.invalidField(
                                         field + ".linkTypeCode", "같은 분석의 관계 유형 후보를 확인해 주세요.");
                             }
-                            Map<String, Object> definition = pending.getFirst();
-                            return new Relation(
-                                    null,
-                                    resolveType(
-                                            text(definition.get("sourceTypeCode"), field),
-                                            analysisRunId,
-                                            field),
-                                    resolveType(
-                                            text(definition.get("targetTypeCode"), field),
-                                            analysisRunId,
-                                            field));
+                            String at = field + ".linkType";
+                            return pendingRelation(
+                                    embedded,
+                                    analysisRunId,
+                                    at + ".sourceTypeCode",
+                                    at + ".targetTypeCode");
                         });
+    }
+
+    private Relation pendingRelation(
+            Map<String, Object> definition,
+            long analysisRunId,
+            String sourceField,
+            String targetField) {
+        return new Relation(
+                null,
+                resolveType(
+                        text(definition.get("sourceTypeCode"), sourceField),
+                        analysisRunId,
+                        sourceField),
+                resolveType(
+                        text(definition.get("targetTypeCode"), targetField),
+                        analysisRunId,
+                        targetField));
     }
 
     private ObjectType resolveType(String code, long analysisRunId, String field) {
@@ -156,7 +178,25 @@ public class ProposalPayloadValidator {
                 && references.pendingDefinitions(analysisRunId, "PROPERTY", property).stream()
                         .anyMatch(candidate -> type.code().equals(candidate.get("objectTypeCode"))))
             return;
+        // AI 객체 후보는 속성 목록을 payload.properties에 함께 담아 보낸다(API-105).
+        if (analysisRunId != null
+                && references.pendingBundledProperty(analysisRunId, type.code(), property)) return;
         throw BusinessException.invalidField(field, "해당 객체 유형의 속성이 아닙니다.");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> embeddedLinkType(
+            Map<String, Object> payload, String code, String field) {
+        Object raw = payload.get("linkType");
+        if (raw == null) return null;
+        if (!(raw instanceof Map<?, ?> linkType)) {
+            throw BusinessException.invalidField(field + ".linkType", "관계 유형은 JSON 객체여야 합니다.");
+        }
+        if (!code.equals(linkType.get("code"))) {
+            throw BusinessException.invalidField(
+                    field + ".linkType.code", "linkTypeCode와 같은 관계 유형이어야 합니다.");
+        }
+        return (Map<String, Object>) linkType;
     }
 
     private static String text(Object value, String field) {

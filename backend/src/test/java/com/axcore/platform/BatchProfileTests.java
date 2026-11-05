@@ -2,6 +2,7 @@ package com.axcore.platform;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.axcore.platform.analysis.service.AnalysisTimeoutJob;
 import com.axcore.platform.audit.service.AuditRecorder;
 import com.axcore.platform.batch.service.QueuedJobPoller;
 import javax.sql.DataSource;
@@ -43,5 +44,10 @@ class BatchProfileTests {
     @Test
     void pollsQueuedJobs() {
         assertThat(context.getBean(QueuedJobPoller.class)).isNotNull();
+    }
+
+    @Test
+    void cleansUpStaleAnalysisRuns() {
+        assertThat(context.getBean(AnalysisTimeoutJob.class)).isNotNull();
     }
 }

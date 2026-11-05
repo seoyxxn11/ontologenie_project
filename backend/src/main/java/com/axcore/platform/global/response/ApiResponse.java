@@ -15,4 +15,9 @@ public record ApiResponse<T>(T data, PageMeta meta) {
     public static <T> ApiResponse<List<T>> ofPage(Page<T> page) {
         return new ApiResponse<>(page.getContent(), PageMeta.from(page));
     }
+
+    /** 조회 범위(meta.scope)를 함께 알려 주는 목록. */
+    public static <T> ApiResponse<List<T>> ofPage(Page<T> page, String scope) {
+        return new ApiResponse<>(page.getContent(), PageMeta.from(page, scope));
+    }
 }

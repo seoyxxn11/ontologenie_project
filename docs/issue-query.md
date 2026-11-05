@@ -72,6 +72,17 @@ FN-ISS-01~03의 정합성 문제 목록·근거 조회, 처리 상태 변경 API
 - 표에 없는 전환과 같은 상태로의 변경은 409 `INVALID_STATUS_TRANSITION`이다. `details`에 `currentStatus`, `requestedStatus`, `allowedStatuses`를 준다.
 - **정책 확인 필요(246):** 한 칸씩만 앞으로 가고, 되돌림은 FIXED_PENDING_REVERIFY → CHECKING 하나만 열었다. NEW·CHECKING에서 바로 RESOLVED로 가는 길은 막았다. 관리자가 "원천을 고쳤다"고 표시한 시점이 있어야 아래 재검증 시점 검사를 할 수 있어서다. 표는 `IssueStatus.nextStatuses()` 한 곳에 있다.
 
+### 검사가 바꾸는 상태 (재검증 실패)
+
+검사가 바꾸는 상태는 하나다. 재검증(135)이 문제의 `issue_verification`에 FAILED를 넣은 같은 트랜잭션에서 `IssueStatusService.reopenAfterFailedReverification(issueId, checkRunId)`를 부른다.
+
+- 문제가 FIXED_PENDING_REVERIFY이고, 그 재검증이 마지막 조치완료 표시 뒤에 시작했으면 CHECKING으로 되돌리고 `true`를 준다. `row_version`을 올리고 이력에 `changed_by=null`, `check_run_id`=그 재검증, `note=null`인 행을 남긴다(069의 "검사가 바꾼 행").
+- 그 밖에는 바꾸지 않고 `false`를 준다. NEW·CHECKING(관리자가 아직 고쳤다고 하지 않음), RESOLVED(해결된 문제는 열지 않음), 조치완료 표시 전에 시작한 재검증(고치기 전 자료).
+- 이 재검증에 이 문제의 FAILED 기록이 없거나 REVERIFY 검사가 아니면 `IllegalStateException`이다(호출 순서 오류).
+- 재검증이 PASSED면 아무것도 바꾸지 않는다. 해결은 관리자가 067로 한다. 수집 중 분류(SYNC)가 같은 문제를 다시 찾아도 상태를 바꾸지 않는다. 수집이 늦게 따라와 고치기 전 자료로 판단할 수 있어서다.
+- 되돌려진 문제는 관리자가 원천을 다시 고친 뒤 FIXED_PENDING_REVERIFY로 바꾸면 그 시각이 새 기준이 된다.
+- DB 변경은 없다. `issue_history`의 `ck_issue_history_who`(처리자나 검사 중 하나)와 `ck_issue_history_resolver`(해결은 사람만)가 이 경우를 이미 허용·제한한다.
+
 ### 해결(RESOLVED) 조건
 
 `resolvedCheckRunId`가 아래를 모두 만족하지 않으면 422 `REVERIFICATION_REQUIRED`(`details.field=resolvedCheckRunId`)다.
@@ -102,6 +113,7 @@ FN-ISS-01~03의 정합성 문제 목록·근거 조회, 처리 상태 변경 API
 - `NewIssueTests`: 키 형식과 입력 검사.
 - `IssueStatusApiIntegrationTests`: 전환 흐름(앞으로·되돌림), 해결 성공, 해결 조건 위반(시점·뒤 실패·FAILED·다른 문제·REVERIFY 아님·미완료·없는 검사), 흐름 밖 전환, 해결 뒤 재변경, 버전 충돌, 400·401·403(CSRF 포함)·404.
 - `IssueStatusTests`: 전환 표.
+- `IssueReopenServiceTests`: 재검증 실패 때 되돌림과 이력, 조치완료 전 재검증 무시, NEW·CHECKING·RESOLVED 무변경, FAILED 기록 없는 호출 거절, 되돌린 뒤 다시 조치완료·해결.
 
 동시 등록은 테스트하지 않았다. PostgreSQL `on conflict`와 부분 유일 인덱스에 맡긴다. DB 스키마·의존성 변경은 없다.
 

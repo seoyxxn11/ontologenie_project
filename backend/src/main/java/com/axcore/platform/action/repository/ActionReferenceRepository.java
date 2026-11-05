@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
-/** Action 정의가 가리키는 다른 표(permission, role_permission, object_type)를 확인한다. */
+/** Action 정의·실행이 가리키는 다른 표(permission, role_permission, object_type, agent_message)를 확인한다. */
 @Repository
 @RequiredArgsConstructor
 public class ActionReferenceRepository {
@@ -29,6 +29,22 @@ public class ActionReferenceRepository {
                         """)
                 .param("roleCode", roleCode)
                 .param("permissionCode", permissionCode)
+                .query(Boolean.class)
+                .single();
+    }
+
+    /** Agent 실행의 agentMessageId가 실행자 본인 대화의 질문(USER) 메시지인가. */
+    public boolean isQuestionOf(long agentMessageId, long accountId) {
+        return jdbc.sql(
+                        """
+                        select exists (
+                            select 1 from agent_message m
+                            join agent_conversation c on c.id = m.conversation_id
+                            where m.id = :messageId and m.sender = 'USER'
+                              and c.account_id = :accountId)
+                        """)
+                .param("messageId", agentMessageId)
+                .param("accountId", accountId)
                 .query(Boolean.class)
                 .single();
     }

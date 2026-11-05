@@ -76,6 +76,14 @@ public class AiProposalService {
                 collectObjectTypeCodes(definition, types);
             }
         }
+        // 관계 후보에 함께 담긴 관계 유형(payload.linkType)의 양 끝 유형도 검사 기준에 넣는다.
+        if (payload.get("linkType") instanceof Map<?, ?> linkType) {
+            for (String key : List.of("sourceTypeCode", "targetTypeCode")) {
+                if (linkType.get(key) instanceof String code) {
+                    references.objectType(code).ifPresent(type -> types.add(type.id()));
+                }
+            }
+        }
         Object id = payload.get("linkTypeId");
         if (id instanceof Integer || id instanceof Long) {
             references

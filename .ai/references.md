@@ -26,6 +26,7 @@ AI 작업에서 확인할 팀 문서의 위치다. 저장소 밖 문서는 Notio
 | 시스템 구조 | [시스템 구조](https://app.notion.com/p/3f1bdf14d2d88111b3f1d420ead2dce1) | 서비스 구성, CI/CD 흐름 |
 | 서버 작업 주의사항 | [서버 작업 주의사항](https://app.notion.com/p/401bdf14d2d88073bd5ed8af56a8f2b0) | 서버·Docker 금지 사항 ([인프라 규칙](rules/infra.md)의 원본) |
 | Infra 할 일 | [할 일 리스트](https://app.notion.com/p/401bdf14d2d8808ba767ecbb8e0c9fec) | 인프라 작업 단계와 완료 기준 |
+| 조회 쿼리 기준·분류표 | [조회 쿼리 작성 기준 초안과 JdbcClient 사용처 분류](https://app.notion.com/p/40fbdf14d2d881e9b6ebd7eb362699e9) | S15P31C106-294. JdbcClient 사용처 30개 클래스 분류(유지·개선·판단 필요) |
 | 개발 가이드 (Notion 사본) | [C106 개발 가이드](https://app.notion.com/p/405bdf14d2d881229c95e18f0ceac2bc) | 저장소 가이드와 같은 내용 |
 
 ## Jira

@@ -1,6 +1,6 @@
 # Code Review Workflow
 
-먼저 [AI 협업 규칙](../rules/ai-collaboration.md), [코드 규칙](../rules/code.md), [아키텍처 규칙](../rules/architecture.md), [테스트 규칙](../rules/testing.md)을 읽는다. API 변경이 있으면 [API 규칙](../rules/api.md)을, DB·Entity·Migration 변경이 있으면 [DB 규칙](../rules/database.md)을, 인프라·배포 설정 변경이 있으면 [인프라 규칙](../rules/infra.md)을 함께 읽는다.
+먼저 [AI 협업 규칙](../rules/ai-collaboration.md), [코드 규칙](../rules/code.md), [아키텍처 규칙](../rules/architecture.md), [테스트 규칙](../rules/testing.md)을 읽는다. API 변경이 있으면 [API 규칙](../rules/api.md)을, DB Schema·Entity·Migration·Repository·SQL 변경이 있으면 [DB 규칙](../rules/database.md)을, 인프라·배포 설정 변경이 있으면 [인프라 규칙](../rules/infra.md)을 함께 읽는다.
 
 ## Step 1. 변경 범위 분석
 
@@ -29,6 +29,16 @@ API 변경이 있을 때만 확인한다. 경로·응답·오류 형식이 API �
 ## Step 5. Database
 
 DB 관련 변경이 있을 때만 N+1, 불필요한 Query, Index, Transaction 범위, Lock 범위, 대량 데이터 처리를 확인한다. 이미 실행된 Migration 파일 수정, `rowVersion` 충돌 검사 누락, DB 제약 조건 없이 애플리케이션 검사에만 의존하는 중복 방지도 확인한다. 실제 근거 없는 성능 문제를 단정하지 않는다.
+
+조회·저장 코드가 [DB 규칙](../rules/database.md)의 "조회·저장 방식"을 따르는지 확인한다. 새로 쓰거나 고친 코드(메서드 단위)만 본다. 기존 코드의 차이는 Minor 제안으로만 적는다.
+
+- JPA(파생 쿼리, Specification, `@Query`, Entity가 있는 테이블의 native `@Query`·`@Modifying`)로 쓸 수 있는 조회·저장을 JdbcClient로 짰는가.
+- JdbcClient를 썼다면 클래스나 메서드 주석에 허용 경우가 적혀 있는가. `repository` 패키지 밖에서 JdbcClient를 쓰는가.
+- 이미 같은 일을 하는 JPA 메서드가 있는데 새 조회를 만들었는가.
+- 요청 값을 SQL 문자열에 이어 붙였는가(보안 문제로 본다). 코드가 정한 값(클래스 상수, enum, 허용 목록에서 고른 컬럼 이름, 코드가 만든 파라미터 이름과 조건 조각)을 이어 붙인 것은 문제로 보지 않는다.
+- 다른 도메인 테이블을 SQL로 바꾸는가. 한 번의 join·검사로 끝나지 않는 조회를 다른 도메인 테이블에 직접 하는가.
+- 같은 트랜잭션에서 Entity가 있는 테이블을 JdbcClient로 바꾸는가. 섞었다면 SQL 전 flush와, 뒤에 같은 Entity를 읽을 때 `clear`·`refresh`가 있는가.
+- 새 SQL을 실제로 실행하는 통합 테스트가 있는가.
 
 ## Step 6. Security
 

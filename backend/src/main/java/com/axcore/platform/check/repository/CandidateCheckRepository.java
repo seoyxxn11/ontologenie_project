@@ -21,15 +21,29 @@ public class CandidateCheckRepository {
         Set<Long> types = objectTypeIds.isEmpty() ? Set.of(-1L) : objectTypeIds;
         return jdbc.sql(
                         """
-                with candidate_payloads as (
+                with own_payloads as (
                     select payload from proposal_revision where proposal_item_id=:proposal and revision=:revision
                     union all
                     select payload from proposal_option where proposal_item_id=:proposal and revision=:revision
                     union all
                     select payload from proposal_item where analysis_run_id=:analysis
-                        and item_kind in ('OBJECT_MAPPING','PROPERTY_MAPPING') and review_status <> 'REJECTED'
+                        and item_kind in ('OBJECT_TYPE','OBJECT_MAPPING','PROPERTY_MAPPING')
+                        and review_status <> 'REJECTED'
+                ), candidate_payloads as (
+                    -- AI 객체 후보는 객체 매핑(objectMapping)과 속성별 원천 컬럼(properties[].sourceColumn)을 함께 담는다(API-105).
+                    select payload from own_payloads
+                    union all
+                    select payload->'objectMapping' from own_payloads
+                    where jsonb_typeof(payload->'objectMapping')='object'
+                    union all
+                    select property from own_payloads,
+                        jsonb_array_elements(case when jsonb_typeof(payload->'properties')='array'
+                            then payload->'properties' else '[]'::jsonb end) property
                 ), resource_references as (
                     select payload->>'sourceId' source_code, payload->>'resourceKey' resource_key
+                    from candidate_payloads
+                    union
+                    select payload#>>'{sourceColumn,sourceId}', payload#>>'{sourceColumn,resourceKey}'
                     from candidate_payloads
                     union
                     select payload#>>'{sourceColumn,sourceId}', payload#>>'{sourceColumn,table}'

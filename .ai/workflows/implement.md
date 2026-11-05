@@ -1,6 +1,6 @@
 # Implement Workflow
 
-먼저 [AI 협업 규칙](../rules/ai-collaboration.md), [코드 규칙](../rules/code.md), [아키텍처 규칙](../rules/architecture.md), [테스트 규칙](../rules/testing.md), [기준 문서](../references.md)를 읽는다. API 변경이 있으면 [API 규칙](../rules/api.md)을, DB·Entity·Migration 변경이 있으면 [DB 규칙](../rules/database.md)을, 인프라·배포 설정 변경이 있으면 [인프라 규칙](../rules/infra.md)을 함께 읽는다.
+먼저 [AI 협업 규칙](../rules/ai-collaboration.md), [코드 규칙](../rules/code.md), [아키텍처 규칙](../rules/architecture.md), [테스트 규칙](../rules/testing.md), [기준 문서](../references.md)를 읽는다. API 변경이 있으면 [API 규칙](../rules/api.md)을, DB Schema·Entity·Migration·Repository·SQL 변경이 있으면 [DB 규칙](../rules/database.md)을, 인프라·배포 설정 변경이 있으면 [인프라 규칙](../rules/infra.md)을 함께 읽는다.
 
 ## 실행 순서
 

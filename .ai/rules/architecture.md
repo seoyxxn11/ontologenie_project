@@ -38,6 +38,7 @@
 | DTO | API 요청·응답 데이터 |
 
 - Entity를 API 응답으로 직접 반환하지 않는다.
+- Repository를 새로 쓰거나 고칠 때는 [DB 규칙](database.md)의 "조회·저장 방식"을 읽고 JPA와 JdbcClient 중 하나를 고른다.
 - 도메인 간 데이터 변경은 해당 도메인의 Service를 통해 처리한다.
 - 단순 Entity 조회만 하는 Service를 불필요하게 분리하지 않는다.
 

@@ -27,6 +27,19 @@
 - `created_at`·`updated_at`이 있는 테이블은 `BaseTimeEntity`를, `created_by`·`updated_by`까지 있으면 `BaseAuditEntity`를 상속한다. 맞지 않는 테이블은 필드를 직접 선언한다. 자세한 내용은 [C106 개발 가이드](../../docs/development-guide.md) 9.3이다.
 - `timestamptz` 컬럼은 `Instant`로 매핑한다. `row_version`은 각 Entity가 `@Version`으로 선언한다.
 
+## 조회·저장 방식
+
+자세한 기준과 예는 [C106 개발 가이드](../../docs/development-guide.md) 9.3 "조회·저장 방식 고르기"다.
+
+- 새로 쓰거나 고치는 코드(메서드 단위)에 적용한다. 기존 코드는 요청 없이 고치지 않는다. 기준과 다른 기존 코드는 [기준 문서](../references.md)의 S15P31C106-294 분류표를 보고 도메인별 이슈로 고친다.
+- 기본은 Spring Data JPA다. 파생 쿼리 → Specification → JPQL `@Query` DTO projection → native `@Query`·`@Modifying` 순서로 고른다. 앞의 방식으로 쓸 수 있으면 뒤로 넘어가지 않는다. 같은 일을 하는 JPA 메서드가 있으면 새로 만들지 않는다.
+- JdbcClient는 대량 upsert·조건부 insert, Entity를 두지 않는 테이블의 조회·저장·잠금·갱신, 조건에 따라 SQL 모양이 바뀌어 JPA로 쓰기 어려운 조회, 다른 도메인 테이블을 한 번의 SQL로 join·검사하는 조회, 시퀀스로 ID를 먼저 받는 저장에만 쓴다. 클래스 주석(경우가 메서드마다 다르면 메서드 주석)에 어느 경우인지 적는다.
+- Entity를 두지 않는 테이블은 작업 테이블(`sync_run`, `check_run`, `source_connection_check`, `source_preview`, `sync_run`의 하위 `sync_run_resource`, `analysis_run`과 하위 `analysis_run_target`)과 비밀값 테이블(`data_source_credential`)이다. 그 밖에 아직 Entity가 없는 테이블은 기존 Repository 방식을 따르고, 새 Entity를 만들려면 담당 도메인과 정한다.
+- 다른 도메인 소유 테이블은 그 도메인의 Repository나 Service로 읽는다. 한 번의 SQL로 끝내야 하는 join·존재 검사만 SQL로 직접 읽을 수 있다. 이때도 읽기만 한다.
+- JdbcClient 코드는 `repository` 패키지에 둔다. 요청 값은 반드시 바인딩한다. SQL에 이어 붙여도 되는 것은 코드가 정한 값(클래스 상수, enum, 허용 목록에서 고른 컬럼 이름, 코드가 만든 파라미터 이름과 조건 조각)뿐이다.
+- SQL과 행 변환을 한 클래스에 두고, 통합 테스트로 SQL을 실행해 확인한다.
+- 같은 트랜잭션에서 Entity가 있는 테이블을 JdbcClient로 바꾸지 않는다. 꼭 섞어야 하면 SQL 전에 flush하고, 뒤에 같은 Entity를 읽으면 영속성 컨텍스트를 비우거나(`clear`) `refresh`한다. 비우지 않고 다시 조회하면 바뀌기 전 값이 나온다. native `@Modifying`도 같다.
+
 ## 동시성과 제약 조건
 
 - `rowVersion`이 있는 데이터는 수정 요청의 버전과 저장된 버전을 비교한다. 다르면 변경을 거절한다(409).

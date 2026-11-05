@@ -57,6 +57,40 @@ axcore:
     ssl-mode: ${AXCORE_SOURCE_SSL_MODE:require}
     # Debezium 커넥터가 쓰는 원천 publication 이름(infra/cdc/connectors). 여기 든 표만 수집 방식을 CDC로 둔다.
     cdc-publication: ${AXCORE_SOURCE_CDC_PUBLICATION:axcore_cdc}
+  # 끝나지 않고 남은 분석 실행을 FAILED로 정리하는 기준(batch, S15P31C106-273). QUEUED는 요청 시각, RUNNING은 시작 시각부터 잰다.
+  # AI 분석 소요 시간 측정(S15P31C106-55) 전 임시값이며, RUNNING 기준은 최대 소요 시간보다 길게 둔다.
+  analysis:
+    timeout:
+      queued: ${AXCORE_ANALYSIS_QUEUED_TIMEOUT:10m}
+      running: ${AXCORE_ANALYSIS_RUNNING_TIMEOUT:60m}
+      check-delay: 1m
+  # 재배정 계획(CREATE_REASSIGNMENT_PLAN) 업무 조건 검사가 읽는 온톨로지 객체 유형·속성 코드. 기본값은 시연 정답 온톨로지
+  # (ai/data/gold-v1.0/ontology.json)의 이름이다. 승인된 온톨로지의 이름이 다르면 여기만 바꾼다.
+  reassignment:
+    equipment:
+      type: Equipment
+      code: code
+      kind: kind
+      capacity: capacity_ton
+    work-order:
+      type: WorkOrder
+      number: wo_no
+      product: product_code
+      status: status
+      movable-statuses: [대기, 진행]
+    operation:
+      type: WorkOrderOperation
+      work-order: wo_no
+      sequence: op_seq
+      equipment: equipment_code
+      status: status
+      finished-statuses: [완료]
+    routing:
+      type: Routing
+      product: product_code
+      sequence: op_seq
+      equipment-kind: equipment_kind
+      min-capacity: min_tonnage
 
 # 로그 줄마다 요청 추적 ID(RequestIdFilter)를 붙인다. 요청 밖의 로그는 빈 칸이다.
 logging:

@@ -8,7 +8,7 @@
 
 - 코드 수정 시 `.ai/rules/code.md`, `.ai/rules/architecture.md`를 읽는다.
 - API 추가·변경 시 `.ai/rules/api.md`를 읽는다.
-- DB Schema·Entity·Migration 변경 시 `.ai/rules/database.md`를 읽는다.
+- DB Schema·Entity·Migration·Repository·SQL 변경 시 `.ai/rules/database.md`를 읽는다.
 - 테스트 작성·실행 시 `.ai/rules/testing.md`를 읽는다.
 - Jira 이슈 작성·수정 시 `.ai/rules/jira.md`를 읽는다.
 - 인프라·배포 설정(`infra/`, `Jenkinsfile`, `Dockerfile`, compose 파일) 변경 시 `.ai/rules/infra.md`를 읽는다.

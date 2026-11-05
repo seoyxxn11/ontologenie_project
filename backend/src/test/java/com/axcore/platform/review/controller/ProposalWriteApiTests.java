@@ -390,6 +390,204 @@ class ProposalWriteApiTests {
     }
 
     @Test
+    void acceptsLinkTypeAndPropertiesBundledInsideAiProposalsOfSameAnalysis() throws Exception {
+        long analysis = analysis();
+        String source = "BUNDLE_S_" + accountId,
+                target = "BUNDLE_T_" + accountId,
+                relation = "BUNDLE_R_" + accountId;
+        // 105 묶음 형식: 속성은 객체 후보 안에, 관계 유형은 관계 후보 안에 담긴다(PROPERTY·LINK_TYPE 후보 없음).
+        aiCandidate(analysis, "OBJECT_TYPE", bundle(source, "wo_no"));
+        aiCandidate(analysis, "OBJECT_TYPE", bundle(target, "so_no"));
+        var rule = bundledRule(relation, source, target, source + ".wo_no", target + ".so_no");
+        long id = aiCandidate(analysis, "LINK_RULE", rule);
+
+        reviseWith(id, rule).andExpect(status().isCreated());
+        // 검토 중 후보는 정의를 만들지 않는다
+        assertThat(
+                        jdbc.sql("select count(*) from link_type where code=:code")
+                                .param("code", relation)
+                                .query(Long.class)
+                                .single())
+                .isZero();
+    }
+
+    @Test
+    void rejectsBundledReferencesThatDoNotMatch() throws Exception {
+        long analysis = analysis();
+        String source = "BUNDLE_S2_" + accountId,
+                target = "BUNDLE_T2_" + accountId,
+                relation = "BUNDLE_R2_" + accountId;
+        aiCandidate(analysis, "OBJECT_TYPE", bundle(source, "wo_no"));
+        aiCandidate(analysis, "OBJECT_TYPE", bundle(target, "so_no"));
+        // 객체 후보에 없는 속성
+        var missing = bundledRule(relation, source, target, source + ".nope", target + ".so_no");
+        reviseWith(aiCandidate(analysis, "LINK_RULE", missing), missing)
+                .andExpect(status().isBadRequest())
+                .andExpect(
+                        jsonPath("$.error.details.field")
+                                .value("payload.conditions[0].sourceProperty"));
+        // 담긴 관계 유형 code가 linkTypeCode와 다름
+        var other =
+                new java.util.HashMap<>(
+                        bundledRule(
+                                relation, source, target, source + ".wo_no", target + ".so_no"));
+        other.put(
+                "linkType",
+                Map.of("code", "OTHER", "sourceTypeCode", source, "targetTypeCode", target));
+        reviseWith(aiCandidate(analysis, "LINK_RULE", other), other)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details.field").value("payload.linkType.code"));
+        // 거절된 객체 후보 안의 속성은 참조할 수 없다
+        String rejected = "BUNDLE_X_" + accountId;
+        long gone = aiCandidate(analysis, "OBJECT_TYPE", bundle(rejected, "wo_no"));
+        jdbc.sql("update proposal_item set review_status='REJECTED' where id=:id")
+                .param("id", gone)
+                .update();
+        var toRejected =
+                bundledRule(
+                        relation + "_X", rejected, target, rejected + ".wo_no", target + ".so_no");
+        reviseWith(aiCandidate(analysis, "LINK_RULE", toRejected), toRejected)
+                .andExpect(status().isBadRequest())
+                .andExpect(
+                        jsonPath("$.error.details.field").value("payload.linkType.sourceTypeCode"));
+        // 담긴 관계 유형이 JSON 객체가 아님
+        var notObject = new java.util.HashMap<>(toRejected);
+        notObject.put("code", relation + "_N");
+        notObject.put("linkTypeCode", relation + "_N");
+        notObject.put("linkType", "X");
+        reviseWith(aiCandidate(analysis, "LINK_RULE", notObject), notObject)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details.field").value("payload.linkType"));
+    }
+
+    @Test
+    void staleBundledLinkTypeDoesNotBlockMovingRuleToExistingRelation() throws Exception {
+        long analysis = analysis();
+        String source = "BUNDLE_S3_" + accountId,
+                target = "BUNDLE_T3_" + accountId,
+                relation = "BUNDLE_R3_" + accountId;
+        aiCandidate(analysis, "OBJECT_TYPE", bundle(source, "wo_no"));
+        aiCandidate(analysis, "OBJECT_TYPE", bundle(target, "so_no"));
+        long id =
+                aiCandidate(
+                        analysis,
+                        "LINK_RULE",
+                        bundledRule(
+                                relation, source, target, source + ".wo_no", target + ".so_no"));
+        String existing =
+                jdbc.sql("select code from link_type where id=:id")
+                        .param("id", linkTypeId)
+                        .query(String.class)
+                        .single();
+        // 규칙 후보 수정 화면은 원래 payload를 펼쳐 담으므로 예전 linkType이 남아 있을 수 있다.
+        var moved = new java.util.HashMap<String, Object>(payload());
+        moved.remove("linkTypeId");
+        moved.put("linkTypeCode", existing);
+        moved.put(
+                "linkType",
+                Map.of("code", relation, "sourceTypeCode", source, "targetTypeCode", target));
+        reviseWith(id, moved).andExpect(status().isCreated());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"objectMapping", "properties"})
+    void includesResourcesNamedInsideBundledObjectProposals(String part) throws Exception {
+        long analysis = analysis();
+        String sourceCode = "BUNDLED_" + part.length() + "_" + accountId;
+        long ds =
+                jdbc.sql(
+                                "insert into data_source(code,name,source_kind) values (:code,'원천','POSTGRES') returning id")
+                        .param("code", sourceCode)
+                        .query(Long.class)
+                        .single();
+        long first = resource(ds, sourceCode + ".first"),
+                second = resource(ds, sourceCode + ".second");
+        jdbc.sql(
+                        "insert into analysis_run_target(analysis_run_id,source_resource_id) values (:analysis,:resource)")
+                .param("analysis", analysis)
+                .param("resource", first)
+                .update();
+        String type = "BUNDLED_TYPE_" + part.length() + "_" + accountId;
+        long id = aiCandidate(analysis, "OBJECT_TYPE", bundle(type, "id"));
+        Map<String, Object> revised = new java.util.HashMap<>(bundle(type, "id"));
+        if ("objectMapping".equals(part)) {
+            revised.put(
+                    "objectMapping",
+                    Map.of(
+                            "sourceId",
+                            sourceCode,
+                            "resourceKey",
+                            sourceCode + ".second",
+                            "keyColumns",
+                            List.of("id")));
+        } else {
+            revised.put(
+                    "properties",
+                    List.of(
+                            Map.of(
+                                    "code",
+                                    "id",
+                                    "sourceColumn",
+                                    Map.of(
+                                            "sourceId",
+                                            sourceCode,
+                                            "resourceKey",
+                                            sourceCode + ".second",
+                                            "table",
+                                            "second",
+                                            "column",
+                                            "id"))));
+        }
+        var result = reviseWith(id, revised).andExpect(status().isCreated()).andReturn();
+        long check =
+                json.readTree(result.getResponse().getContentAsString())
+                        .at("/data/checkRunId")
+                        .asLong();
+        assertThat(
+                        jdbc.sql(
+                                        "select (r->>'sourceResourceId')::bigint from check_run, jsonb_array_elements(data_basis->'resources') r where id=:id order by 1")
+                                .param("id", check)
+                                .query(Long.class)
+                                .list())
+                .containsExactly(first, second);
+    }
+
+    private static Map<String, Object> bundle(String code, String property) {
+        return Map.of(
+                "code",
+                code,
+                "name",
+                code,
+                "properties",
+                List.of(Map.of("code", property, "name", property, "dataType", "STRING")));
+    }
+
+    private static Map<String, Object> bundledRule(
+            String relation, String source, String target, String from, String to) {
+        return Map.of(
+                "code",
+                relation,
+                "linkTypeCode",
+                relation,
+                "linkType",
+                Map.of("code", relation, "sourceTypeCode", source, "targetTypeCode", target),
+                "conditions",
+                List.of(Map.of("sourceProperty", from, "targetProperty", to, "operator", "EQ")));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions reviseWith(
+            long id, Map<String, Object> payload) throws Exception {
+        return mvc.perform(
+                post("/api/v1/proposals/{id}/revisions", id)
+                        .with(admin())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                json.writeValueAsString(
+                                        Map.of("baseRevision", 1, "payload", payload))));
+    }
+
+    @Test
     void recordsLastSuccessfulSyncPerResourceAndPreservesUncollectedNull() throws Exception {
         long source =
                 jdbc.sql("select source_type_id from link_type where id=:id")

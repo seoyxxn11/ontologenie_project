@@ -67,6 +67,24 @@ public class ProposalReferenceRepository {
                 .list();
     }
 
+    /** 같은 분석의 AI 객체 후보가 payload.properties에 이 속성을 담고 있는지 본다(API-105 묶음 후보). */
+    public boolean pendingBundledProperty(
+            long analysisRunId, String objectTypeCode, String propertyCode) {
+        return jdbc.sql(
+                        """
+                select exists (
+                    select 1 from proposal_item where analysis_run_id=:analysis
+                        and item_kind='OBJECT_TYPE' and payload->>'code'=:type
+                        and review_status <> 'REJECTED'
+                        and payload->'properties' @> jsonb_build_array(jsonb_build_object('code', cast(:property as text))))
+                """)
+                .param("analysis", analysisRunId)
+                .param("type", objectTypeCode)
+                .param("property", propertyCode)
+                .query(Boolean.class)
+                .single();
+    }
+
     public Optional<ObjectType> objectType(String code) {
         return jdbc.sql("select id, code from object_type where code=:code")
                 .param("code", code)

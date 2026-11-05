@@ -8,7 +8,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.axcore.platform.TestcontainersConfiguration;
+import com.axcore.platform.action.handler.ActionContext;
 import com.axcore.platform.action.handler.ActionHandler;
+import com.axcore.platform.action.handler.ActionPreparation;
 import jakarta.servlet.http.Cookie;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +41,7 @@ class ActionDefinitionApiTests {
     private static final String PASSWORD = "Passw0rd!";
     private static final String ACTIONS = "/api/v1/actions";
     private static final String TEST_HANDLER = "TEST_HANDLER";
+    private static final String UNDEPLOYED_HANDLER = "UNDEPLOYED_HANDLER";
 
     @Autowired MockMvc mockMvc;
 
@@ -51,7 +54,17 @@ class ActionDefinitionApiTests {
 
         @Bean
         ActionHandler testHandler() {
-            return () -> TEST_HANDLER;
+            return new ActionHandler() {
+                @Override
+                public String key() {
+                    return TEST_HANDLER;
+                }
+
+                @Override
+                public ActionPreparation prepare(ActionContext context) {
+                    return ActionPreparation.blocked("테스트 Handler는 실행하지 않습니다.");
+                }
+            };
         }
     }
 
@@ -132,6 +145,11 @@ class ActionDefinitionApiTests {
                 .andExpect(
                         jsonPath("$.data[?(@.code == 'CREATE_REASSIGNMENT_PLAN')].handlerKey")
                                 .value("CREATE_REASSIGNMENT_PLAN"))
+                .andExpect(
+                        jsonPath("$.data[?(@.code == 'CREATE_REASSIGNMENT_PLAN')].handlerReady")
+                                .value(true))
+                .andExpect(
+                        jsonPath("$.data[?(@.code == 'CREATE_ACCOUNT')].handlerReady").value(false))
                 .andExpect(jsonPath("$.meta.page").value(0));
         // 다른 테스트·초기 데이터에 기대지 않도록 조건에 맞는 정의를 직접 만들고, 결과가 모두 조건을 지키는지 본다.
         String inactiveRead = uniqueCode();
@@ -181,6 +199,7 @@ class ActionDefinitionApiTests {
                         .andExpect(jsonPath("$.data.code").value(code))
                         .andExpect(jsonPath("$.data.actionMode").value("EXECUTE"))
                         .andExpect(jsonPath("$.data.handlerKey").value(TEST_HANDLER))
+                        .andExpect(jsonPath("$.data.handlerReady").value(true))
                         .andExpect(jsonPath("$.data.isActive").value(true))
                         .andExpect(jsonPath("$.data.rowVersion").value(0))
                         .andExpect(jsonPath("$.data.inputSchema.type").value("object"))
@@ -202,23 +221,40 @@ class ActionDefinitionApiTests {
     }
 
     @Test
-    void rejectsUnregisteredHandlerAndRecordsBlocked() throws Exception {
+    void createsDefinitionWhoseHandlerIsNotDeployedYet() throws Exception {
         TestAccount adminAccount = createAccount("ADMIN");
         LoginSession admin = login(adminAccount);
         String code = uniqueCode();
 
-        write(
-                        post(ACTIONS),
-                        admin,
-                        createBody(code, "NO_SUCH_HANDLER", "PLAN_CREATE", "SYSTEM", null))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"))
-                .andExpect(jsonPath("$.error.details.field").value("handlerKey"));
+        long id =
+                idOf(
+                        write(
+                                        post(ACTIONS),
+                                        admin,
+                                        createBody(
+                                                code,
+                                                UNDEPLOYED_HANDLER,
+                                                "PLAN_CREATE",
+                                                "SYSTEM",
+                                                null))
+                                .andExpect(status().isCreated())
+                                .andExpect(jsonPath("$.data.handlerKey").value(UNDEPLOYED_HANDLER))
+                                .andExpect(jsonPath("$.data.handlerReady").value(false))
+                                .andReturn());
 
-        assertThat(countDefinitions(code)).isZero();
-        Map<String, Object> audit = lastAudit("CREATE_ACTION_DEFINITION", adminAccount.id());
-        assertThat(audit).containsEntry("status", "BLOCKED");
-        assertThat(audit.get("blocked_reason").toString()).contains("Handler");
+        assertThat(countDefinitions(code)).isOne();
+        assertThat(lastAudit("CREATE_ACTION_DEFINITION", adminAccount.id()))
+                .containsEntry("status", "SUCCEEDED")
+                .containsEntry("target_id", id);
+        // 준비 여부는 저장하지 않으므로 087·089도 같은 계산 결과를 돌려준다.
+        mockMvc.perform(get(ACTIONS + "/" + code).cookie(admin.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.handlerReady").value(false));
+        mockMvc.perform(get(ACTIONS).param("size", "100").cookie(admin.session()))
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$.data[?(@.code == '%s')].handlerReady".formatted(code))
+                                .value(false));
     }
 
     @Test
@@ -330,9 +366,11 @@ class ActionDefinitionApiTests {
         mockMvc.perform(get(ACTIONS + "/CREATE_ACCOUNT").cookie(admin.session()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.actionMode").value("RECORD"))
-                .andExpect(jsonPath("$.data.handlerKey").doesNotExist());
+                .andExpect(jsonPath("$.data.handlerKey").doesNotExist())
+                .andExpect(jsonPath("$.data.handlerReady").value(false));
         mockMvc.perform(get(ACTIONS + "/CREATE_REASSIGNMENT_PLAN").cookie(planner.session()))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.handlerReady").value(true))
                 .andExpect(jsonPath("$.data.requiresConfirmation").value(false))
                 .andExpect(jsonPath("$.data.inputSchema.required[0]").value("fromEquipmentId"));
         mockMvc.perform(get(ACTIONS + "/CREATE_REASSIGNMENT_PLAN").cookie(viewer.session()))
@@ -487,8 +525,9 @@ class ActionDefinitionApiTests {
     }
 
     @Test
-    void rejectsUnregisteredHandlerAndUnknownPermissionOnUpdate() throws Exception {
-        LoginSession admin = login(createAccount("ADMIN"));
+    void changesHandlerKeyToUndeployedHandlerAndBack() throws Exception {
+        TestAccount adminAccount = createAccount("ADMIN");
+        LoginSession admin = login(adminAccount);
         String code = uniqueCode();
         write(post(ACTIONS), admin, createBody(code, TEST_HANDLER, "PLAN_CREATE", "SYSTEM", null))
                 .andExpect(status().isCreated());
@@ -496,9 +535,31 @@ class ActionDefinitionApiTests {
         write(
                         patch(ACTIONS + "/" + code),
                         admin,
-                        "{\"handlerKey\": \"NO_SUCH_HANDLER\", \"rowVersion\": 0}")
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.details.field").value("handlerKey"));
+                        "{\"handlerKey\": \"%s\", \"rowVersion\": 0}".formatted(UNDEPLOYED_HANDLER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.handlerKey").value(UNDEPLOYED_HANDLER))
+                .andExpect(jsonPath("$.data.handlerReady").value(false))
+                .andExpect(jsonPath("$.data.rowVersion").value(1));
+        Map<String, Object> change =
+                changesOf((Long) lastAudit("UPDATE_ACTION_DEFINITION", adminAccount.id()).get("id"))
+                        .get(0);
+        assertThat(change.get("after_data").toString()).contains(UNDEPLOYED_HANDLER);
+
+        write(
+                        patch(ACTIONS + "/" + code),
+                        admin,
+                        "{\"handlerKey\": \"%s\", \"rowVersion\": 1}".formatted(TEST_HANDLER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.handlerReady").value(true));
+    }
+
+    @Test
+    void rejectsUnknownPermissionOnUpdate() throws Exception {
+        LoginSession admin = login(createAccount("ADMIN"));
+        String code = uniqueCode();
+        write(post(ACTIONS), admin, createBody(code, TEST_HANDLER, "PLAN_CREATE", "SYSTEM", null))
+                .andExpect(status().isCreated());
+
         write(
                         patch(ACTIONS + "/" + code),
                         admin,
