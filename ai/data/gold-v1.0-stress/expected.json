@@ -1,0 +1,364 @@
+{
+  "base": "v1.0",
+  "seed": 20261026,
+  "changes": [
+    {
+      "id": "C1-WORKER-FORMAT",
+      "what": "MES 작업자 번호를 31 → W-031 형식으로 바꿈 (작업자·실적·불량·인수인계 메모 표 모두)",
+      "expect": "작업자 → 직원 연결을 다른 변환(접두어 떼기·0 채우기·GP 붙이기)으로 찾는다"
+    },
+    {
+      "id": "C2-SO-REF-FORMAT",
+      "what": "작업지시 수주 참조 2610021 → SO2610021 (이미 ERP 표기인 값·빈 값은 그대로)",
+      "expect": "작업지시 → 수주 연결을 찾는다"
+    },
+    {
+      "id": "C3-CASE-SPACE",
+      "what": "실적 설비 코드 5%를 소문자로, 3%에 뒤 공백",
+      "expect": "실적 → 설비 연결을 찾는다 (다듬기·대문자 변환)"
+    },
+    {
+      "id": "C4-TYPO",
+      "what": "자재 투입 품목 코드 3%에 오타 (CL-440 → CL-44O)",
+      "expect": "연결은 찾고, 오타 값은 안 이어지는 값으로 남는다"
+    },
+    {
+      "id": "C5-DECOY-SEQ",
+      "what": "비가동 표에 하루 안 순번 컬럼 shift_seq(0001~) 추가. 고정자산 번호 FA-0001과 숫자만 우연히 같다",
+      "expect": "어느 표와도 잇지 않는다"
+    },
+    {
+      "id": "C6-DECOY-BADGE",
+      "what": "근태 표에 출입증 번호 badge_no(E + 세 자리) 추가. 어떤 키와도 관계없다",
+      "expect": "어느 표와도 잇지 않는다"
+    }
+  ],
+  "relations": [
+    {
+      "from": "erp.purchase_order.vendor_code",
+      "to": "erp.vendor.vendor_code",
+      "level": "must"
+    },
+    {
+      "from": "erp.purchase_order_line.po_no",
+      "to": "erp.purchase_order.po_no",
+      "level": "must"
+    },
+    {
+      "from": "erp.purchase_order_line.item_code",
+      "to": "erp.item.item_code",
+      "level": "must"
+    },
+    {
+      "from": "erp.goods_receipt.po_no",
+      "to": "erp.purchase_order.po_no",
+      "level": "must"
+    },
+    {
+      "from": "erp.goods_receipt.item_code",
+      "to": "erp.item.item_code",
+      "level": "must"
+    },
+    {
+      "from": [
+        "erp.goods_receipt.po_no",
+        "erp.goods_receipt.item_code"
+      ],
+      "to": [
+        "erp.purchase_order_line.po_no",
+        "erp.purchase_order_line.item_code"
+      ],
+      "level": "must"
+    },
+    {
+      "from": "erp.goods_receipt.inspector",
+      "to": "erp.department.dept_name",
+      "level": "must"
+    },
+    {
+      "from": "erp.purchase_order.buyer",
+      "to": "erp.department.dept_name",
+      "level": "must"
+    },
+    {
+      "from": "erp.stock.item_code",
+      "to": "erp.item.item_code",
+      "level": "must"
+    },
+    {
+      "from": "erp.sales_order.customer_code",
+      "to": "erp.vendor.vendor_code",
+      "level": "must"
+    },
+    {
+      "from": "erp.sales_order.sales_rep",
+      "to": "erp.department.dept_name",
+      "level": "must"
+    },
+    {
+      "from": "erp.sales_order_line.so_no",
+      "to": "erp.sales_order.so_no",
+      "level": "must"
+    },
+    {
+      "from": "erp.sales_order_line.item_code",
+      "to": "erp.item.item_code",
+      "level": "must"
+    },
+    {
+      "from": "erp.shipment.so_no",
+      "to": "erp.sales_order.so_no",
+      "level": "must"
+    },
+    {
+      "from": "erp.shipment.item_code",
+      "to": "erp.item.item_code",
+      "level": "must"
+    },
+    {
+      "from": [
+        "erp.shipment.so_no",
+        "erp.shipment.item_code"
+      ],
+      "to": [
+        "erp.sales_order_line.so_no",
+        "erp.sales_order_line.item_code"
+      ],
+      "level": "must"
+    },
+    {
+      "from": "erp.sales_invoice.customer_code",
+      "to": "erp.vendor.vendor_code",
+      "level": "must"
+    },
+    {
+      "from": "erp.purchase_invoice.vendor_code",
+      "to": "erp.vendor.vendor_code",
+      "level": "must"
+    },
+    {
+      "from": "erp.journal_entry.account_code",
+      "to": "erp.gl_account.account_code",
+      "level": "must"
+    },
+    {
+      "from": "erp.journal_entry.vendor_code",
+      "to": "erp.vendor.vendor_code",
+      "level": "must"
+    },
+    {
+      "from": "erp.employee.dept_code",
+      "to": "erp.department.dept_code",
+      "level": "must"
+    },
+    {
+      "from": "erp.department.parent_code",
+      "to": "erp.department.dept_code",
+      "level": "must"
+    },
+    {
+      "from": "erp.department.manager_emp_no",
+      "to": "erp.employee.emp_no",
+      "level": "must"
+    },
+    {
+      "from": "erp.attendance.emp_no",
+      "to": "erp.employee.emp_no",
+      "level": "must"
+    },
+    {
+      "from": "erp.fixed_asset.equipment_code",
+      "to": "mes.equipment.code",
+      "level": "must"
+    },
+    {
+      "from": "mes.worker.id",
+      "to": "erp.employee.emp_no",
+      "level": "must"
+    },
+    {
+      "from": "mes.routing.product_code",
+      "to": "erp.item.item_code",
+      "level": "must"
+    },
+    {
+      "from": "mes.routing.equipment_kind",
+      "to": "mes.equipment.kind",
+      "level": "must"
+    },
+    {
+      "from": "mes.work_order.product_code",
+      "to": "erp.item.item_code",
+      "level": "must"
+    },
+    {
+      "from": "mes.work_order.so_ref",
+      "to": "erp.sales_order.so_no",
+      "level": "must"
+    },
+    {
+      "from": "mes.work_order.die_drawing_code",
+      "to": "mes.die.drawing_code",
+      "level": "must"
+    },
+    {
+      "from": "mes.work_order_operation.wo_no",
+      "to": "mes.work_order.wo_no",
+      "level": "must"
+    },
+    {
+      "from": [
+        "mes.work_order_operation.wo_no",
+        "mes.work_order_operation.op_seq"
+      ],
+      "to": [
+        "mes.routing.product_code",
+        "mes.routing.op_seq"
+      ],
+      "level": "must"
+    },
+    {
+      "from": "mes.work_order_operation.equipment_code",
+      "to": "mes.equipment.code",
+      "level": "must"
+    },
+    {
+      "from": "mes.production_result.wo_no",
+      "to": "mes.work_order.wo_no",
+      "level": "must"
+    },
+    {
+      "from": [
+        "mes.production_result.wo_no",
+        "mes.production_result.op_seq"
+      ],
+      "to": [
+        "mes.work_order_operation.wo_no",
+        "mes.work_order_operation.op_seq"
+      ],
+      "level": "must"
+    },
+    {
+      "from": [
+        "mes.production_result.wo_no",
+        "mes.production_result.op_seq"
+      ],
+      "to": [
+        "mes.routing.product_code",
+        "mes.routing.op_seq"
+      ],
+      "level": "must"
+    },
+    {
+      "from": "mes.production_result.equipment_code",
+      "to": "mes.equipment.code",
+      "level": "must"
+    },
+    {
+      "from": "mes.production_result.worker_id",
+      "to": "mes.worker.id",
+      "level": "must"
+    },
+    {
+      "from": "mes.material_issue.wo_no",
+      "to": "mes.work_order.wo_no",
+      "level": "must"
+    },
+    {
+      "from": "mes.material_issue.item_code",
+      "to": "erp.item.item_code",
+      "level": "must"
+    },
+    {
+      "from": "mes.downtime.equipment_code",
+      "to": "mes.equipment.code",
+      "level": "must"
+    },
+    {
+      "from": "mes.downtime.wo_no",
+      "to": "mes.work_order.wo_no",
+      "level": "must"
+    },
+    {
+      "from": "mes.sensor_reading.equipment_code",
+      "to": "mes.equipment.code",
+      "level": "must"
+    },
+    {
+      "from": "mes.defect.wo_no",
+      "to": "mes.work_order.wo_no",
+      "level": "must"
+    },
+    {
+      "from": [
+        "mes.defect.wo_no",
+        "mes.defect.op_seq"
+      ],
+      "to": [
+        "mes.work_order_operation.wo_no",
+        "mes.work_order_operation.op_seq"
+      ],
+      "level": "must"
+    },
+    {
+      "from": [
+        "mes.defect.wo_no",
+        "mes.defect.op_seq"
+      ],
+      "to": [
+        "mes.routing.product_code",
+        "mes.routing.op_seq"
+      ],
+      "level": "must"
+    },
+    {
+      "from": "mes.defect.equipment_code",
+      "to": "mes.equipment.code",
+      "level": "must"
+    },
+    {
+      "from": "mes.defect.detected_by",
+      "to": "mes.worker.id",
+      "level": "must"
+    },
+    {
+      "from": "mes.inspection.wo_no",
+      "to": "mes.work_order.wo_no",
+      "level": "must"
+    },
+    {
+      "from": "mes.die.product_code",
+      "to": "erp.item.item_code",
+      "level": "must"
+    },
+    {
+      "from": "mes.maintenance_order.target_code",
+      "to": "mes.equipment.code",
+      "level": "must"
+    },
+    {
+      "from": "mes.maintenance_order.target_code",
+      "to": "mes.die.die_code",
+      "level": "must"
+    },
+    {
+      "from": "mes.maintenance_order.technician",
+      "to": "erp.department.dept_name",
+      "level": "must"
+    },
+    {
+      "from": "mes.handover_note.author_id",
+      "to": "mes.worker.id",
+      "level": "must"
+    },
+    {
+      "from": "erp.shipment.lot_no",
+      "to": "mes.inspection.lot_no",
+      "level": "must"
+    }
+  ],
+  "decoy_columns": [
+    "mes.downtime.shift_seq",
+    "erp.attendance.badge_no"
+  ]
+}

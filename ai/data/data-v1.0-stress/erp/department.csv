@@ -1,0 +1,9 @@
+dept_code,dept_name,parent_code,manager_emp_no
+DP10,생산관리팀,,GP0101
+DP20,프레스1팀,DP10,GP0110
+DP21,프레스2팀,DP10,GP0111
+DP30,품질팀,,GP0120
+DP40,보전팀,DP10,GP0130
+DP50,영업팀,,GP0140
+DP60,구매팀,,GP0150
+DP70,정보시스템팀,,GP0160

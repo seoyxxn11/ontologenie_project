@@ -186,6 +186,25 @@ def test_link_evaluation_counts_pending_and_held_separately(data, result):
     assert links["proposed_pending"] + links["proposed_held"] == len(_rules(result))
 
 
+def test_excluded_tables_leave_both_gold_and_candidates(data, result):
+    accounting = {
+        "erp.sales_invoice",
+        "erp.purchase_invoice",
+        "erp.gl_account",
+        "erp.journal_entry",
+    }
+    full = evaluate(result["candidates"], data / "gold-t3")
+    scoped = evaluate(result["candidates"], data / "gold-t3", accounting)
+
+    assert scoped["object_types"]["gold"] == full["object_types"]["gold"] - 4
+    assert scoped["links"]["gold"] == 52
+    assert not any(t in accounting for t in scoped["object_types"]["false_positive"])
+    assert not any(
+        ".".join(c.split(".")[:2]) in accounting
+        for c in scoped["properties"]["missed"] + scoped["properties"]["false_positive"]
+    )
+
+
 def test_llm_semantics_with_mock_merges_and_holds(data, result):
     from app.llm.client import MockLLMClient
     from app.models.candidate import Candidate

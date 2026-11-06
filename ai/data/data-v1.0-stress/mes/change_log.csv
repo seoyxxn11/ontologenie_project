@@ -1,0 +1,20 @@
+change_id,table_name,row_key,operation,changed_at
+1,handover_note,HN-261027-N,INSERT,2026-10-28 05:00:00
+2,production_result,200634,INSERT,2026-10-28 12:57:00
+3,production_result,200637,INSERT,2026-10-28 16:55:00
+4,handover_note,HN-261028-D,INSERT,2026-10-28 17:00:00
+5,production_result,200635,INSERT,2026-10-29 12:14:00
+6,production_result,200630,INSERT,2026-10-29 13:58:00
+7,production_result,200638,INSERT,2026-10-29 14:17:00
+8,production_result,200631,INSERT,2026-10-29 16:52:00
+9,handover_note,HN-261029-D,INSERT,2026-10-29 17:00:00
+10,production_result,200632,INSERT,2026-10-29 17:00:00
+11,production_result,200639,INSERT,2026-10-29 17:00:00
+12,production_result,200640,INSERT,2026-10-29 23:09:00
+13,production_result,200636,INSERT,2026-10-30 00:04:00
+14,downtime,DT-0460,INSERT,2026-10-30 03:10:00
+15,equipment,P103,UPDATE,2026-10-30 03:10:00
+16,work_order_operation,JB2610-0141|20,UPDATE,2026-10-30 03:10:00
+17,production_result,200633,INSERT,2026-10-30 03:18:00
+18,handover_note,HN-261029-N,INSERT,2026-10-30 05:00:00
+19,maintenance_order,RP-26-041,INSERT,2026-10-30 09:00:00

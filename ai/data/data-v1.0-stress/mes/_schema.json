@@ -1,0 +1,604 @@
+{
+  "tables": {
+    "equipment": {
+      "description": "설비",
+      "primary_key": [
+        "code"
+      ],
+      "columns": {
+        "code": {
+          "type": "varchar(20)",
+          "comment": "설비 코드"
+        },
+        "name": {
+          "type": "varchar(50)",
+          "comment": "설비 이름"
+        },
+        "kind": {
+          "type": "varchar(10)",
+          "comment": "설비 종류(BLK 블랭킹 · PRS 프레스 · WLD 용접 · INS 검사)"
+        },
+        "line": {
+          "type": "varchar(10)",
+          "comment": "설치 라인"
+        },
+        "capacity_ton": {
+          "type": "int",
+          "comment": "프레스 능력(톤)"
+        },
+        "status": {
+          "type": "varchar(10)",
+          "comment": "상태(가동 · 정지 · 정비중)"
+        },
+        "installed_on": {
+          "type": "date",
+          "comment": "설치일"
+        },
+        "maker": {
+          "type": "varchar(50)",
+          "comment": "제조사"
+        }
+      }
+    },
+    "worker": {
+      "description": "현장 작업자",
+      "primary_key": [
+        "id"
+      ],
+      "columns": {
+        "id": {
+          "type": "varchar(10)",
+          "comment": "작업자 번호"
+        },
+        "name": {
+          "type": "varchar(50)",
+          "comment": "이름(가명)"
+        },
+        "shift": {
+          "type": "varchar(10)",
+          "comment": "근무 조(주간 · 야간)"
+        },
+        "line": {
+          "type": "varchar(10)",
+          "comment": "배치 라인"
+        },
+        "skill_level": {
+          "type": "int",
+          "comment": "숙련도(1~5)"
+        },
+        "active_yn": {
+          "type": "char(1)",
+          "comment": "근무 중 여부(Y/N)"
+        }
+      }
+    },
+    "routing": {
+      "description": "제품별 공정",
+      "primary_key": [
+        "product_code",
+        "op_seq"
+      ],
+      "columns": {
+        "product_code": {
+          "type": "varchar(20)",
+          "comment": "제품 코드"
+        },
+        "op_seq": {
+          "type": "int",
+          "comment": "공정 순서(10 · 20 · 30 …)"
+        },
+        "op_name": {
+          "type": "varchar(50)",
+          "comment": "공정명"
+        },
+        "equipment_kind": {
+          "type": "varchar(10)",
+          "comment": "필요한 설비 종류"
+        },
+        "std_cycle_sec": {
+          "type": "numeric(8,2)",
+          "comment": "개당 표준 가공 시간(초)"
+        },
+        "std_setup_min": {
+          "type": "int",
+          "comment": "표준 준비 시간(분)"
+        },
+        "min_tonnage": {
+          "type": "int",
+          "comment": "프레스 공정의 최소 능력(톤)"
+        }
+      }
+    },
+    "work_order": {
+      "description": "작업지시",
+      "primary_key": [
+        "wo_no"
+      ],
+      "columns": {
+        "wo_no": {
+          "type": "varchar(20)",
+          "comment": "작업지시 번호"
+        },
+        "product_code": {
+          "type": "varchar(20)",
+          "comment": "생산 제품 코드"
+        },
+        "die_drawing_code": {
+          "type": "varchar(20)",
+          "comment": "사용 금형 도면 번호"
+        },
+        "status": {
+          "type": "varchar(10)",
+          "comment": "진행 상태(대기 · 진행 · 완료 · 보류)"
+        },
+        "priority": {
+          "type": "varchar(10)",
+          "comment": "우선순위(긴급 · 보통 · 낮음)"
+        },
+        "line": {
+          "type": "varchar(10)",
+          "comment": "생산 라인"
+        },
+        "planned_qty": {
+          "type": "int",
+          "comment": "계획 수량"
+        },
+        "produced_qty": {
+          "type": "int",
+          "comment": "생산 수량(마지막 프레스 공정 양품)"
+        },
+        "defect_qty": {
+          "type": "int",
+          "comment": "불량 수량"
+        },
+        "planned_start": {
+          "type": "date",
+          "comment": "계획 시작일"
+        },
+        "planned_end": {
+          "type": "date",
+          "comment": "계획 종료일"
+        },
+        "actual_start": {
+          "type": "timestamp",
+          "comment": "실제 시작 시각"
+        },
+        "actual_end": {
+          "type": "timestamp",
+          "comment": "실제 종료 시각"
+        },
+        "so_ref": {
+          "type": "varchar(20)",
+          "comment": "주문 참조 번호"
+        }
+      }
+    },
+    "work_order_operation": {
+      "description": "작업지시 공정별 배정",
+      "primary_key": [
+        "wo_no",
+        "op_seq"
+      ],
+      "columns": {
+        "wo_no": {
+          "type": "varchar(20)",
+          "comment": "작업지시 번호"
+        },
+        "op_seq": {
+          "type": "int",
+          "comment": "공정 순서"
+        },
+        "equipment_code": {
+          "type": "varchar(20)",
+          "comment": "배정 설비 코드"
+        },
+        "status": {
+          "type": "varchar(10)",
+          "comment": "공정 상태(대기 · 진행 · 완료 · 중단)"
+        },
+        "remaining_qty": {
+          "type": "int",
+          "comment": "남은 수량"
+        }
+      }
+    },
+    "production_result": {
+      "description": "공정 실적",
+      "primary_key": [
+        "result_id"
+      ],
+      "columns": {
+        "result_id": {
+          "type": "bigint",
+          "comment": "실적 번호"
+        },
+        "wo_no": {
+          "type": "varchar(20)",
+          "comment": "작업지시 번호"
+        },
+        "op_seq": {
+          "type": "int",
+          "comment": "공정 순서"
+        },
+        "equipment_code": {
+          "type": "varchar(20)",
+          "comment": "작업 설비 코드"
+        },
+        "worker_id": {
+          "type": "varchar(10)",
+          "comment": "작업자 번호"
+        },
+        "shift": {
+          "type": "varchar(10)",
+          "comment": "근무 조"
+        },
+        "started_at": {
+          "type": "timestamp",
+          "comment": "시작 시각"
+        },
+        "ended_at": {
+          "type": "timestamp",
+          "comment": "종료 시각"
+        },
+        "good_qty": {
+          "type": "int",
+          "comment": "양품 수량"
+        },
+        "ng_qty": {
+          "type": "int",
+          "comment": "불량 수량"
+        }
+      }
+    },
+    "material_issue": {
+      "description": "자재 투입",
+      "primary_key": [
+        "issue_id"
+      ],
+      "columns": {
+        "issue_id": {
+          "type": "bigint",
+          "comment": "투입 번호"
+        },
+        "wo_no": {
+          "type": "varchar(20)",
+          "comment": "작업지시 번호"
+        },
+        "item_code": {
+          "type": "varchar(20)",
+          "comment": "투입 자재 품번"
+        },
+        "lot_no": {
+          "type": "varchar(20)",
+          "comment": "자재 로트"
+        },
+        "qty": {
+          "type": "numeric(14,3)",
+          "comment": "투입량"
+        },
+        "unit": {
+          "type": "varchar(10)",
+          "comment": "단위"
+        },
+        "issued_at": {
+          "type": "timestamp",
+          "comment": "투입 시각"
+        }
+      }
+    },
+    "downtime": {
+      "description": "설비 비가동",
+      "primary_key": [
+        "downtime_id"
+      ],
+      "columns": {
+        "downtime_id": {
+          "type": "varchar(20)",
+          "comment": "비가동 번호"
+        },
+        "equipment_code": {
+          "type": "varchar(20)",
+          "comment": "멈춘 설비 코드"
+        },
+        "wo_no": {
+          "type": "varchar(20)",
+          "comment": "당시 작업지시(없으면 빈 값)"
+        },
+        "reason_code": {
+          "type": "varchar(10)",
+          "comment": "사유 코드(BRK 고장 · DIE 금형교체 · MAT 자재대기 · PM 예방정비 · QA 품질 정지)"
+        },
+        "reason": {
+          "type": "varchar(100)",
+          "comment": "사유 설명"
+        },
+        "started_at": {
+          "type": "timestamp",
+          "comment": "시작 시각"
+        },
+        "ended_at": {
+          "type": "timestamp",
+          "comment": "종료 시각(진행 중이면 빈 값)"
+        },
+        "minutes": {
+          "type": "int",
+          "comment": "비가동 시간(분)"
+        },
+        "shift_seq": {
+          "type": "varchar(10)",
+          "comment": "교대 안 순번"
+        }
+      }
+    },
+    "sensor_reading": {
+      "description": "설비 센서 측정",
+      "primary_key": [
+        "equipment_code",
+        "measured_at",
+        "metric"
+      ],
+      "columns": {
+        "equipment_code": {
+          "type": "varchar(20)",
+          "comment": "설비 코드"
+        },
+        "measured_at": {
+          "type": "timestamp",
+          "comment": "측정 시각"
+        },
+        "metric": {
+          "type": "varchar(20)",
+          "comment": "측정 항목(vibration_mm_s 진동 · temp_c 온도)"
+        },
+        "value": {
+          "type": "numeric(10,2)",
+          "comment": "측정값"
+        },
+        "threshold_high": {
+          "type": "numeric(10,2)",
+          "comment": "경고 상한"
+        }
+      }
+    },
+    "defect": {
+      "description": "불량 기록",
+      "primary_key": [
+        "defect_id"
+      ],
+      "columns": {
+        "defect_id": {
+          "type": "bigint",
+          "comment": "불량 번호"
+        },
+        "wo_no": {
+          "type": "varchar(20)",
+          "comment": "작업지시 번호"
+        },
+        "op_seq": {
+          "type": "int",
+          "comment": "발생 공정"
+        },
+        "equipment_code": {
+          "type": "varchar(20)",
+          "comment": "발생 설비 코드"
+        },
+        "defect_type": {
+          "type": "varchar(20)",
+          "comment": "불량 유형(크랙 · 주름 · 버 · 치수 · 스크래치)"
+        },
+        "qty": {
+          "type": "int",
+          "comment": "불량 수량"
+        },
+        "disposition": {
+          "type": "varchar(20)",
+          "comment": "처리(폐기 · 재작업)"
+        },
+        "detected_at": {
+          "type": "timestamp",
+          "comment": "발견 시각"
+        },
+        "detected_by": {
+          "type": "varchar(10)",
+          "comment": "발견 작업자 번호"
+        }
+      }
+    },
+    "inspection": {
+      "description": "품질 검사",
+      "primary_key": [
+        "inspection_id"
+      ],
+      "columns": {
+        "inspection_id": {
+          "type": "bigint",
+          "comment": "검사 번호"
+        },
+        "wo_no": {
+          "type": "varchar(20)",
+          "comment": "작업지시 번호"
+        },
+        "lot_no": {
+          "type": "varchar(20)",
+          "comment": "검사 제품 로트"
+        },
+        "inspection_type": {
+          "type": "varchar(20)",
+          "comment": "검사 종류(초물 · 공정 · 최종)"
+        },
+        "item": {
+          "type": "varchar(50)",
+          "comment": "검사 항목"
+        },
+        "spec_low": {
+          "type": "numeric(10,3)",
+          "comment": "규격 하한"
+        },
+        "spec_high": {
+          "type": "numeric(10,3)",
+          "comment": "규격 상한"
+        },
+        "measured": {
+          "type": "numeric(10,3)",
+          "comment": "측정값"
+        },
+        "result": {
+          "type": "varchar(5)",
+          "comment": "판정(OK · NG)"
+        },
+        "inspected_at": {
+          "type": "timestamp",
+          "comment": "검사 시각"
+        }
+      }
+    },
+    "die": {
+      "description": "금형",
+      "primary_key": [
+        "die_code"
+      ],
+      "columns": {
+        "die_code": {
+          "type": "varchar(20)",
+          "comment": "금형 코드"
+        },
+        "drawing_code": {
+          "type": "varchar(20)",
+          "comment": "금형 도면 번호"
+        },
+        "product_code": {
+          "type": "varchar(20)",
+          "comment": "생산 제품 코드"
+        },
+        "total_strokes": {
+          "type": "bigint",
+          "comment": "누적 타수"
+        },
+        "pm_interval_strokes": {
+          "type": "int",
+          "comment": "정비 주기(타수)"
+        },
+        "last_pm_at": {
+          "type": "date",
+          "comment": "마지막 정비일"
+        },
+        "status": {
+          "type": "varchar(10)",
+          "comment": "상태(사용 · 정비 · 폐기)"
+        },
+        "location": {
+          "type": "varchar(50)",
+          "comment": "보관 위치"
+        }
+      }
+    },
+    "maintenance_order": {
+      "description": "정비 지시",
+      "primary_key": [
+        "mo_no"
+      ],
+      "columns": {
+        "mo_no": {
+          "type": "varchar(20)",
+          "comment": "정비 번호"
+        },
+        "target_type": {
+          "type": "varchar(10)",
+          "comment": "정비 대상 구분(설비 · 금형)"
+        },
+        "target_code": {
+          "type": "varchar(20)",
+          "comment": "정비 대상 코드"
+        },
+        "mo_type": {
+          "type": "varchar(10)",
+          "comment": "정비 종류(예방 · 고장 · 개선)"
+        },
+        "status": {
+          "type": "varchar(10)",
+          "comment": "상태(계획 · 진행 · 완료)"
+        },
+        "planned_date": {
+          "type": "date",
+          "comment": "계획일"
+        },
+        "completed_at": {
+          "type": "timestamp",
+          "comment": "완료 시각(진행 중이면 빈 값)"
+        },
+        "technician": {
+          "type": "varchar(50)",
+          "comment": "담당 부서"
+        },
+        "parts_cost": {
+          "type": "numeric(12,2)",
+          "comment": "부품비(원)"
+        },
+        "note": {
+          "type": "varchar(100)",
+          "comment": "작업 내용"
+        }
+      }
+    },
+    "handover_note": {
+      "description": "교대 인수인계 메모",
+      "primary_key": [
+        "note_id"
+      ],
+      "columns": {
+        "note_id": {
+          "type": "varchar(20)",
+          "comment": "메모 번호"
+        },
+        "shift_date": {
+          "type": "date",
+          "comment": "교대가 시작한 날"
+        },
+        "shift": {
+          "type": "varchar(10)",
+          "comment": "교대(주간 · 야간)"
+        },
+        "author_id": {
+          "type": "varchar(10)",
+          "comment": "작성 작업자 번호"
+        },
+        "written_at": {
+          "type": "timestamp",
+          "comment": "작성 시각(교대 끝)"
+        },
+        "content": {
+          "type": "text",
+          "comment": "메모 원문(첫 줄 머리말 포함)"
+        }
+      }
+    },
+    "change_log": {
+      "description": "원천 변경 이력",
+      "primary_key": [
+        "change_id"
+      ],
+      "columns": {
+        "change_id": {
+          "type": "bigint",
+          "comment": "변경 순번"
+        },
+        "table_name": {
+          "type": "varchar(50)",
+          "comment": "변경된 표"
+        },
+        "row_key": {
+          "type": "varchar(100)",
+          "comment": "변경된 행의 키"
+        },
+        "operation": {
+          "type": "varchar(10)",
+          "comment": "INSERT · UPDATE · DELETE"
+        },
+        "changed_at": {
+          "type": "timestamp",
+          "comment": "변경 시각"
+        }
+      }
+    }
+  }
+}

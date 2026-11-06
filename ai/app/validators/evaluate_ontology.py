@@ -6,6 +6,8 @@
 - 객체 유형: OBJECT_MAPPING의 원천 표 ↔ 정답 source_tables. 종류(category) 일치율 따로.
 - 속성: PROPERTY_MAPPING의 원천 컬럼 ↔ 정답 source_column. 자료형·식별자·개인정보 일치를 따로 센다.
 보류(HELD) 후보도 함께 센다(보류는 빠진 것이 아니라 검토 대상이다).
+
+--exclude-tables: AI 계정이 읽지 못하는 표(원천 권한 밖)를 정답과 후보 양쪽에서 빼고 센다. 정답 파일은 고치지 않는다.
 """
 
 import argparse
@@ -27,11 +29,67 @@ def _prf(found: set, gold: set) -> dict:
     }
 
 
-def evaluate(candidates: list[dict], gold_dir: Path) -> dict:
+def _touches(text: str, tables: set[str]) -> bool:
+    """원천.표 또는 원천.표.컬럼 문자열이 빼는 표에 속하는지."""
+    return ".".join(text.split(".")[:2]) in tables
+
+
+def _exclude(onto: dict, by_kind: dict, tables: set[str]) -> tuple[dict, dict]:
+    """빼는 표에 걸친 정답·후보를 지운 사본. 관계는 한쪽 끝만 걸쳐도 뺀다."""
+    if not tables:
+        return onto, by_kind
+    onto = {
+        "object_types": [
+            t
+            for t in onto["object_types"]
+            if not any(_touches(s, tables) for s in t["source_tables"])
+        ],
+        "properties": [
+            p for p in onto["properties"] if not _touches(p["source_column"], tables)
+        ],
+        "link_types": [
+            link
+            for link in onto["link_types"]
+            if not any(
+                _touches(c, tables)
+                for c in _side((link.get("via") or {}).get("from", ()))
+                + _side((link.get("via") or {}).get("to", ()))
+            )
+        ],
+    }
+    dropped = {
+        c["payload"]["object_type_code"]
+        for c in by_kind.get("OBJECT_MAPPING", [])
+        if _touches(c["payload"]["resource_key"], tables)
+    }
+
+    def keep(c: dict) -> bool:
+        p = c["payload"]
+        if p["kind"] == "OBJECT_MAPPING":
+            return p["object_type_code"] not in dropped
+        if p["kind"] == "OBJECT_TYPE":
+            return p["code"] not in dropped
+        if p["kind"] in ("PROPERTY", "PROPERTY_MAPPING"):
+            return p["object_type_code"] not in dropped
+        if p["kind"] == "LINK_RULE":
+            return not any(
+                x[side].split(".", 1)[0] in dropped
+                for x in p["conditions"]
+                for side in ("source_property", "target_property")
+            )
+        return True
+
+    return onto, {k: [c for c in v if keep(c)] for k, v in by_kind.items()}
+
+
+def evaluate(
+    candidates: list[dict], gold_dir: Path, exclude_tables: set[str] = frozenset()
+) -> dict:
     onto = json.loads((Path(gold_dir) / "ontology.json").read_text(encoding="utf-8"))
     by_kind: dict[str, list[dict]] = {}
     for c in candidates:
         by_kind.setdefault(c["payload"]["kind"], []).append(c)
+    onto, by_kind = _exclude(onto, by_kind, set(exclude_tables))
 
     # 객체 유형: 원천 표 기준
     mapped = {
@@ -259,15 +317,20 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="후보 ↔ 정답셋 비교")
     parser.add_argument("candidates", type=Path)
     parser.add_argument("gold", type=Path)
+    parser.add_argument(
+        "--exclude-tables",
+        default="",
+        help="채점에서 뺄 원천.표, 쉼표로 구분. 예: erp.sales_invoice,erp.gl_account",
+    )
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     data = json.loads(args.candidates.read_text(encoding="utf-8"))
-    print(
-        json.dumps(
-            evaluate(data["candidates"], args.gold), ensure_ascii=False, indent=2
-        )
-    )
+    excluded = {t.strip() for t in args.exclude_tables.split(",") if t.strip()}
+    report = evaluate(data["candidates"], args.gold, excluded)
+    if excluded:
+        report["excluded_tables"] = sorted(excluded)
+    print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0
 
 
