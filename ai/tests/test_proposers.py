@@ -621,3 +621,84 @@ def test_llm_prompt_shows_registered_table_note():
     assert "표 참고: 동의어: 작지" in build_prompt("mes.work_order", schema, [], [], [])
     schema.note = None
     assert "표 참고" not in build_prompt("mes.work_order", schema, [], [], [])
+
+
+def _write_source(folder, tables):
+    """tables: {표: (기본키, {컬럼: 자료형}, [행])}"""
+    folder.mkdir(parents=True)
+    schema = {
+        name: {
+            "description": name,
+            "primary_key": pk,
+            "columns": {c: {"type": t, "comment": ""} for c, t in cols.items()},
+        }
+        for name, (pk, cols, _) in tables.items()
+    }
+    (folder / "_schema.json").write_text(
+        json.dumps({"tables": schema}, ensure_ascii=False), encoding="utf-8"
+    )
+    for name, (_, cols, rows) in tables.items():
+        lines = [",".join(cols)] + [",".join(map(str, r)) for r in rows]
+        (folder / f"{name}.csv").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def test_serial_numbers_with_different_prefixes_are_held_not_pending(tmp_path):
+    """B2(2026-11-04): 'L01' → 'EQ-001', '거래처 01' → '설비 01'처럼 일련번호만 같은 값은 대기로 내지 않는다."""
+    _write_source(
+        tmp_path / "erp",
+        {
+            "customer": (
+                ["cust_cd"],
+                {"cust_cd": "varchar(10)", "cust_name": "varchar(50)"},
+                [(f"C{n:03d}", f"거래처 {n:02d}") for n in range(1, 31)],
+            )
+        },
+    )
+    _write_source(
+        tmp_path / "mes",
+        {
+            "equipment": (
+                ["eqp_id"],
+                {
+                    "eqp_id": "varchar(10)",
+                    "eqp_name": "varchar(50)",
+                    "line_cd": "varchar(5)",
+                },
+                [
+                    (f"EQ-{n:03d}", f"설비 {n:02d}", f"L{n % 9 + 1:02d}")
+                    for n in range(1, 41)
+                ],
+            ),
+            "defect_log": (
+                ["defect_id"],
+                {"defect_id": "int", "eqp_id": "varchar(10)", "defect_count": "int"},
+                [(n, f"EQ-{n % 40 + 1:03d}", n % 9 + 1) for n in range(1, 61)],
+            ),
+        },
+    )
+
+    result = run(tmp_path)
+
+    pending = {
+        (c["evidence"][0]["locator"], c["evidence"][1]["locator"])
+        for c in result["candidates"]
+        if c["payload"]["kind"] == "LINK_TYPE" and c["review_status"] == "PENDING"
+    }
+    # 진짜 관계(불량 기록의 설비 → 설비)만 대기로 남는다
+    assert pending == {("mes.defect_log.eqp_id", "mes.equipment.eqp_id")}
+
+
+def test_prefix_swap_and_letters_include_hangul():
+    from app.proposers.links import _letters, _prefix_swap
+
+    assert _letters("거래처 01") == "거래처" and _letters("pl-0354") == "PL"
+    assert _prefix_swap(
+        [{"op": "STRIP_PREFIX", "arg": "L"}, {"op": "ADD_PREFIX", "arg": "EQ-"}]
+    ) == ("L", "EQ-")
+    # 글자가 같고 표기만 다르면(소문자 pl ↔ PL-) 접두어 바꾸기가 아니다
+    assert (
+        _prefix_swap(
+            [{"op": "STRIP_PREFIX", "arg": "pl"}, {"op": "ADD_PREFIX", "arg": "PL-"}]
+        )
+        is None
+    )

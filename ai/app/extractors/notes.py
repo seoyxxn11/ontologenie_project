@@ -64,6 +64,11 @@ LINK_OF = {
 # 글이 있는 표의 객체 유형 코드 (objects.py처럼 표 이름을 대문자로)
 DOCUMENT_TYPES = {"note": "HANDOVER_NOTE", "maint": "MAINTENANCE_ORDER"}
 LOCATORS = {"note": "mes.handover_note.content", "maint": "mes.maintenance_order.note"}
+# 문서 번호 컬럼. 근거 재확인(evidence.verify)이 그 문서가 원천에 아직 있는지 본다
+DOCUMENT_KEYS = {
+    "note": "mes.handover_note.note_id",
+    "maint": "mes.maintenance_order.mo_no",
+}
 LLM_TYPES = {"EQUIPMENT", "OBSERVATION", "ACTION", "TIME"}
 HOUR = re.compile(r"(새벽|아침|오전|오후|저녁|밤)?\s*(\d{1,2})\s*시")
 SHIFT_START = re.compile(r"교대\s*(직후|하자마자|시작)")
@@ -452,6 +457,12 @@ def to_candidates(doc: Document, extraction: DocumentExtraction) -> list[Candida
                 source_id="mes",
                 locator=locator,
                 snippet=f"{doc.doc_id} {e.start}~{e.end}: {e.text}",
+            ),
+            Evidence(
+                source_id="mes",
+                locator=DOCUMENT_KEYS[doc.source_kind],
+                snippet="문서 번호",
+                values=[doc.doc_id],
             ),
         ]
         ambiguous = len(refs) > 1

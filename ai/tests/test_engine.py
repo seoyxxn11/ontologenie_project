@@ -158,6 +158,11 @@ def test_note_tables_add_document_links_with_original_text(data):
         start, end = payload["spanStart"], payload["spanEnd"]
         assert evidence["originalText"][start:end] == payload["mentionText"]
         assert evidence["items"][0]["sourceId"] == "MES_MAIN"
+        assert evidence["items"][0]["verified"] is True
+        # 문서 번호가 원천에 아직 있는지도 다시 확인한다
+        doc_key = evidence["items"][1]
+        assert doc_key["values"] == [payload["documentId"]]
+        assert doc_key["verified"] is True
     assert any(
         p["payload"]["targetObjectRef"].startswith("mes.equipment:") for p in links
     )

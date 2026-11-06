@@ -19,6 +19,7 @@ from app.llm.client import LLMClient, create_llm_client
 from app.models.analysis import AnalysisStartRequest
 from app.models.candidate import Candidate
 from app.proposers.api_format import to_api_proposals
+from app.proposers.evidence import verify
 from app.proposers.run import generate
 from app.proposers.semantics import interpret
 from app.sources.base import UnknownTableError
@@ -145,7 +146,10 @@ def _analyze(
         llm_calls += len(calls)
         llm_failed += len(failed)
         credits += sum(call["credits"] for call in calls)
-    kept += links + document_link_types(links)
+    # 표 후보와 같이 원천 위치를 다시 확인해 근거에 verified를 채운다
+    notes_kept, notes_dropped = verify(root, links + document_link_types(links))
+    kept += notes_kept
+    dropped += notes_dropped
 
     codes = {_prefix(t.resource_key): t.data_source_code for t in request.targets}
     # 표 하나·관계 하나를 검토 한 건으로 묶어 보낸다
@@ -156,7 +160,7 @@ def _analyze(
         "holdRecommended": sum(p["evidence"]["holdRecommended"] for p in proposals),
         "droppedNoEvidence": len(dropped),
         "documents": documents,
-        "documentLinks": len(links),
+        "documentLinks": sum(c.candidate_id.startswith("DL-") for c in notes_kept),
         "llmUsed": llm_calls > llm_failed,
         "llmSkipReason": _llm_skip_reason(llm, llm_calls, llm_failed),
         "llmCalls": llm_calls,

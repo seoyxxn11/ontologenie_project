@@ -53,6 +53,8 @@ CATEGORY_MAX = 5  # 조건 컬럼으로 볼 값 종류 상한
 GROUP_COVERAGE = 0.8  # 숫자 묶음 비교로 이을 때 필요한 서로 다른 값 기준 비율
 # 이름 비교에서 뺄 흔한 꼬리말
 GENERIC_NAMES = {"no", "id", "cd", "code", "seq", "num", "key", "ref", "nbr"}
+# 수량·개수 컬럼 이름. 작은 정수라 1부터 매긴 번호와 우연히 겹친다(B2: 불량 수 → 불량 기록 번호)
+QUANTITY_WORDS = {"qty", "quantity", "count", "cnt", "amount", "amt"}
 
 
 @dataclass
@@ -195,7 +197,8 @@ def _groups(value: str) -> tuple[int, ...]:
 
 
 def _letters(value: str) -> str:
-    return re.sub(r"[^A-Za-z]", "", value).upper()
+    """글자 부분(한글 포함). '거래처 01' → '거래처', 'pl-0354' → 'PL'"""
+    return re.sub(r"[\W\d_]", "", value).upper()
 
 
 def _group_index(target: Column) -> dict | None:
@@ -254,7 +257,7 @@ def _number_groups(source: Column, target: Column, key: str) -> Relation | None:
     hold = None
     if not single:
         hold = f"숫자 묶음만 같아({example}) 대응표로 이었다. 새 값은 연결되지 않으니 변환 함수 추가 검토 필요"
-    elif not _letters(pairs[0][0]):
+    elif not all(_letters(v) for v in hit):
         hold = f"출발 값에 글자가 없고 숫자만 같음({example}). 업무 의미 확인 필요"
     return Relation(
         [source],
@@ -275,7 +278,18 @@ def _single(source: Column, target: Column, key: str) -> Relation | None:
     rel = _compare(source, target, key)
     if rel is not None:
         _check_sequence_key(rel, source, target)
+        if rel.hold is None and set(source.name.lower().split("_")) & QUANTITY_WORDS:
+            rel.hold = "수량·개수 컬럼이라 번호와 숫자가 우연히 겹칠 수 있음"
     return rel
+
+
+def _prefix_swap(steps: list[dict]) -> tuple[str, str] | None:
+    """접두어를 빼고 글자가 다른 접두어를 붙이는 변환이면 (뺀 것, 붙인 것). 예: 'L01' → 'EQ-001'."""
+    strip = [s["arg"] for s in steps if s["op"] == "STRIP_PREFIX"]
+    add = [s["arg"] for s in steps if s["op"] == "ADD_PREFIX"]
+    if strip and add and _letters(str(strip[0])) != _letters(str(add[0])):
+        return str(strip[0]), str(add[0])
+    return None
 
 
 def _compare(source: Column, target: Column, key: str) -> Relation | None:
@@ -307,6 +321,9 @@ def _compare(source: Column, target: Column, key: str) -> Relation | None:
             rel.hold = "원래 값이 하나도 같지 않고 숫자만 남겼을 때 같아짐. 업무 의미 확인 필요"
         elif link.rule_type == "transform" and numeric_source and no_raw_overlap:
             rel.hold = "숫자뿐인 값에 0 채우기·접두어를 붙여야 같아짐. 번호가 우연히 같을 수 있어 업무 의미 확인 필요"
+        elif (swap := _prefix_swap(link.source_transforms)) and no_raw_overlap:
+            # 글자가 다른 번호끼리(거래처 C001 ↔ 설비 EQ-001)는 일련번호만 같은 다른 대상일 때가 많다
+            rel.hold = f"접두어 '{swap[0]}'를 '{swap[1]}'로 바꿔야 같아짐. 일련번호만 우연히 같을 수 있어 업무 의미 확인 필요"
         return rel
     # 분석기 기준(서로 다른 값 3개 이상·포함률 0.6)에 못 미치는 경우
     distinct = set(source.values)

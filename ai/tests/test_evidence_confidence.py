@@ -87,3 +87,20 @@ def test_hold_caps_score_at_low_band():
 )
 def test_score_bands(score, band):
     assert confidence.band(score) == band
+
+
+def test_document_link_evidence_checks_document_still_exists(data):
+    # 문서 연결 근거는 글 컬럼 위치와 함께 문서 번호를 원천에서 다시 찾는다
+    lookup = SourceLookup(data)
+    note_id = SourceLookup(data)._reader("mes").read_rows("handover_note")["note_id"][0]
+
+    def doc(value):
+        return Evidence(
+            source_id="mes",
+            locator="mes.handover_note.note_id",
+            snippet="문서 번호",
+            values=[value],
+        )
+
+    assert lookup.check(doc(note_id))
+    assert not lookup.check(doc("HN-없는-문서"))
