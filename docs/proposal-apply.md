@@ -76,7 +76,7 @@ AI 제안기는 관리자가 판단하는 단위로 후보를 묶어 보낸다. 
 | `APPLY_KIND_NOT_SUPPORTED` | 422 | 반영기가 아직 없는 종류 | `itemKind` |
 
 - 예외가 나면 승인 트랜잭션은 롤백만 할 수 있다. 같은 트랜잭션에서 예외를 잡고 이어 가도 커밋할 때 `UnexpectedRollbackException`이 난다.
-- `apply_status='FAILED'`·`apply_error`와 실패 감사 기록은 롤백 뒤 별도 트랜잭션(`REQUIRES_NEW`, 감사는 `AuditRecorder.recordSeparately`)으로 남긴다. 이 처리는 131이 한다. `REQUIRES_NEW` 메서드는 다른 빈에 둬야 새 트랜잭션이 열린다.
+- 131은 업무 전체를 롤백한 뒤 실패 감사만 `AuditRecorder.recordSeparately`의 별도 트랜잭션으로 남긴다. 후보의 `apply_status='FAILED'`·`apply_error`는 별도 저장하지 않고 실행 전 상태를 유지한다. 실패 결과는 기존 실행 이력으로 조회한다([133 조회 계약](review-apply-result-query.md)).
 
 ## 확인 필요
 

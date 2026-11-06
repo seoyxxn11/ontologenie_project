@@ -2,6 +2,7 @@ package com.axcore.platform.review.repository;
 
 import com.axcore.platform.review.domain.ProposalOption;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
@@ -9,6 +10,9 @@ import org.springframework.data.repository.query.Param;
 public interface ProposalOptionRepository extends Repository<ProposalOption, Long> {
 
     boolean existsByIdAndProposalItemIdAndRevision(long id, long proposalItemId, int revision);
+
+    Optional<ProposalOption> findByIdAndProposalItemIdAndRevision(
+            long id, long proposalItemId, int revision);
 
     List<ProposalOption> findByProposalItemIdAndRevisionOrderByOptionNo(
             long proposalItemId, int revision);

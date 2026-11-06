@@ -20,7 +20,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -31,8 +30,6 @@ public class AgentMessageService {
 
     static final String STALE_CONTENT = "답변을 끝내지 못했습니다. 다시 질문해 주세요.";
     static final String STALE_REASON = "처리 시간 초과";
-    static final String NOT_READY_CONTENT = "아직 답변 기능을 준비하고 있습니다. 질문은 저장되었습니다.";
-    static final String NOT_READY_REASON = "답변 기능 준비 중";
 
     private final AgentConversationRepository conversations;
     private final AgentMessageRepository messages;
@@ -66,16 +63,10 @@ public class AgentMessageService {
                                 conversationId, request.content(), request.messageContext(), now));
         AgentMessage answer = messages.save(AgentMessage.runningAnswer(conversationId, now));
         conversation.recordMessage(request.content(), now);
-        events.publishEvent(new AgentAnswerRequested(answer.getId()));
+        events.publishEvent(
+                new AgentAnswerRequested(
+                        answer.getId(), request.content(), request.messageContext()));
         return List.of(AgentMessageResponse.from(question), AgentMessageResponse.from(answer));
-    }
-
-    /** 기능 흐름 3단계(AI 답변) 전까지 쓰는 임시 처리: 처리 중 답변을 "준비 중" 안내로 끝낸다. */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void answerNotReady(long answerId) {
-        messages.findById(answerId)
-                .filter(AgentMessage::isRunning)
-                .ifPresent(answer -> answer.fail(NOT_READY_CONTENT, NOT_READY_REASON));
     }
 
     private AgentConversation ownedConversation(long accountId, long conversationId) {

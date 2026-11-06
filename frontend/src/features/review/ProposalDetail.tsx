@@ -3,6 +3,13 @@ import { Link, useParams, useLocation } from 'react-router'
 import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
 import StatusBadge from '../../components/StatusBadge'
 import DocumentLinkView from '../analysis/DocumentLinkView'
+import {
+  BUNDLE_EVIDENCE_KEYS,
+  BUNDLE_PAYLOAD_KEYS,
+  isBundle,
+  withoutBundleKeys,
+} from './bundle'
+import ProposalBundleView from './ProposalBundleView'
 import ProposalComparison from './ProposalComparison'
 import CheckResults from './CheckResults'
 import ProposalDecision from './ProposalDecision'
@@ -148,13 +155,26 @@ export default function ProposalDetail() {
         {item.itemKind === 'DOCUMENT_LINK' && (
           <DocumentLinkView proposal={item} />
         )}
+        <ProposalBundleView proposal={item} />
         <section className="rounded-xl border border-slate-200 p-5">
           <h3 className="font-semibold">제안 내용</h3>
-          <RecordView value={item.payload} />
+          <RecordView
+            value={
+              isBundle(item)
+                ? withoutBundleKeys(item.payload, BUNDLE_PAYLOAD_KEYS)
+                : item.payload
+            }
+          />
         </section>
         <section className="rounded-xl border border-slate-200 p-5">
           <h3 className="font-semibold">제안 근거</h3>
-          <RecordView value={item.evidence} />
+          <RecordView
+            value={
+              isBundle(item)
+                ? withoutBundleKeys(item.evidence, BUNDLE_EVIDENCE_KEYS)
+                : item.evidence
+            }
+          />
         </section>
         <CheckResults
           proposal={item}

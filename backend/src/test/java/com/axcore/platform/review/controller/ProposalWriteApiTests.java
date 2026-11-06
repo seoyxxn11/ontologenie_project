@@ -12,9 +12,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.axcore.platform.TestcontainersConfiguration;
 import com.axcore.platform.audit.service.AuditRecorder;
+import com.axcore.platform.check.domain.CheckDataBasis.ResourceCheckpoint;
+import com.axcore.platform.check.repository.CandidateCheckRepository;
 import com.axcore.platform.global.security.LoginAccount;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import org.junit.jupiter.api.BeforeEach;
@@ -700,13 +703,102 @@ class ProposalWriteApiTests {
                 .containsExactly(first, second);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"REVISION", "OPTION", "ANALYSIS"})
+    void loadsPropertyMappingBasisByExactSourceAndResourceKey(String payloadSource) {
+        long analysis = analysis();
+        String sourceCode = "EXACT_" + accountId;
+        long source = dataSource(sourceCode);
+        long expected = resource(source, "erp.attendance");
+        resource(source, "attendance");
+        resource(source, sourceCode + ".attendance");
+        resource(dataSource("OTHER_" + accountId), "erp.attendance");
+        long successfulSync = sync(source, expected, "SUCCEEDED");
+        sync(source, expected, "FAILED");
+        var mapping =
+                Map.<String, Object>of(
+                        "sourceColumn",
+                        Map.of(
+                                "sourceId", sourceCode,
+                                "resourceKey", "erp.attendance",
+                                "table", "attendance",
+                                "column", "id"));
+        long id =
+                aiCandidate(
+                        analysis,
+                        "PROPERTY_MAPPING",
+                        "REVISION".equals(payloadSource) ? mapping : Map.of());
+        switch (payloadSource) {
+            case "REVISION" ->
+                    jdbc.sql("update proposal_item set payload='{}'::jsonb where id=:id")
+                            .param("id", id)
+                            .update();
+            case "OPTION" ->
+                    jdbc.sql(
+                                    "insert into proposal_option(proposal_item_id,revision,option_no,payload) values (:id,1,1,cast(:payload as jsonb))")
+                            .param("id", id)
+                            .param("payload", json.writeValueAsString(mapping))
+                            .update();
+            case "ANALYSIS" -> aiCandidate(analysis, "PROPERTY_MAPPING", mapping);
+            default -> throw new IllegalArgumentException(payloadSource);
+        }
+
+        var basis =
+                new CandidateCheckRepository(jdbc, json)
+                        .loadBasis(
+                                id,
+                                1,
+                                Set.of(),
+                                "ANALYSIS".equals(payloadSource) ? analysis : null);
+
+        assertThat(basis).containsExactly(new ResourceCheckpoint(expected, successfulSync));
+    }
+
+    @Test
+    void doesNotInferResourceKeyFromLegacyPropertyMappingTable() {
+        long analysis = analysis();
+        String sourceCode = "LEGACY_" + accountId;
+        long source = dataSource(sourceCode);
+        resource(source, "attendance");
+        resource(source, sourceCode + ".attendance");
+        var legacy =
+                Map.<String, Object>of(
+                        "sourceColumn",
+                        Map.of("sourceId", sourceCode, "table", "attendance", "column", "id"));
+        long id = aiCandidate(analysis, "PROPERTY_MAPPING", legacy);
+
+        assertThat(new CandidateCheckRepository(jdbc, json).loadBasis(id, 1, Set.of(), null))
+                .isEmpty();
+        assertThat(
+                        json.readTree(
+                                jdbc.sql("select payload::text from proposal_item where id=:id")
+                                        .param("id", id)
+                                        .query(String.class)
+                                        .single()))
+                .isEqualTo(json.valueToTree(legacy));
+    }
+
+    private long dataSource(String code) {
+        return jdbc.sql(
+                        "insert into data_source(code,name,source_kind) values (:code,'원천','POSTGRES') returning id")
+                .param("code", code)
+                .query(Long.class)
+                .single();
+    }
+
     private static Map<String, Object> mappingPayload(
             String kind, String sourceCode, String table) {
         return "OBJECT_MAPPING".equals(kind)
                 ? Map.of("sourceId", sourceCode, "resourceKey", sourceCode + "." + table)
                 : Map.of(
                         "sourceColumn",
-                        Map.of("sourceId", sourceCode, "table", table, "column", "id"));
+                        Map.of(
+                                "sourceId",
+                                sourceCode,
+                                "resourceKey",
+                                sourceCode + "." + table,
+                                "column",
+                                "id"));
     }
 
     @Test

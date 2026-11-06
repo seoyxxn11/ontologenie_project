@@ -1,6 +1,7 @@
 package com.axcore.platform.review.domain;
 
 import com.axcore.platform.global.entity.BaseAuditEntity;
+import com.axcore.platform.global.error.BusinessException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -44,6 +45,41 @@ public class ProposalItem extends BaseAuditEntity {
         this.evidence = evidence;
         aiConfidence = null;
         reviewStatus = "PENDING";
+    }
+
+    public void approve(Instant appliedAt) {
+        requireReviewable();
+        if (appliedAt == null) {
+            throw new IllegalArgumentException("반영 시각은 필수입니다.");
+        }
+        reviewStatus = "APPROVED";
+        applyStatus = "APPLIED";
+        this.appliedAt = appliedAt;
+        applyError = null;
+    }
+
+    public void reject() {
+        requireReviewable();
+        reviewStatus = "REJECTED";
+        clearApplication();
+    }
+
+    public void hold() {
+        requireReviewable();
+        reviewStatus = "HELD";
+        clearApplication();
+    }
+
+    private void requireReviewable() {
+        if (!"PENDING".equals(reviewStatus) && !"HELD".equals(reviewStatus)) {
+            throw new BusinessException(ReviewErrorCode.PROPOSAL_ALREADY_DECIDED);
+        }
+    }
+
+    private void clearApplication() {
+        applyStatus = "NOT_APPLIED";
+        appliedAt = null;
+        applyError = null;
     }
 
     @Id

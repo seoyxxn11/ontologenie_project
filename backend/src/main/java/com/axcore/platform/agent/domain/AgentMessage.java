@@ -94,6 +94,18 @@ public class AgentMessage {
         return status == MessageStatus.RUNNING;
     }
 
+    /** 처리 중인 답변의 진행 단계를 바꾼다. */
+    public void moveTo(AnswerStage stage) {
+        this.answerMeta = new LinkedHashMap<>(Map.of("stage", stage.name()));
+    }
+
+    /** 답변을 끝냈다. 단계 정보 대신 최종 answerMeta를 저장한다. */
+    public void succeed(String content, Map<String, Object> answerMeta) {
+        this.status = MessageStatus.SUCCEEDED;
+        this.content = content;
+        this.answerMeta = new LinkedHashMap<>(answerMeta);
+    }
+
     /** 답변을 끝내지 못했다. 사용자에게 보여 줄 안내와 실패 이유를 남기고 단계 정보는 지운다. */
     public void fail(String content, String errorMessage) {
         this.status = MessageStatus.FAILED;

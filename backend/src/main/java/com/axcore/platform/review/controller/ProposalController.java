@@ -4,8 +4,12 @@ import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
 import com.axcore.platform.global.response.ApiResponse;
 import com.axcore.platform.global.security.LoginAccount;
+import com.axcore.platform.ontology.domain.ApplyErrorCode;
+import com.axcore.platform.review.domain.ReviewErrorCode;
 import com.axcore.platform.review.dto.ManualProposalCreateRequest;
+import com.axcore.platform.review.dto.ProposalDecisionRequest;
 import com.axcore.platform.review.dto.ProposalDecisionResponse;
+import com.axcore.platform.review.dto.ProposalDecisionResult;
 import com.axcore.platform.review.dto.ProposalDecisionSearchRequest;
 import com.axcore.platform.review.dto.ProposalOptionResponse;
 import com.axcore.platform.review.dto.ProposalResponse;
@@ -15,9 +19,11 @@ import com.axcore.platform.review.dto.ProposalRevisionSearchRequest;
 import com.axcore.platform.review.dto.ProposalSearchRequest;
 import com.axcore.platform.review.dto.ProposalWriteResponse;
 import com.axcore.platform.review.service.ProposalCommandService;
+import com.axcore.platform.review.service.ProposalDecisionService;
 import com.axcore.platform.review.service.ProposalService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +50,28 @@ public class ProposalController {
 
     private final ProposalService proposalService;
     private final ProposalCommandService proposalCommandService;
+    private final ProposalDecisionService proposalDecisionService;
+
+    @PostMapping("/{id}/decisions")
+    public ApiResponse<ProposalDecisionResult> decide(
+            @PathVariable("id") @Min(1) long id,
+            @Valid @RequestBody ProposalDecisionRequest request,
+            @AuthenticationPrincipal LoginAccount account) {
+        try {
+            return ApiResponse.of(proposalDecisionService.decide(id, request, account));
+        } catch (BusinessException failure) {
+            if (!(failure.getErrorCode() instanceof ApplyErrorCode)) throw failure;
+            // API 054 exposes APPLY_FAILED; the service retains the internal apply error.
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("reason", failure.getMessage());
+            Object auditId = failure.getDetails().get("actionExecutionId");
+            if (auditId != null) details.put("actionExecutionId", auditId);
+            BusinessException response =
+                    new BusinessException(ReviewErrorCode.APPLY_FAILED, details);
+            response.initCause(failure);
+            throw response;
+        }
+    }
 
     @PostMapping("/manual")
     @ResponseStatus(HttpStatus.CREATED)

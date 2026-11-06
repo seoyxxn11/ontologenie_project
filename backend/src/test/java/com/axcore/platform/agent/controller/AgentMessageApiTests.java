@@ -1,7 +1,11 @@
 package com.axcore.platform.agent.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -10,7 +14,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.axcore.platform.TestcontainersConfiguration;
+import com.axcore.platform.agent.service.QuestionInterpretation;
+import com.axcore.platform.agent.service.QuestionInterpreter;
 import com.axcore.platform.global.security.LoginAccount;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +29,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -35,6 +44,7 @@ class AgentMessageApiTests {
 
     @Autowired MockMvc mvc;
     @Autowired JdbcClient jdbc;
+    @MockitoBean QuestionInterpreter interpreter;
     long owner;
     long conversation;
 
@@ -45,7 +55,17 @@ class AgentMessageApiTests {
     }
 
     @Test
-    void acceptsQuestionAndFinishesWithPendingGuidance() throws Exception {
+    void acceptsQuestionAndAnswersWithUnderstoodConditions() throws Exception {
+        when(interpreter.isConfigured()).thenReturn(true);
+        when(interpreter.interpret(anyString(), anyMap()))
+                .thenReturn(
+                        new QuestionInterpretation(
+                                "비가동 이력",
+                                List.of("PR-03"),
+                                LocalDate.parse("2026-10-01"),
+                                LocalDate.parse("2026-10-27"),
+                                List.of(301L)));
+
         askRaw(
                         conversation,
                         """
@@ -63,21 +83,56 @@ class AgentMessageApiTests {
                 .andExpect(jsonPath("$.data[1].status").value("RUNNING"))
                 .andExpect(jsonPath("$.data[1].content").value(""))
                 .andExpect(jsonPath("$.data[1].answerMeta.stage").value("INTERPRETING"));
+        awaitAnswered(conversation);
 
         mvc.perform(get(MESSAGES, conversation).with(loggedIn(owner)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(2))
-                .andExpect(jsonPath("$.data[1].status").value("FAILED"))
-                .andExpect(jsonPath("$.data[1].errorMessage").value("답변 기능 준비 중"))
-                .andExpect(jsonPath("$.data[1].answerMeta.syncStatus").value("NONE"))
+                .andExpect(jsonPath("$.data[1].status").value("SUCCEEDED"))
+                .andExpect(jsonPath("$.data[1].content").value(containsString("대상: PR-03")))
                 .andExpect(jsonPath("$.data[1].answerMeta.stage").doesNotExist())
-                .andExpect(jsonPath("$.meta.totalElements").value(2));
+                .andExpect(jsonPath("$.data[1].answerMeta.syncStatus").value("NONE"))
+                .andExpect(jsonPath("$.data[1].answerMeta.results.length()").value(0))
+                .andExpect(jsonPath("$.data[1].answerMeta.conditions.purpose").value("비가동 이력"))
+                .andExpect(jsonPath("$.data[1].answerMeta.conditions.targets[0]").value("PR-03"))
+                .andExpect(
+                        jsonPath("$.data[1].answerMeta.conditions.period.from").value("2026-10-01"))
+                .andExpect(
+                        jsonPath("$.data[1].answerMeta.conditions.referenceObjectIds[0]")
+                                .value(301));
         assertThat(title(conversation)).isEqualTo("PR-03 비가동 이력 알려줘");
+    }
+
+    @Test
+    void failsAnswerWhenAiIsNotConfigured() throws Exception {
+        when(interpreter.isConfigured()).thenReturn(false);
+
+        ask(conversation, "PR-03 상태 알려줘").andExpect(status().isAccepted());
+        awaitAnswered(conversation);
+
+        mvc.perform(get(MESSAGES, conversation).with(loggedIn(owner)))
+                .andExpect(jsonPath("$.data[1].status").value("FAILED"))
+                .andExpect(jsonPath("$.data[1].errorMessage").value("AI 설정 없음"));
+    }
+
+    @Test
+    void failsAnswerWhenAiCallFails() throws Exception {
+        when(interpreter.isConfigured()).thenReturn(true);
+        when(interpreter.interpret(anyString(), anyMap()))
+                .thenThrow(new IllegalStateException("GMS 시간 초과"));
+
+        ask(conversation, "PR-03 상태 알려줘").andExpect(status().isAccepted());
+        awaitAnswered(conversation);
+
+        mvc.perform(get(MESSAGES, conversation).with(loggedIn(owner)))
+                .andExpect(jsonPath("$.data[1].status").value("FAILED"))
+                .andExpect(jsonPath("$.data[1].errorMessage").value("AI 응답 실패"))
+                .andExpect(jsonPath("$.data[1].answerMeta.syncStatus").value("NONE"));
     }
 
     @Test
     void keepsFirstQuestionAsTitle() throws Exception {
         ask(conversation, "첫 질문").andExpect(status().isAccepted());
+        awaitAnswered(conversation);
         ask(conversation, "두 번째 질문").andExpect(status().isAccepted());
         assertThat(title(conversation)).isEqualTo("첫 질문");
     }
@@ -178,6 +233,23 @@ class AgentMessageApiTests {
                 .param("id", conversationId)
                 .query(String.class)
                 .single();
+    }
+
+    /** 답변은 다른 스레드에서 끝나므로 RUNNING이 없어질 때까지 최대 5초 기다린다. */
+    private void awaitAnswered(long conversationId) throws InterruptedException {
+        for (int i = 0; i < 100; i++) {
+            Integer running =
+                    jdbc.sql(
+                                    "select count(*) from agent_message where conversation_id = :c and status = 'RUNNING'")
+                            .param("c", conversationId)
+                            .query(Integer.class)
+                            .single();
+            if (running == 0) {
+                return;
+            }
+            Thread.sleep(50);
+        }
+        throw new AssertionError("답변이 5초 안에 끝나지 않았습니다.");
     }
 
     private static RequestPostProcessor loggedIn(long accountId) {

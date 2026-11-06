@@ -8,6 +8,7 @@ import StatusBadge from '../../components/StatusBadge'
 import { fetchAnalysis, fetchRecentAnalyses } from './api'
 import AnalysisTargetDialog from './AnalysisTargetDialog'
 import { analysisCode, analysisStatusLabels, isAnalysisRunning } from './labels'
+import TestAnalysisDelete from './TestAnalysisDelete'
 import type { Analysis, AnalysisRun } from './types'
 
 // 분석이 끝날 때까지 019를 다시 부르는 간격
@@ -225,6 +226,8 @@ function AnalysisPanel({ currentId, joined, onSelect, onStarted }: Props) {
           <Button disabled={running} onClick={() => setChoosing(true)}>
             AI 관계 제안 받기
           </Button>
+          {/* 임시(S15P31C106-307): 시연 전 이 줄과 import를 지운다 */}
+          <TestAnalysisDelete onDeleted={() => onSelect(undefined)} />
         </div>
       </div>
       {running && (

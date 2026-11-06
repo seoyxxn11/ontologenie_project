@@ -53,8 +53,10 @@ AGENT 메시지를 처음부터 저장하므로, 조회 도구 기록(`action_ex
 | `status` | `content` | `answerMeta` | 뜻 |
 |---|---|---|---|
 | `RUNNING` | `""` | `{"stage": "INTERPRETING" \| "SYNCING" \| "QUERYING" \| "ANSWERING"}` | 처리 중 |
-| `SUCCEEDED` | 최종 답변 | `syncStatus`, `results` | 답변을 끝냄 (데이터 없음·미연결·권한 제한 설명 포함) |
+| `SUCCEEDED` | 최종 답변 | `syncStatus`, `results`, `conditions` | 답변을 끝냄 (데이터 없음·미연결·권한 제한 설명 포함) |
 | `FAILED` | 실패 안내 | `syncStatus`, `results` (얻은 만큼) | 답변을 끝내지 못함. `errorMessage` 필수 |
+
+- `conditions`는 이번 답변에서 확정한 조건이다(`purpose`, `targets`, `period`{`from`,`to`} 또는 null, `referenceObjectIds`). 다음 질문 때 마지막 답변의 값을 읽어 이어 간다.
 
 ### 3.3 화면 처리
 
@@ -76,7 +78,8 @@ AGENT 메시지를 처음부터 저장하므로, 조회 도구 기록(`action_ex
 - 데이터 없음·미연결·권한 제한을 설명해 답변을 끝냈으면 `SUCCEEDED`다.
 - LLM 오류·서버 오류·시간 초과로 답변을 끝내지 못하면 `FAILED`와 `errorMessage`를 저장한다.
 - 처리 도중 서버가 재시작되면 `RUNNING`이 남는다. 5분이 지나도 `RUNNING`이면 그 대화의 084 조회나 085 접수 때 `FAILED`("답변을 끝내지 못했습니다", `errorMessage` "처리 시간 초과")로 바꾼다. 따로 주기 작업은 두지 않는다(2026-11-04 결정).
-- AI 답변 기능(기능 흐름 3단계, 142·143) 전까지는 접수 직후 임시 처리기가 답변을 `FAILED`(`errorMessage` "답변 기능 준비 중")로 끝낸다.
+- AI 설정(`AXCORE_AGENT_LLM`)이 없으면 `FAILED`(`errorMessage` "AI 설정 없음"), AI 호출이 실패하면 `FAILED`(`errorMessage` "AI 응답 실패")로 끝낸다.
+- 실제 조회 연결(기능 흐름 4단계, 144·146) 전까지는 AI가 이해한 대상·기간·알고 싶은 것을 설명하는 답변을 `SUCCEEDED`로 저장한다(142). 답변 문장은 코드가 만들고 AI가 값을 지어내지 않는다.
 
 ### 3.5 DB 변경 (2026-11-03 결정)
 

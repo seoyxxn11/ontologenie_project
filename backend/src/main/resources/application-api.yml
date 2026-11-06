@@ -1,6 +1,18 @@
 spring:
   main:
     web-application-type: servlet
+  # Agent 답변(085)의 LLM. GMS(OpenAI 호환)에 연결한다. AXCORE_AGENT_LLM=openai와 키를 넣어야 켜지고,
+  # 비어 있으면 답변은 "AI 설정 없음"으로 끝난다. 키는 환경 변수로만 넣는다.
+  ai:
+    model:
+      chat: ${AXCORE_AGENT_LLM:none}
+    openai:
+      api-key: ${AXCORE_AGENT_LLM_API_KEY:}
+      base-url: ${AXCORE_AGENT_LLM_BASE_URL:https://gms.ssafy.io/gmsapi/api.openai.com/v1}
+      max-retries: 1
+      chat:
+        model: ${AXCORE_AGENT_LLM_MODEL:gpt-6-luna}
+        timeout: 30s
 
 # 세션 인증(개발 가이드 11.1). 요청이 없으면 30분 뒤 만료한다. 세션 쿠키 속성은 SessionCookieConfig에 있다.
 # nginx가 보낸 X-Forwarded-* 헤더로 HTTPS 주소와 XSRF-TOKEN 쿠키의 Secure를 맞춘다.

@@ -56,7 +56,7 @@ AI 후보는 대상을 코드로 가리키고, 이 서비스는 ID를 받는다.
 | 후보 값 | 찾는 곳 | 요청 필드 |
 | --- | --- | --- |
 | `sourceId` | `data_source.code` | — |
-| `resourceKey`(객체 매핑), `sourceColumn.table`(속성 매핑) | `source_resource.resource_key` | `sourceResourceId` |
+| `resourceKey`(객체 매핑), `sourceColumn.resourceKey`(속성 매핑) | 같은 `data_source`의 `source_resource.resource_key` | `sourceResourceId` |
 | `sourceColumn.column` | `source_column.column_name` | `sourceColumnId` |
 | `objectTypeCode` | `object_type.code` | `objectTypeId` |
 | `propertyCode` | 그 유형의 `property_definition.code` | `propertyDefinitionId` |
@@ -64,7 +64,9 @@ AI 후보는 대상을 코드로 가리키고, 이 서비스는 ID를 받는다.
 
 - 순서: 객체 유형 → 속성 → 객체 매핑 → 속성 매핑. `sourceMappingId`는 객체 매핑을 반영해야 생긴다.
 - 지금 생성 메서드는 관리자 직접 등록(`origin=MANUAL`)뿐이다. AI 출처(`origin=AI_PROPOSAL`·`proposal_item_id`)를 남기는 객체 매핑 생성 메서드는 131과 함께 더한다. `property_source_mapping`에는 출처 칸이 없다.
-- **확인 필요:** 객체 매핑 후보의 `resourceKey`는 `erp.attendance`(스키마 포함), 속성 매핑 후보의 `sourceColumn.table`은 `attendance`(스키마 없음)다. `CandidateCheckRepository`는 `attendance`·`ERP_MAIN.attendance`로만 자원을 찾는다. 연결 검사가 저장하는 `resource_key` 형식에 맞춰 한쪽으로 정해야 한다.
+- **식별 형식 협의 완료(2026-11-05, 서연님 답변):** 원천 표는 `sourceId=data_source.code`와 `resourceKey=source_resource.resource_key` 그대로 찾는다. 예: `ERP_MAIN` + `erp.attendance`. 속성 매핑은 `sourceColumn.resourceKey`를 사용하며 `sourceColumn.table`은 이전 형식 호환용으로만 남긴다. `ERP_MAIN.attendance`를 조합해 찾지 않는다.
+- 예전 객체 매핑은 그대로 사용하고, resourceKey가 없는 예전 속성 매핑은 재분석해 새 후보를 만든다. 불변 후보 payload를 보정하거나 기존 후보를 임의 삭제하지 않는다.
+- **코드 연동 대기:** 서연님 변경은 답변 시점 develop 미반영이다. 현재 로컬 `CandidateCheckRepository.loadBasis`의 table 기반 조회도 새 resourceKey 직접 조회로 맞춰졌는지 수령 후 확인한다. 세부 JSON 예시와 팀원 검증/미검증 범위는 [131 연동 계약](review-decision-flow.md)의 원천 식별 계약을 따른다.
 
 ### 수집 (197)
 

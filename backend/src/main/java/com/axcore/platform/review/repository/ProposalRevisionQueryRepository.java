@@ -2,6 +2,7 @@ package com.axcore.platform.review.repository;
 
 import com.axcore.platform.review.dto.ProposalRevisionResponse;
 import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -60,6 +61,19 @@ public class ProposalRevisionQueryRepository {
                         .list();
 
         return new PageImpl<>(content, pageable, total);
+    }
+
+    public Optional<Map<String, Object>> findPayload(long proposalItemId, int revision) {
+        return jdbc.sql(
+                        """
+                        select payload::text as payload
+                        from proposal_revision
+                        where proposal_item_id = :proposalItemId and revision = :revision
+                        """)
+                .param("proposalItemId", proposalItemId)
+                .param("revision", revision)
+                .query((rs, rowNum) -> readMap(rs.getString("payload")))
+                .optional();
     }
 
     private Map<String, Object> readMap(String value) {

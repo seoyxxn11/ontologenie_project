@@ -168,6 +168,15 @@ export function buildRule(draft: RuleDraft, original?: Proposal) {
     throw new Error('기존 관계 유형 ID를 입력해 주세요.')
   if (draft.linkTypeCode.trim())
     relation.linkTypeCode = draft.linkTypeCode.trim()
+  // AI 묶음 후보의 관계 유형(payload.linkType)은 같은 관계 유형을 가리킬 때만 남긴다.
+  const embedded = relation.linkType
+  if (
+    relation.linkTypeId !== undefined ||
+    typeof embedded !== 'object' ||
+    embedded === null ||
+    (embedded as Record<string, unknown>).code !== relation.linkTypeCode
+  )
+    delete relation.linkType
   if (!draft.conditions.length)
     throw new Error('비교 조건을 하나 이상 추가해 주세요.')
   relation.conditions = draft.conditions.map((condition, index) => {

@@ -30,6 +30,16 @@ spring:
       initialize-schema: never
     job:
       enabled: false
+    # Spring AI는 api 프로필의 Agent만 쓴다. 다른 프로필과 테스트에서는 AI 모델을 만들지 않는다.
+  ai:
+    model:
+      chat: none
+      embedding: none
+      image: none
+      audio:
+        speech: none
+        transcription: none
+      moderation: none
 
 # API 문서(Swagger UI)는 기본으로 닫고 api 프로필에서 연다.
 springdoc:

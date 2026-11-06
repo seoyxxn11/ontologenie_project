@@ -91,3 +91,24 @@ test('같은 분석의 미확정 관계 유형은 코드로 유지한다', () =>
   expect(result.payload.linkTypeCode).toBe('PENDING_RELATION')
   expect(result.payload).not.toHaveProperty('linkTypeId')
 })
+
+test('AI 묶음 후보의 관계 유형은 같은 관계를 가리킬 때만 남긴다', () => {
+  const original = structuredClone(proposalFixtures[0])
+  delete original.payload.linkTypeId
+  original.payload.linkTypeCode = 'WO_TO_SO'
+  original.payload.linkType = {
+    code: 'WO_TO_SO',
+    sourceTypeCode: 'WORK_ORDER',
+    targetTypeCode: 'SALES_ORDER',
+  }
+  const kept = buildRule(readRuleDraft(original), original)
+  expect(kept.payload.linkType).toEqual(original.payload.linkType)
+
+  const recoded = readRuleDraft(original)
+  recoded.linkTypeCode = 'EXISTING_RELATION'
+  expect(buildRule(recoded, original).payload).not.toHaveProperty('linkType')
+
+  const byId = readRuleDraft(original)
+  byId.linkTypeId = '2'
+  expect(buildRule(byId, original).payload).not.toHaveProperty('linkType')
+})

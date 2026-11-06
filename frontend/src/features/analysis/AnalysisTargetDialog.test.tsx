@@ -251,6 +251,34 @@ test('수집 대상 변경을 누르면 창을 닫고 그 원천의 수집 대�
   )
 })
 
+test('등록된 원천이 없으면 불러오는 중 대신 원천 등록 안내를 보여준다', async () => {
+  const user = userEvent.setup()
+  server.use(
+    http.get('/api/v1/sources', () =>
+      HttpResponse.json({
+        data: [],
+        meta: { page: 0, size: 100, totalElements: 0, hasNext: false },
+      }),
+    ),
+  )
+  renderAt('/admin/rules')
+
+  await user.click(screen.getByRole('button', { name: 'AI 관계 제안 받기' }))
+  const dialog = screen.getByRole('dialog', { name: '분석 대상 선택' })
+
+  expect(
+    await within(dialog).findByText(
+      '등록된 원천이 없습니다. 먼저 원천을 등록해 주세요.',
+    ),
+  ).toBeInTheDocument()
+  expect(
+    within(dialog).queryByText('표를 불러오는 중…'),
+  ).not.toBeInTheDocument()
+  expect(
+    within(dialog).getByRole('button', { name: '분석하고 후보 받기' }),
+  ).toBeDisabled()
+})
+
 test('원천 등록을 누르면 선택 창 대신 등록 창을 연다', async () => {
   const user = userEvent.setup()
   const dialog = await openFromSource(user)

@@ -297,6 +297,13 @@ function AnalysisTargetDialog({
   let resourceList
   if (sources.isError) {
     resourceList = <ErrorState error={sources.error} />
+  } else if (sources.isPending) {
+    resourceList = <LoadingState message="원천을 불러오는 중…" />
+  } else if (sourceId === undefined) {
+    // 원천이 없으면 표 조회를 하지 않아 isPending이 계속 참으로 남는다.
+    resourceList = (
+      <EmptyState message="등록된 원천이 없습니다. 먼저 원천을 등록해 주세요." />
+    )
   } else if (resources.isPending) {
     resourceList = <LoadingState message="표를 불러오는 중…" />
   } else if (resources.isError) {

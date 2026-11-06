@@ -45,13 +45,6 @@ public class CandidateCheckRepository {
                     union
                     select payload#>>'{sourceColumn,sourceId}', payload#>>'{sourceColumn,resourceKey}'
                     from candidate_payloads
-                    union
-                    select payload#>>'{sourceColumn,sourceId}', payload#>>'{sourceColumn,table}'
-                    from candidate_payloads
-                    union
-                    select payload#>>'{sourceColumn,sourceId}',
-                        (payload#>>'{sourceColumn,sourceId}') || '.' || (payload#>>'{sourceColumn,table}')
-                    from candidate_payloads
                 ), resources as (
                     select source_resource_id from object_source_mapping
                     where object_type_id in (:types)
