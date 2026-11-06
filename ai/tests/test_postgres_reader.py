@@ -1,6 +1,7 @@
 import sys
 import types
 
+import pandas as pd
 import pytest
 
 from app.sources.postgres_reader import (
@@ -19,7 +20,8 @@ def test_reader_reads_structure_and_rows_as_text():
     assert schema.column("wo_no").declared_type == "varchar(20)"  # CSV 원천과 같은 이름
     assert schema.column("qty").declared_type == "int"
     rows = reader.read_rows("work_order")
-    assert rows["qty"].tolist()[0] == "10" and rows["qty"].isna().tolist()[1]
+    qty = rows.set_index("wo_no")["qty"]
+    assert qty["WO-1"] == "10" and pd.isna(qty["WO-2"])
     with pytest.raises(KeyError):
         reader.read_rows("secret_table")  # 읽기 권한 목록에 없는 표
 

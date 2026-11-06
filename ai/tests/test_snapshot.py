@@ -56,3 +56,69 @@ def test_snapshot_folder_can_be_named_by_resource_key_prefix(tmp_path):
     write_snapshot(reader, tmp_path, {"work_order": None}, name="mes")
     assert (tmp_path / "mes" / "work_order.csv").is_file()
     assert not (tmp_path / "MES_MAIN").exists()
+
+
+def test_only_chosen_columns_and_key_are_selected_from_source(tmp_path):
+    conn = FakeConn()
+    write_snapshot(
+        PostgresSourceReader("mes", lambda: conn), tmp_path, {"work_order": []}
+    )
+
+    # 고르지 않은 컬럼(qty)은 원천에서 읽지도 않는다
+    assert conn.row_queries
+    assert all('"qty"' not in q and "*" not in q for q in conn.row_queries)
+    assert list(
+        CsvSourceReader("mes", tmp_path / "mes").read_rows("work_order").columns
+    ) == ["wo_no"]
+
+
+def test_missing_chosen_column_is_reported_and_left_out(tmp_path):
+    report = write_snapshot(
+        PostgresSourceReader("mes", FakeConn),
+        tmp_path,
+        {"work_order": ["qty", "removed_col"]},
+    )
+
+    assert report.missing_columns == {"mes.work_order": ["removed_col"]}
+    assert list(
+        CsvSourceReader("mes", tmp_path / "mes").read_rows("work_order").columns
+    ) == [
+        "wo_no",
+        "qty",
+    ]
+
+
+def test_large_table_is_cut_in_key_order_and_reported(tmp_path):
+    conn = FakeConn()
+    report = write_snapshot(
+        PostgresSourceReader("mes", lambda: conn),
+        tmp_path,
+        {"work_order": None},
+        max_rows=1,
+    )
+
+    assert report.sampled_tables == {"mes.work_order": 1}
+    assert any('ORDER BY "wo_no" LIMIT 2' in q for q in conn.row_queries)
+    rows = CsvSourceReader("mes", tmp_path / "mes").read_rows("work_order")
+    assert rows["wo_no"].tolist() == ["WO-1"]
+
+
+def test_view_without_key_is_cut_without_sorting(tmp_path):
+    # 기본키가 없으면 정렬 없이 자른다 (큰 뷰 전체 정렬·정렬 못 하는 타입 방지)
+    conn = FakeConn()
+    write_snapshot(
+        PostgresSourceReader("mes", lambda: conn), tmp_path, {"v_open": None}
+    )
+
+    assert conn.row_queries
+    assert all("ORDER BY" not in q and "LIMIT" in q for q in conn.row_queries)
+
+
+def test_table_left_with_no_columns_is_skipped_not_failed(tmp_path):
+    # 고른 컬럼이 모두 사라졌고 기본키도 없으면 분석을 멈추지 않고 알리기만 한다
+    report = write_snapshot(
+        PostgresSourceReader("mes", FakeConn), tmp_path, {"v_open": ["gone"]}
+    )
+
+    assert report.missing_columns == {"mes.v_open": ["gone"]}
+    assert not (tmp_path / "mes" / "v_open.csv").exists()

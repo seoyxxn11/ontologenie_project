@@ -192,11 +192,28 @@ class PostgresSourceReader:
             columns=columns,
         )
 
-    def read_rows(self, table: str) -> pd.DataFrame:
-        """CsvSourceReader처럼 모든 값을 문자열로, 빈 값은 결측으로 돌려준다."""
+    def read_rows(
+        self, table: str, columns: list[str] | None = None, limit: int | None = None
+    ) -> pd.DataFrame:
+        """CsvSourceReader처럼 모든 값을 문자열로, 빈 값은 결측으로 돌려준다.
+
+        고르지 않은 컬럼(개인정보일 수 있음)은 SELECT에 넣지 않는다.
+        limit은 기본키가 있으면 기본키 순서로, 없으면 정렬 없이 앞에서 자른다(큰 뷰 전체 정렬·정렬 못 하는 타입 방지).
+        """
         self._check(table)
-        names = [c.name for c in self.read_schema(table).columns]
-        sql = f"SELECT * FROM {_quote(self.schema)}.{_quote(table)}"
+        schema = self.read_schema(table)
+        known = [c.name for c in schema.columns]
+        names = known if columns is None else [n for n in columns if n in known]
+        if not names:
+            raise UnknownTableError(f"{self.schema}.{table}: 읽을 컬럼이 없습니다")
+        sql = (
+            f"SELECT {', '.join(_quote(n) for n in names)}"
+            f" FROM {_quote(self.schema)}.{_quote(table)}"
+        )
+        if limit is not None:
+            if schema.primary_key:
+                sql += f" ORDER BY {', '.join(_quote(n) for n in schema.primary_key)}"
+            sql += f" LIMIT {int(limit)}"
         rows = self._query(sql)
         frame = pd.DataFrame(
             [[None if v is None else str(v) for v in row] for row in rows],

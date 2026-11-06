@@ -279,3 +279,15 @@ def test_every_document_link_has_a_link_type_candidate(data):
         table = link["payload"]["targetObjectRef"].split(":")[0].split(".")[1]
         assert link_types[code]["targetTypeCode"] == table.upper()
         assert link_types[code]["cardinality"] == "MANY_TO_MANY"
+
+
+def test_missing_chosen_column_shows_in_result_summary(data):
+    target = {"columns": ["product_code", "no_longer_there"]}
+
+    result = analyze(request([("mes.work_order", target)]), {"MES_MAIN": data / "mes"})
+
+    assert result.summary["missingColumns"] == {"mes.work_order": ["no_longer_there"]}
+    assert result.summary["sampledTables"] == {}
+    # 남은 컬럼으로 분석은 계속한다
+    props = object_bundle(result, "WORK_ORDER")["payload"]["properties"]
+    assert "product_code" in {p["code"] for p in props}

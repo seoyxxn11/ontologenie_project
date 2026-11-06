@@ -1,6 +1,12 @@
 """원천 PostgreSQL을 흉내 내는 가짜 연결 (드라이버 없이 테스트)."""
 
+import re
+
 from app.sources import postgres_reader as pg
+
+ROW_QUERY = re.compile(
+    r'SELECT (?P<cols>.+?) FROM "?\w+"?\."?(?P<table>\w+)"?(?: ORDER BY (?P<order>.+?))?(?: LIMIT (?P<limit>\d+))?$'
+)
 
 TABLES = {
     "work_order": {
@@ -11,7 +17,8 @@ TABLES = {
             ("qty", "integer", None),
         ],
         "pk": ["wo_no"],
-        "rows": [("WO-1", 10), ("WO-2", None)],
+        # 기본키 순서와 다르게 넣어 ORDER BY가 실제로 정렬하는지 본다
+        "rows": [("WO-2", None), ("WO-1", 10)],
     },
     "v_open": {
         "kind": "VIEW",
@@ -38,9 +45,17 @@ class FakeCursor:
             self.result = TABLES[params[1]]["columns"]
         elif sql == pg.PRIMARY_KEY:
             self.result = [(c,) for c in TABLES[params[1]]["pk"]]
-        elif sql.startswith("SELECT * FROM"):
+        elif m := ROW_QUERY.match(sql):
             self.conn.row_queries.append(sql)
-            self.result = TABLES[sql.split(".")[1].split()[0].strip('"')]["rows"]
+            table = TABLES[m["table"]]
+            names = [c[0] for c in table["columns"]]
+            picked = [names.index(c.strip('"')) for c in m["cols"].split(", ")]
+            source = table["rows"]
+            if m["order"]:
+                keys = [names.index(c.strip('"')) for c in m["order"].split(", ")]
+                source = sorted(source, key=lambda row: [row[i] for i in keys])
+            rows = [tuple(row[i] for i in picked) for row in source]
+            self.result = rows[: int(m["limit"])] if m["limit"] else rows
         else:
             raise AssertionError(sql)
 

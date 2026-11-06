@@ -24,7 +24,7 @@ from app.proposers.semantics import interpret
 from app.sources.base import UnknownTableError
 from app.sources.csv_reader import CsvSourceReader
 from app.sources.postgres_reader import PostgresSourceReader, SourceError
-from app.sources.snapshot import write_snapshot
+from app.sources.snapshot import SnapshotReport, write_snapshot
 
 # 글을 읽어 DOCUMENT_LINK 후보를 만드는 표 (FN-AIP-02·03)
 NOTE_TABLES = {"mes.handover_note", "mes.maintenance_order"}
@@ -59,8 +59,11 @@ def analyze(
         llm = get_llm()
     workdir = Path(tempfile.mkdtemp(prefix="ai-run-"))
     try:
-        root = _snapshot(request, sources, workdir)
-        return _analyze(request, root, llm)
+        report = _snapshot(request, sources, workdir)
+        result = _analyze(request, workdir, llm)
+        result.summary["missingColumns"] = report.missing_columns
+        result.summary["sampledTables"] = report.sampled_tables
+        return result
     finally:
         shutil.rmtree(workdir, ignore_errors=True)  # 옮겨 온 원천 값은 남기지 않는다
 
@@ -70,8 +73,11 @@ def _prefix(resource_key: str) -> str:
     return resource_key.split(".", 1)[0]
 
 
-def _snapshot(request: AnalysisStartRequest, sources: Sources, workdir: Path) -> Path:
+def _snapshot(
+    request: AnalysisStartRequest, sources: Sources, workdir: Path
+) -> SnapshotReport:
     """고른 표·컬럼과 등록 메타데이터를 원천별 폴더로 옮긴다."""
+    report = SnapshotReport()
     for code, source in sources.items():
         targets = request.targets_of(code)
         if not targets:
@@ -82,7 +88,7 @@ def _snapshot(request: AnalysisStartRequest, sources: Sources, workdir: Path) ->
                 CsvSourceReader(prefix, source) if isinstance(source, Path) else source
             )
             try:
-                write_snapshot(
+                part = write_snapshot(
                     reader,
                     workdir,
                     {t.table: t.columns or None for t in chosen},
@@ -91,7 +97,9 @@ def _snapshot(request: AnalysisStartRequest, sources: Sources, workdir: Path) ->
                 )
             except (SourceError, UnknownTableError) as error:
                 raise AnalysisFailure(f"{error} ({code})") from None
-    return workdir
+            report.missing_columns.update(part.missing_columns)
+            report.sampled_tables.update(part.sampled_tables)
+    return report
 
 
 def _tables_of(candidate: Candidate) -> set[str]:

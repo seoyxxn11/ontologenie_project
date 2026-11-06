@@ -61,9 +61,17 @@ class CsvSourceReader:
             columns=columns,
         )
 
-    def read_rows(self, table: str) -> pd.DataFrame:
+    def read_rows(
+        self, table: str, columns: list[str] | None = None, limit: int | None = None
+    ) -> pd.DataFrame:
         # 식별자의 앞자리 0이 사라지지 않도록 모든 값을 문자열로 읽는다. 빈 칸은 결측(NaN)이 된다.
-        return pd.read_csv(self._csv_path(table), dtype=str, encoding="utf-8-sig")
+        return pd.read_csv(
+            self._csv_path(table),
+            dtype=str,
+            encoding="utf-8-sig",
+            usecols=columns,
+            nrows=limit,
+        )[columns or slice(None)]
 
     def _csv_path(self, table: str) -> Path:
         path = self.root / f"{table}.csv"

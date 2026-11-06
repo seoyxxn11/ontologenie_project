@@ -152,6 +152,8 @@ LLM 설정이 없거나 LLM 호출이 실패해도 실행은 실패로 끝내지
 | `llmCalls`, `llmFailedCalls` | 호출 수, 실패한 호출 수(표 의미 해석과 메모 추출을 합친 수) |
 | `llmCredits` | 사용량(GMS 크레딧 기준 환산) |
 | `documents`, `documentLinks` | 읽은 메모·정비 기록 수, DOCUMENT_LINK 후보 수 |
+| `missingColumns` | 고른 컬럼 중 원천에서 사라진 것 `{"mes.work_order": ["컬럼"]}`. 빼고 나머지로 분석함 |
+| `sampledTables` | 행이 많아 앞에서 자른 표 `{"mes.sensor_reading": 100000}`. 기본키가 있으면 기본키 순서 |
 
 ## 5. 정해야 할 것
 
@@ -164,5 +166,5 @@ LLM 설정이 없거나 LLM 호출이 실패해도 실행은 실패로 끝내지
 - 저장소에 있는 것: 시작 알림 수신·105 전송·원천 확인(#272), PostgreSQL 읽기(#163), CSV 읽기·스냅샷(#164), 구조·분포 분석(#165), 후보 모델·근거·신뢰도(#169), 후보 생성·LLM 해석·엔진(#168), 설비 별칭·원천 식별자(#167), 메모·정비 기록 추출(#166). 재분석 비교는 아직 로컬에만 있습니다.
 - LLM: `.env`의 `AI_ONTOLOGY_LLM_PROVIDER`·`_API_KEY`·`_BASE_URL`·`_MODEL`만 바꾸면 제공사를 바꿀 수 있습니다. `gms`(기본), `openai`(OpenAI·Azure OpenAI v1, Responses API 형식), `openai-chat`(사내 LLM 서버 등 Chat Completions 형식), `none`(코드 분석만). 실제 호출로 확인한 것은 GMS뿐입니다.
 - 원천: CSV 폴더와 PostgreSQL(읽기 전용, psycopg). 로컬 PostgreSQL 18.6(SSL만 허용, 조회 전용 계정)에 data-v1.0을 넣고 확인했습니다. CSV로 분석한 후보 653개와 같게 나옵니다. 조회 전용 계정은 `information_schema`의 제약 조건이 안 보여 기본키는 `pg_catalog`로 읽습니다.
-- 고른 표·컬럼만 임시 폴더로 옮겨 분석하고, 끝나면 지웁니다. 기본키는 늘 함께 읽습니다.
+- 원천에서 고른 컬럼과 기본키만 SELECT 합니다(고르지 않은 개인정보 컬럼은 읽지 않음). 표 하나는 최대 10만 행까지 읽습니다(AI 계정 쿼리 30초 제한). 기본키가 있으면 기본키 순서로, 없으면 정렬 없이 앞에서 자릅니다. 고른 컬럼이 모두 사라지고 기본키도 없는 표는 건너뛰고 `missingColumns`로만 알립니다. 옮긴 임시 폴더는 분석이 끝나면 지웁니다.
 - 재분석: 원천 변경은 CDC로 수집하고 다시 분석할 표는 백엔드가 고릅니다(V5). 고른 표 전체를 다시 분석하고 이전 후보와 비교해 `changeType`을 붙입니다. 이전에 있다가 이번에 안 나온 후보는 판단하지 않습니다.
