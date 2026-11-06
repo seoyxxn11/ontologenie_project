@@ -19,6 +19,11 @@ export type Analysis = {
     proposals?: number
     holdRecommended?: number
     analyzedTables?: string[]
+    documentLinks?: number
+    // 고른 컬럼 중 원천에서 사라져 빼고 분석한 것 {"mes.work_order": ["컬럼"]}
+    missingColumns?: Record<string, string[]>
+    // 행이 많아 기본키 순서로 앞에서 자른 표 {"mes.sensor_reading": 100000}
+    sampledTables?: Record<string, number>
   } | null
   errorMessage: string | null
   requestedBy: number

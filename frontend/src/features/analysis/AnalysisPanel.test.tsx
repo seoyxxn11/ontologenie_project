@@ -179,3 +179,31 @@ test('분석 요청 권한이 없으면 창 안에서 서버 안내를 보여준
     '이 작업을 할 권한이 없습니다.',
   )
 })
+
+test('고른 범위와 다르게 분석한 부분은 안내로 보여준다', async () => {
+  renderRules('/admin/rules?analysis=48')
+
+  const current = await screen.findByRole('region', { name: '이번 분석' })
+  const notices = await within(current).findByRole('list', {
+    name: '분석 범위 안내',
+  })
+  expect(notices).toHaveTextContent(
+    'mes.work_order: 고른 컬럼 old_note이(가) 원천에서 사라져 빼고 분석했습니다.',
+  )
+  expect(notices).toHaveTextContent(
+    'mes.sensor_reading: 행이 많아 앞에서 100,000행만 분석했습니다.',
+  )
+  expect(current).toHaveTextContent('문서 연결 2건')
+  await screen.findByText('조건에 맞는 제안이 없습니다.')
+})
+
+test('안내할 것이 없으면 안내 목록을 그리지 않는다', async () => {
+  renderRules('/admin/rules?analysis=50')
+
+  const current = await screen.findByRole('region', { name: '이번 분석' })
+  await within(current).findByText(/이번 분석 후보/)
+  expect(
+    within(current).queryByRole('list', { name: '분석 범위 안내' }),
+  ).not.toBeInTheDocument()
+  await screen.findByRole('table', { name: '검토 제안 목록' })
+})

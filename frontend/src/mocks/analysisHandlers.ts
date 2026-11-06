@@ -48,6 +48,17 @@ export function resetAnalysisMocks() {
       resultSummary: null,
       errorMessage: 'AI 계정이 이 테이블을 읽을 수 없습니다: erp.employee',
     }),
+    run({
+      id: 48,
+      requestedAt: '2026-11-02T13:00:00+09:00',
+      resultSummary: {
+        proposals: 3,
+        holdRecommended: 0,
+        documentLinks: 2,
+        missingColumns: { 'mes.work_order': ['old_note'] },
+        sampledTables: { 'mes.sensor_reading': 100000 },
+      },
+    }),
   ]
   polls = {}
   created = []

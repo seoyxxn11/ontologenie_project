@@ -7,7 +7,12 @@ import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
 import StatusBadge from '../../components/StatusBadge'
 import { fetchAnalysis, fetchRecentAnalyses } from './api'
 import AnalysisTargetDialog from './AnalysisTargetDialog'
-import { analysisCode, analysisStatusLabels, isAnalysisRunning } from './labels'
+import {
+  analysisCode,
+  analysisStatusLabels,
+  isAnalysisRunning,
+  summaryNotices,
+} from './labels'
 import TestAnalysisDelete from './TestAnalysisDelete'
 import type { Analysis, AnalysisRun } from './types'
 
@@ -87,7 +92,20 @@ function CurrentAnalysis({
           {run.resultSummary?.holdRecommended
             ? ` · 보류 권고 ${run.resultSummary.holdRecommended}건`
             : ''}
+          {run.resultSummary?.documentLinks
+            ? ` · 문서 연결 ${run.resultSummary.documentLinks}건`
+            : ''}
         </p>
+        {summaryNotices(run).length > 0 && (
+          <ul
+            aria-label="분석 범위 안내"
+            className="space-y-1 rounded-lg bg-amber-50 p-3 text-amber-800"
+          >
+            {summaryNotices(run).map((notice) => (
+              <li key={notice}>{notice}</li>
+            ))}
+          </ul>
+        )}
         {joined && (
           <p className="text-xs text-slate-500">
             같은 대상의 분석이 이미 진행 중이라 그 분석에 합류했습니다.
