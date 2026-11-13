@@ -84,6 +84,9 @@ services:
       AXCORE_AGENT_LLM_BASE_URL: https://gms.ssafy.io/gmsapi/api.openai.com/v1
       # Agent 경로 후보 도구(OBJECT_PATHS, 381). 일반 설정이다. 382 비교 결과를 보고 켠다.
       AXCORE_AGENT_OBJECT_PATHS_ENABLED: ${AXCORE_AGENT_OBJECT_PATHS_ENABLED:-false}
+      # Agent 객체 집합 도구(OBJECT_SET_*, 380·382). 일반 설정이다. 운영은 켠다. 여러 단계 관계 질문의 도구 호출을 줄인다(docs/agent-scenario-gms.md).
+      # 끄려면 일반 설정에 false를 넣는다. 앱 기본값(application-api.yml)은 로컬·시험을 위해 false 그대로다.
+      AXCORE_AGENT_OBJECT_SETS_ENABLED: ${AXCORE_AGENT_OBJECT_SETS_ENABLED:-true}
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       DB_USERNAME: ${POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
