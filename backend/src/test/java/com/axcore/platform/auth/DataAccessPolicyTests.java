@@ -184,7 +184,7 @@ class DataAccessPolicyTests {
         assertThat(masked.restrictedPropertyCodes()).containsExactly("purchase_price");
     }
 
-    /** V13·V20 초기값: 그룹 이름만 맞게 지정하면 행을 따로 넣지 않아도 역할별로 보인다. */
+    /** V13·V21 초기값: 그룹 이름만 맞게 지정하면 행을 따로 넣지 않아도 역할별로 보인다. */
     @Test
     void seededScopeFollowsDecidedGroups() {
         long production = objectType("PRODUCTION");
