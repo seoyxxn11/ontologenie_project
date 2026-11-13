@@ -13,6 +13,7 @@ import com.axcore.platform.audit.domain.ExecutionStatus;
 import com.axcore.platform.audit.dto.AuditExecutionResponse;
 import com.axcore.platform.audit.dto.ObjectExecutionSearchRequest;
 import com.axcore.platform.audit.service.AuditExecutionQueryService;
+import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
 import com.axcore.platform.global.security.LoginAccount;
@@ -110,7 +111,7 @@ class AgentQueryToolsTests {
 
     @Test
     void searchesObjectsAsAskerAndListsFoundObjectsAsSources() {
-        when(objects.search(eq(ASKER), any()))
+        when(objects.search(eq(ASKER), eq(DataPurpose.MODEL), any()))
                 .thenReturn(
                         new PageImpl<>(
                                 List.of(object(301L, "PR-03"), object(302L, "PR-03B")),
@@ -121,7 +122,7 @@ class AgentQueryToolsTests {
 
         ArgumentCaptor<ObjectSearchRequest> request =
                 ArgumentCaptor.forClass(ObjectSearchRequest.class);
-        verify(objects).search(eq(ASKER), request.capture());
+        verify(objects).search(eq(ASKER), eq(DataPurpose.MODEL), request.capture());
         assertThat(request.getValue())
                 .isEqualTo(new ObjectSearchRequest("PR-03", 4L, null, 0, AgentQueryTools.MAX_ROWS));
         assertThat(reply).containsEntry("resultCategory", "FOUND");
@@ -143,7 +144,7 @@ class AgentQueryToolsTests {
         properties.put("equipment_code", "PR-03");
         properties.put("acquisition_cost", null);
         properties.put("note", null);
-        when(objects.search(eq(ASKER), any()))
+        when(objects.search(eq(ASKER), eq(DataPurpose.MODEL), any()))
                 .thenReturn(
                         new PageImpl<>(
                                 List.of(
@@ -175,14 +176,15 @@ class AgentQueryToolsTests {
 
     @Test
     void acceptsLowerCaseStatusAndReportsUnknownStatusAsFailed() {
-        when(objects.search(eq(ASKER), any())).thenReturn(new PageImpl<>(List.of()));
+        when(objects.search(eq(ASKER), eq(DataPurpose.MODEL), any()))
+                .thenReturn(new PageImpl<>(List.of()));
 
         tools.objectSearch("PR-03", null, "active");
         Map<String, Object> unknown = tools.objectSearch("PR-03", null, "archived");
 
         ArgumentCaptor<ObjectSearchRequest> request =
                 ArgumentCaptor.forClass(ObjectSearchRequest.class);
-        verify(objects).search(eq(ASKER), request.capture());
+        verify(objects).search(eq(ASKER), eq(DataPurpose.MODEL), request.capture());
         assertThat(request.getValue().status()).isEqualTo(ObjectSearchRequest.Status.ACTIVE);
         assertThat(unknown).containsKey("error");
         assertThat(session.results())
@@ -192,7 +194,8 @@ class AgentQueryToolsTests {
 
     @Test
     void answersEmptySearchAsNoData() {
-        when(objects.search(eq(ASKER), any())).thenReturn(new PageImpl<>(List.of()));
+        when(objects.search(eq(ASKER), eq(DataPurpose.MODEL), any()))
+                .thenReturn(new PageImpl<>(List.of()));
 
         assertThat(tools.objectSearch("없는 설비", null, null))
                 .containsEntry("resultCategory", "NO_DATA");
@@ -201,7 +204,7 @@ class AgentQueryToolsTests {
 
     @Test
     void answersForbiddenSearchAsDeniedWithoutDataAsOf() {
-        when(objects.search(eq(ASKER), any()))
+        when(objects.search(eq(ASKER), eq(DataPurpose.MODEL), any()))
                 .thenThrow(
                         new BusinessException(
                                 CommonErrorCode.FORBIDDEN,

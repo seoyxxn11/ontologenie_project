@@ -13,6 +13,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.axcore.platform.audit.domain.AgentResultCategory;
+import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
 import com.axcore.platform.global.security.LoginAccount;
@@ -46,7 +47,7 @@ class AgentObjectDetailToolsTests {
     @Test
     void returnsDetailAsFound() {
         ObjectDetailResponse detail = detail(301L);
-        when(objects.detail(ASKER, 301L)).thenReturn(detail);
+        when(objects.detail(ASKER, DataPurpose.MODEL, 301L)).thenReturn(detail);
 
         Map<String, Object> reply = tools.objectDetail(301L);
 
@@ -61,7 +62,7 @@ class AgentObjectDetailToolsTests {
 
     @Test
     void treatsHiddenOrMissingObjectAsNoData() {
-        when(objects.detail(ASKER, 999L))
+        when(objects.detail(ASKER, DataPurpose.MODEL, 999L))
                 .thenThrow(new BusinessException(CommonErrorCode.RESOURCE_NOT_FOUND, Map.of()));
 
         assertThat(tools.objectDetail(999L)).containsEntry("resultCategory", "NO_DATA");
@@ -70,7 +71,7 @@ class AgentObjectDetailToolsTests {
 
     @Test
     void listsLinksWithBaseAndRelatedObjectsAsSources() {
-        when(objects.links(eq(ASKER), eq(301L), any()))
+        when(objects.links(eq(ASKER), eq(DataPurpose.MODEL), eq(301L), any()))
                 .thenReturn(
                         new PageImpl<>(
                                 List.of(link(91L, 501L), link(92L, 502L)),
@@ -81,7 +82,7 @@ class AgentObjectDetailToolsTests {
 
         ArgumentCaptor<ObjectLinkSearchRequest> request =
                 ArgumentCaptor.forClass(ObjectLinkSearchRequest.class);
-        verify(objects).links(eq(ASKER), eq(301L), request.capture());
+        verify(objects).links(eq(ASKER), eq(DataPurpose.MODEL), eq(301L), request.capture());
         assertThat(request.getValue())
                 .isEqualTo(
                         new ObjectLinkSearchRequest(
@@ -101,14 +102,14 @@ class AgentObjectDetailToolsTests {
     /** 관계가 20건을 넘으면 AI가 쪽을 넘겨 본다. 받은 쪽 번호와 다음 쪽 여부를 함께 돌려준다(350). */
     @Test
     void readsRequestedPageAndTellsWhetherMoreLinksRemain() {
-        when(objects.links(eq(ASKER), eq(301L), any()))
+        when(objects.links(eq(ASKER), eq(DataPurpose.MODEL), eq(301L), any()))
                 .thenReturn(new PageImpl<>(List.of(link(91L, 501L)), PageRequest.of(2, 20), 65));
 
         Map<String, Object> reply = tools.objectLinks(301L, 12L, null, 2);
 
         ArgumentCaptor<ObjectLinkSearchRequest> request =
                 ArgumentCaptor.forClass(ObjectLinkSearchRequest.class);
-        verify(objects).links(eq(ASKER), eq(301L), request.capture());
+        verify(objects).links(eq(ASKER), eq(DataPurpose.MODEL), eq(301L), request.capture());
         assertThat(request.getValue().page()).isEqualTo(2);
         assertThat(request.getValue().size()).isEqualTo(AgentQueryTools.MAX_ROWS);
         Map<?, ?> data = (Map<?, ?>) reply.get("data");
@@ -132,7 +133,7 @@ class AgentObjectDetailToolsTests {
     /** 마지막 쪽을 넘겨 links가 비어도 관계는 있으므로 UNLINKED(연결 없음)로 답하지 않는다. */
     @Test
     void answersPageBeyondLastAsFoundWithoutLinks() {
-        when(objects.links(eq(ASKER), eq(301L), any()))
+        when(objects.links(eq(ASKER), eq(DataPurpose.MODEL), eq(301L), any()))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(5, 20), 65));
 
         Map<String, Object> reply = tools.objectLinks(301L, null, null, 5);
@@ -162,9 +163,9 @@ class AgentObjectDetailToolsTests {
                                 19L,
                                 "비가동",
                                 10L));
-        when(objects.links(eq(ASKER), eq(301L), any()))
+        when(objects.links(eq(ASKER), eq(DataPurpose.MODEL), eq(301L), any()))
                 .thenReturn(new PageImpl<>(List.of(link(91L, 501L)), PageRequest.of(0, 20), 163));
-        when(objects.linkGroups(ASKER, 301L)).thenReturn(groups);
+        when(objects.linkGroups(ASKER, DataPurpose.MODEL, 301L)).thenReturn(groups);
 
         Map<String, Object> reply = tools.objectLinks(301L, null, null, null);
 
@@ -174,7 +175,7 @@ class AgentObjectDetailToolsTests {
     /** 관계 유형으로 좁혔거나 한 쪽에 다 담겼으면 묶음 건수를 다시 구하지 않는다. */
     @Test
     void omitsLinkGroupsWhenFilteredOrAllLinksFit() {
-        when(objects.links(eq(ASKER), eq(301L), any()))
+        when(objects.links(eq(ASKER), eq(DataPurpose.MODEL), eq(301L), any()))
                 .thenReturn(new PageImpl<>(List.of(link(91L, 501L)), PageRequest.of(0, 20), 163))
                 .thenReturn(new PageImpl<>(List.of(link(92L, 502L)), PageRequest.of(0, 20), 1));
 
@@ -231,7 +232,8 @@ class AgentObjectDetailToolsTests {
 
     @Test
     void answersObjectWithoutVisibleLinksAsUnlinked() {
-        when(objects.links(eq(ASKER), eq(301L), any())).thenReturn(new PageImpl<>(List.of()));
+        when(objects.links(eq(ASKER), eq(DataPurpose.MODEL), eq(301L), any()))
+                .thenReturn(new PageImpl<>(List.of()));
 
         assertThat(tools.objectLinks(301L, null, null, null))
                 .containsEntry("resultCategory", "UNLINKED");
@@ -241,7 +243,7 @@ class AgentObjectDetailToolsTests {
 
     @Test
     void answersLinksOfMissingObjectAsNoData() {
-        when(objects.links(eq(ASKER), eq(999L), any()))
+        when(objects.links(eq(ASKER), eq(DataPurpose.MODEL), eq(999L), any()))
                 .thenThrow(new BusinessException(CommonErrorCode.RESOURCE_NOT_FOUND, Map.of()));
 
         assertThat(tools.objectLinks(999L, null, null, null))

@@ -2,6 +2,7 @@ package com.axcore.platform.ontology.service;
 
 import com.axcore.platform.auth.service.DataAccess;
 import com.axcore.platform.auth.service.DataAccessPolicy;
+import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.ontology.domain.PropertyDataType;
 import com.axcore.platform.ontology.domain.PropertyDefinition;
@@ -28,12 +29,12 @@ public class PropertyValueSampleService {
 
     /**
      * 속성 코드별 값 종류(값 순서). 값이 없는 속성은 빈 목록이다. 값 종류가 limit를 넘는 속성은 상태 같은 범주 값이 아니라고 보고 넣지 않는다. 사용 중인
-     * 객체만 보고 null·빈 값은 넣지 않는다.
+     * 객체만 보고 null·빈 값은 넣지 않는다. 값 종류는 Agent가 모델에 넘기므로 부르는 쪽이 용도를 정한다(모델 용도면 민감 속성은 넣지 않는다, 384).
      */
     @Transactional(readOnly = true)
     public Map<String, List<String>> stringValues(
-            LoginAccount actor, long objectTypeId, int limit) {
-        DataAccess access = dataAccessPolicy.of(actor);
+            LoginAccount actor, DataPurpose purpose, long objectTypeId, int limit) {
+        DataAccess access = dataAccessPolicy.of(actor, purpose);
         if (!access.canView(objectTypeId)) {
             return Map.of();
         }

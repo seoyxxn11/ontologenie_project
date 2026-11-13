@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 
 import com.axcore.platform.auth.service.DataAccess;
 import com.axcore.platform.auth.service.DataAccessPolicy;
+import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
 import com.axcore.platform.global.security.LoginAccount;
@@ -54,12 +55,13 @@ class AgentObjectSetToolsTests {
      */
     @Test
     void recordsAFailureWhenABaseObjectDisappearsRightBeforeTheHop() {
-        when(objects.findByIds(eq(ASKER), any())).thenReturn(List.of(object(OBJECT)));
-        when(policy.of(ASKER)).thenReturn(mock(DataAccess.class));
+        when(objects.findByIds(eq(ASKER), eq(DataPurpose.MODEL), any()))
+                .thenReturn(List.of(object(OBJECT)));
+        when(policy.forModel(ASKER)).thenReturn(mock(DataAccess.class));
         when(models.summarize(any()))
                 .thenReturn(new ModelSummaryResponse(List.of(), List.of(), List.of(), List.of()));
         when(objects.findAvailableIds(eq(ASKER), any())).thenReturn(List.of(OBJECT));
-        when(details.searchAround(eq(ASKER), any()))
+        when(details.searchAround(eq(ASKER), eq(DataPurpose.MODEL), any()))
                 .thenThrow(
                         new BusinessException(
                                 CommonErrorCode.RESOURCE_NOT_FOUND,
@@ -82,14 +84,15 @@ class AgentObjectSetToolsTests {
     /** 건너기는 됐지만 결과를 만드는 뒤 조회가 실패하면 답은 실패이므로 건너기 횟수를 세지 않는다(380 4차 리뷰). */
     @Test
     void doesNotCountAHopWhoseFollowUpLookupFails() {
-        when(objects.findByIds(eq(ASKER), any())).thenReturn(List.of(object(OBJECT)));
-        when(policy.of(ASKER)).thenReturn(mock(DataAccess.class));
+        when(objects.findByIds(eq(ASKER), eq(DataPurpose.MODEL), any()))
+                .thenReturn(List.of(object(OBJECT)));
+        when(policy.forModel(ASKER)).thenReturn(mock(DataAccess.class));
         when(models.summarize(any()))
                 .thenReturn(new ModelSummaryResponse(List.of(), List.of(), List.of(), List.of()));
         when(objects.findAvailableIds(eq(ASKER), any())).thenReturn(List.of(OBJECT));
-        when(details.searchAround(eq(ASKER), any()))
+        when(details.searchAround(eq(ASKER), eq(DataPurpose.MODEL), any()))
                 .thenReturn(ObjectSearchAroundResult.of(Direction.OUT, 9L, List.of(12L)));
-        when(values.stringValues(eq(ASKER), eq(9L), anyInt()))
+        when(values.stringValues(eq(ASKER), eq(DataPurpose.MODEL), eq(9L), anyInt()))
                 .thenThrow(new IllegalStateException("DB 오류"));
         tools.objectSetStart(List.of(OBJECT), null, null, null, null, null);
 

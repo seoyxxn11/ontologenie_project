@@ -6,6 +6,7 @@ import com.axcore.platform.agent.service.AgentQuerySession.ObjectSet;
 import com.axcore.platform.agent.service.AgentQuerySession.Outcome;
 import com.axcore.platform.audit.domain.AgentResultCategory;
 import com.axcore.platform.auth.service.DataAccessPolicy;
+import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
 import com.axcore.platform.ontology.domain.PropertyDataType;
@@ -224,7 +225,9 @@ public class AgentObjectSetTools {
                     List<AgentQueryTools.ObjectSummary> rows =
                             slice.isEmpty()
                                     ? List.of()
-                                    : objects.findByIds(session.asker(), slice).stream()
+                                    : objects
+                                            .findByIds(session.asker(), DataPurpose.MODEL, slice)
+                                            .stream()
                                             .map(AgentQueryTools.ObjectSummary::from)
                                             .toList();
                     List<Long> ids = rows.stream().map(AgentQueryTools.ObjectSummary::id).toList();
@@ -259,7 +262,8 @@ public class AgentObjectSetTools {
         if (requested.size() > MAX_START_OBJECTS) {
             throw new InvalidInput("objectIds는 " + MAX_START_OBJECTS + "개까지 넣을 수 있습니다.", null);
         }
-        List<ObjectSearchResponse> found = objects.findByIds(session.asker(), requested);
+        List<ObjectSearchResponse> found =
+                objects.findByIds(session.asker(), DataPurpose.MODEL, requested);
         int unavailable = requested.size() - found.size();
         if (found.isEmpty()) {
             Map<String, Object> gone = new LinkedHashMap<>();
@@ -301,6 +305,7 @@ public class AgentObjectSetTools {
             found =
                     objects.searchIds(
                             session.asker(),
+                            DataPurpose.MODEL,
                             new ObjectSearchRequest(
                                     null,
                                     typeId,
@@ -375,7 +380,7 @@ public class AgentObjectSetTools {
             throw new InvalidInput("linkTypeId가 없습니다. 모델 요약이나 경로 후보의 관계 유형 id를 넣어 주세요.", null);
         }
         Direction requested = directionOf(direction);
-        ModelSummaryResponse summary = models.summarize(dataAccess.of(session.asker()));
+        ModelSummaryResponse summary = models.summarize(dataAccess.forModel(session.asker()));
         // 날짜만 받은 DATETIME 기간을 바꾸려면 연결된 유형의 속성 자료형을 미리 알아야 한다. 모르면 그대로 넘겨 서비스가 검증한다.
         Long expectedType = relatedTypeOf(summary, linkTypeId, set.objectTypeId(), requested);
         List<PropertyItem> expectedProperties =
@@ -402,6 +407,7 @@ public class AgentObjectSetTools {
             result =
                     details.searchAround(
                             session.asker(),
+                            DataPurpose.MODEL,
                             new ObjectSearchAroundRequest(
                                     available,
                                     linkTypeId,
@@ -580,7 +586,9 @@ public class AgentObjectSetTools {
     /** 이름 샘플로 보여 줄 앞 객체 몇 개. */
     private List<ObjectSearchResponse> sample(List<Long> ids) {
         return objects.findByIds(
-                session.asker(), ids.subList(0, Math.min(SAMPLE_SIZE, ids.size())));
+                session.asker(),
+                DataPurpose.MODEL,
+                ids.subList(0, Math.min(SAMPLE_SIZE, ids.size())));
     }
 
     /** 객체 이름 몇 개. ID는 주지 않는다. 객체별 조회는 목록 보기로 받은 객체만 하게 하기 위해서다. */

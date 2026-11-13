@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.axcore.platform.audit.service.AuditExecutionQueryService;
+import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.ontology.dto.ObjectDetailResponse;
 import com.axcore.platform.ontology.dto.ObjectLinkEvidenceResponse;
@@ -44,7 +45,7 @@ class AgentToolDataAsOfTests {
 
     @Test
     void searchUsesTablesOfFoundObjectsAndTellsAiInKoreanTime() {
-        when(search.search(any(), any()))
+        when(search.search(any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(found(301L), found(302L))));
         when(dataAsOf.forObjects(List.of(301L, 302L))).thenReturn(CONFIRMED);
 
@@ -59,9 +60,9 @@ class AgentToolDataAsOfTests {
     void givesBusinessAsOfOfObjectsToAiInKoreanTime() {
         // 한국 시간 2026-09-30 00:30은 UTC로 전날이다. UTC로 넘기면 AI가 기준일을 09-29로 말한다.
         Instant businessAsOf = Instant.parse("2026-09-29T15:30:00Z");
-        when(search.search(any(), any()))
+        when(search.search(any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(found(301L, businessAsOf))));
-        when(details.detail(ASKER, 301L)).thenReturn(detail(301L, businessAsOf));
+        when(details.detail(ASKER, DataPurpose.MODEL, 301L)).thenReturn(detail(301L, businessAsOf));
 
         Map<String, Object> searched = queryTools().objectSearch("PR", null, null);
         Map<String, Object> detailed =
@@ -77,7 +78,7 @@ class AgentToolDataAsOfTests {
 
     @Test
     void searchWithoutResultsHasNoDataAsOf() {
-        when(search.search(any(), any())).thenReturn(new PageImpl<>(List.of()));
+        when(search.search(any(), any(), any())).thenReturn(new PageImpl<>(List.of()));
 
         queryTools().objectSearch("없는 설비", null, null);
 
@@ -87,7 +88,7 @@ class AgentToolDataAsOfTests {
 
     @Test
     void detailUsesTableOfThatObject() {
-        when(details.detail(ASKER, 301L)).thenReturn(detail(301L));
+        when(details.detail(ASKER, DataPurpose.MODEL, 301L)).thenReturn(detail(301L));
         when(dataAsOf.forObjects(List.of(301L))).thenReturn(CONFIRMED);
 
         new AgentObjectDetailTools(session, details).objectDetail(301L);
@@ -97,7 +98,7 @@ class AgentToolDataAsOfTests {
 
     @Test
     void linksUseTablesOfBothEndsAndUnlinkedUsesBaseObjectOnly() {
-        when(details.links(any(), anyLong(), any()))
+        when(details.links(any(), any(), anyLong(), any()))
                 .thenReturn(new PageImpl<>(List.of(link(91L, 401L))))
                 .thenReturn(new PageImpl<>(List.of()));
         when(dataAsOf.forObjects(any())).thenReturn(CONFIRMED);
@@ -113,7 +114,7 @@ class AgentToolDataAsOfTests {
 
     @Test
     void evidenceUsesBothEndsOfTheLink() {
-        when(evidence.linkEvidence(ASKER, 301L, 91L))
+        when(evidence.linkEvidence(ASKER, DataPurpose.MODEL, 301L, 91L))
                 .thenReturn(
                         new ObjectLinkEvidenceResponse(
                                 Map.of(), null, "일치 값", null, null, null, List.of(), false));
@@ -127,7 +128,7 @@ class AgentToolDataAsOfTests {
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void doesNotResolveDataAsOfWhenEvidenceIsRestrictedOrAbsent(boolean restricted) {
-        when(evidence.linkEvidence(ASKER, 301L, 91L))
+        when(evidence.linkEvidence(ASKER, DataPurpose.MODEL, 301L, 91L))
                 .thenReturn(
                         new ObjectLinkEvidenceResponse(
                                 null, null, null, null, null, null, List.of(), restricted));
@@ -156,7 +157,7 @@ class AgentToolDataAsOfTests {
 
     @Test
     void keepsResultWhenDataAsOfCannotBeRead() {
-        when(details.detail(ASKER, 301L)).thenReturn(detail(301L));
+        when(details.detail(ASKER, DataPurpose.MODEL, 301L)).thenReturn(detail(301L));
         when(dataAsOf.forObjects(any())).thenThrow(new IllegalStateException("DB 연결 끊김"));
 
         Map<String, Object> reply = new AgentObjectDetailTools(session, details).objectDetail(301L);

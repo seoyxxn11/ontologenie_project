@@ -146,18 +146,23 @@ class AgentObjectListToolsIntegrationTests {
     }
 
     @Test
-    void deniesFilteringByRestrictedPropertyUnlessAskerMayViewIt() {
+    /**
+     * Agent는 외부 모델에 값을 넘기므로 모델 용도로 읽는다. 민감 값을 볼 수 있는 역할이 물어도 민감 속성으로는 거르지 못하고, 속성 목록에도 넣지 않는다
+     * (384).
+     */
+    void deniesFilteringByRestrictedPropertyEvenWhenAskerMayViewIt() {
         Map<String, Object> viewer =
                 tools(VIEWER).objectList(visible, Map.of("cost", "1200"), null, null, null, null);
         Map<String, Object> admin =
                 tools(ADMIN).objectList(visible, Map.of("cost", "1200"), null, null, null, null);
+        Map<String, Object> unfiltered =
+                tools(ADMIN).objectList(visible, Map.of(), null, null, null, null);
 
         assertThat(viewer).containsEntry("resultCategory", "DENIED");
-        assertThat(admin).containsEntry("resultCategory", "FOUND");
-        assertThat(((ObjectList) admin.get("data")).total()).isEqualTo(25L);
-        assertThat(((ObjectList) admin.get("data")).properties())
+        assertThat(admin).containsEntry("resultCategory", "DENIED");
+        assertThat(((ObjectList) unfiltered.get("data")).properties())
                 .extracting(PropertyItem::code)
-                .contains("cost");
+                .doesNotContain("cost");
     }
 
     @Test

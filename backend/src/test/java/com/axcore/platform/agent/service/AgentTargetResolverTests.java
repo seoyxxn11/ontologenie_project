@@ -13,6 +13,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.axcore.platform.audit.domain.AgentResultCategory;
+import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.ontology.dto.ObjectSearchRequest;
 import com.axcore.platform.ontology.dto.ObjectSearchResponse;
@@ -397,11 +398,12 @@ class AgentTargetResolverTests {
 
         assertThat(resolution.issues())
                 .containsExactly(new AgentTargetResolver.TargetIssue("없는 설비", List.of()));
-        verify(objects).findByPropertyValue(ASKER, "없는 설비", 100);
+        verify(objects).findByPropertyValue(ASKER, DataPurpose.MODEL, "없는 설비", 100);
     }
 
     private void propertyValueReturns(String value, ObjectSearchResponse... rows) {
-        when(objects.findByPropertyValue(ASKER, value, 100)).thenReturn(List.of(rows));
+        when(objects.findByPropertyValue(ASKER, DataPurpose.MODEL, value, 100))
+                .thenReturn(List.of(rows));
     }
 
     private static ObjectSearchResponse sensorReading(long id, String measuredAt, String metric) {
@@ -439,7 +441,10 @@ class AgentTargetResolverTests {
     }
 
     private void searchReturns(String query, ObjectSearchResponse... rows) {
-        when(objects.search(eq(ASKER), eq(new ObjectSearchRequest(query, null, null, 0, 100))))
+        when(objects.search(
+                        eq(ASKER),
+                        eq(DataPurpose.MODEL),
+                        eq(new ObjectSearchRequest(query, null, null, 0, 100))))
                 .thenReturn(new PageImpl<>(List.of(rows)));
     }
 

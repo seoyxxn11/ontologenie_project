@@ -2,6 +2,7 @@ package com.axcore.platform.agent.service;
 
 import com.axcore.platform.audit.domain.AgentResultCategory;
 import com.axcore.platform.auth.service.DataAccessPolicy;
+import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
 import com.axcore.platform.global.security.LoginAccount;
@@ -135,6 +136,7 @@ public class AgentObjectListTools {
                         found =
                                 objects.search(
                                         session.asker(),
+                                        DataPurpose.MODEL,
                                         new ObjectSearchRequest(
                                                 null,
                                                 typeId,
@@ -192,8 +194,9 @@ public class AgentObjectListTools {
             ModelSummaryService models,
             DataAccessPolicy dataAccess,
             PropertyValueSampleService values) {
-        Map<String, List<String>> samples = values.stringValues(asker, typeId, MAX_VALUES);
-        return models.summarize(dataAccess.of(asker)).properties().stream()
+        Map<String, List<String>> samples =
+                values.stringValues(asker, DataPurpose.MODEL, typeId, MAX_VALUES);
+        return models.summarize(dataAccess.forModel(asker)).properties().stream()
                 .filter(property -> Objects.equals(property.objectTypeId(), typeId))
                 .map(
                         property ->

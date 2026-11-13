@@ -5,6 +5,7 @@ import com.axcore.platform.action.repository.ReassignmentObjectRepository.Object
 import com.axcore.platform.audit.domain.AgentResultCategory;
 import com.axcore.platform.auth.service.DataAccess;
 import com.axcore.platform.auth.service.DataAccessPolicy;
+import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.ontology.service.ObjectDetailQuery;
@@ -111,7 +112,7 @@ public class CompletionEstimator {
         CompletionEstimateProperties.Operation operation = properties.operation();
         CompletionEstimateProperties.Routing routing = properties.routing();
         CompletionEstimateProperties.Equipment equipment = properties.equipment();
-        DataAccess access = dataAccessPolicy.of(asker);
+        DataAccess access = dataAccessPolicy.forModel(asker);
 
         Set<Long> ids = new LinkedHashSet<>(workOrderIds);
         if (equipmentId != null) {
@@ -294,7 +295,7 @@ public class CompletionEstimator {
     private String label(LoginAccount asker, ObjectRow machine, Visibility visibility) {
         String name;
         try {
-            name = details.detail(asker, machine.id()).displayName();
+            name = details.detail(asker, DataPurpose.MODEL, machine.id()).displayName();
         } catch (BusinessException e) {
             name = "#" + machine.id();
         }

@@ -43,7 +43,7 @@ class AgentModelSummaryToolsTests {
 
     @Test
     void returnsVisibleTypesAndLinkTypesWithEndNamesInAskersScope() {
-        when(policy.of(ASKER)).thenReturn(access);
+        when(policy.forModel(ASKER)).thenReturn(access);
         when(models.summarize(access))
                 .thenReturn(
                         new ModelSummaryResponse(
@@ -113,7 +113,7 @@ class AgentModelSummaryToolsTests {
 
     @Test
     void reportsNoDataWhenNoTypeIsVisible() {
-        when(policy.of(ASKER)).thenReturn(access);
+        when(policy.forModel(ASKER)).thenReturn(access);
         when(models.summarize(access))
                 .thenReturn(new ModelSummaryResponse(List.of(), List.of(), List.of(), List.of()));
 
@@ -126,7 +126,7 @@ class AgentModelSummaryToolsTests {
 
     @Test
     void recordsFailureWhenSummaryCannotBeRead() {
-        when(policy.of(ASKER)).thenReturn(access);
+        when(policy.forModel(ASKER)).thenReturn(access);
         when(models.summarize(access)).thenThrow(new IllegalStateException("DB 연결 끊김"));
 
         Map<String, Object> reply = tools.modelSummary();

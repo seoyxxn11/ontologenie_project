@@ -20,6 +20,7 @@ import com.axcore.platform.agent.service.CompletionEstimator.WorkOrderEstimate;
 import com.axcore.platform.audit.domain.AgentResultCategory;
 import com.axcore.platform.auth.service.DataAccess;
 import com.axcore.platform.auth.service.DataAccessPolicy;
+import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.ontology.dto.ObjectDetailResponse;
 import com.axcore.platform.ontology.service.ObjectDetailQuery;
@@ -61,11 +62,11 @@ class CompletionEstimatorTests {
 
     @BeforeEach
     void setUp() {
-        when(policy.of(ASKER)).thenReturn(access);
+        when(policy.forModel(ASKER)).thenReturn(access);
         when(access.canView(anyString())).thenReturn(true);
         // 077은 205 기준으로 가린 표시 이름을 준다. 기본은 원본과 같은 이름이다.
-        when(details.detail(eq(ASKER), anyLong()))
-                .thenAnswer(call -> detail(call.getArgument(1), "1라인 1호 프레스"));
+        when(details.detail(eq(ASKER), eq(DataPurpose.MODEL), anyLong()))
+                .thenAnswer(call -> detail(call.getArgument(2), "1라인 1호 프레스"));
         workOrders.put(WO_B, workOrder(WO_B, "JB2610-0138", "BRK-210L"));
         workOrders.put(WO_A, workOrder(WO_A, "JB2610-0141", "BRK-210R"));
         when(objects.findByIds(any()))
@@ -423,7 +424,7 @@ class CompletionEstimatorTests {
                         "P101",
                         Map.of("code", "P101", "kind", "PRS")));
         when(access.hidesValue("Equipment", "code")).thenReturn(true);
-        when(details.detail(ASKER, P101)).thenReturn(detail(P101, "#2210"));
+        when(details.detail(ASKER, DataPurpose.MODEL, P101)).thenReturn(detail(P101, "#2210"));
 
         Estimate estimate = estimator.estimate(ASKER, List.of(WO_A), Set.of(), P101, START);
 

@@ -3,6 +3,7 @@ package com.axcore.platform.ontology.service;
 import com.axcore.platform.account.domain.RoleCode;
 import com.axcore.platform.auth.service.DataAccess;
 import com.axcore.platform.auth.service.DataAccessPolicy;
+import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.auth.service.MaskedProperties;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
@@ -65,11 +66,18 @@ public class ObjectQueryService
     @Override
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public Page<ObjectSearchResponse> search(LoginAccount actor, ObjectSearchRequest request) {
+        return search(actor, DataPurpose.VIEW, request);
+    }
+
+    @Override
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public Page<ObjectSearchResponse> search(
+            LoginAccount actor, DataPurpose purpose, ObjectSearchRequest request) {
         PageRequest page =
                 PageRequest.of(
                         request.page() == null ? 0 : request.page(),
                         request.size() == null ? DEFAULT_PAGE_SIZE : request.size());
-        SearchScope scope = searchScope(actor, request);
+        SearchScope scope = searchScope(actor, purpose, request);
         if (scope == null) {
             return Page.empty(page);
         }
@@ -89,10 +97,17 @@ public class ObjectQueryService
     @Override
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public IdSearch searchIds(LoginAccount actor, ObjectSearchRequest request, int limit) {
+        return searchIds(actor, DataPurpose.VIEW, request, limit);
+    }
+
+    @Override
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public IdSearch searchIds(
+            LoginAccount actor, DataPurpose purpose, ObjectSearchRequest request, int limit) {
         if (request.q() != null && !request.q().isBlank()) {
             throw new IllegalArgumentException("검색어 조건은 ID 조회에서 지원하지 않습니다.");
         }
-        SearchScope scope = searchScope(actor, request);
+        SearchScope scope = searchScope(actor, purpose, request);
         if (scope == null) {
             return new IdSearch(0, List.of());
         }
@@ -106,7 +121,8 @@ public class ObjectQueryService
     }
 
     /** 076의 권한·조건 검사. 볼 수 있는 유형이 없으면 조건을 검증하지 않고 null이다(숨긴 유형의 속성을 드러내지 않는다). */
-    private SearchScope searchScope(LoginAccount actor, ObjectSearchRequest request) {
+    private SearchScope searchScope(
+            LoginAccount actor, DataPurpose purpose, ObjectSearchRequest request) {
         if (request.hasFilters() && request.objectTypeId() == null) {
             throw BusinessException.invalidField("objectTypeId", "속성 또는 기간 조건에는 객체 유형을 지정해 주세요.");
         }
@@ -117,7 +133,7 @@ public class ObjectQueryService
                     "원천에서 삭제된 객체는 관리자만 조회할 수 있습니다.",
                     Map.of("field", "status", "requiredPermission", RoleCode.ADMIN.name()));
         }
-        DataAccess access = dataAccessPolicy.of(actor);
+        DataAccess access = dataAccessPolicy.of(actor, purpose);
         Set<Long> visibleTypeIds = access.visibleObjectTypeIds();
         if (request.objectTypeId() != null) {
             visibleTypeIds =
@@ -165,11 +181,18 @@ public class ObjectQueryService
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public List<ObjectSearchResponse> findByPropertyValue(
             LoginAccount actor, String value, int limit) {
+        return findByPropertyValue(actor, DataPurpose.VIEW, value, limit);
+    }
+
+    @Override
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public List<ObjectSearchResponse> findByPropertyValue(
+            LoginAccount actor, DataPurpose purpose, String value, int limit) {
         String exact = value == null ? "" : value.strip();
         if (exact.isEmpty()) {
             return List.of();
         }
-        DataAccess access = dataAccessPolicy.of(actor);
+        DataAccess access = dataAccessPolicy.of(actor, purpose);
         Set<Long> visibleTypeIds = access.visibleObjectTypeIds();
         if (visibleTypeIds.isEmpty()) {
             return List.of();
@@ -185,10 +208,17 @@ public class ObjectQueryService
     @Override
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public List<ObjectSearchResponse> findByIds(LoginAccount actor, Collection<Long> ids) {
+        return findByIds(actor, DataPurpose.VIEW, ids);
+    }
+
+    @Override
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public List<ObjectSearchResponse> findByIds(
+            LoginAccount actor, DataPurpose purpose, Collection<Long> ids) {
         if (ids.size() > MAX_IDS) {
             throw new IllegalArgumentException("객체 ID는 한 번에 " + MAX_IDS + "개까지 읽을 수 있습니다.");
         }
-        DataAccess access = dataAccessPolicy.of(actor);
+        DataAccess access = dataAccessPolicy.of(actor, purpose);
         Set<Long> visibleTypeIds = access.visibleObjectTypeIds();
         if (ids.isEmpty() || visibleTypeIds.isEmpty()) {
             return List.of();
@@ -212,7 +242,13 @@ public class ObjectQueryService
     @Override
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public ObjectDetailResponse detail(LoginAccount actor, long objectId) {
-        DataAccess access = dataAccessPolicy.of(actor);
+        return detail(actor, DataPurpose.VIEW, objectId);
+    }
+
+    @Override
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public ObjectDetailResponse detail(LoginAccount actor, DataPurpose purpose, long objectId) {
+        DataAccess access = dataAccessPolicy.of(actor, purpose);
         Set<Long> visibleTypeIds = access.visibleObjectTypeIds();
         if (visibleTypeIds.isEmpty()) {
             throw notFound(objectId);
@@ -248,7 +284,17 @@ public class ObjectQueryService
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public Page<ObjectLinkResponse> links(
             LoginAccount actor, long objectId, ObjectLinkSearchRequest request) {
-        DataAccess access = dataAccessPolicy.of(actor);
+        return links(actor, DataPurpose.VIEW, objectId, request);
+    }
+
+    @Override
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public Page<ObjectLinkResponse> links(
+            LoginAccount actor,
+            DataPurpose purpose,
+            long objectId,
+            ObjectLinkSearchRequest request) {
+        DataAccess access = dataAccessPolicy.of(actor, purpose);
         Set<Long> visibleTypeIds = access.visibleObjectTypeIds();
         if (visibleTypeIds.isEmpty() || !objects.existsActive(objectId, visibleTypeIds)) {
             throw notFound(objectId);
@@ -270,7 +316,14 @@ public class ObjectQueryService
     @Override
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public List<ObjectLinkGroupResponse> linkGroups(LoginAccount actor, long objectId) {
-        Set<Long> visibleTypeIds = dataAccessPolicy.of(actor).visibleObjectTypeIds();
+        return linkGroups(actor, DataPurpose.VIEW, objectId);
+    }
+
+    @Override
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public List<ObjectLinkGroupResponse> linkGroups(
+            LoginAccount actor, DataPurpose purpose, long objectId) {
+        Set<Long> visibleTypeIds = dataAccessPolicy.of(actor, purpose).visibleObjectTypeIds();
         if (visibleTypeIds.isEmpty() || !objects.existsActive(objectId, visibleTypeIds)) {
             throw notFound(objectId);
         }
@@ -282,11 +335,18 @@ public class ObjectQueryService
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public ObjectSearchAroundResult searchAround(
             LoginAccount actor, ObjectSearchAroundRequest request) {
+        return searchAround(actor, DataPurpose.VIEW, request);
+    }
+
+    @Override
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public ObjectSearchAroundResult searchAround(
+            LoginAccount actor, DataPurpose purpose, ObjectSearchAroundRequest request) {
         List<Long> baseIds = baseObjectIds(request.objectIds());
         if (request.linkTypeId() == null || request.linkTypeId() < 1) {
             throw BusinessException.invalidField("linkTypeId", "관계 유형 ID를 1 이상으로 지정해 주세요.");
         }
-        DataAccess access = dataAccessPolicy.of(actor);
+        DataAccess access = dataAccessPolicy.of(actor, purpose);
         LinkType linkType =
                 linkTypes
                         .findById(request.linkTypeId())
@@ -450,7 +510,14 @@ public class ObjectQueryService
     @Override
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public ObjectLinkEvidenceResponse linkEvidence(LoginAccount actor, long objectId, long linkId) {
-        DataAccess access = dataAccessPolicy.of(actor);
+        return linkEvidence(actor, DataPurpose.VIEW, objectId, linkId);
+    }
+
+    @Override
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public ObjectLinkEvidenceResponse linkEvidence(
+            LoginAccount actor, DataPurpose purpose, long objectId, long linkId) {
+        DataAccess access = dataAccessPolicy.of(actor, purpose);
         Set<Long> visibleTypeIds = access.visibleObjectTypeIds();
         if (!visibleTypeIds.isEmpty()) {
             var evidence =
