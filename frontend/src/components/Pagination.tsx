@@ -5,6 +5,7 @@ type PaginationProps = {
   onChange: (page: number) => void
   pending?: boolean
   compact?: boolean
+  showSummary?: boolean
 }
 
 function Pagination({
@@ -14,6 +15,7 @@ function Pagination({
   onChange,
   pending = false,
   compact = false,
+  showSummary = true,
 }: PaginationProps) {
   const totalPages = size > 0 ? Math.ceil(totalElements / size) : 0
   const currentPage = Math.max(0, Math.min(page, totalPages - 1))
@@ -94,13 +96,15 @@ function Pagination({
           {compact ? '»' : '마지막'}
         </button>
       </div>
-      <p
-        className="ui-pagination-summary"
-        aria-live="polite"
-        aria-atomic="true"
-      >
-        {currentPage + 1} / {totalPages}쪽 · {totalElements}건
-      </p>
+      {showSummary && (
+        <p
+          className="ui-pagination-summary"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {currentPage + 1} / {totalPages}쪽 · {totalElements}건
+        </p>
+      )}
     </nav>
   )
 }

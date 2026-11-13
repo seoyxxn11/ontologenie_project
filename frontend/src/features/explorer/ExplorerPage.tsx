@@ -9,6 +9,7 @@ import { ApiError } from '../../api/client'
 import {
   fetchModelGraph,
   fetchObject,
+  fetchObjectLinkGroups,
   fetchObjects,
   fetchObjectTypes,
   OBJECT_PAGE_SIZE,
@@ -18,6 +19,8 @@ import type { ModelGraphView } from './ModelGraph'
 import ObjectCard from './ObjectCard'
 import ObjectDetail from './ObjectDetail'
 import ObjectGraph from './ObjectGraph'
+import RelatedObjectList from './RelatedObjectList'
+import { toLinkGroups, type LinkGroup } from './graphLayout'
 import ObjectSearchBar from './ObjectSearchBar'
 import TypeRelations from './TypeRelations'
 import { formatCount, formatObjectKey, withAndParticle } from './format'
@@ -36,6 +39,12 @@ function ExplorerPage() {
   // 고른 객체는 주소의 ?object=에 둔다. Agent 답변의 [객체 열기], 새로고침, 뒤로 가기가 같은 객체를 연다(151).
   const [searchParams, setSearchParams] = useSearchParams()
   const selectedId = parseObjectId(searchParams.get('object'))
+  const anchorId = parseObjectId(searchParams.get('anchor')) ?? selectedId
+  const relationKey = searchParams.get('relation')
+  const [lastGroup, setLastGroup] = useState<{
+    anchorId: number
+    group: LinkGroup
+  } | null>(null)
   const [filters, setFilters] = useState<ObjectFilters>({})
   const [page, setPage] = useState(0)
   const [graphExpanded, setGraphExpanded] = useState(false)
@@ -47,6 +56,8 @@ function ExplorerPage() {
     setSearchParams(
       (previous) => {
         const next = new URLSearchParams(previous)
+        next.delete('anchor')
+        next.delete('relation')
         if (id === null) {
           next.delete('object')
         } else {
@@ -57,6 +68,61 @@ function ExplorerPage() {
       { replace: true },
     )
   }
+
+  function selectGroup(group: LinkGroup) {
+    if (anchorId === null) return
+    setLastGroup({ anchorId, group })
+    setSearchParams(
+      (previous) => {
+        const next = new URLSearchParams(previous)
+        next.set('object', String(anchorId))
+        next.set('anchor', String(anchorId))
+        next.set('relation', group.key)
+        return next
+      },
+      { replace: true },
+    )
+    // 확장 상태에서도 선택 결과를 왼쪽에서 바로 확인한다.
+    setGraphExpanded(false)
+  }
+
+  function inspectObject(id: number) {
+    setSearchParams(
+      (previous) => {
+        const next = new URLSearchParams(previous)
+        next.set('object', String(id))
+        return next
+      },
+      { replace: true },
+    )
+  }
+
+  const groupsQuery = useQuery({
+    queryKey: ['objects', anchorId, 'link-groups'],
+    queryFn: () => fetchObjectLinkGroups(anchorId as number),
+    enabled: anchorId !== null,
+  })
+  const group = toLinkGroups(groupsQuery.data ?? []).find(
+    (item) => item.key === relationKey,
+  )
+  const [relationId, direction] = (relationKey ?? '').split(':')
+  const relatedGroup =
+    group ??
+    (lastGroup?.anchorId === anchorId && lastGroup.group.key === relationKey
+      ? lastGroup.group
+      : null) ??
+    (parseObjectId(relationId) && (direction === 'in' || direction === 'out')
+      ? {
+          key: relationKey!,
+          linkTypeId: Number(relationId),
+          linkTypeName: '선택한 관계',
+          relatedTypeName: '연결 객체',
+          direction: direction === 'in' ? ('IN' as const) : ('OUT' as const),
+          outgoing: direction === 'out',
+          linkCount: 0,
+        }
+      : null)
+  const showRelated = anchorId !== null && relatedGroup !== null
 
   const {
     data: objectPage,
@@ -89,17 +155,17 @@ function ExplorerPage() {
   const isModelGraphForbidden =
     modelGraphError instanceof ApiError && modelGraphError.status === 403
   const showModelGraph =
-    selectedId === null && Boolean(modelGraph) && !isModelGraphForbidden
+    anchorId === null && Boolean(modelGraph) && !isModelGraphForbidden
 
   // 관계도 칸 제목에 쓸 고른 객체의 이름. 관계도·상세와 같은 캐시를 쓴다.
   const { data: selectedObject } = useQuery({
-    queryKey: ['objects', selectedId],
-    queryFn: () => fetchObject(selectedId as number),
-    enabled: selectedId !== null,
+    queryKey: ['objects', anchorId],
+    queryFn: () => fetchObject(anchorId as number),
+    enabled: anchorId !== null,
   })
   const graphTitle = showModelGraph
     ? '객체 유형 간 관계'
-    : selectedId !== null && selectedObject
+    : anchorId !== null && selectedObject
       ? `${withAndParticle(selectedObject.displayName)} 연결된 정보`
       : '관계 탐색'
 
@@ -122,7 +188,8 @@ function ExplorerPage() {
       Object.entries(properties).every(
         ([key, value]) => nextProperties[key] === value,
       )
-    if (!sameConditions) selectObject(null)
+    if (showRelated) selectObject(sameConditions ? anchorId : null)
+    else if (!sameConditions) selectObject(null)
     setFilters(nextFilters)
     setPage(0)
   }
@@ -218,32 +285,50 @@ function ExplorerPage() {
           className="explorer-panel explorer-list"
           hidden={graphExpanded}
         >
-          <div className="explorer-panel-heading">
-            <h2>객체 목록</h2>
-            {totalCount !== undefined && (
-              <span className="explorer-count">
-                {formatCount(totalCount)}건
-              </span>
-            )}
-            {isFetching && !isPending && (
-              <span role="status" className="explorer-count">
-                검색 중…
-              </span>
-            )}
-          </div>
-          <div className="explorer-object-list" aria-busy={isFetching}>
-            {listContent}
-          </div>
-
-          {objectPage && objectPage.data.length > 0 && (
-            <Pagination
-              page={isPlaceholderData ? (objectPage.meta?.page ?? page) : page}
-              size={OBJECT_PAGE_SIZE}
-              totalElements={totalCount ?? 0}
-              onChange={setPage}
-              pending={isFetching}
-              compact
+          {showRelated ? (
+            <RelatedObjectList
+              key={`${anchorId}:${relatedGroup.key}`}
+              objectId={anchorId}
+              anchorName={selectedObject?.displayName ?? `#${anchorId}`}
+              group={relatedGroup}
+              selectedId={selectedId}
+              vanished={groupsQuery.isSuccess && !group}
+              onSelect={inspectObject}
+              onReturn={() => selectObject(anchorId)}
             />
+          ) : (
+            <>
+              <div className="explorer-panel-heading">
+                <h2>객체 목록</h2>
+                {totalCount !== undefined && (
+                  <span className="explorer-count">
+                    {formatCount(totalCount)}건
+                  </span>
+                )}
+                {isFetching && !isPending && (
+                  <span role="status" className="explorer-count">
+                    검색 중…
+                  </span>
+                )}
+              </div>
+              <div className="explorer-object-list" aria-busy={isFetching}>
+                {listContent}
+              </div>
+
+              {objectPage && objectPage.data.length > 0 && (
+                <Pagination
+                  page={
+                    isPlaceholderData ? (objectPage.meta?.page ?? page) : page
+                  }
+                  size={OBJECT_PAGE_SIZE}
+                  totalElements={totalCount ?? 0}
+                  onChange={setPage}
+                  pending={isFetching}
+                  compact
+                  showSummary={false}
+                />
+              )}
+            </>
           )}
         </section>
 
@@ -273,13 +358,13 @@ function ExplorerPage() {
                   </button>
                 </div>
               )}
-              {selectedId !== null && (
+              {anchorId !== null && (
                 <Button variant="text" onClick={() => selectObject(null)}>
                   ← 전체 구조로
                 </Button>
               )}
               <Button
-                variant="text"
+                variant="secondary"
                 aria-pressed={graphExpanded}
                 onClick={() => setGraphExpanded((expanded) => !expanded)}
               >
@@ -288,24 +373,27 @@ function ExplorerPage() {
             </div>
           </div>
           <div className="explorer-panel-body">
-            {selectedId === null &&
-              modelGraphError &&
-              !isModelGraphForbidden && (
-                <div role="alert" className="mb-3 text-sm text-red-600">
-                  <p>
-                    유형 관계도를 불러오지 못했습니다. {modelGraphError.message}
-                  </p>
-                  <Button
-                    variant="secondary"
-                    pending={isModelGraphFetching}
-                    onClick={() => void refetchModelGraph()}
-                  >
-                    {isModelGraphFetching ? '다시 불러오는 중…' : '다시 시도'}
-                  </Button>
-                </div>
-              )}
-            {selectedId !== null ? (
-              <ObjectGraph objectId={selectedId} onSelect={selectObject} />
+            {anchorId === null && modelGraphError && !isModelGraphForbidden && (
+              <div role="alert" className="mb-3 text-sm text-red-600">
+                <p>
+                  유형 관계도를 불러오지 못했습니다. {modelGraphError.message}
+                </p>
+                <Button
+                  variant="secondary"
+                  pending={isModelGraphFetching}
+                  onClick={() => void refetchModelGraph()}
+                >
+                  {isModelGraphFetching ? '다시 불러오는 중…' : '다시 시도'}
+                </Button>
+              </div>
+            )}
+            {anchorId !== null ? (
+              <ObjectGraph
+                objectId={anchorId}
+                selectedGroupKey={showRelated ? relatedGroup.key : null}
+                onSelectGroup={selectGroup}
+                onSelectAnchor={() => inspectObject(anchorId)}
+              />
             ) : isModelGraphPending ? (
               <p className="text-slate-500">유형 관계도를 불러오는 중…</p>
             ) : modelGraph && !isModelGraphForbidden ? (
@@ -322,7 +410,12 @@ function ExplorerPage() {
                 />
               </Suspense>
             ) : !modelGraphError || isModelGraphForbidden ? (
-              <ObjectGraph objectId={null} onSelect={selectObject} />
+              <ObjectGraph
+                objectId={null}
+                selectedGroupKey={null}
+                onSelectGroup={selectGroup}
+                onSelectAnchor={() => {}}
+              />
             ) : null}
           </div>
         </section>
@@ -334,8 +427,20 @@ function ExplorerPage() {
         >
           <div className="explorer-panel-heading">
             <h2>상세 정보</h2>
+            {selectedId !== null && selectedId !== anchorId && (
+              <Button variant="text" onClick={() => selectObject(selectedId)}>
+                관계 보기
+              </Button>
+            )}
             {selectedId !== null && (
-              <Button variant="text" onClick={() => selectObject(null)}>
+              <Button
+                variant="text"
+                onClick={() =>
+                  selectedId !== anchorId && anchorId !== null
+                    ? inspectObject(anchorId)
+                    : selectObject(null)
+                }
+              >
                 선택 해제
               </Button>
             )}

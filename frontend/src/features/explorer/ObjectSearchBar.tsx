@@ -151,7 +151,13 @@ function ObjectSearchBar({
           aria-describedby={propertyDescribedBy}
           className={fieldClass}
         >
-          <option value="">{propertySelectDisabled ? '-' : '전체 속성'}</option>
+          <option value="">
+            {!typeId
+              ? '객체 유형 선택 후 사용'
+              : propertySelectDisabled
+                ? '—'
+                : '전체 속성'}
+          </option>
           {searchableProperties.map((property) => (
             <option key={property.id} value={property.code}>
               {property.name}

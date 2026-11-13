@@ -29,6 +29,7 @@ test('속성 조건의 공백·특수문자·빈 문자열을 보존해 전송�
   expect(captured?.get('propertyValues[empty]')).toBe('')
   expect(captured?.has('propertyValues[empty]')).toBe(true)
   expect(captured?.get('objectTypeId')).toBe('3')
+  expect(captured?.get('size')).toBe('8')
 })
 
 test('객체가 없는 유형도 선택지로 받고 유형별 속성 정의를 조회한다', async () => {

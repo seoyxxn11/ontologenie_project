@@ -10,7 +10,7 @@ import type {
   ObjectTypeOption,
 } from './types'
 
-export const OBJECT_PAGE_SIZE = 20
+export const OBJECT_PAGE_SIZE = 8
 
 export type ObjectFilters = {
   q?: string
@@ -67,6 +67,7 @@ export function fetchObjectLinks(
   id: number,
   page = 0,
   filter?: LinkGroupFilter,
+  size = LINK_PAGE_SIZE,
 ) {
   const params = new URLSearchParams()
   if (filter) {
@@ -74,7 +75,7 @@ export function fetchObjectLinks(
     params.set('direction', filter.direction)
   }
   params.set('page', String(page))
-  params.set('size', String(LINK_PAGE_SIZE))
+  params.set('size', String(size))
   return apiGet<ObjectLink[]>(`/objects/${id}/links?${params}`)
 }
 
