@@ -119,7 +119,7 @@ test.each(['/api/v1/audit/actions', '/api/v1/objects/301/executions'])(
     ).toBeVisible()
     // 097에서 가린 inputSecret은 098에서는 일반 null이고, changeSecret만 가린다.
     expect(screen.getAllByText('권한으로 가림')).toHaveLength(2)
-    expect(screen.getAllByText('-').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2)
     expect(calls).toEqual({ detail: 1, changes: 1 })
   },
 )

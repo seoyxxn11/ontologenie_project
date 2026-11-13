@@ -1,3 +1,4 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { ApiError } from '../../api/errors'
@@ -30,7 +31,7 @@ const triggers: Record<SyncTrigger, string> = {
 }
 const active = (status?: string) => status === 'QUEUED' || status === 'RUNNING'
 const time = (value: string | null | undefined) =>
-  value ? new Date(value).toLocaleString('ko-KR') : '—'
+  value ? formatKstDateTime(value) : '—'
 
 function RunDetail({
   id,

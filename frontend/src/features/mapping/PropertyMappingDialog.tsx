@@ -1,8 +1,13 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import {
+  useIsMutating,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { ApiError } from '../../api/errors'
 import Button from '../../components/Button'
-import Dialog from '../../components/Dialog'
+import FormDialog from '../../components/FormDialog'
 import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
 import {
   buildTransform,
@@ -29,6 +34,7 @@ import {
 } from './previewModel'
 
 export default function PropertyMappingDialog({
+  sourceId,
   parent,
   existing,
   columns,
@@ -39,6 +45,7 @@ export default function PropertyMappingDialog({
   previewAccess,
   previewReadable = false,
 }: {
+  sourceId: number
   parent: ObjectMapping
   existing?: PropertyMapping
   columns: SourceColumn[]
@@ -57,13 +64,46 @@ export default function PropertyMappingDialog({
     () => existing?.transformSteps.map(toTransformDraft) ?? [],
   )
   const [validation, setValidation] = useState('')
+  const fieldId = useId()
+  const client = useQueryClient()
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
   const catalog = useQuery({
     queryKey: ['source-mappings', 'transforms'],
     queryFn: fetchTransformFunctions,
   })
   const functions =
     catalog.data?.filter(({ op }) => Object.hasOwn(transformLabels, op)) ?? []
+  const saving =
+    useIsMutating({
+      mutationKey: [
+        'form-save',
+        'property-mapping',
+        parent.id,
+        existing?.id ?? 'new',
+      ],
+    }) > 0
   const save = useMutation({
+    mutationKey: [
+      'form-save',
+      'property-mapping',
+      parent.id,
+      existing?.id ?? 'new',
+    ],
+    meta: {
+      formSave: {
+        label: existing
+          ? `속성 매핑 #${existing.id} 저장`
+          : `객체 매핑 #${parent.id} 속성 매핑 등록`,
+        href: `/admin/sources?source=${sourceId}&tab=mapping`,
+      },
+    },
+    retry: false,
     mutationFn: (transformSteps: TransformStep[]) =>
       savePropertyMapping(
         {
@@ -75,7 +115,12 @@ export default function PropertyMappingDialog({
         },
         existing,
       ),
-    onSuccess: (result) => onSaved(mappingSaveMessage(result)),
+    onSuccess: (result) => {
+      void client.invalidateQueries({
+        queryKey: ['source-mappings', 'properties'],
+      })
+      if (mounted.current) onSaved(mappingSaveMessage(result))
+    },
   })
   const stale =
     save.error instanceof ApiError && save.error.code === 'VERSION_CONFLICT'
@@ -146,7 +191,20 @@ export default function PropertyMappingDialog({
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (save.isPending || stale || hasPath || !catalog.isSuccess) return
+    if (
+      client.isMutating({
+        mutationKey: [
+          'form-save',
+          'property-mapping',
+          parent.id,
+          existing?.id ?? 'new',
+        ],
+      }) ||
+      stale ||
+      hasPath ||
+      !catalog.isSuccess
+    )
+      return
     let transformSteps: TransformStep[]
     try {
       transformSteps = currentTransforms()
@@ -158,13 +216,23 @@ export default function PropertyMappingDialog({
     save.mutate(transformSteps)
   }
 
+  const dirty =
+    columnId !== (existing?.sourceColumnId ?? 0) ||
+    propertyId !== (existing?.propertyDefinitionId ?? 0) ||
+    JSON.stringify(steps) !==
+      JSON.stringify(existing?.transformSteps.map(toTransformDraft) ?? [])
+  const columnError =
+    validation && !selectedColumnExists ? '원천 컬럼을 선택해 주세요.' : ''
+  const propertyError =
+    validation && !selectedPropertyExists ? '대상 속성을 선택해 주세요.' : ''
   return (
-    <Dialog
+    <FormDialog
       title={existing ? '속성 매핑 편집' : '속성 매핑 등록'}
       size="wide"
-      onClose={() => {
-        if (!save.isPending) onClose()
-      }}
+      dirty={dirty}
+      pending={saving}
+      error={save.error}
+      onClose={onClose}
     >
       <form noValidate onSubmit={submit} className="mt-4 space-y-4 text-sm">
         {hasPath && (
@@ -173,52 +241,79 @@ export default function PropertyMappingDialog({
             편집해 주세요.
           </p>
         )}
-        <fieldset
-          disabled={save.isPending || stale || hasPath}
-          className="space-y-4"
-        >
-          <label className="block">
-            원천 컬럼
-            <select
-              required
-              className="mt-1 w-full rounded border border-slate-300 p-2"
-              value={columnId}
-              onChange={(event) => setColumnId(Number(event.target.value))}
-            >
-              <option value={0}>원천 컬럼 선택</option>
-              {columnId > 0 && !selectedColumnExists && (
-                <option value={columnId} disabled>
-                  기존 컬럼 #{columnId} (사용할 수 없음)
-                </option>
-              )}
-              {columns.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.columnName}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            대상 속성
-            <select
-              required
-              className="mt-1 w-full rounded border border-slate-300 p-2"
-              value={propertyId}
-              onChange={(event) => setPropertyId(Number(event.target.value))}
-            >
-              <option value={0}>대상 속성 선택</option>
-              {propertyId > 0 && !selectedPropertyExists && (
-                <option value={propertyId} disabled>
-                  기존 속성 #{propertyId} (사용할 수 없음)
-                </option>
-              )}
-              {properties.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name} · {item.code}
-                </option>
-              ))}
-            </select>
-          </label>
+        <fieldset disabled={saving || stale || hasPath} className="space-y-4">
+          <div>
+            <label className="block">
+              원천 컬럼 (필수)
+              <select
+                required
+                className="mt-1 w-full rounded border border-slate-300 p-2"
+                aria-label="원천 컬럼"
+                aria-invalid={!!columnError || undefined}
+                aria-describedby={
+                  columnError ? `${fieldId}-columnId` : undefined
+                }
+                value={columnId}
+                onChange={(event) => {
+                  setColumnId(Number(event.target.value))
+                  setValidation('')
+                }}
+              >
+                <option value={0}>원천 컬럼 선택</option>
+                {columnId > 0 && !selectedColumnExists && (
+                  <option value={columnId} disabled>
+                    기존 컬럼 #{columnId} (사용할 수 없음)
+                  </option>
+                )}
+                {columns.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.columnName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {columnError && (
+              <p id={`${fieldId}-columnId`} className="ui-field-error">
+                {columnError}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="block">
+              대상 속성 (필수)
+              <select
+                required
+                className="mt-1 w-full rounded border border-slate-300 p-2"
+                aria-label="대상 속성"
+                aria-invalid={!!propertyError || undefined}
+                aria-describedby={
+                  propertyError ? `${fieldId}-propertyId` : undefined
+                }
+                value={propertyId}
+                onChange={(event) => {
+                  setPropertyId(Number(event.target.value))
+                  setValidation('')
+                }}
+              >
+                <option value={0}>대상 속성 선택</option>
+                {propertyId > 0 && !selectedPropertyExists && (
+                  <option value={propertyId} disabled>
+                    기존 속성 #{propertyId} (사용할 수 없음)
+                  </option>
+                )}
+                {properties.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name} · {item.code}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {propertyError && (
+              <p id={`${fieldId}-propertyId`} className="ui-field-error">
+                {propertyError}
+              </p>
+            )}
+          </div>
           {(!columns.length || !properties.length) && (
             <EmptyState message="매핑에 사용할 컬럼과 속성이 필요합니다." />
           )}
@@ -260,23 +355,19 @@ export default function PropertyMappingDialog({
             parent,
             existing,
             previewAccess?.policyDescription,
-            save.isPending,
+            saving,
             stale,
           ])}
           access={previewAccess}
           prepareDraft={preparePreview}
           disabled={
-            !previewReadable ||
-            save.isPending ||
-            stale ||
-            hasPath ||
-            !catalog.isSuccess
+            !previewReadable || saving || stale || hasPath || !catalog.isSuccess
           }
         />
         <div className="flex justify-end">
           <Button
             type="submit"
-            pending={save.isPending}
+            pending={saving}
             disabled={
               stale ||
               hasPath ||
@@ -285,10 +376,10 @@ export default function PropertyMappingDialog({
               !properties.length
             }
           >
-            {save.isPending ? '저장 중…' : '저장'}
+            {saving ? '저장 중…' : '저장'}
           </Button>
         </div>
       </form>
-    </Dialog>
+    </FormDialog>
   )
 }

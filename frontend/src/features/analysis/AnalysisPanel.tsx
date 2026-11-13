@@ -1,3 +1,4 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -51,7 +52,7 @@ function isTransientError(error: Error) {
 }
 
 function formatTime(value: string | null) {
-  return value ? new Date(value).toLocaleString('ko-KR') : '-'
+  return value ? formatKstDateTime(value) : '-'
 }
 
 function proposalCount(run: Analysis) {

@@ -1,5 +1,7 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import { useQuery } from '@tanstack/react-query'
 import { ApiError } from '../../api/errors'
+import Button from '../../components/Button'
 import { fetchSourceSyncSummary } from './syncApi'
 
 const labels = {
@@ -11,7 +13,7 @@ const labels = {
 
 function Time({ value }: { value: string | null }) {
   return value ? (
-    <time dateTime={value}>{new Date(value).toLocaleString('ko-KR')}</time>
+    <time dateTime={value}>{formatKstDateTime(value)}</time>
   ) : (
     <>—</>
   )
@@ -50,15 +52,15 @@ export default function SourceSyncSummary({
         <td className="px-4 py-3 text-red-700">
           <p>{forbidden ? '조회 권한 없음' : '요약 조회 실패'}</p>
           {!forbidden && (
-            <button
-              type="button"
+            <Button
+              variant="text"
               aria-label={`${sourceName} 수집 요약 다시 조회`}
               disabled={query.isFetching}
               onClick={() => void query.refetch()}
-              className="mt-1 underline disabled:opacity-50"
+              className="mt-1 underline"
             >
               {query.isFetching ? '조회 중…' : '다시 조회'}
-            </button>
+            </Button>
           )}
         </td>
         <td className="px-4 py-3 text-slate-500">확인 불가</td>
@@ -74,15 +76,15 @@ export default function SourceSyncSummary({
         {latestRun
           ? `전체 읽기 · ${labels[latestRun.status]}`
           : '전체 읽기 이력 없음'}
-        <button
-          type="button"
+        <Button
+          variant="text"
           aria-label={`${sourceName} 수집 요약 새로고침`}
           disabled={query.isFetching}
           onClick={() => void query.refetch()}
-          className="mt-1 block text-xs text-slate-500 underline disabled:opacity-50"
+          className="mt-1 underline"
         >
           새로고침
-        </button>
+        </Button>
       </td>
       <td className="space-y-1 px-4 py-3 text-xs text-slate-600">
         <p>

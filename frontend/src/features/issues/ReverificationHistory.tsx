@@ -1,3 +1,4 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import Button from '../../components/Button'
@@ -147,7 +148,7 @@ export default function ReverificationHistory({
                     </span>
                     {' · '}
                     <time dateTime={record.checkedAt}>
-                      {new Date(record.checkedAt).toLocaleString('ko-KR')}
+                      {formatKstDateTime(record.checkedAt)}
                     </time>
                     <div>{evidenceText(record.detail)}</div>
                     {isCompletedReverification(record) && (

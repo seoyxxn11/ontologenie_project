@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { MemoryRouter } from 'react-router'
+import { createMemoryRouter, RouterProvider } from 'react-router'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { resetMappingMocks } from '../../mocks/mappingHandlers'
 import { server } from '../../mocks/node'
@@ -265,9 +265,12 @@ function openSources() {
   })
   render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={['/admin/sources?source=1&tab=mapping']}>
-        <SourcesPage />
-      </MemoryRouter>
+      <RouterProvider
+        router={createMemoryRouter(
+          [{ path: '/admin/sources', element: <SourcesPage /> }],
+          { initialEntries: ['/admin/sources?source=1&tab=mapping'] },
+        )}
+      />
     </QueryClientProvider>,
   )
   return userEvent.setup()

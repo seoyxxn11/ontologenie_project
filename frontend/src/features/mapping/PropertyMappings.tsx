@@ -204,6 +204,7 @@ export default function PropertyMappings({
       )}
       {editing && definitions.data && (
         <PropertyMappingDialog
+          sourceId={sourceId}
           parent={parent}
           existing={editing === 'new' ? undefined : editing}
           columns={presentColumns}

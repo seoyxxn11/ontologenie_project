@@ -1,3 +1,4 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
@@ -22,8 +23,7 @@ const runStatuses = {
   SUCCEEDED: '완료',
   FAILED: '실패',
 }
-const time = (value: string | null) =>
-  value ? new Date(value).toLocaleString('ko-KR') : '—'
+const time = (value: string | null) => (value ? formatKstDateTime(value) : '—')
 
 function RunResults({
   runId,

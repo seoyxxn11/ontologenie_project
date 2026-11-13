@@ -1,2 +1,3 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 export const runTime = (value: string | null) =>
-  value ? new Date(value).toLocaleString('ko-KR') : '—'
+  value ? formatKstDateTime(value) : '—'

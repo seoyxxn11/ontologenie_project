@@ -1,3 +1,4 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   act,
@@ -109,9 +110,7 @@ test('제안과 개정을 조회하고 대기 요청 정보와 미적용 상태�
   expect(request).toHaveTextContent('요청-17')
   expect(request).toHaveTextContent('현업 담당자')
   expect(request).toHaveTextContent('설비 관계 확인')
-  expect(request).toHaveTextContent(
-    new Date('2026-11-06T03:00:00Z').toLocaleString('ko-KR'),
-  )
+  expect(request).toHaveTextContent(formatKstDateTime('2026-11-06T03:00:00Z'))
   expect(
     screen.getByText('제공된 현업 결정 기록이 없습니다.'),
   ).toBeInTheDocument()

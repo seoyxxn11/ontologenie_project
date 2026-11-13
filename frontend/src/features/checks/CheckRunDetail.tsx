@@ -53,7 +53,7 @@ export default function CheckRunDetail({ id }: { id: number }) {
   return (
     <section
       aria-label={`검사 실행 #${id} 상세`}
-      className="space-y-4 rounded-xl border border-slate-200 p-5"
+      className="management-panel space-y-4"
     >
       <h2 className="font-semibold">
         검사 실행 #{id} · {runStatuses[run.status]}
@@ -62,7 +62,7 @@ export default function CheckRunDetail({ id }: { id: number }) {
         {runTriggers[run.triggerKind]} · 요청자{' '}
         {run.requestedBy == null ? '시스템' : `계정 #${run.requestedBy}`}
       </p>
-      <p className="text-sm">
+      <p className="text-sm tabular-nums">
         접수 {runTime(run.requestedAt)} · 시작 {runTime(run.startedAt)} · 종료{' '}
         {runTime(run.finishedAt)}
       </p>

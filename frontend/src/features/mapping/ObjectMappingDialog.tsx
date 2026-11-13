@@ -1,8 +1,13 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import {
+  useIsMutating,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { ApiError } from '../../api/errors'
 import Button from '../../components/Button'
-import Dialog from '../../components/Dialog'
+import FormDialog from '../../components/FormDialog'
 import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
 import { fetchColumns } from '../sources/api'
 import type { SourceResource } from '../sources/types'
@@ -46,12 +51,45 @@ export default function ObjectMappingDialog({
   const [keys, setKeys] = useState(existing?.keyColumns ?? [])
   const [active, setActive] = useState(existing?.isActive ?? true)
   const [validation, setValidation] = useState('')
+  const fieldId = useId()
+  const client = useQueryClient()
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
   const columns = useQuery({
     queryKey: ['sources', sourceId, 'resources', resourceId, 'columns'],
     queryFn: () => fetchColumns(sourceId, resourceId),
   })
   const present = columns.data?.filter((column) => column.isPresent) ?? []
+  const saving =
+    useIsMutating({
+      mutationKey: [
+        'form-save',
+        'object-mapping',
+        resourceId,
+        existing?.id ?? 'new',
+      ],
+    }) > 0
   const save = useMutation({
+    mutationKey: [
+      'form-save',
+      'object-mapping',
+      resourceId,
+      existing?.id ?? 'new',
+    ],
+    meta: {
+      formSave: {
+        label: existing
+          ? `객체 매핑 #${existing.id} 저장`
+          : `원천 자원 #${resourceId} 객체 매핑 등록`,
+        href: `/admin/sources?source=${sourceId}&tab=mapping`,
+      },
+    },
+    retry: false,
     mutationFn: () =>
       saveObjectMapping(
         {
@@ -62,11 +100,21 @@ export default function ObjectMappingDialog({
         },
         existing,
       ),
-    onSuccess: (result) => onSaved(result, mappingSaveMessage(result)),
+    onSuccess: (result) => {
+      void client.invalidateQueries({
+        queryKey: ['source-mappings', 'objects'],
+      })
+      if (mounted.current) onSaved(result, mappingSaveMessage(result))
+    },
   })
   const stale =
     save.error instanceof ApiError && save.error.code === 'VERSION_CONFLICT'
   const hasRowFilter = !!existing && Object.keys(existing.rowFilter).length > 0
+
+  function changeKeys(next: string[]) {
+    setKeys(next)
+    setValidation('')
+  }
 
   function currentDraft() {
     if (!objectTypes.some((item) => item.id === typeId))
@@ -112,7 +160,20 @@ export default function ObjectMappingDialog({
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (save.isPending || stale || hasRowFilter || !columns.isSuccess) return
+    if (
+      client.isMutating({
+        mutationKey: [
+          'form-save',
+          'object-mapping',
+          resourceId,
+          existing?.id ?? 'new',
+        ],
+      }) ||
+      stale ||
+      hasRowFilter ||
+      !columns.isSuccess
+    )
+      return
     try {
       currentDraft()
     } catch (error) {
@@ -123,13 +184,30 @@ export default function ObjectMappingDialog({
     save.mutate()
   }
 
+  const dirty =
+    resourceId !== initialResourceId ||
+    typeId !== (existing?.objectTypeId ?? 0) ||
+    JSON.stringify(keys) !== JSON.stringify(existing?.keyColumns ?? []) ||
+    active !== (existing?.isActive ?? true)
+  const typeError =
+    validation && !objectTypes.some((item) => item.id === typeId)
+      ? validation
+      : ''
+  const keysError =
+    validation &&
+    !typeError &&
+    (!keys.length ||
+      keys.some((key) => !present.some((column) => column.columnName === key)))
+      ? validation
+      : ''
   return (
-    <Dialog
+    <FormDialog
       title={existing ? '객체 매핑 편집' : '객체 매핑 등록'}
       size="wide"
-      onClose={() => {
-        if (!save.isPending) onClose()
-      }}
+      dirty={dirty}
+      pending={saving}
+      error={save.error}
+      onClose={onClose}
     >
       <form noValidate onSubmit={submit} className="mt-4 space-y-4 text-sm">
         {hasRowFilter && (
@@ -145,7 +223,7 @@ export default function ObjectMappingDialog({
           </p>
         )}
         <fieldset
-          disabled={save.isPending || stale || hasRowFilter}
+          disabled={saving || stale || hasRowFilter}
           className="space-y-4"
         >
           <label className="block">
@@ -167,25 +245,42 @@ export default function ObjectMappingDialog({
               ))}
             </select>
           </label>
-          <label className="block">
-            객체 유형
-            <select
-              required
-              className="mt-1 w-full rounded border border-slate-300 p-2"
-              value={typeId}
-              disabled={!!existing}
-              onChange={(event) => setTypeId(Number(event.target.value))}
-            >
-              <option value={0}>객체 유형 선택</option>
-              {objectTypes.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name} · {item.code}
-                </option>
-              ))}
-            </select>
-          </label>
-          <fieldset className="space-y-2">
-            <legend className="font-medium">키 컬럼</legend>
+          <div>
+            <label className="block">
+              객체 유형 (필수)
+              <select
+                required
+                className="mt-1 w-full rounded border border-slate-300 p-2"
+                aria-label="객체 유형"
+                aria-invalid={!!typeError || undefined}
+                aria-describedby={typeError ? `${fieldId}-type` : undefined}
+                value={typeId}
+                disabled={!!existing}
+                onChange={(event) => {
+                  setTypeId(Number(event.target.value))
+                  setValidation('')
+                }}
+              >
+                <option value={0}>객체 유형 선택</option>
+                {objectTypes.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name} · {item.code}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {typeError && (
+              <p id={`${fieldId}-type`} role="alert" className="ui-field-error">
+                {typeError}
+              </p>
+            )}
+          </div>
+          <fieldset
+            className="space-y-2"
+            aria-invalid={!!keysError || undefined}
+            aria-describedby={keysError ? `${fieldId}-keys` : undefined}
+          >
+            <legend className="font-medium">키 컬럼 (필수)</legend>
             <p className="text-slate-500">
               선택한 순서대로 객체 식별 키를 구성합니다.
             </p>
@@ -213,7 +308,7 @@ export default function ObjectMappingDialog({
                       type="checkbox"
                       checked
                       onChange={() =>
-                        setKeys(keys.filter((value) => value !== key))
+                        changeKeys(keys.filter((value) => value !== key))
                       }
                     />
                     {key} (현재 컬럼에 없음)
@@ -229,7 +324,7 @@ export default function ObjectMappingDialog({
                     type="checkbox"
                     checked={keys.includes(column.columnName)}
                     onChange={(event) =>
-                      setKeys(
+                      changeKeys(
                         event.target.checked
                           ? [...keys, column.columnName]
                           : keys.filter((key) => key !== column.columnName),
@@ -240,6 +335,11 @@ export default function ObjectMappingDialog({
                 </label>
               ))}
             </div>
+            {keysError && (
+              <p id={`${fieldId}-keys`} role="alert" className="ui-field-error">
+                {keysError}
+              </p>
+            )}
           </fieldset>
           <label className="flex gap-2">
             <input
@@ -250,7 +350,7 @@ export default function ObjectMappingDialog({
             활성 매핑
           </label>
         </fieldset>
-        {validation && (
+        {validation && !typeError && !keysError && (
           <p role="alert" className="text-red-800">
             {validation}
           </p>
@@ -269,13 +369,13 @@ export default function ObjectMappingDialog({
             active,
             existing,
             previewAccess?.policyDescription,
-            save.isPending,
+            saving,
             stale,
           ])}
           access={previewAccess}
           prepareDraft={preparePreview}
           disabled={
-            save.isPending ||
+            saving ||
             stale ||
             hasRowFilter ||
             !columns.isSuccess ||
@@ -290,12 +390,12 @@ export default function ObjectMappingDialog({
             disabled={
               stale || hasRowFilter || !columns.isSuccess || !objectTypes.length
             }
-            pending={save.isPending}
+            pending={saving}
           >
-            {save.isPending ? '저장 중…' : '저장'}
+            {saving ? '저장 중…' : '저장'}
           </Button>
         </div>
       </form>
-    </Dialog>
+    </FormDialog>
   )
 }

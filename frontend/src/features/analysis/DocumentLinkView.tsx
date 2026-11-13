@@ -1,3 +1,4 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import { useQuery } from '@tanstack/react-query'
 import { ErrorState, LoadingState } from '../../components/Feedback'
 import StatusBadge from '../../components/StatusBadge'
@@ -161,7 +162,7 @@ function DocumentLinkView({ proposal }: { proposal: Proposal }) {
                     <li key={`${item.spanStart}-${item.spanEnd}`}>
                       {item.text} →{' '}
                       {item.normalized
-                        ? new Date(item.normalized).toLocaleString('ko-KR')
+                        ? formatKstDateTime(item.normalized)
                         : '정하지 않음'}
                       {item.basis && (
                         <span className="text-xs text-slate-500">

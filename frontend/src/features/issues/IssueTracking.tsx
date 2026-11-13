@@ -1,3 +1,4 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState } from 'react'
 import { ApiError } from '../../api/errors'
@@ -77,9 +78,7 @@ export default function IssueTracking({
           <div>
             <dt>전달 시각</dt>
             <dd>
-              {issue.forwardedAt
-                ? new Date(issue.forwardedAt).toLocaleString('ko-KR')
-                : '—'}
+              {issue.forwardedAt ? formatKstDateTime(issue.forwardedAt) : '—'}
             </dd>
           </div>
           <div>
@@ -162,7 +161,7 @@ export default function IssueTracking({
                         : '시스템'}{' '}
                       ·{' '}
                       <time dateTime={entry.changedAt}>
-                        {new Date(entry.changedAt).toLocaleString('ko-KR')}
+                        {formatKstDateTime(entry.changedAt)}
                       </time>
                     </p>
                     {entry.checkRunId != null && (

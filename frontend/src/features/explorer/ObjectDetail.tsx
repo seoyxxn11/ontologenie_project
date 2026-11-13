@@ -1,3 +1,4 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
@@ -13,9 +14,9 @@ import type { ObjectInstanceDetail } from './types'
 
 function formatDateTime(value: string | null | undefined) {
   if (!value) {
-    return '-'
+    return '—'
   }
-  return new Date(value).toLocaleString('ko-KR')
+  return formatKstDateTime(value)
 }
 
 type ObjectDetailProps = {

@@ -31,9 +31,10 @@ test('객체와 배열 값은 JSON 문자열로 보여 준다', () => {
   expect(formatPropertyValue([1, 'a'])).toBe('[1,"a"]')
 })
 
-test('값이 없으면 -, 단순 값은 그대로 보여 준다', () => {
-  expect(formatPropertyValue(null)).toBe('-')
-  expect(formatPropertyValue(undefined)).toBe('-')
+test('미제공은 —, 실제 0과 단순 값은 그대로 보여 준다', () => {
+  expect(formatPropertyValue(null)).toBe('—')
+  expect(formatPropertyValue(undefined)).toBe('—')
+  expect(formatPropertyValue(0)).toBe('0')
   expect(formatPropertyValue(12.5)).toBe('12.5')
   expect(formatPropertyValue(false)).toBe('false')
 })

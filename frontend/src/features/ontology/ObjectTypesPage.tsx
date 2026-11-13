@@ -174,8 +174,8 @@ export default function ObjectTypesPage() {
                 data-selected={type.id === selectedId || undefined}
               >
                 <td>
-                  <button
-                    type="button"
+                  <Button
+                    variant="text"
                     className="object-types-select"
                     aria-pressed={type.id === selectedId}
                     onClick={() => {
@@ -184,7 +184,7 @@ export default function ObjectTypesPage() {
                     }}
                   >
                     {type.name}
-                  </button>
+                  </Button>
                   <p className="mt-1 break-all font-mono text-slate-500">
                     {type.code}
                   </p>

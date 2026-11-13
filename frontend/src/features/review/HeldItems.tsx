@@ -1,3 +1,4 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import Button from '../../components/Button'
@@ -50,11 +51,11 @@ function HeldItemDetail({ id, onClose }: { id: number; onClose: () => void }) {
                 ['관련 제안 ID', item.proposalItemId],
                 ['관계 유형 ID', item.linkTypeId],
                 ['연결 규칙 ID', item.linkMappingId],
-                ['등록 시각', new Date(item.createdAt).toLocaleString('ko-KR')],
+                ['등록 시각', formatKstDateTime(item.createdAt)],
                 [
                   '처리 시각',
                   item.resolvedAt &&
-                    new Date(item.resolvedAt).toLocaleString('ko-KR'),
+                    formatKstDateTime(item.resolvedAt),
                 ],
                 ['처리자 ID', item.resolvedBy],
                 ['처리 연결 ID', item.resolvedLinkId],

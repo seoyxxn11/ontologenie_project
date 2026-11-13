@@ -46,6 +46,39 @@ test('객체 목록 API로 받은 객체를 보여준다', async () => {
   ).toBeInTheDocument()
 })
 
+test('검색 입력 중에는 선택을 유지하고 적용 조건이 바뀌면 상세 선택을 해제한다', async () => {
+  const user = userEvent.setup()
+  renderExplorerPage()
+  const list = within(screen.getByRole('region', { name: '객체 목록' }))
+  await user.click(await list.findByRole('button', { name: /프레스 3호기/ }))
+  const details = within(screen.getByRole('region', { name: '상세 정보' }))
+  expect(
+    await details.findByRole('heading', { name: '프레스 3호기' }),
+  ).toBeVisible()
+  const search = screen.getByRole('searchbox', { name: 'ID · 이름 검색' })
+  await user.type(search, '프레스 1호기')
+  expect(details.getByRole('heading', { name: '프레스 3호기' })).toBeVisible()
+  await user.keyboard('{Enter}')
+  expect(
+    await list.findByRole('button', { name: /프레스 1호기/ }),
+  ).toBeVisible()
+  expect(
+    details.queryByRole('heading', { name: '프레스 3호기' }),
+  ).not.toBeInTheDocument()
+})
+
+test('같은 검색 조건을 다시 적용해도 선택 객체를 유지하고 상세 시각을 KST로 표시한다', async () => {
+  const user = userEvent.setup()
+  renderExplorerPage()
+  const list = within(screen.getByRole('region', { name: '객체 목록' }))
+  await user.click(await list.findByRole('button', { name: /프레스 3호기/ }))
+  const details = within(screen.getByRole('region', { name: '상세 정보' }))
+  await details.findByRole('heading', { name: '프레스 3호기' })
+  expect(details.getByText('2026-10-27 09:00:00 KST')).toBeVisible()
+  await user.click(screen.getByRole('button', { name: '검색' }))
+  expect(details.getByRole('heading', { name: '프레스 3호기' })).toBeVisible()
+})
+
 test('대표 속성이 없어 이름이 원천 키인 객체는 키를 한 번만 보여 준다', async () => {
   server.use(
     http.get('/api/v1/objects', () =>
@@ -145,7 +178,7 @@ test('권한으로 가린 속성은 권한 없음, 값이 없는 속성은 -로 
   const purchasePrice = await screen.findByText('구매 가격')
   expect(purchasePrice.nextElementSibling).toHaveTextContent('권한 없음')
   const maintenanceNote = screen.getByText('정비 메모')
-  expect(maintenanceNote.nextElementSibling).toHaveTextContent('-')
+  expect(maintenanceNote.nextElementSibling).toHaveTextContent('—')
 })
 
 test('원천이 없는 플랫폼 객체에는 원천에 있음 배지를 붙이지 않는다', async () => {
@@ -175,6 +208,12 @@ test('원천이 없는 플랫폼 객체에는 원천에 있음 배지를 붙이�
 
   expect(await screen.findByText('플랫폼 객체')).toBeInTheDocument()
   expect(screen.queryByText('원천에 있음')).not.toBeInTheDocument()
+  expect(screen.getByText('기준 시점').nextElementSibling).toHaveTextContent(
+    '—',
+  )
+  expect(screen.getByText('최근 동기화').nextElementSibling).toHaveTextContent(
+    '—',
+  )
 })
 
 test('속성 표시 이름이 없으면 속성 코드를 보여준다', async () => {

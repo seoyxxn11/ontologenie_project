@@ -14,7 +14,7 @@
 .object-types-table tr[data-selected='true'] td:first-child {
   border-left-color: var(--ui-brand-strong);
 }
-.object-types-select {
+.object-types-table .object-types-select {
   color: var(--ui-text);
   font-weight: 600;
   text-align: left;

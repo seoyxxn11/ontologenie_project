@@ -193,8 +193,8 @@ function ObjectMappings({
                       }
                     >
                       <th scope="row" className="px-4 py-3 text-left">
-                        <button
-                          type="button"
+                        <Button
+                          variant="text"
                           aria-label={`${name} #${mapping.id}`}
                           aria-pressed={selected?.id === mapping.id}
                           onClick={() =>
@@ -210,7 +210,7 @@ function ObjectMappings({
                           <span className="ml-1 text-xs font-normal text-slate-500">
                             #{mapping.id}
                           </span>
-                        </button>
+                        </Button>
                       </th>
                       <td className="px-4 py-3">
                         {mapping.keyColumns.join(' → ')}

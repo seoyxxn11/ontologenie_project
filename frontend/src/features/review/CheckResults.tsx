@@ -35,7 +35,7 @@ export function Result({
   candidate?: boolean
 }) {
   return (
-    <article className="space-y-4 rounded-xl border border-violet-200 bg-violet-50/20 p-4">
+    <article className="space-y-4 rounded border border-violet-200 bg-violet-50/20 p-4">
       <h4 className="font-semibold">
         결과 #{result.id}
         {result.linkMappingId == null
@@ -52,7 +52,9 @@ export function Result({
         ].map(([name, count]) => (
           <div key={name}>
             <dt className="text-sm text-slate-600">{name}</dt>
-            <dd className="text-xl font-semibold">{count}건</dd>
+            <dd className="text-right text-xl font-semibold tabular-nums">
+              {count}건
+            </dd>
           </div>
         ))}
       </dl>
@@ -185,10 +187,7 @@ export default function CheckResults({
   const run = proposal.latestCheck
   if (!requiresCandidateCheck(proposal))
     return (
-      <section
-        className="space-y-2 rounded-xl border border-slate-200 p-5"
-        aria-label="정합성 검사"
-      >
+      <section className="space-y-2 management-panel" aria-label="정합성 검사">
         <h3 className="font-semibold">정합성 검사</h3>
         <p role="status" className="text-sm text-slate-600">
           {CHECK_NOT_REQUIRED_MESSAGE}
@@ -196,10 +195,7 @@ export default function CheckResults({
       </section>
     )
   return (
-    <section
-      className="space-y-4 rounded-xl border border-slate-200 p-5"
-      aria-label="정합성 검사"
-    >
+    <section className="space-y-4 management-panel" aria-label="정합성 검사">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-semibold">최근 정합성 검사</h3>
         <Button variant="secondary" pending={refreshing} onClick={onRefresh}>

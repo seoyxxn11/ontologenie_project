@@ -1,9 +1,16 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen, within } from '@testing-library/react'
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  within,
+  waitFor,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { MemoryRouter, Route, Routes } from 'react-router'
-import { afterEach, expect, test, vi } from 'vitest'
+import { createMemoryRouter, RouterProvider } from 'react-router'
+import { afterEach, expect, test, vi, onTestFinished } from 'vitest'
 import { server } from '../../mocks/node'
 import { resetSourceMocks } from '../../mocks/sourceHandlers'
 import { CHECK_POLL_LIMIT_MS, CHECK_POLL_MS } from './ConnectionInfo'
@@ -21,20 +28,102 @@ afterEach(() => {
 })
 
 function renderSourcesPage(path = '/admin/sources') {
+  const router = createMemoryRouter(
+    [
+      { path: '/admin/sources', element: <SourcesPage /> },
+      { path: '/explorer', element: <p>업무 데이터 화면</p> },
+    ],
+    { initialEntries: ['/explorer', path], initialIndex: 1 },
+  )
   render(
     <QueryClientProvider
       client={
         new QueryClient({ defaultOptions: { queries: { retry: false } } })
       }
     >
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>
-          <Route path="/admin/sources" element={<SourcesPage />} />
-        </Routes>
-      </MemoryRouter>
+      <RouterProvider router={router} />
     </QueryClientProvider>,
   )
+  return router
 }
+
+test('미저장 원천 폼의 뒤로 가기는 폐기를 확인하고 편집 계속 시 URL과 입력을 유지한다', async () => {
+  const user = userEvent.setup()
+  const router = renderSourcesPage('/admin/sources?register=1')
+  const name = screen.getByRole('textbox', { name: '원천 이름' })
+  await user.type(name, '미저장 입력')
+  await act(async () => {
+    await router.navigate(-1)
+  })
+  expect(screen.getByText('변경사항을 버릴까요?')).toBeVisible()
+  expect(screen.getAllByRole('dialog')).toHaveLength(1)
+  await user.click(screen.getByRole('button', { name: '계속 편집' }))
+  expect(router.state.location.pathname).toBe('/admin/sources')
+  expect(screen.getByRole('textbox', { name: '원천 이름' })).toHaveValue(
+    '미저장 입력',
+  )
+  await act(async () => {
+    await router.navigate(-1)
+  })
+  await user.click(screen.getByRole('button', { name: '변경사항 버리기' }))
+  expect(await screen.findByText('업무 데이터 화면')).toBeVisible()
+  expect(router.state.location.pathname).toBe('/explorer')
+})
+
+test('필수 원천 입력 오류는 해당 필드와 연결하고 입력을 고치면 해제한다', async () => {
+  const user = userEvent.setup()
+  renderSourcesPage('/admin/sources?register=1')
+  await user.click(screen.getByRole('button', { name: '등록' }))
+  const name = screen.getByRole('textbox', { name: '원천 이름' })
+  const code = screen.getByRole('textbox', { name: '원천 코드' })
+  expect(name).toHaveAttribute('aria-invalid', 'true')
+  expect(name).toHaveAccessibleDescription('원천 이름을 입력해 주세요.')
+  expect(code).toHaveAttribute('aria-invalid', 'true')
+  expect(code).toHaveAccessibleDescription('원천 코드를 입력해 주세요.')
+  await user.type(name, '새 원천')
+  expect(name).not.toHaveAttribute('aria-invalid', 'true')
+  expect(code).toHaveAttribute('aria-invalid', 'true')
+})
+
+test('미저장 폼에서 같은 화면의 다른 원천으로 이동할 때도 폐기를 확인한다', async () => {
+  const user = userEvent.setup()
+  const router = renderSourcesPage('/admin/sources?register=1')
+  await user.type(screen.getByRole('textbox', { name: '원천 이름' }), '편집 중')
+  await act(async () => {
+    await router.navigate('/admin/sources?source=2')
+  })
+  await user.keyboard('{Escape}')
+  expect(screen.getByRole('textbox', { name: '원천 이름' })).toHaveValue(
+    '편집 중',
+  )
+  expect(router.state.location.search).toBe('?register=1')
+  await act(async () => {
+    await router.navigate('/admin/sources?source=2')
+  })
+  await user.click(screen.getByRole('button', { name: '변경사항 버리기' }))
+  expect(router.state.location.search).toBe('?source=2')
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(
+    await screen.findByRole('heading', { name: 'MES 운영 DB 상세' }),
+  ).toBeVisible()
+})
+
+test('브라우저 이탈 경고는 미저장 입력이 있을 때만 요청한다', async () => {
+  const user = userEvent.setup()
+  renderSourcesPage('/admin/sources?register=1')
+  expect(
+    window.dispatchEvent(new Event('beforeunload', { cancelable: true })),
+  ).toBe(true)
+  const name = screen.getByRole('textbox', { name: '원천 이름' })
+  await user.type(name, '미저장')
+  expect(
+    window.dispatchEvent(new Event('beforeunload', { cancelable: true })),
+  ).toBe(false)
+  await user.clear(name)
+  expect(
+    window.dispatchEvent(new Event('beforeunload', { cancelable: true })),
+  ).toBe(true)
+})
 
 test('원천 표본 탭은 API·정책 확정 전 준비 중으로 표시한다', async () => {
   renderSourcesPage('/admin/sources?tab=samples')
@@ -506,6 +595,42 @@ async function fillNewSource(user: ReturnType<typeof userEvent.setup>) {
   return dialog
 }
 
+test('미저장 원천 입력은 배경 클릭으로 닫히지 않고 폐기 확인에서 편집을 계속할 수 있다', async () => {
+  const user = userEvent.setup()
+  renderSourcesPage()
+  await user.click(screen.getByRole('button', { name: '+ 원천 등록' }))
+  const dialog = screen.getByRole('dialog', { name: '원천 등록' })
+  await user.type(within(dialog).getByLabelText('원천 이름'), '미저장 원천')
+  fireEvent.click(dialog.parentElement!)
+  expect(dialog).toBeInTheDocument()
+  expect(screen.queryByText('변경사항을 버릴까요?')).not.toBeInTheDocument()
+  await user.keyboard('{Escape}')
+  expect(screen.getByText('변경사항을 버릴까요?')).toBeVisible()
+  expect(screen.getAllByRole('dialog')).toHaveLength(1)
+  await user.click(screen.getByRole('button', { name: '계속 편집' }))
+  expect(within(dialog).getByLabelText('원천 이름')).toHaveValue('미저장 원천')
+  await user.click(within(dialog).getByRole('button', { name: '닫기' }))
+  await user.click(screen.getByRole('button', { name: '변경사항 버리기' }))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
+test('원천 비밀번호만 수정해도 취소 시 폐기를 확인하고 Escape로 편집에 복귀한다', async () => {
+  const user = userEvent.setup()
+  renderSourcesPage()
+  await user.click(await screen.findByRole('button', { name: '정보 수정' }))
+  const dialog = screen.getByRole('dialog', { name: '원천 정보 수정' })
+  await user.type(
+    within(dialog).getByLabelText('수집 계정 비밀번호'),
+    'test-only-password',
+  )
+  await user.click(within(dialog).getByRole('button', { name: '취소' }))
+  expect(screen.getByText('변경사항을 버릴까요?')).toBeVisible()
+  await user.keyboard('{Escape}')
+  expect(within(dialog).getByLabelText('수집 계정 비밀번호')).toHaveValue(
+    'test-only-password',
+  )
+})
+
 test('원천을 등록하면 목록에 더하고 연결을 확인하라고 안내한다', async () => {
   const user = userEvent.setup()
   let sent: Record<string, unknown> | undefined
@@ -957,4 +1082,90 @@ test('주소에 register=1이 있으면 원천 등록 창을 바로 연다', asy
   expect(
     screen.queryByRole('dialog', { name: '원천 등록' }),
   ).not.toBeInTheDocument()
+})
+
+test('원천 등록의 필수 표시와 입력 의미를 유형·편집 조건에 맞게 제공한다', async () => {
+  const user = userEvent.setup()
+  renderSourcesPage('/admin/sources?register=1')
+  const dialog = within(screen.getByRole('dialog', { name: '원천 등록' }))
+  expect(dialog.getByRole('textbox', { name: '원천 이름' })).toBeRequired()
+  expect(dialog.getByRole('textbox', { name: '원천 코드' })).toBeRequired()
+  expect(dialog.getByRole('textbox', { name: '접속 대상' })).toBeRequired()
+  expect(dialog.getByLabelText('수집 계정 비밀번호')).toBeRequired()
+  expect(dialog.getByText('원천 이름 (필수)')).toBeVisible()
+  await user.selectOptions(
+    dialog.getByRole('combobox', { name: '유형' }),
+    'CSV',
+  )
+  expect(
+    dialog.queryByRole('textbox', { name: '접속 대상' }),
+  ).not.toBeInTheDocument()
+})
+
+test('원천 저장 중 닫아도 요청은 유지되고 응답 후에는 완료 상태와 대상 경로를 제공한다', async () => {
+  let release!: () => void
+  const response = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  onTestFinished(() => release())
+  let calls = 0
+  server.use(
+    http.post('/api/v1/sources', async ({ request }) => {
+      calls++
+      const input = (await request.json()) as Record<string, unknown>
+      await response
+      return HttpResponse.json({
+        data: {
+          ...input,
+          id: 45,
+          connectionStatus: 'UNVERIFIED',
+          lastCheckedAt: null,
+          syncEnabled: false,
+          rowVersion: 1,
+        },
+      })
+    }),
+  )
+  const user = userEvent.setup()
+  const router = renderSourcesPage('/admin/sources?register=1')
+  let dialog = screen.getByRole('dialog', { name: '원천 등록' })
+  await user.selectOptions(
+    within(dialog).getByRole('combobox', { name: '유형' }),
+    'CSV',
+  )
+  await user.type(
+    within(dialog).getByRole('textbox', { name: '원천 이름' }),
+    'UI 저장 확인',
+  )
+  await user.type(
+    within(dialog).getByRole('textbox', { name: '원천 코드' }),
+    'UI_SAVE',
+  )
+  await user.click(within(dialog).getByRole('button', { name: '등록' }))
+  await waitFor(() => expect(calls).toBe(1))
+  await user.click(within(dialog).getByRole('button', { name: '닫기' }))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '저장 상태 보기' }))
+  dialog = screen.getByRole('dialog', { name: '원천 등록' })
+  expect(
+    within(dialog).getByRole('textbox', { name: '원천 이름' }),
+  ).toBeDisabled()
+  expect(within(dialog).getByRole('button', { name: '등록' })).toBeDisabled()
+  await act(async () => {
+    await router.navigate('/explorer')
+  })
+  await act(async () => release())
+  await screen.findByText('업무 데이터 화면')
+  expect(router.state.location.pathname).toBe('/explorer')
+  await act(async () => {
+    await router.navigate('/admin/sources')
+  })
+  const status = await screen.findByRole('region', { name: '저장 요청 상태' })
+  await waitFor(() =>
+    expect(status).toHaveTextContent('저장 응답을 받았습니다.'),
+  )
+  expect(
+    within(status).getByRole('link', { name: '저장 대상 확인' }),
+  ).toHaveAttribute('href', '/admin/sources?source=45&tab=connection')
+  expect(calls).toBe(1)
 })
