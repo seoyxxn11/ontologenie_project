@@ -179,6 +179,27 @@ class ObjectSearchAroundIntegrationTests {
                 "어느 끝과도",
                 "출발 유형 #" + model.operation,
                 "도착 유형 #" + model.equipment);
+
+        // 유형이 섞였으면 객체 순서나 방향 지정과 관계없이 섞였다고 알린다(379 3차 리뷰).
+        long p2 = object(model.equipment, "P2", "{}");
+        expectInvalid(
+                () ->
+                        query.searchAround(
+                                ADMIN,
+                                new ObjectSearchAroundRequest(
+                                        List.of(w1, p1, p2), model.operationEquipment, null)),
+                "objectIds",
+                "섞여",
+                "유형 #" + model.workOrder + ": 객체 #" + w1,
+                "유형 #" + model.equipment + ": 객체 #" + p1);
+        expectInvalid(
+                () ->
+                        query.searchAround(
+                                ADMIN,
+                                new ObjectSearchAroundRequest(
+                                        List.of(o1, p1), model.operationEquipment, Direction.OUT)),
+                "objectIds",
+                "섞여");
     }
 
     @Test

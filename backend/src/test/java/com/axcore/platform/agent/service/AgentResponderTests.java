@@ -36,6 +36,7 @@ class AgentResponderTests {
 
     private final ChatModel chatModel = mock(ChatModel.class);
     private final StaticListableBeanFactory beans = new StaticListableBeanFactory();
+    private boolean objectSetsEnabled;
     private String answer;
 
     @Test
@@ -210,6 +211,26 @@ class AgentResponderTests {
                         AgentCompletionEstimateTools.ESTIMATE_COMPLETION);
     }
 
+    /** Object Set 도구는 설정으로 켜고 관계 조회 구현이 있을 때만 준다(380). 꺼져 있을 때는 위 테스트가 확인한다. */
+    @Test
+    void givesObjectSetToolsWhenEnabledAndDetailQueryExists() {
+        objectSetsEnabled = true;
+        beans.addBean("objectDetailQuery", mock(ObjectDetailQuery.class));
+
+        assertThat(toolNames(askAboutPr03()))
+                .contains(
+                        AgentObjectSetTools.OBJECT_SET_START,
+                        AgentObjectSetTools.OBJECT_SET_SEARCH_AROUND,
+                        AgentObjectSetTools.OBJECT_SET_LIST);
+    }
+
+    @Test
+    void givesNoObjectSetToolsWithoutDetailQueryEvenWhenEnabled() {
+        objectSetsEnabled = true;
+
+        assertThat(toolNames(askAboutPr03())).doesNotContain(AgentObjectSetTools.OBJECT_SET_START);
+    }
+
     /** 경로 후보 도구는 설정으로 켜서 ObjectPathPlanner가 있을 때만 준다(381). 없을 때는 위 테스트가 확인한다. */
     @Test
     void givesObjectPathsToolOnlyWhenPlannerIsEnabled() {
@@ -262,7 +283,8 @@ class AgentResponderTests {
                         mock(CompletionEstimator.class),
                         mock(PropertyValueSampleService.class),
                         CLOCK,
-                        reasoningEffort);
+                        reasoningEffort,
+                        objectSetsEnabled);
 
         answer =
                 responder.answer(

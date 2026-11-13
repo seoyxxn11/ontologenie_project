@@ -48,6 +48,40 @@ public class AgentQuerySession {
     // 조회 결과의 기준 시점을 구한다(145). null이면 구하지 않고 기준 시점을 비운다.
     private final DataAsOfResolver dataAsOf;
 
+    // 이번 답변에서 만든 Object Set(380). 답변이 끝나면 세션과 함께 버린다.
+    private final Map<String, ObjectSet> objectSets = new LinkedHashMap<>();
+    // 이번 답변에서 성공한 Search Around 수(380).
+    private int searchArounds;
+
+    /**
+     * 서버가 들고 있는 객체 집합(380). 한 유형의 객체 ID를 중복 없이 id 순으로 담는다. AI에게는 id와 건수만 주고, 객체는 목록 보기로 20건씩 보여 준다.
+     */
+    record ObjectSet(String id, long objectTypeId, List<Long> objectIds) {
+        ObjectSet {
+            objectIds = List.copyOf(objectIds);
+        }
+    }
+
+    /** 새 Object Set을 이번 답변에 보관하고 돌려준다. id는 답변 안에서만 쓰는 S1, S2, … 순번이다. */
+    synchronized ObjectSet saveObjectSet(long objectTypeId, List<Long> objectIds) {
+        ObjectSet set = new ObjectSet("S" + (objectSets.size() + 1), objectTypeId, objectIds);
+        objectSets.put(set.id(), set);
+        return set;
+    }
+
+    /** 이번 답변에서 만든 Object Set. 없거나 다른 답변의 id면 null이다. */
+    synchronized ObjectSet objectSet(String id) {
+        return id == null ? null : objectSets.get(id.strip());
+    }
+
+    synchronized int searchArounds() {
+        return searchArounds;
+    }
+
+    synchronized void countSearchAround() {
+        searchArounds++;
+    }
+
     /** 기준 시점을 구하지 않는 세션. 기준 시점과 관계없는 도구·기록 테스트가 쓴다. */
     public AgentQuerySession(
             LoginAccount asker, long questionId, AgentQueryRecorder recorder, Clock clock) {

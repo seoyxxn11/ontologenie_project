@@ -338,7 +338,8 @@ class Conversation47GmsTests {
                         mock(CompletionEstimator.class),
                         mock(PropertyValueSampleService.class),
                         CLOCK,
-                        reasoningEffort);
+                        reasoningEffort,
+                        false);
         AgentQuerySession session =
                 new AgentQuerySession(
                         new LoginAccount(1L, "conversation47-test", "ADMIN", false),

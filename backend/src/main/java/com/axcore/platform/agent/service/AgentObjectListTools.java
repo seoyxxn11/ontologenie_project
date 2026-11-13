@@ -4,6 +4,7 @@ import com.axcore.platform.audit.domain.AgentResultCategory;
 import com.axcore.platform.auth.service.DataAccessPolicy;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
+import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.ontology.domain.PropertyDataType;
 import com.axcore.platform.ontology.dto.ObjectSearchRequest;
 import com.axcore.platform.ontology.dto.ObjectSearchResponse;
@@ -181,9 +182,18 @@ public class AgentObjectListTools {
      * 043과 같은 범위다. 볼 수 없는 유형이면 빈 목록이고, 볼 수 없는 민감 속성은 빠진다. 값 종류는 ontology가 같은 조회 범위로 거른 문자 속성만 준다.
      */
     private List<PropertyItem> visibleProperties(long typeId) {
-        Map<String, List<String>> samples =
-                values.stringValues(session.asker(), typeId, MAX_VALUES);
-        return models.summarize(dataAccess.of(session.asker())).properties().stream()
+        return visibleProperties(session.asker(), typeId, models, dataAccess, values);
+    }
+
+    /** Object Set 도구(380)도 상대 유형의 속성을 같은 범위로 알려 줄 때 쓴다. */
+    static List<PropertyItem> visibleProperties(
+            LoginAccount asker,
+            long typeId,
+            ModelSummaryService models,
+            DataAccessPolicy dataAccess,
+            PropertyValueSampleService values) {
+        Map<String, List<String>> samples = values.stringValues(asker, typeId, MAX_VALUES);
+        return models.summarize(dataAccess.of(asker)).properties().stream()
                 .filter(property -> Objects.equals(property.objectTypeId(), typeId))
                 .map(
                         property ->
@@ -199,7 +209,7 @@ public class AgentObjectListTools {
      * 넣은 조건 값이 저장 값 종류에 없으면 알려 준다(378). 076은 똑같은 값이 없을 때 띄어쓰기만 다른 저장 값이 하나면 그 값으로 거르므로 같은 기준으로 본다.
      * 띄어쓰기만 다른 값이 여럿이거나 하나도 없으면 맞추지 못한 값이다. 값 종류를 모르는 속성(문자 속성이 아니거나 종류가 많음)은 판단하지 않는다.
      */
-    private static Map<String, String> unmatchedValues(
+    static Map<String, String> unmatchedValues(
             List<PropertyItem> properties, Map<String, String> requested) {
         if (requested == null || requested.isEmpty()) {
             return Map.of();
@@ -233,7 +243,7 @@ public class AgentObjectListTools {
                 .toString();
     }
 
-    private static PropertyDataType dataTypeOf(List<PropertyItem> properties, String code) {
+    static PropertyDataType dataTypeOf(List<PropertyItem> properties, String code) {
         return properties.stream()
                 .filter(property -> property.code().equals(code))
                 .map(PropertyItem::dataType)
@@ -247,14 +257,14 @@ public class AgentObjectListTools {
      * 속성이면 그대로 넘겨 076이 검증한다.
      */
 
-    private static String periodStart(PropertyDataType type, String date) {
+    static String periodStart(PropertyDataType type, String date) {
         LocalDate day = userDate(type, date);
         return day == null
                 ? blankToNull(date)
                 : day.atStartOfDay(USER_ZONE).toOffsetDateTime().toString();
     }
 
-    private static String periodEnd(PropertyDataType type, String date) {
+    static String periodEnd(PropertyDataType type, String date) {
         LocalDate day = userDate(type, date);
         return day == null
                 ? blankToNull(date)
@@ -276,11 +286,11 @@ public class AgentObjectListTools {
         }
     }
 
-    private static String blankToNull(String value) {
+    static String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.strip();
     }
 
-    private static String reasonOf(BusinessException ex) {
+    static String reasonOf(BusinessException ex) {
         Object field = ex.getDetails().get("field");
         Object reason = ex.getDetails().get("reason");
         return reason == null ? ex.getMessage() : field + ": " + reason;

@@ -169,7 +169,8 @@ class ModelComparisonGmsTests {
                                                             completionEstimator,
                                                             propertyValues,
                                                             clock,
-                                                            reasoningEffort);
+                                                            reasoningEffort,
+                                                            false);
                                             AtomicReference<Result> result =
                                                     new AtomicReference<>();
                                             List<Map<String, Object>> calls = new ArrayList<>();

@@ -124,6 +124,12 @@ public class AgentResponder {
      */
     private final String reasoningEffort;
 
+    /**
+     * Object Set 도구(380)를 AI에게 줄지. 멀티홉 답변 규칙과 GMS 비교(382) 전에는 기존 답변이 흔들리지 않게 기본은 끈다. 경로 후보 도구(381)와
+     * 같은 방식이다.
+     */
+    private final boolean objectSetsEnabled;
+
     public AgentResponder(
             ObjectProvider<ChatModel> chatModels,
             AuditExecutionQueryService executions,
@@ -137,7 +143,8 @@ public class AgentResponder {
             CompletionEstimator completionEstimator,
             PropertyValueSampleService propertyValues,
             Clock clock,
-            @Value("${axcore.agent.reasoning-effort:none}") String reasoningEffort) {
+            @Value("${axcore.agent.reasoning-effort:none}") String reasoningEffort,
+            @Value("${axcore.agent.object-sets.enabled:false}") boolean objectSetsEnabled) {
         this.chatModels = chatModels;
         this.executions = executions;
         this.objectSearch = objectSearch;
@@ -151,6 +158,7 @@ public class AgentResponder {
         this.propertyValues = propertyValues;
         this.clock = clock;
         this.reasoningEffort = reasoningEffort;
+        this.objectSetsEnabled = objectSetsEnabled;
     }
 
     /**
@@ -183,8 +191,9 @@ public class AgentResponder {
     }
 
     /**
-     * 상세·관계·근거 조회는 구현(S15P31C106-137·138)이 배포된 뒤에만 준다. 부를 수 없는 도구를 AI에게 보여 주지 않는다. 경로 후보는 설정으로 켰을
-     * 때만 준다(381).
+     * 상세·관계·근거 조회는 구현(S15P31C106-137·138)이 배포된 뒤에만 준다. 부를 수 없는 도구를 AI에게 보여 주지 않는다. Object Set
+     * 도구(380)는 관계 조회와 같은 구현을 쓰므로 함께 주되, 설정으로 켰을 때만 준다(axcore.agent.object-sets.enabled). 경로 후보는
+     * 설정으로 켰을 때만 준다(381).
      */
     private Object[] tools(AgentQuerySession session) {
         List<Object> tools = new ArrayList<>();
@@ -193,7 +202,21 @@ public class AgentResponder {
         tools.add(
                 new AgentObjectListTools(
                         session, objectSearch, modelSummary, dataAccess, propertyValues));
-        objectDetails.ifAvailable(query -> tools.add(new AgentObjectDetailTools(session, query)));
+        objectDetails.ifAvailable(
+                query -> {
+                    tools.add(new AgentObjectDetailTools(session, query));
+                    if (!objectSetsEnabled) {
+                        return;
+                    }
+                    tools.add(
+                            new AgentObjectSetTools(
+                                    session,
+                                    objectSearch,
+                                    query,
+                                    modelSummary,
+                                    dataAccess,
+                                    propertyValues));
+                });
         objectEvidence.ifAvailable(
                 query -> tools.add(new AgentObjectEvidenceTools(session, query)));
         objectPaths.ifAvailable(planner -> tools.add(new AgentObjectPathTools(session, planner)));
