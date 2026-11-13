@@ -442,6 +442,48 @@ class LinkRecomputeServiceTests {
         assertThat(status(manual)).isEqualTo("INACTIVE");
     }
 
+    /**
+     * 387: 매핑을 교체하면 같은 원천 행의 옛 객체(꺼진 매핑)와 새 객체가 같이 ACTIVE로 남는다. 검사처럼 꺼진 매핑의 객체를 빼야 모호하다고 연결을 끊지 않고
+     * 새 객체와 잇는다.
+     */
+    @Test
+    void objectsOfTurnedOffMappingAreLeftOutLikeTheCheck() {
+        long wo = workOrder("EQ-3");
+        long old = equipment("EQ-3");
+        long oldLink = recompute(wo).activatedLinkIds().getFirst();
+
+        setMappingActive(equipmentMapping, false);
+        long replacement =
+                jdbc.sql(
+                                """
+                                insert into object_source_mapping (source_resource_id, object_type_id, key_columns)
+                                values (:resource, :type, '["code"]') returning id
+                                """)
+                        .param("resource", resourceId)
+                        .param("type", equipmentType)
+                        .query(Long.class)
+                        .single();
+        long current = equipmentFrom(replacement, "EQ-3");
+        LinkRecomputeResult result = recompute(current);
+
+        assertThat(result.inactivatedLinkIds()).containsExactly(oldLink);
+        assertThat(activeTargets(wo)).containsExactly(current);
+        assertThat(current).isNotEqualTo(old);
+    }
+
+    /** 387: 끈 매핑의 객체는 연결 대상이 아니라 그 객체에 걸린 수동 연결도 끈다(원천 삭제와 같다). */
+    @Test
+    void manualLinkIsInactivatedWhenAnEndMappingIsTurnedOff() {
+        long wo = workOrder("EQ-3");
+        long other = equipment("EQ-9");
+        long manual = manualLink(wo, other, "{}");
+
+        setMappingActive(equipmentMapping, false);
+
+        assertThat(recompute(other).inactivatedLinkIds()).containsExactly(manual);
+        assertThat(status(manual)).isEqualTo("INACTIVE");
+    }
+
     @Test
     void objectTypeRecomputeCoversFullLoadWithoutPassingEveryId() {
         long wo = workOrder("EQ-3");
@@ -579,6 +621,14 @@ class LinkRecomputeServiceTests {
     }
 
     private long equipment(String code, String kind) {
+        return equipmentFrom(equipmentMapping, code, kind);
+    }
+
+    private long equipmentFrom(long mapping, String code) {
+        return equipmentFrom(mapping, code, "프레스");
+    }
+
+    private long equipmentFrom(long mapping, String code, String kind) {
         return jdbc.sql(
                         """
                         insert into object_instance
@@ -588,11 +638,18 @@ class LinkRecomputeServiceTests {
                         returning id
                         """)
                 .param("type", equipmentType)
-                .param("mapping", equipmentMapping)
+                .param("mapping", mapping)
                 .param("code", code)
                 .param("kind", kind)
                 .query(Long.class)
                 .single();
+    }
+
+    private void setMappingActive(long mapping, boolean active) {
+        jdbc.sql("update object_source_mapping set is_active = :active where id = :id")
+                .param("active", active)
+                .param("id", mapping)
+                .update();
     }
 
     private void setProperty(long objectId, String code, String value) {

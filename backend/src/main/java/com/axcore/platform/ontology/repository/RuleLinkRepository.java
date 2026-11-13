@@ -58,14 +58,18 @@ public class RuleLinkRepository {
                         .list());
     }
 
-    /** 유형의 활성(ACTIVE) 객체. 원천에서 지운 객체(DELETED_AT_SOURCE)는 빠진다. */
+    /**
+     * 유형의 연결 대상 객체({@link LinkableObjects}). 원천에서 지운 객체(DELETED_AT_SOURCE)와 꺼진 매핑에서 온 객체는 빠진다. 검사가
+     * 판정하는 범위와 같다(387).
+     */
     public List<LinkableObject> activeObjects(long objectTypeId) {
         return jdbc.sql(
                         """
-                        select id, properties::text as properties from object_instance
-                        where object_type_id = :type and status = 'ACTIVE'
-                        order by id
-                        """)
+                        select o.id, o.properties::text as properties from object_instance o
+                        where o.object_type_id = :type and %s
+                        order by o.id
+                        """
+                                .formatted(LinkableObjects.condition("o")))
                 .param("type", objectTypeId)
                 .query(
                         (rs, row) ->
@@ -75,18 +79,21 @@ public class RuleLinkRepository {
                 .list();
     }
 
-    /** 관계 유형의 모든 연결(모든 출처·상태). 연결의 양 끝 객체가 활성인지도 같이 읽는다. */
+    /** 관계 유형의 모든 연결(모든 출처·상태). 연결의 양 끝 객체가 모두 연결 대상({@link LinkableObjects})인지도 같이 읽는다. */
     public List<StoredLink> linksOf(long linkTypeId) {
         return jdbc.sql(
                         """
                         select l.id, l.source_object_id, l.target_object_id, l.origin, l.status,
                                l.link_mapping_id, l.evidence::text as evidence,
-                               (s.status = 'ACTIVE' and t.status = 'ACTIVE') as ends_active
+                               (%s and %s) as ends_active
                         from object_link l
                         join object_instance s on s.id = l.source_object_id
                         join object_instance t on t.id = l.target_object_id
                         where l.link_type_id = :type
-                        """)
+                        """
+                                .formatted(
+                                        LinkableObjects.condition("s"),
+                                        LinkableObjects.condition("t")))
                 .param("type", linkTypeId)
                 .query(this::storedLink)
                 .list();
@@ -198,7 +205,7 @@ public class RuleLinkRepository {
 
     /**
      * @param origin RULE·MANUAL·DOCUMENT
-     * @param endsActive 출발·도착 객체가 모두 ACTIVE인지
+     * @param endsActive 출발·도착 객체가 모두 연결 대상인지({@link LinkableObjects}: ACTIVE이고 꺼진 매핑에서 오지 않음)
      */
     public record StoredLink(
             long id,

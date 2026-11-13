@@ -1,5 +1,6 @@
 package com.axcore.platform.check.repository;
 
+import com.axcore.platform.ontology.repository.LinkableObjects;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -28,8 +29,8 @@ public class CheckObjectReader {
     private final JsonMapper json;
 
     /**
-     * 유형의 활성 객체 가운데 주어진 원천 자원에서 활성 매핑으로 수집한 것. 원천에서 지운 객체(DELETED_AT_SOURCE), 플랫폼에서 만든 객체(원천 키 없음),
-     * 비활성 매핑에서 온 객체는 빠진다. 객체 ID 순서다.
+     * 유형의 연결 대상 객체({@link LinkableObjects}, 연결 재계산과 같은 정의, 387) 가운데 주어진 원천 자원에서 수집한 것. 원천에서 지운
+     * 객체(DELETED_AT_SOURCE), 꺼진 매핑에서 온 객체, 플랫폼에서 만든 객체(원천 키 없음)는 빠진다. 객체 ID 순서다.
      */
     public List<CheckObject> activeObjects(long objectTypeId, Collection<Long> resourceIds) {
         if (resourceIds.isEmpty()) {
@@ -41,10 +42,11 @@ public class CheckObjectReader {
                                o.properties::text as properties
                         from object_instance o
                         join object_source_mapping m on m.id = o.source_mapping_id
-                        where o.object_type_id = :type and o.status = 'ACTIVE'
-                          and m.is_active and m.source_resource_id = any(cast(:resources as bigint[]))
+                        where o.object_type_id = :type and %s
+                          and m.source_resource_id = any(cast(:resources as bigint[]))
                         order by o.id
-                        """)
+                        """
+                                .formatted(LinkableObjects.condition("o")))
                 .param("type", objectTypeId)
                 .param("resources", resourceIds.toArray(Long[]::new))
                 .query(
@@ -58,8 +60,8 @@ public class CheckObjectReader {
     }
 
     /**
-     * 관계 유형의 활성 수동 연결(origin=MANUAL)을 출발 객체별 도착 객체 ID로 읽는다(366). 양 끝 객체가 모두 ACTIVE인 것만이다. 검사는 규칙으로
-     * 미연결인 출발에 이 연결이 있으면 정상으로 본다.
+     * 관계 유형의 활성 수동 연결(origin=MANUAL)을 출발 객체별 도착 객체 ID로 읽는다(366). 양 끝 객체가 모두 연결 대상({@link
+     * LinkableObjects})인 것만이다(387). 검사는 규칙으로 미연결인 출발에 이 연결이 있으면 정상으로 본다.
      */
     public Map<Long, List<Long>> manualLinkTargets(long linkTypeId) {
         Map<Long, List<Long>> targets = new LinkedHashMap<>();
@@ -70,9 +72,12 @@ public class CheckObjectReader {
                         join object_instance s on s.id = l.source_object_id
                         join object_instance t on t.id = l.target_object_id
                         where l.link_type_id = :type and l.origin = 'MANUAL' and l.status = 'ACTIVE'
-                          and s.status = 'ACTIVE' and t.status = 'ACTIVE'
+                          and %s and %s
                         order by l.source_object_id, l.target_object_id
-                        """)
+                        """
+                                .formatted(
+                                        LinkableObjects.condition("s"),
+                                        LinkableObjects.condition("t")))
                 .param("type", linkTypeId)
                 .query(
                         (rs, row) ->

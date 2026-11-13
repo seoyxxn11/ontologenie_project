@@ -12,6 +12,7 @@ import com.axcore.platform.mapping.dto.ObjectMappingUpdateResponse;
 import com.axcore.platform.mapping.repository.ObjectSourceMappingRepository;
 import com.axcore.platform.ontology.domain.DefinitionSource;
 import com.axcore.platform.ontology.repository.ObjectTypeRepository;
+import com.axcore.platform.ontology.service.LinkRecomputeService;
 import com.axcore.platform.source.domain.SourceResource;
 import com.axcore.platform.source.service.SourceCatalogService;
 import java.util.HashSet;
@@ -37,6 +38,7 @@ public class ObjectMappingService {
     private final ObjectSourceMappingRepository mappingRepository;
     private final ObjectTypeRepository objectTypeRepository;
     private final SourceCatalogService catalogService;
+    private final LinkRecomputeService linkRecompute;
 
     /** API 034. */
     public Page<ObjectMappingResponse> search(
@@ -83,7 +85,8 @@ public class ObjectMappingService {
 
     /**
      * API 036. 객체가 만들어진 매핑은 원천 자원·객체 유형·키 컬럼을 바꿀 수 없다. 객체가 없는 매핑의 원천 식별을 바꾸거나 멈춘 매핑을 다시 켜면 그 테이블을
-     * 처음부터 다시 읽는다(멈춘 동안의 변경을 반영하지 않았기 때문이다).
+     * 처음부터 다시 읽는다(멈춘 동안의 변경을 반영하지 않았기 때문이다). 매핑을 끄면 그 객체는 연결 대상에서 빠지므로 객체 유형의 연결을 같은 트랜잭션에서 다시
+     * 계산한다(387).
      */
     @Transactional
     public ObjectMappingUpdateResponse update(Long id, ObjectMappingUpdateRequest request) {
@@ -129,6 +132,7 @@ public class ObjectMappingService {
                     MappingErrorCode.MAPPING_IDENTITY_LOCKED, Map.of("mappingId", id));
         }
         boolean wasActive = mapping.isActive();
+        long objectTypeBefore = mapping.getObjectTypeId();
         boolean active = request.isActive() == null ? wasActive : request.isActive();
         if (active
                 && mappingRepository.existsActive(
@@ -148,8 +152,13 @@ public class ObjectMappingService {
         if (reloadReason != null) {
             catalogService.requireFullReload(target);
         }
-        // 응답의 rowVersion·수정 시각이 이번 변경을 반영하도록 먼저 DB에 쓴다.
+        // 응답의 rowVersion·수정 시각이 이번 변경을 반영하도록 먼저 DB에 쓴다. 아래 연결 재계산도 끈 상태를 SQL로 읽는다.
         mappingRepository.flush();
+        if (wasActive && !active) {
+            // 끈 매핑의 객체는 연결 대상에서 빠진다(387, LinkableObjects). 그 객체의 규칙·수동 연결을 바로 끈다. 원천 자원 잠금 뒤 관계 유형
+            // 잠금 순서는 수집(197·198)과 같다. 트랜잭션의 마지막에 한 번 부른다.
+            linkRecompute.recomputeObjectTypes(Set.of(objectTypeBefore));
+        }
         return ObjectMappingUpdateResponse.of(ObjectMappingResponse.from(mapping), reloadReason);
     }
 

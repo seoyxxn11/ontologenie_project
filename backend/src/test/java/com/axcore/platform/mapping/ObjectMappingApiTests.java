@@ -196,6 +196,40 @@ class ObjectMappingApiTests {
         assertThat(loadedLsn(resource)).isEqualTo(8192L);
     }
 
+    /** 387: 매핑을 끄면 그 객체는 연결 대상에서 빠지므로, 같은 요청에서 그 객체에 걸린 연결을 끈다. */
+    @Test
+    void turningMappingOffInactivatesLinksOfItsObjects() throws Exception {
+        LoginSession admin = loginAs("ADMIN");
+        long resource = insertResource(null);
+        long employee = insertObjectType();
+        long worker = insertObjectType();
+        long mapping = createMapping(admin, resource, employee, "\"emp_no\"");
+        long collected = insertObject(mapping, employee);
+        long platform =
+                jdbcClient
+                        .sql(
+                                "insert into object_instance (object_type_id, display_name) values (:type, '작업자') returning id")
+                        .param("type", worker)
+                        .query(Long.class)
+                        .single();
+        long link = insertManualLink(worker, employee, platform, collected);
+
+        send(
+                        admin,
+                        patch(BASE_PATH + "/" + mapping),
+                        updateBody(resource, employee, "\"emp_no\"", false, 0))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.isActive").value(false));
+
+        assertThat(
+                        jdbcClient
+                                .sql("select status from object_link where id = :id")
+                                .param("id", link)
+                                .query(String.class)
+                                .single())
+                .isEqualTo("INACTIVE");
+    }
+
     @Test
     void rejectsInvalidUpdates() throws Exception {
         LoginSession admin = loginAs("ADMIN");
@@ -330,16 +364,56 @@ class ObjectMappingApiTests {
                 .single();
     }
 
-    private void insertObject(long mapping, long type) {
-        jdbcClient
+    private long insertObject(long mapping, long type) {
+        return jdbcClient
                 .sql(
                         """
                         insert into object_instance (object_type_id, source_mapping_id, source_key, display_name)
-                        values (:type, :mapping, '{"emp_no": "E011"}', '김원천')
+                        values (:type, :mapping, '{"emp_no": "E011"}', '김원천') returning id
                         """)
                 .param("type", type)
                 .param("mapping", mapping)
-                .update();
+                .query(Long.class)
+                .single();
+    }
+
+    /** 관계 유형 하나와 그 수동 연결 하나. */
+    private long insertManualLink(long sourceType, long targetType, long source, long target) {
+        long linkType =
+                jdbcClient
+                        .sql(
+                                """
+                                insert into link_type (code, name, source_type_id, target_type_id, cardinality, description)
+                                values (:code, '소속', :source, :target, 'MANY_TO_ONE', '시험') returning id
+                                """)
+                        .param("code", uniqueCode())
+                        .param("source", sourceType)
+                        .param("target", targetType)
+                        .query(Long.class)
+                        .single();
+        long account =
+                jdbcClient
+                        .sql(
+                                """
+                                insert into account (login_id, display_name, password_hash, role_id, must_change_password)
+                                values (:login, '연결', 'test-hash', (select id from role where code = 'ADMIN'), false)
+                                returning id
+                                """)
+                        .param("login", "link-" + UUID.randomUUID())
+                        .query(Long.class)
+                        .single();
+        return jdbcClient
+                .sql(
+                        """
+                        insert into object_link (link_type_id, source_object_id, target_object_id, origin, confirmed_by)
+                        values (:type, :source, :target, 'MANUAL', :account) returning id
+                        """)
+                .param("type", linkType)
+                .param("source", source)
+                .param("target", target)
+                .param("account", account)
+                .query(Long.class)
+                .single();
     }
 
     private Long loadedLsn(long resource) {

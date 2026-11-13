@@ -14,8 +14,8 @@
 ## 순서
 
 1. 같은 객체끼리면 거절한다.
-2. 양 끝 객체를 ID 순서로 **공유 잠금**(`for share`)하며 읽고 존재·유형·활성을 본다.
-3. 규칙 재계산과 **같은 관계 유형 잠금**(`pg_advisory_xact_lock(hashtext('link:type:{id}'))`, `RuleLinkRepository.lockLinkType`)을 잡는다.
+2. 양 끝 객체를 ID 순서로 **공유 잠금**(`for share`)하며 읽고 존재·유형·연결 대상인지(387, `LinkableObjects`: ACTIVE이고 꺼진 매핑에서 오지 않음, 검사·재계산과 같은 정의)를 본다.
+3. 규칙 재계산과 **같은 관계 유형 잠금**(`pg_advisory_xact_lock(hashtext('link:type:{id}'))`, `RuleLinkRepository.lockLinkType`)을 잡는다. 잡은 뒤 양 끝을 다시 읽는다. 매핑 끄기(036)는 매핑을 바꾼 뒤 같은 잠금을 잡고 재계산하므로, 기다리는 사이 끝난 매핑 끄기를 보고 거절한다. 이쪽이 먼저 잠그면 매핑 끄기의 재계산이 이 연결을 보고 끈다.
 4. 쌍(관계 유형·출발·도착)의 기존 행을 본다.
 5. MANUAL이면 규칙이 이미 그 출발을 이었는지 보고(이었으면 거절), 저장 당시 출발 비교 속성 값을 근거에 더한다(366, 아래 "수동 연결").
 6. 관계 수 제약을 검사한다.
@@ -45,7 +45,7 @@
 | 없는 관계 유형·객체 | `RESOURCE_NOT_FOUND`(`resource`=link_type·object_instance) | 404 |
 | 같은 객체끼리 | `LINK_SELF_REFERENCE` | 422 |
 | 객체 유형이 관계 유형의 출발·도착 유형과 다름 | `LINK_END_TYPE_MISMATCH`(`end`, 기대·실제 유형 ID) | 422 |
-| 원천에서 삭제된 객체 | `LINK_END_NOT_ACTIVE`(`end`) | 422 |
+| 원천에서 삭제됐거나 꺼진 매핑에서 온 객체 | `LINK_END_NOT_ACTIVE`(`end`) | 422 |
 | 관계 수 초과 | `LINK_CARDINALITY_EXCEEDED`(`cardinality`, `end`) | 422 |
 | 문서 근거의 `expression_kind`가 OBSERVED·ESTIMATED가 아님 | `LINK_EVIDENCE_INVALID` | 400 |
 | 같은 쌍의 활성 연결 | `LINK_ALREADY_EXISTS`(`linkId`, `origin`) | 409 |
@@ -62,7 +62,7 @@
 
 - **규칙이 이미 이은 출발은 받지 않는다**(`LINK_SOURCE_LINKED_BY_RULE`). 받아도 재계산이 곧 끈다.
 - **저장 당시 값 기록:** 근거에 `sourceValues` {속성 코드: 값}을 더한다(`LinkRecomputeService.SOURCE_VALUES`). 속성은 그 관계 유형의 반영 중인 규칙들이 출발 쪽에서 비교하는 속성이다. 반영 중인 규칙이나 비교 속성이 없으면 더하지 않는다.
-- **재계산이 끄는 경우**(`docs/link-recompute.md`): 저장 당시 값이 바뀜, 양 끝 중 하나가 원천에서 삭제됨, 규칙이 그 출발을 다른 도착과 이음. 규칙이 같은 쌍을 이으면 규칙 연결로 바뀐다.
+- **재계산이 끄는 경우**(`docs/link-recompute.md`): 저장 당시 값이 바뀜, 양 끝 중 하나가 원천에서 삭제되거나 매핑이 꺼짐, 규칙이 그 출발을 다른 도착과 이음. 규칙이 같은 쌍을 이으면 규칙 연결로 바뀐다.
 - **검사:** 출발에 활성 수동 연결이 있으면 SYNC·재검증이 그 행을 정상으로 본다(`docs/check-run.md` "수동 연결"). 그래서 그 행의 문제는 재검증 PASSED로 해결할 수 있다.
 
 ## 동시 실행
