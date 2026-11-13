@@ -520,6 +520,12 @@ async function openEvidenceDialog(objectName: RegExp) {
 
 test('근거 보기를 누르면 원천 위치와 연결 근거를 팝업으로 보여준다', async () => {
   const user = await openEvidenceDialog(/프레스 3호기/)
+  expect(
+    screen.getByRole('button', { name: '원본·연결 근거' }),
+  ).not.toHaveTextContent('↗')
+  expect(
+    screen.getByRole('searchbox', { name: 'ID · 이름 검색' }),
+  ).toHaveAttribute('placeholder', '예: P101, 프레스')
 
   expect(
     screen.getByRole('dialog', { name: '원본·연결 근거 · 프레스 3호기' }),

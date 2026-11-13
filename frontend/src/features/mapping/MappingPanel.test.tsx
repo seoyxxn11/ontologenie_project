@@ -103,12 +103,17 @@ test('객체 등록에 유형과 키 컬럼이 필요하고 키 컬럼은 선택
   ).toBeInTheDocument()
   await user.click(dialog.getByRole('checkbox', { name: 'biz_no' }))
   await user.click(code)
+  expect(
+    dialog.getByText('키 조합(선택 순서): biz_no + vendor_code'),
+  ).toBeVisible()
   await user.click(dialog.getByRole('button', { name: '저장' }))
   expect(
     await screen.findByText(/다음 수집에서 원천을 처음부터 다시 읽습니다/),
   ).toBeInTheDocument()
   const table = await screen.findByRole('table', { name: '객체 매핑 목록' })
-  expect(within(table).getByText('biz_no → vendor_code')).toBeInTheDocument()
+  expect(within(table).getByText('biz_no + vendor_code')).toBeInTheDocument()
+  await user.click(within(table).getByRole('button', { name: /^거래처 #\d+$/ }))
+  expect(await screen.findByText(/키 컬럼 biz_no \+ vendor_code/)).toBeVisible()
 })
 
 test('속성 등록은 변환 인자를 검증하고 단계 순서대로 저장한다', async () => {

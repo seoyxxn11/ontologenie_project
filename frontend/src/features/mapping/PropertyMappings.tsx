@@ -81,7 +81,7 @@ export default function PropertyMappings({
         <div>
           <h4 className="font-semibold">{objectName} 속성 매핑</h4>
           <p className="mt-1 text-sm text-slate-600">
-            객체 매핑 #{parent.id} · 키 컬럼 {parent.keyColumns.join(' → ')}
+            객체 매핑 #{parent.id} · 키 컬럼 {parent.keyColumns.join(' + ')}
           </p>
         </div>
         <Button

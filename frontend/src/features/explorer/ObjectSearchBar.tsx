@@ -131,7 +131,7 @@ function ObjectSearchBar({
           type="search"
           value={keyword}
           onChange={(event) => setKeyword(event.target.value)}
-          placeholder="예: PR-03, 프레스"
+          placeholder="예: P101, 프레스"
           className={fieldClass}
         />
       </div>

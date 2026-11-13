@@ -9,11 +9,14 @@ import AppLayout from './AppLayout'
 
 afterEach(() => vi.unstubAllGlobals())
 
-function openLayout(roleCode: Account['roleCode'] = 'ADMIN') {
+function openLayout(
+  roleCode: Account['roleCode'] = 'ADMIN',
+  displayName = demoAccount.displayName,
+) {
   render(
     <AuthContext.Provider
       value={{
-        account: { ...demoAccount, roleCode },
+        account: { ...demoAccount, roleCode, displayName },
         pending: false,
         error: null,
         refresh: vi.fn(),
@@ -56,6 +59,21 @@ test('처음에는 패널을 접고 로고와 주 메뉴만 상단에 표시한�
     screen.queryByRole('button', { name: '로그아웃' }),
   ).not.toBeInTheDocument()
 })
+
+test.each([
+  ['ADMIN', '관리자', '관리자'],
+  ['ADMIN', '손주연', '관리자'],
+  ['VIEWER', '조회 검증용 수정', '조회 사용자'],
+] as const)(
+  '계정 이름 %s/%s은 유지하며 같은 역할 이름을 중복 표시하지 않는다',
+  async (role, name, roleName) => {
+    openLayout(role, name)
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: '메뉴 패널 열기' }))
+    expect(screen.getByText(name)).toBeVisible()
+    expect(screen.getAllByText(roleName)).toHaveLength(1)
+  },
+)
 
 test('운영·관리 패널에서 객체 유형을 열면 선택 표시와 열린 상태를 유지한다', async () => {
   const user = userEvent.setup()

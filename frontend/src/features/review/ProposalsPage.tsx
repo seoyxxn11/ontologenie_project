@@ -219,9 +219,16 @@ export default function ProposalsPage() {
   const selected =
     visible.find((item) => String(item.id) === params.get('candidate')) ??
     visible[0]
-  const issueCount = issues.isSuccess
-    ? (issues.data.meta?.totalElements ?? issues.data.data.length)
-    : '…'
+  const issueCount = issues.data?.meta?.totalElements
+  const issueCountLabel = issues.isError
+    ? '전체 건수 조회 실패'
+    : issues.isPending
+      ? '전체 건수 조회 중…'
+      : typeof issueCount === 'number' &&
+          Number.isSafeInteger(issueCount) &&
+          issueCount >= 0
+        ? `전체 ${issueCount}건 (해결 포함)`
+        : '전체 건수 확인 불가'
   function selectAnalysis(id?: number, joined?: boolean) {
     update({
       analysis: id?.toString(),
@@ -304,7 +311,7 @@ export default function ProposalsPage() {
             })(),
           }}
         >
-          적용 후 문제 {issueCount}건
+          적용 후 문제 · {issueCountLabel}
         </Link>
       </nav>
       {showingIssues ? (

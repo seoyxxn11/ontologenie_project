@@ -12,6 +12,8 @@ function AccountMenu({
   compact?: boolean
 }) {
   const { account, signOut } = useAuth()
+  const roleName =
+    account && (roleLabels[account.roleCode] ?? '알 수 없는 역할')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const submitting = useRef(false)
@@ -36,13 +38,11 @@ function AccountMenu({
       <div className="flex flex-wrap items-center justify-end gap-2 text-sm">
         <span>
           {compact && account
-            ? `${account.loginId} · ${roleLabels[account.roleCode] ?? '알 수 없는 역할'}`
+            ? `${account.loginId} · ${roleName}`
             : account?.displayName}
         </span>
-        {!compact && account && (
-          <span className="text-xs text-slate-500">
-            {roleLabels[account.roleCode] ?? '알 수 없는 역할'}
-          </span>
+        {!compact && account && account.displayName.trim() !== roleName && (
+          <span className="text-xs text-slate-500">{roleName}</span>
         )}
         <Button
           variant="secondary"

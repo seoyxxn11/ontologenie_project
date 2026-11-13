@@ -336,15 +336,33 @@ test('연결 규칙에서 문제를 열어 별도 상세 응답의 원천 근거
       data: { ...issueFixture, rawValue: '57', transformedValue: 'GP0057' },
     }),
   )
-  server.use(http.get('/api/v1/issues/1', detail))
+  server.use(
+    http.get('/api/v1/issues/1', detail),
+    http.get('/api/v1/ontology/rules', () =>
+      HttpResponse.json({
+        data: [
+          {
+            code: 'W2E',
+            description: '작업자 번호로 직원 연결',
+            linkTypeName: '작업 담당자',
+          },
+        ],
+      }),
+    ),
+  )
   const user = userEvent.setup()
   open()
   await user.click(screen.getByRole('link', { name: '적용 후 문제' }))
   const table = await screen.findByRole('table', { name: '정합성 문제 목록' })
-  expect(within(table).getByText('W2E (연결 매핑 #12)')).toBeInTheDocument()
+  expect(
+    await within(table).findByText('작업자 번호로 직원 연결 (연결 매핑 #12)'),
+  ).toBeInTheDocument()
   await user.click(within(table).getByRole('button', { name: '#1 · 미연결' }))
   const dialog = within(await screen.findByRole('dialog'))
   expect(await dialog.findByText('GP0057')).toBeInTheDocument()
+  expect(
+    await dialog.findByText('작업자 번호로 직원 연결 (연결 매핑 #12)'),
+  ).toBeVisible()
   expect(dialog.getByText('57')).toBeInTheDocument()
   expect(dialog.getByText('대응 직원 없음')).toBeInTheDocument()
   expect(dialog.getByText('MES')).toBeInTheDocument()
@@ -357,6 +375,69 @@ test('연결 규칙에서 문제를 열어 별도 상세 응답의 원천 근거
   expect(
     screen.getByRole('heading', { name: '연결 규칙', level: 1 }),
   ).toBeInTheDocument()
+})
+
+test('문제 탭은 해결 포함 전체 건수이고 목록은 현재 필터 결과 건수임을 구분한다', async () => {
+  server.use(
+    http.get('/api/v1/issues', ({ request }) => {
+      const status = new URL(request.url).searchParams.get('status')
+      const data = Array.from({ length: 6 }, (_, index) => ({
+        ...issueFixture,
+        id: index + 1,
+        status: index === 5 ? 'RESOLVED' : 'NEW',
+      })).filter((row) => !status || row.status === status)
+      return HttpResponse.json({
+        data,
+        meta: { page: 0, size: 20, totalElements: data.length, hasNext: false },
+      })
+    }),
+  )
+  const user = userEvent.setup()
+  open('?view=issues')
+  expect(
+    await screen.findByText('적용 후 문제 · 전체 6건 (해결 포함)'),
+  ).toBeVisible()
+  expect(
+    await screen.findByText('조회 결과 6건 · 전체 상태(해결 포함)'),
+  ).toBeVisible()
+  await user.click(screen.getByRole('button', { name: '해결' }))
+  expect(await screen.findByText('조회 결과 1건 · 해결')).toBeVisible()
+  expect(screen.getByText('적용 후 문제 · 전체 6건 (해결 포함)')).toBeVisible()
+  expect(
+    within(
+      screen.getByRole('table', { name: '정합성 문제 목록' }),
+    ).getAllByRole('row'),
+  ).toHaveLength(2)
+})
+
+test('문제 집계 실패를 전체 0건이나 조회 중으로 표시하지 않는다', async () => {
+  server.use(
+    http.get('/api/v1/issues', () =>
+      HttpResponse.json(
+        { error: { code: 'SERVER_ERROR', message: '조회 실패' } },
+        { status: 500 },
+      ),
+    ),
+  )
+  open()
+  expect(
+    await screen.findByText('적용 후 문제 · 전체 건수 조회 실패'),
+  ).toBeVisible()
+  expect(
+    screen.queryByText('적용 후 문제 · 전체 0건 (해결 포함)'),
+  ).not.toBeInTheDocument()
+})
+
+test('문제 집계의 전체 메타 정보가 없으면 페이지 행 수를 전체 건수로 오인하지 않는다', async () => {
+  server.use(
+    http.get('/api/v1/issues', () =>
+      HttpResponse.json({ data: [issueFixture] }),
+    ),
+  )
+  open()
+  expect(
+    await screen.findByText('적용 후 문제 · 전체 건수 확인 불가'),
+  ).toBeVisible()
 })
 
 test('지연된 상태 변경 응답이 더 최신 상세를 덮어쓰지 않는다', async () => {

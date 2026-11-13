@@ -16,6 +16,7 @@ import IssueManualLinkForm from './IssueManualLinkForm'
 import IssueReverification from './IssueReverification'
 import IssueStatusForm from './IssueStatusForm'
 import IssueTracking from './IssueTracking'
+import IssueRuleName from './IssueRuleName'
 import { fetchIssue, fetchIssues, type Issue } from './api'
 
 const statusLabels: Record<string, string> = {
@@ -34,9 +35,7 @@ const kindLabels: Record<string, string> = {
 function relatedRule(issue: Issue) {
   if (issue.linkMappingId !== null) {
     const code = /^[^:]+:rule:(.+):object:\d+$/.exec(issue.dedupeKey)?.[1]
-    return code
-      ? `${code} (연결 매핑 #${issue.linkMappingId})`
-      : `연결 매핑 #${issue.linkMappingId}`
+    return <IssueRuleName code={code} mappingId={issue.linkMappingId} />
   }
   return issue.proposalItemId === null ? '—' : `제안 #${issue.proposalItemId}`
 }
@@ -80,7 +79,7 @@ function IssueDetail({ id, onClose }: { id: number; onClose: () => void }) {
               {[
                 ['문제 유형', kindLabels[issue.issueKind] ?? issue.issueKind],
                 ['처리 상태', statusLabels[issue.status] ?? issue.status],
-                ['관련 규칙', relatedRule(issue)],
+                ['관련 규칙', ''],
                 [
                   '관련 객체',
                   issue.objectInstanceId === null
@@ -100,7 +99,9 @@ function IssueDetail({ id, onClose }: { id: number; onClose: () => void }) {
                 <div key={label} className="min-w-0 rounded-lg bg-slate-50 p-3">
                   <dt className="font-medium text-slate-600">{label}</dt>
                   <dd className="mt-1 whitespace-pre-wrap break-words">
-                    {value ?? '—'}
+                    {label === '관련 규칙'
+                      ? relatedRule(issue)
+                      : (value ?? '—')}
                   </dd>
                 </div>
               ))}
@@ -265,6 +266,16 @@ export default function IssuesPanel() {
       )}
       {query.isSuccess && (
         <>
+          <p className="text-sm text-slate-600">
+            {meta
+              ? `조회 결과 ${meta.totalElements}건`
+              : `현재 페이지 ${query.data.data.length}건`}
+            {' · '}
+            {filters.status
+              ? statusLabels[filters.status]
+              : '전체 상태(해결 포함)'}
+            {filters.issueKind && ` · ${kindLabels[filters.issueKind]}`}
+          </p>
           {query.data.data.length ? (
             <DataTable label="정합성 문제 목록" className="min-w-[640px]">
               <thead className="bg-slate-50 text-left text-xs text-slate-600">
