@@ -76,7 +76,7 @@ public class ObjectPathPlanner {
      * @throws AgentQuerySession.InvalidInput 유형을 찾지 못했거나 출발·도착이 같을 때
      */
     ObjectPaths plan(LoginAccount asker, String fromType, String toType) {
-        ModelSummaryResponse summary = models.summarize(dataAccess.of(asker));
+        ModelSummaryResponse summary = models.summarize(dataAccess.forModel(asker));
         ObjectTypeSummary from = resolve(summary.objectTypes(), fromType, "fromType");
         ObjectTypeSummary to = resolve(summary.objectTypes(), toType, "toType");
         if (from.id().equals(to.id())) {

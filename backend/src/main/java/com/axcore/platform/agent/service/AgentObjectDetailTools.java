@@ -1,6 +1,7 @@
 package com.axcore.platform.agent.service;
 
 import com.axcore.platform.audit.domain.AgentResultCategory;
+import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.ontology.dto.ObjectDetailResponse;
 import com.axcore.platform.ontology.dto.ObjectLinkResponse;
 import com.axcore.platform.ontology.dto.ObjectLinkSearchRequest;
@@ -88,7 +89,7 @@ public class AgentObjectDetailTools {
                                 () -> {
                                     long id = AgentQueryTools.required(objectId, "objectId");
                                     ObjectDetailResponse detail =
-                                            objects.detail(session.asker(), id);
+                                            objects.detail(session.asker(), DataPurpose.MODEL, id);
                                     return new AgentQuerySession.Outcome(
                                             ObjectDetail.from(detail),
                                             AgentResultCategory.FOUND,
@@ -141,6 +142,7 @@ public class AgentObjectDetailTools {
                                     Page<ObjectLinkResponse> links =
                                             objects.links(
                                                     session.asker(),
+                                                    DataPurpose.MODEL,
                                                     id,
                                                     new ObjectLinkSearchRequest(
                                                             linkTypeId,
@@ -159,7 +161,10 @@ public class AgentObjectDetailTools {
                                     if (linkTypeId == null
                                             && links.getTotalElements()
                                                     > links.getNumberOfElements()) {
-                                        data.put("groups", objects.linkGroups(session.asker(), id));
+                                        data.put(
+                                                "groups",
+                                                objects.linkGroups(
+                                                        session.asker(), DataPurpose.MODEL, id));
                                     }
                                     data.put("links", links.getContent());
                                     // 연결이 없으면(UNLINKED) 기준 객체의 표만, 있으면 상대 객체의 표까지 본다.

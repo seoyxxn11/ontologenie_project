@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
 import com.axcore.platform.global.security.LoginAccount;
@@ -34,7 +35,7 @@ class AgentObjectEvidenceToolsTests {
                         null,
                         List.of(),
                         false);
-        when(evidence.linkEvidence(ASKER, 301L, 91L)).thenReturn(found);
+        when(evidence.linkEvidence(ASKER, DataPurpose.MODEL, 301L, 91L)).thenReturn(found);
 
         Map<String, Object> reply = tools.linkEvidence(301L, 91L);
 
@@ -56,7 +57,7 @@ class AgentObjectEvidenceToolsTests {
                         null,
                         List.of(),
                         false);
-        when(evidence.linkEvidence(ASKER, 301L, 91L)).thenReturn(found);
+        when(evidence.linkEvidence(ASKER, DataPurpose.MODEL, 301L, 91L)).thenReturn(found);
 
         assertThat(tools.linkEvidence(301L, 91L))
                 .containsEntry("resultCategory", "NO_DATA")
@@ -67,7 +68,7 @@ class AgentObjectEvidenceToolsTests {
     void treatsRestrictedEvidenceAsDeniedEvenWithoutVisibleValues() {
         var restricted =
                 new ObjectLinkEvidenceResponse(null, null, null, null, null, null, List.of(), true);
-        when(evidence.linkEvidence(ASKER, 301L, 91L)).thenReturn(restricted);
+        when(evidence.linkEvidence(ASKER, DataPurpose.MODEL, 301L, 91L)).thenReturn(restricted);
 
         assertThat(tools.linkEvidence(301L, 91L))
                 .containsEntry("resultCategory", "DENIED")
@@ -76,7 +77,7 @@ class AgentObjectEvidenceToolsTests {
 
     @Test
     void treatsHiddenOrMissingLinkAsNoData() {
-        when(evidence.linkEvidence(ASKER, 301L, 999L))
+        when(evidence.linkEvidence(ASKER, DataPurpose.MODEL, 301L, 999L))
                 .thenThrow(new BusinessException(CommonErrorCode.RESOURCE_NOT_FOUND, Map.of()));
 
         assertThat(tools.linkEvidence(301L, 999L)).containsEntry("resultCategory", "NO_DATA");

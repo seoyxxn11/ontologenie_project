@@ -5,6 +5,7 @@ import com.axcore.platform.audit.domain.ExecutionStatus;
 import com.axcore.platform.audit.dto.AuditExecutionResponse;
 import com.axcore.platform.audit.dto.ObjectExecutionSearchRequest;
 import com.axcore.platform.audit.service.AuditExecutionQueryService;
+import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
 import com.axcore.platform.ontology.dto.ObjectSearchRequest;
@@ -181,6 +182,7 @@ public class AgentQueryTools {
                         Page<ObjectSearchResponse> page =
                                 objects.search(
                                         session.asker(),
+                                        DataPurpose.MODEL,
                                         new ObjectSearchRequest(
                                                 q,
                                                 objectTypeId,

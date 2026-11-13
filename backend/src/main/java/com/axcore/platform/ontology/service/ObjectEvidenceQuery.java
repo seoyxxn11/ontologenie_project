@@ -1,5 +1,6 @@
 package com.axcore.platform.ontology.service;
 
+import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.ontology.dto.ObjectLinkEvidenceResponse;
 
@@ -11,4 +12,8 @@ public interface ObjectEvidenceQuery {
      * RESOURCE_NOT_FOUND로 처리한다.
      */
     ObjectLinkEvidenceResponse linkEvidence(LoginAccount actor, long objectId, long linkId);
+
+    /** 위와 같고, 읽는 용도를 정한다. Agent 도구처럼 외부 모델에 보내는 값은 DataPurpose.MODEL로 읽어 민감 값을 항상 가린다(384). */
+    ObjectLinkEvidenceResponse linkEvidence(
+            LoginAccount actor, DataPurpose purpose, long objectId, long linkId);
 }

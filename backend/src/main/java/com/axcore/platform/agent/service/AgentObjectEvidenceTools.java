@@ -1,6 +1,7 @@
 package com.axcore.platform.agent.service;
 
 import com.axcore.platform.audit.domain.AgentResultCategory;
+import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.ontology.dto.ObjectLinkEvidenceResponse;
 import com.axcore.platform.ontology.service.ObjectEvidenceQuery;
 import java.util.LinkedHashMap;
@@ -45,7 +46,8 @@ public class AgentObjectEvidenceTools {
                                     long id = AgentQueryTools.required(objectId, "objectId");
                                     long link = AgentQueryTools.required(linkId, "linkId");
                                     ObjectLinkEvidenceResponse found =
-                                            evidence.linkEvidence(session.asker(), id, link);
+                                            evidence.linkEvidence(
+                                                    session.asker(), DataPurpose.MODEL, id, link);
                                     AgentResultCategory category = evidenceCategory(found);
                                     // 공개한 근거는 관계 양 끝 객체의 표 기준으로 시점을 구한다(145).
                                     return new AgentQuerySession.Outcome(

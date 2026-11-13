@@ -82,7 +82,8 @@ public class AgentModelSummaryTools {
                 null,
                 null,
                 () -> {
-                    ModelSummaryResponse summary = models.summarize(dataAccess.of(session.asker()));
+                    ModelSummaryResponse summary =
+                            models.summarize(dataAccess.forModel(session.asker()));
                     Map<Long, String> typeNames =
                             summary.objectTypes().stream()
                                     .collect(

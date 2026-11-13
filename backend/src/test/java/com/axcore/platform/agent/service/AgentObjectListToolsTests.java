@@ -14,6 +14,7 @@ import com.axcore.platform.agent.service.AgentObjectListTools.PropertyItem;
 import com.axcore.platform.audit.domain.AgentResultCategory;
 import com.axcore.platform.auth.service.DataAccess;
 import com.axcore.platform.auth.service.DataAccessPolicy;
+import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
 import com.axcore.platform.global.security.LoginAccount;
@@ -63,9 +64,10 @@ class AgentObjectListToolsTests {
                 property(EQUIPMENT, "capacity_ton", "능력", PropertyDataType.INTEGER),
                 property(9L, "wo_no", "작업지시 번호", PropertyDataType.STRING));
         // 값 종류가 20개를 넘는 라인은 ontology가 빼고 준다.
-        when(values.stringValues(ASKER, EQUIPMENT, AgentObjectListTools.MAX_VALUES))
+        when(values.stringValues(
+                        ASKER, DataPurpose.MODEL, EQUIPMENT, AgentObjectListTools.MAX_VALUES))
                 .thenReturn(Map.of("status", List.of("가동", "정비중")));
-        when(objects.search(eq(ASKER), any()))
+        when(objects.search(eq(ASKER), eq(DataPurpose.MODEL), any()))
                 .thenReturn(
                         new PageImpl<>(
                                 List.of(object(301L, "P101"), object(302L, "P102")),
@@ -77,7 +79,7 @@ class AgentObjectListToolsTests {
 
         ArgumentCaptor<ObjectSearchRequest> request =
                 ArgumentCaptor.forClass(ObjectSearchRequest.class);
-        verify(objects).search(eq(ASKER), request.capture());
+        verify(objects).search(eq(ASKER), eq(DataPurpose.MODEL), request.capture());
         // 사용 중인 객체만, 076의 속성 조건 그대로, 20건씩 질문한 사용자로 조회한다.
         assertThat(request.getValue())
                 .isEqualTo(
@@ -131,7 +133,7 @@ class AgentObjectListToolsTests {
         givenProperties();
         List<ObjectSearchResponse> rows =
                 LongStream.rangeClosed(1, 20).mapToObj(id -> object(id, "WO-" + id)).toList();
-        when(objects.search(eq(ASKER), any()))
+        when(objects.search(eq(ASKER), eq(DataPurpose.MODEL), any()))
                 .thenReturn(new PageImpl<>(rows, PageRequest.of(1, 20), 45));
 
         ObjectList data =
@@ -148,14 +150,15 @@ class AgentObjectListToolsTests {
         givenProperties(
                 property(EQUIPMENT, "started_at", "시작 시각", PropertyDataType.DATETIME),
                 property(EQUIPMENT, "planned_start", "계획 시작일", PropertyDataType.DATE));
-        when(objects.search(eq(ASKER), any())).thenReturn(new PageImpl<>(List.of()));
+        when(objects.search(eq(ASKER), eq(DataPurpose.MODEL), any()))
+                .thenReturn(new PageImpl<>(List.of()));
 
         tools.objectList(EQUIPMENT, null, "started_at", "2026-10-01", "2026-10-31", null);
         tools.objectList(EQUIPMENT, null, "planned_start", "2026-10-01", "2026-10-31", null);
 
         ArgumentCaptor<ObjectSearchRequest> request =
                 ArgumentCaptor.forClass(ObjectSearchRequest.class);
-        verify(objects, times(2)).search(eq(ASKER), request.capture());
+        verify(objects, times(2)).search(eq(ASKER), eq(DataPurpose.MODEL), request.capture());
         // 076의 끝은 포함이므로 끝 날 한국 시간 마지막 마이크로초까지 넣는다(DB 시각은 마이크로초까지).
         assertThat(request.getAllValues().getFirst().from()).isEqualTo("2026-10-01T00:00+09:00");
         assertThat(request.getAllValues().getFirst().to())
@@ -170,12 +173,14 @@ class AgentObjectListToolsTests {
                 property(EQUIPMENT, "status", "상태", PropertyDataType.STRING),
                 property(EQUIPMENT, "line", "라인", PropertyDataType.STRING),
                 property(EQUIPMENT, "zone", "구역", PropertyDataType.STRING));
-        when(values.stringValues(ASKER, EQUIPMENT, AgentObjectListTools.MAX_VALUES))
+        when(values.stringValues(
+                        ASKER, DataPurpose.MODEL, EQUIPMENT, AgentObjectListTools.MAX_VALUES))
                 .thenReturn(
                         Map.of(
                                 "status", List.of("가동", "정비중"),
                                 "zone", List.of("A 구역", "A구 역")));
-        when(objects.search(eq(ASKER), any())).thenReturn(new PageImpl<>(List.of()));
+        when(objects.search(eq(ASKER), eq(DataPurpose.MODEL), any()))
+                .thenReturn(new PageImpl<>(List.of()));
 
         // 띄어쓰기만 다른 저장 값이 하나면 076이 맞추므로 표시하지 않는다.
         ObjectList spaced =
@@ -203,7 +208,8 @@ class AgentObjectListToolsTests {
     @Test
     void answersNoDataWithoutDataAsOfWhenNothingMatches() {
         givenProperties();
-        when(objects.search(eq(ASKER), any())).thenReturn(new PageImpl<>(List.of()));
+        when(objects.search(eq(ASKER), eq(DataPurpose.MODEL), any()))
+                .thenReturn(new PageImpl<>(List.of()));
 
         Map<String, Object> reply =
                 tools.objectList(EQUIPMENT, Map.of("status", "정지"), null, null, null, null);
@@ -217,7 +223,7 @@ class AgentObjectListToolsTests {
     @Test
     void answersDeniedWhenFilteringByRestrictedPropertyTheAskerCannotView() {
         givenProperties();
-        when(objects.search(eq(ASKER), any()))
+        when(objects.search(eq(ASKER), eq(DataPurpose.MODEL), any()))
                 .thenThrow(
                         new BusinessException(
                                 CommonErrorCode.FORBIDDEN,
@@ -236,7 +242,7 @@ class AgentObjectListToolsTests {
     @Test
     void tellsAiWhyConditionIsInvalidButKeepsCommonMessageInResults() {
         givenProperties();
-        when(objects.search(eq(ASKER), any()))
+        when(objects.search(eq(ASKER), eq(DataPurpose.MODEL), any()))
                 .thenThrow(
                         BusinessException.invalidField(
                                 "propertyValues[colour]", "선택한 객체 유형에 정의된 속성 코드를 지정해 주세요."));
@@ -266,7 +272,8 @@ class AgentObjectListToolsTests {
     @Test
     void reportsOtherErrorsAsFailedWithoutDetails() {
         givenProperties();
-        when(objects.search(eq(ASKER), any())).thenThrow(new IllegalStateException("DB 연결 끊김"));
+        when(objects.search(eq(ASKER), eq(DataPurpose.MODEL), any()))
+                .thenThrow(new IllegalStateException("DB 연결 끊김"));
 
         Map<String, Object> reply = tools.objectList(EQUIPMENT, null, null, null, null, null);
 
@@ -278,7 +285,8 @@ class AgentObjectListToolsTests {
     void givesNoPropertiesOfTypeOutsideScope() {
         // 043은 볼 수 없는 유형의 속성을 빼고, 076은 그 유형을 0건으로 돌려준다.
         givenProperties(property(9L, "wo_no", "작업지시 번호", PropertyDataType.STRING));
-        when(objects.search(eq(ASKER), any())).thenReturn(new PageImpl<>(List.of()));
+        when(objects.search(eq(ASKER), eq(DataPurpose.MODEL), any()))
+                .thenReturn(new PageImpl<>(List.of()));
 
         Map<String, Object> reply = tools.objectList(EQUIPMENT, null, null, null, null, null);
 
@@ -299,7 +307,7 @@ class AgentObjectListToolsTests {
     }
 
     private void givenProperties(PropertySummary... properties) {
-        when(policy.of(ASKER)).thenReturn(access);
+        when(policy.forModel(ASKER)).thenReturn(access);
         when(models.summarize(access))
                 .thenReturn(
                         new ModelSummaryResponse(

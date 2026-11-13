@@ -3,6 +3,7 @@ package com.axcore.platform.ontology.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.axcore.platform.TestcontainersConfiguration;
+import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.global.security.LoginAccount;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +50,8 @@ class PropertyValueSampleServiceTests {
         object(visible, "{\"status\":\"\",\"code\":null}");
         deletedAtSource(visible, "{\"status\":\"폐기\",\"code\":\"D\"}");
 
-        Map<String, List<String>> values = samples.stringValues(VIEWER, visible, LIMIT);
+        Map<String, List<String>> values =
+                samples.stringValues(VIEWER, DataPurpose.VIEW, visible, LIMIT);
 
         // 빈 값·null·원천 삭제 객체는 빼고, 같은 값은 한 번만 값 순서로 준다.
         assertThat(values).containsEntry("status", List.of("가동", "정지"));
@@ -64,7 +66,8 @@ class PropertyValueSampleServiceTests {
             object(visible, "{\"code\":\"" + code + "\"}");
         }
 
-        Map<String, List<String>> values = samples.stringValues(VIEWER, visible, LIMIT);
+        Map<String, List<String>> values =
+                samples.stringValues(VIEWER, DataPurpose.VIEW, visible, LIMIT);
 
         assertThat(values).doesNotContainKey("code");
         assertThat(values).containsEntry("status", List.of());
@@ -74,15 +77,19 @@ class PropertyValueSampleServiceTests {
     void showsRestrictedValuesOnlyToActorsWhoMayViewThem() {
         object(visible, "{\"owner\":\"김\"}");
 
-        assertThat(samples.stringValues(VIEWER, visible, LIMIT)).doesNotContainKey("owner");
-        assertThat(samples.stringValues(ADMIN, visible, LIMIT))
+        assertThat(samples.stringValues(VIEWER, DataPurpose.VIEW, visible, LIMIT))
+                .doesNotContainKey("owner");
+        assertThat(samples.stringValues(ADMIN, DataPurpose.VIEW, visible, LIMIT))
                 .containsEntry("owner", List.of("김"));
         jdbc.sql(
                         "update role_data_scope set can_view_restricted = true where access_group = :group")
                 .param("group", tag)
                 .update();
-        assertThat(samples.stringValues(VIEWER, visible, LIMIT))
+        assertThat(samples.stringValues(VIEWER, DataPurpose.VIEW, visible, LIMIT))
                 .containsEntry("owner", List.of("김"));
+        // 모델에 넘기는 값 종류에는 민감 속성을 넣지 않는다(384).
+        assertThat(samples.stringValues(VIEWER, DataPurpose.MODEL, visible, LIMIT))
+                .doesNotContainKey("owner");
     }
 
     @Test
@@ -91,8 +98,8 @@ class PropertyValueSampleServiceTests {
         property(hidden, "status", "STRING", "NORMAL");
         object(hidden, "{\"status\":\"비밀\"}");
 
-        assertThat(samples.stringValues(VIEWER, hidden, LIMIT)).isEmpty();
-        assertThat(samples.stringValues(VIEWER, Long.MAX_VALUE, LIMIT)).isEmpty();
+        assertThat(samples.stringValues(VIEWER, DataPurpose.VIEW, hidden, LIMIT)).isEmpty();
+        assertThat(samples.stringValues(VIEWER, DataPurpose.VIEW, Long.MAX_VALUE, LIMIT)).isEmpty();
     }
 
     /**

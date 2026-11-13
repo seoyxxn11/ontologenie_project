@@ -186,7 +186,7 @@ class AgentObjectPathToolsTests {
     }
 
     private void givenModel(ModelSummaryResponse model) {
-        when(policy.of(ASKER)).thenReturn(access);
+        when(policy.forModel(ASKER)).thenReturn(access);
         when(models.summarize(access)).thenReturn(model);
     }
 }

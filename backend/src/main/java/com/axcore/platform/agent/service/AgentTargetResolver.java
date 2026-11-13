@@ -1,6 +1,7 @@
 package com.axcore.platform.agent.service;
 
 import com.axcore.platform.audit.domain.AgentResultCategory;
+import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.ontology.dto.ObjectSearchRequest;
 import com.axcore.platform.ontology.dto.ObjectSearchResponse;
 import com.axcore.platform.ontology.service.ObjectSearchQuery;
@@ -210,6 +211,7 @@ public class AgentTargetResolver {
                 () ->
                         objects.search(
                                         session.asker(),
+                                        DataPurpose.MODEL,
                                         new ObjectSearchRequest(query, null, null, 0, SEARCH_SIZE))
                                 .getContent());
     }
@@ -224,7 +226,9 @@ public class AgentTargetResolver {
         return lookup(
                 Map.of("q", value, "matchBy", PROPERTY_VALUE),
                 session,
-                () -> objects.findByPropertyValue(session.asker(), value, SEARCH_SIZE));
+                () ->
+                        objects.findByPropertyValue(
+                                session.asker(), DataPurpose.MODEL, value, SEARCH_SIZE));
     }
 
     private List<ObjectSearchResponse> lookup(
