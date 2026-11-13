@@ -25837,13 +25837,13 @@
         "mentionText": "P201",
         "targetObjectRef": "mes.equipment:P201",
         "expressionKind": "OBSERVED",
-        "name": "8/4 주간 인수인계 → 2라인 1호 프레스(P201)"
+        "name": "8/4 주간 인수인계 → 2라인 1호 프레스 (P201)"
       },
       "evidence": {
         "candidateId": "DL-HN-260804-D-P201-1",
         "fingerprint": "f31e966cf4208a37",
-        "title": "8/4 주간 인수인계 → 2라인 1호 프레스(P201)",
-        "reason": "메모에 설비 번호 P201이 그대로 적혀 있습니다. 메모 내용: “오후 3시쯤 P201 진동이 평소보다 커서 점검 요청함.” 승인하면 이 메모와 2라인 1호 프레스(P201)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
+        "title": "8/4 주간 인수인계 → 2라인 1호 프레스 (P201)",
+        "reason": "메모에 설비 번호 P201이 그대로 적혀 있습니다. 메모 내용: “오후 3시쯤 P201 진동이 평소보다 커서 점검 요청함.” 승인하면 이 메모와 2라인 1호 프레스 (P201)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
         "items": [
           {
             "sourceId": "MES_MAIN",
@@ -25950,13 +25950,13 @@
         "mentionText": "P103",
         "targetObjectRef": "mes.equipment:P103",
         "expressionKind": "OBSERVED",
-        "name": "8/8 야간 인수인계 → 1라인 3호 프레스(P103)"
+        "name": "8/8 야간 인수인계 → 1라인 3호 프레스 (P103)"
       },
       "evidence": {
         "candidateId": "DL-HN-260808-N-P103-1",
         "fingerprint": "814c61b63e65ff48",
-        "title": "8/8 야간 인수인계 → 1라인 3호 프레스(P103)",
-        "reason": "메모에 설비 번호 P103이 그대로 적혀 있습니다. 메모 내용: “P103 진동 이상 없음.” 승인하면 이 메모와 1라인 3호 프레스(P103)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
+        "title": "8/8 야간 인수인계 → 1라인 3호 프레스 (P103)",
+        "reason": "메모에 설비 번호 P103이 그대로 적혀 있습니다. 메모 내용: “P103 진동 이상 없음.” 승인하면 이 메모와 1라인 3호 프레스 (P103)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
         "items": [
           {
             "sourceId": "MES_MAIN",
@@ -26118,13 +26118,13 @@
         "mentionText": "P101",
         "targetObjectRef": "mes.equipment:P101",
         "expressionKind": "OBSERVED",
-        "name": "8/21 야간 인수인계 → 1라인 1호 프레스(P101)"
+        "name": "8/21 야간 인수인계 → 1라인 1호 프레스 (P101)"
       },
       "evidence": {
         "candidateId": "DL-HN-260821-N-P101-1",
         "fingerprint": "43155f87e351a506",
-        "title": "8/21 야간 인수인계 → 1라인 1호 프레스(P101)",
-        "reason": "메모에 설비 번호 P101이 그대로 적혀 있습니다. 메모 내용: “P101 이음 발생.” 승인하면 이 메모와 1라인 1호 프레스(P101)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
+        "title": "8/21 야간 인수인계 → 1라인 1호 프레스 (P101)",
+        "reason": "메모에 설비 번호 P101이 그대로 적혀 있습니다. 메모 내용: “P101 이음 발생.” 승인하면 이 메모와 1라인 1호 프레스 (P101)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
         "items": [
           {
             "sourceId": "MES_MAIN",
@@ -26231,13 +26231,13 @@
         "mentionText": "P101",
         "targetObjectRef": "mes.equipment:P101",
         "expressionKind": "OBSERVED",
-        "name": "8/31 야간 인수인계 → 1라인 1호 프레스(P101)"
+        "name": "8/31 야간 인수인계 → 1라인 1호 프레스 (P101)"
       },
       "evidence": {
         "candidateId": "DL-HN-260831-N-P101-1",
         "fingerprint": "5d61bf4968b056f5",
-        "title": "8/31 야간 인수인계 → 1라인 1호 프레스(P101)",
-        "reason": "메모에 설비 번호 P101이 그대로 적혀 있습니다. 메모 내용: “P101 누유 없음.” 승인하면 이 메모와 1라인 1호 프레스(P101)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
+        "title": "8/31 야간 인수인계 → 1라인 1호 프레스 (P101)",
+        "reason": "메모에 설비 번호 P101이 그대로 적혀 있습니다. 메모 내용: “P101 누유 없음.” 승인하면 이 메모와 1라인 1호 프레스 (P101)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
         "items": [
           {
             "sourceId": "MES_MAIN",
@@ -26344,13 +26344,13 @@
         "mentionText": "P103",
         "targetObjectRef": "mes.equipment:P103",
         "expressionKind": "OBSERVED",
-        "name": "9/6 야간 인수인계 → 1라인 3호 프레스(P103)"
+        "name": "9/6 야간 인수인계 → 1라인 3호 프레스 (P103)"
       },
       "evidence": {
         "candidateId": "DL-HN-260906-N-P103-1",
         "fingerprint": "a432b245216ee57d",
-        "title": "9/6 야간 인수인계 → 1라인 3호 프레스(P103)",
-        "reason": "메모에 설비 번호 P103이 그대로 적혀 있습니다. 메모 내용: “RP-26-005 윤활 배관 점검·보충 이후 P103 이상 없음.” 승인하면 이 메모와 1라인 3호 프레스(P103)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
+        "title": "9/6 야간 인수인계 → 1라인 3호 프레스 (P103)",
+        "reason": "메모에 설비 번호 P103이 그대로 적혀 있습니다. 메모 내용: “RP-26-005 윤활 배관 점검·보충 이후 P103 이상 없음.” 승인하면 이 메모와 1라인 3호 프레스 (P103)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
         "items": [
           {
             "sourceId": "MES_MAIN",
@@ -26402,13 +26402,13 @@
         "mentionText": "P201",
         "targetObjectRef": "mes.equipment:P201",
         "expressionKind": "OBSERVED",
-        "name": "9/6 야간 인수인계 → 2라인 1호 프레스(P201)"
+        "name": "9/6 야간 인수인계 → 2라인 1호 프레스 (P201)"
       },
       "evidence": {
         "candidateId": "DL-HN-260906-N-P201-1",
         "fingerprint": "2fc1bc88a99d014f",
-        "title": "9/6 야간 인수인계 → 2라인 1호 프레스(P201)",
-        "reason": "메모에 설비 번호 P201이 그대로 적혀 있습니다. 메모 내용: “P201 이음 발생.” 승인하면 이 메모와 2라인 1호 프레스(P201)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
+        "title": "9/6 야간 인수인계 → 2라인 1호 프레스 (P201)",
+        "reason": "메모에 설비 번호 P201이 그대로 적혀 있습니다. 메모 내용: “P201 이음 발생.” 승인하면 이 메모와 2라인 1호 프레스 (P201)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
         "items": [
           {
             "sourceId": "MES_MAIN",
@@ -26460,13 +26460,13 @@
         "mentionText": "p201",
         "targetObjectRef": "mes.equipment:P201",
         "expressionKind": "OBSERVED",
-        "name": "9/9 주간 인수인계 → 2라인 1호 프레스(P201)"
+        "name": "9/9 주간 인수인계 → 2라인 1호 프레스 (P201)"
       },
       "evidence": {
         "candidateId": "DL-HN-260909-D-p201-1",
         "fingerprint": "2e3a0396ad392f1e",
-        "title": "9/9 주간 인수인계 → 2라인 1호 프레스(P201)",
-        "reason": "메모에 설비 번호 P201이 그대로 적혀 있습니다. 메모 내용: “p201 온도 경고 2회.” 승인하면 이 메모와 2라인 1호 프레스(P201)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
+        "title": "9/9 주간 인수인계 → 2라인 1호 프레스 (P201)",
+        "reason": "메모에 설비 번호 P201이 그대로 적혀 있습니다. 메모 내용: “p201 온도 경고 2회.” 승인하면 이 메모와 2라인 1호 프레스 (P201)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
         "items": [
           {
             "sourceId": "MES_MAIN",
@@ -26518,13 +26518,13 @@
         "mentionText": "p201",
         "targetObjectRef": "mes.equipment:P201",
         "expressionKind": "OBSERVED",
-        "name": "9/9 야간 인수인계 → 2라인 1호 프레스(P201)"
+        "name": "9/9 야간 인수인계 → 2라인 1호 프레스 (P201)"
       },
       "evidence": {
         "candidateId": "DL-HN-260909-N-p201-1",
         "fingerprint": "9ad171a73de9bd86",
-        "title": "9/9 야간 인수인계 → 2라인 1호 프레스(P201)",
-        "reason": "메모에 설비 번호 P201이 그대로 적혀 있습니다. 메모 내용: “p201 온도 경고 2회.” 승인하면 이 메모와 2라인 1호 프레스(P201)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
+        "title": "9/9 야간 인수인계 → 2라인 1호 프레스 (P201)",
+        "reason": "메모에 설비 번호 P201이 그대로 적혀 있습니다. 메모 내용: “p201 온도 경고 2회.” 승인하면 이 메모와 2라인 1호 프레스 (P201)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
         "items": [
           {
             "sourceId": "MES_MAIN",
@@ -26686,13 +26686,13 @@
         "mentionText": "P103",
         "targetObjectRef": "mes.equipment:P103",
         "expressionKind": "OBSERVED",
-        "name": "9/14 주간 인수인계 → 1라인 3호 프레스(P103)"
+        "name": "9/14 주간 인수인계 → 1라인 3호 프레스 (P103)"
       },
       "evidence": {
         "candidateId": "DL-HN-260914-D-P103-1",
         "fingerprint": "e07b2faa7814fcc1",
-        "title": "9/14 주간 인수인계 → 1라인 3호 프레스(P103)",
-        "reason": "메모에 설비 번호 P103이 그대로 적혀 있습니다. 메모 내용: “P103 이음 발생.” 승인하면 이 메모와 1라인 3호 프레스(P103)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
+        "title": "9/14 주간 인수인계 → 1라인 3호 프레스 (P103)",
+        "reason": "메모에 설비 번호 P103이 그대로 적혀 있습니다. 메모 내용: “P103 이음 발생.” 승인하면 이 메모와 1라인 3호 프레스 (P103)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
         "items": [
           {
             "sourceId": "MES_MAIN",
@@ -26744,13 +26744,13 @@
         "mentionText": "P101",
         "targetObjectRef": "mes.equipment:P101",
         "expressionKind": "OBSERVED",
-        "name": "9/14 주간 인수인계 → 1라인 1호 프레스(P101)"
+        "name": "9/14 주간 인수인계 → 1라인 1호 프레스 (P101)"
       },
       "evidence": {
         "candidateId": "DL-HN-260914-D-P101-1",
         "fingerprint": "273d0908f43bc344",
-        "title": "9/14 주간 인수인계 → 1라인 1호 프레스(P101)",
-        "reason": "메모에 설비 번호 P101이 그대로 적혀 있습니다. 메모 내용: “P101 누유 없음.” 승인하면 이 메모와 1라인 1호 프레스(P101)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
+        "title": "9/14 주간 인수인계 → 1라인 1호 프레스 (P101)",
+        "reason": "메모에 설비 번호 P101이 그대로 적혀 있습니다. 메모 내용: “P101 누유 없음.” 승인하면 이 메모와 1라인 1호 프레스 (P101)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
         "items": [
           {
             "sourceId": "MES_MAIN",
@@ -26802,13 +26802,13 @@
         "mentionText": "P201",
         "targetObjectRef": "mes.equipment:P201",
         "expressionKind": "OBSERVED",
-        "name": "9/16 주간 인수인계 → 2라인 1호 프레스(P201)"
+        "name": "9/16 주간 인수인계 → 2라인 1호 프레스 (P201)"
       },
       "evidence": {
         "candidateId": "DL-HN-260916-D-P201-1",
         "fingerprint": "430bcb0c4acd55d1",
-        "title": "9/16 주간 인수인계 → 2라인 1호 프레스(P201)",
-        "reason": "메모에 설비 번호 P201이 그대로 적혀 있습니다. 메모 내용: “P201 누유 없음.” 승인하면 이 메모와 2라인 1호 프레스(P201)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
+        "title": "9/16 주간 인수인계 → 2라인 1호 프레스 (P201)",
+        "reason": "메모에 설비 번호 P201이 그대로 적혀 있습니다. 메모 내용: “P201 누유 없음.” 승인하면 이 메모와 2라인 1호 프레스 (P201)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
         "items": [
           {
             "sourceId": "MES_MAIN",
@@ -26860,13 +26860,13 @@
         "mentionText": "P103",
         "targetObjectRef": "mes.equipment:P103",
         "expressionKind": "OBSERVED",
-        "name": "9/16 야간 인수인계 → 1라인 3호 프레스(P103)"
+        "name": "9/16 야간 인수인계 → 1라인 3호 프레스 (P103)"
       },
       "evidence": {
         "candidateId": "DL-HN-260916-N-P103-1",
         "fingerprint": "e4b5e12c5d06a3a2",
-        "title": "9/16 야간 인수인계 → 1라인 3호 프레스(P103)",
-        "reason": "메모에 설비 번호 P103이 그대로 적혀 있습니다. 메모 내용: “P103 누유 없음.” 승인하면 이 메모와 1라인 3호 프레스(P103)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
+        "title": "9/16 야간 인수인계 → 1라인 3호 프레스 (P103)",
+        "reason": "메모에 설비 번호 P103이 그대로 적혀 있습니다. 메모 내용: “P103 누유 없음.” 승인하면 이 메모와 1라인 3호 프레스 (P103)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
         "items": [
           {
             "sourceId": "MES_MAIN",
@@ -27028,13 +27028,13 @@
         "mentionText": "P201",
         "targetObjectRef": "mes.equipment:P201",
         "expressionKind": "OBSERVED",
-        "name": "9/30 주간 인수인계 → 2라인 1호 프레스(P201)"
+        "name": "9/30 주간 인수인계 → 2라인 1호 프레스 (P201)"
       },
       "evidence": {
         "candidateId": "DL-HN-260930-D-P201-1",
         "fingerprint": "05b6709ef7c98fee",
-        "title": "9/30 주간 인수인계 → 2라인 1호 프레스(P201)",
-        "reason": "메모에 설비 번호 P201이 그대로 적혀 있습니다. 메모 내용: “P201 누유 없음.” 승인하면 이 메모와 2라인 1호 프레스(P201)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
+        "title": "9/30 주간 인수인계 → 2라인 1호 프레스 (P201)",
+        "reason": "메모에 설비 번호 P201이 그대로 적혀 있습니다. 메모 내용: “P201 누유 없음.” 승인하면 이 메모와 2라인 1호 프레스 (P201)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
         "items": [
           {
             "sourceId": "MES_MAIN",
@@ -27141,13 +27141,13 @@
         "mentionText": "P103",
         "targetObjectRef": "mes.equipment:P103",
         "expressionKind": "OBSERVED",
-        "name": "10/6 주간 인수인계 → 1라인 3호 프레스(P103)"
+        "name": "10/6 주간 인수인계 → 1라인 3호 프레스 (P103)"
       },
       "evidence": {
         "candidateId": "DL-HN-261006-D-P103-1",
         "fingerprint": "54e738bbc272f45d",
-        "title": "10/6 주간 인수인계 → 1라인 3호 프레스(P103)",
-        "reason": "메모에 설비 번호 P103이 그대로 적혀 있습니다. 메모 내용: “RP-26-005 윤활 배관 점검·보충 이후 P103 이상 없음.” 승인하면 이 메모와 1라인 3호 프레스(P103)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
+        "title": "10/6 주간 인수인계 → 1라인 3호 프레스 (P103)",
+        "reason": "메모에 설비 번호 P103이 그대로 적혀 있습니다. 메모 내용: “RP-26-005 윤활 배관 점검·보충 이후 P103 이상 없음.” 승인하면 이 메모와 1라인 3호 프레스 (P103)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
         "items": [
           {
             "sourceId": "MES_MAIN",
@@ -27364,13 +27364,13 @@
         "mentionText": "P201",
         "targetObjectRef": "mes.equipment:P201",
         "expressionKind": "OBSERVED",
-        "name": "10/15 주간 인수인계 → 2라인 1호 프레스(P201)"
+        "name": "10/15 주간 인수인계 → 2라인 1호 프레스 (P201)"
       },
       "evidence": {
         "candidateId": "DL-HN-261015-D-P201-1",
         "fingerprint": "c699bd839c5b0d98",
-        "title": "10/15 주간 인수인계 → 2라인 1호 프레스(P201)",
-        "reason": "메모에 설비 번호 P201이 그대로 적혀 있습니다. 메모 내용: “교대 직후 P201 이음이 들려서 가동 멈추고 확인함.” 승인하면 이 메모와 2라인 1호 프레스(P201)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
+        "title": "10/15 주간 인수인계 → 2라인 1호 프레스 (P201)",
+        "reason": "메모에 설비 번호 P201이 그대로 적혀 있습니다. 메모 내용: “교대 직후 P201 이음이 들려서 가동 멈추고 확인함.” 승인하면 이 메모와 2라인 1호 프레스 (P201)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
         "items": [
           {
             "sourceId": "MES_MAIN",
@@ -27477,13 +27477,13 @@
         "mentionText": "P103",
         "targetObjectRef": "mes.equipment:P103",
         "expressionKind": "OBSERVED",
-        "name": "10/19 주간 인수인계 → 1라인 3호 프레스(P103)"
+        "name": "10/19 주간 인수인계 → 1라인 3호 프레스 (P103)"
       },
       "evidence": {
         "candidateId": "DL-HN-261019-D-P103-1",
         "fingerprint": "ade74b57b0f331c0",
-        "title": "10/19 주간 인수인계 → 1라인 3호 프레스(P103)",
-        "reason": "메모에 설비 번호 P103이 그대로 적혀 있습니다. 메모 내용: “점심 직후 P103 이음이 들려서 가동 멈추고 확인함.” 승인하면 이 메모와 1라인 3호 프레스(P103)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
+        "title": "10/19 주간 인수인계 → 1라인 3호 프레스 (P103)",
+        "reason": "메모에 설비 번호 P103이 그대로 적혀 있습니다. 메모 내용: “점심 직후 P103 이음이 들려서 가동 멈추고 확인함.” 승인하면 이 메모와 1라인 3호 프레스 (P103)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
         "items": [
           {
             "sourceId": "MES_MAIN",
@@ -27645,13 +27645,13 @@
         "mentionText": "P103",
         "targetObjectRef": "mes.equipment:P103",
         "expressionKind": "OBSERVED",
-        "name": "10/28 주간 인수인계 → 1라인 3호 프레스(P103)"
+        "name": "10/28 주간 인수인계 → 1라인 3호 프레스 (P103)"
       },
       "evidence": {
         "candidateId": "DL-HN-261028-D-P103-1",
         "fingerprint": "e3de2a38fcd2ef2b",
-        "title": "10/28 주간 인수인계 → 1라인 3호 프레스(P103)",
-        "reason": "메모에 설비 번호 P103이 그대로 적혀 있습니다. 메모 내용: “P103 진동 상한 넘음.” 승인하면 이 메모와 1라인 3호 프레스(P103)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
+        "title": "10/28 주간 인수인계 → 1라인 3호 프레스 (P103)",
+        "reason": "메모에 설비 번호 P103이 그대로 적혀 있습니다. 메모 내용: “P103 진동 상한 넘음.” 승인하면 이 메모와 1라인 3호 프레스 (P103)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
         "items": [
           {
             "sourceId": "MES_MAIN",
@@ -27703,13 +27703,13 @@
         "mentionText": "P101",
         "targetObjectRef": "mes.equipment:P101",
         "expressionKind": "OBSERVED",
-        "name": "10/29 주간 인수인계 → 1라인 1호 프레스(P101)"
+        "name": "10/29 주간 인수인계 → 1라인 1호 프레스 (P101)"
       },
       "evidence": {
         "candidateId": "DL-HN-261029-D-P101-1",
         "fingerprint": "c03c2f4babeba2b6",
-        "title": "10/29 주간 인수인계 → 1라인 1호 프레스(P101)",
-        "reason": "메모에 설비 번호 P101이 그대로 적혀 있습니다. 메모 내용: “P101 누유 없음.” 승인하면 이 메모와 1라인 1호 프레스(P101)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
+        "title": "10/29 주간 인수인계 → 1라인 1호 프레스 (P101)",
+        "reason": "메모에 설비 번호 P101이 그대로 적혀 있습니다. 메모 내용: “P101 누유 없음.” 승인하면 이 메모와 1라인 1호 프레스 (P101)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
         "items": [
           {
             "sourceId": "MES_MAIN",
@@ -27926,13 +27926,13 @@
         "mentionText": "P103",
         "targetObjectRef": "mes.equipment:P103",
         "expressionKind": "OBSERVED",
-        "name": "10/29 야간 인수인계 → 1라인 3호 프레스(P103)"
+        "name": "10/29 야간 인수인계 → 1라인 3호 프레스 (P103)"
       },
       "evidence": {
         "candidateId": "DL-HN-261029-N-P103-1",
         "fingerprint": "a6bbf29fa636e564",
-        "title": "10/29 야간 인수인계 → 1라인 3호 프레스(P103)",
-        "reason": "메모에 설비 번호 P103이 그대로 적혀 있습니다. 메모 내용: “JB2610-0141 성형은 P103 정지로 중단, 잔량 3,200개.” 승인하면 이 메모와 1라인 3호 프레스(P103)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
+        "title": "10/29 야간 인수인계 → 1라인 3호 프레스 (P103)",
+        "reason": "메모에 설비 번호 P103이 그대로 적혀 있습니다. 메모 내용: “JB2610-0141 성형은 P103 정지로 중단, 잔량 3,200개.” 승인하면 이 메모와 1라인 3호 프레스 (P103)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다.",
         "items": [
           {
             "sourceId": "MES_MAIN",

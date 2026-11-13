@@ -338,7 +338,7 @@ def test_shift_date_with_time_part_still_gives_shift_start(tmp_path):
 
 
 def test_document_links_carry_memo_label_and_target_names(data):
-    # 화면 제목이 'HN-… → 설비 P103' 대신 '10/29 야간 인수인계 → 1라인 3호 프레스(P103)'처럼 보이게 한다
+    # 화면 제목이 'HN-… → 설비 P103' 대신 '10/29 야간 인수인계 → 1라인 3호 프레스 (P103)'처럼 보이게 한다
     from app.extractors.notes import document_label, load_target_names
 
     names = load_target_names(data)

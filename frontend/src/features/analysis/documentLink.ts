@@ -46,6 +46,31 @@ export type DocumentLink = {
   holdRecommended: boolean
   holdReason?: string
   reason?: string
+  // 화면에 번호 대신 보일 이름. 메모는 '10/29 야간 인수인계', 대상은 {원천 표:키 → '1라인 3호 프레스'}
+  documentLabel?: string
+  targetLabels?: Record<string, string>
+}
+
+// 'mes.equipment:P103' → '1라인 3호 프레스 (P103)'. 이름을 모르면 받은 값 그대로 보인다.
+export function targetName(
+  ref: string | undefined,
+  labels: Record<string, string> = {},
+) {
+  if (!ref) return '-'
+  const label = labels[ref]
+  const key = ref.includes(':') ? ref.slice(ref.indexOf(':') + 1) : ref
+  return label ? `${label} (${key})` : ref
+}
+
+function textMap(value: unknown): Record<string, string> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    return {}
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (entry): entry is [string, string] =>
+        typeof entry[1] === 'string' && entry[1].trim() !== '',
+    ),
+  )
 }
 
 export const assertionLabels: Record<
@@ -154,6 +179,8 @@ export function readDocumentLink(proposal: Proposal): DocumentLink {
     holdRecommended: evidence.holdRecommended === true,
     holdReason: text(evidence.holdReason),
     reason: text(evidence.reason),
+    documentLabel: text(evidence.documentLabel),
+    targetLabels: textMap(evidence.targetLabels),
   }
 }
 

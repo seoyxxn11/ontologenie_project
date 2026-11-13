@@ -9,6 +9,7 @@ import {
   fetchDocumentLinkOptions,
   readDocumentLink,
   splitOriginal,
+  targetName,
 } from './documentLink'
 
 function Candidates({ proposal }: { proposal: Proposal }) {
@@ -29,6 +30,7 @@ function Candidates({ proposal }: { proposal: Proposal }) {
       />
     )
   if (query.data.length < 2) return null
+  const labels = readDocumentLink(proposal).targetLabels
   return (
     <div className="space-y-2">
       <p className="font-medium text-slate-900">
@@ -38,9 +40,14 @@ function Candidates({ proposal }: { proposal: Proposal }) {
         {query.data.map((option) => (
           <li
             key={option.id}
-            className="rounded-lg border border-slate-200 px-3 py-1 font-mono text-xs"
+            className="rounded-lg border border-slate-200 px-3 py-1"
           >
-            {`${option.optionNo}. ${String(option.payload.targetObjectRef ?? '-')}`}
+            {`${option.optionNo}. ${targetName(
+              typeof option.payload.targetObjectRef === 'string'
+                ? option.payload.targetObjectRef
+                : undefined,
+              labels,
+            )}`}
           </li>
         ))}
       </ul>
@@ -76,7 +83,12 @@ function DocumentLinkView({ proposal }: { proposal: Proposal }) {
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <p className="font-medium text-slate-600">
-            원문{link.documentId ? ` · ${link.documentId}` : ''}
+            원문
+            {link.documentLabel
+              ? ` · ${link.documentLabel}${link.documentId ? ` (${link.documentId})` : ''}`
+              : link.documentId
+                ? ` · ${link.documentId}`
+                : ''}
           </p>
           {link.originalText ? (
             <p
@@ -109,8 +121,10 @@ function DocumentLinkView({ proposal }: { proposal: Proposal }) {
           </div>
           <div className="grid grid-cols-[96px_1fr] gap-2 py-2">
             <dt className="text-slate-600">연결 대상</dt>
-            <dd className="font-mono text-xs">
-              {undecided ? '미확정' : (link.targetObjectRef ?? '-')}
+            <dd className="font-medium">
+              {undecided
+                ? '미확정'
+                : targetName(link.targetObjectRef, link.targetLabels)}
             </dd>
           </div>
           {link.observations.length > 0 && (

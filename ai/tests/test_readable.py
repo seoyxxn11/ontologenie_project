@@ -217,16 +217,16 @@ def test_document_link_shows_alias_and_memo_excerpt():
     ]
     out = readable(items)[5]
     # 문서 번호(HN-…)·코드만 보이지 않게 메모 이름과 대상 이름을 쓴다
-    assert out["payload"]["name"] == "8/20 야간 인수인계 → 1라인 3호 프레스(P103)"
+    assert out["payload"]["name"] == "8/20 야간 인수인계 → 1라인 3호 프레스 (P103)"
     reason = out["evidence"]["reason"]
     assert reason.startswith(
-        "메모의 '1라인 3호 프레스'는 1라인 3호 프레스(P103)의 이름·별칭과 맞습니다."
+        "메모의 '1라인 3호 프레스'는 1라인 3호 프레스 (P103)의 이름·별칭과 맞습니다."
     )
     # 메모에 무엇이 적혔는지(부정한 관찰은 빼고), 승인하면 무엇이 되는지
     assert " 메모 내용: “새벽 2시쯤 1라인 3호 프레스 진동이" in reason
     assert "(진동 기록)" in reason and "누유" not in reason
     assert reason.endswith(
-        "승인하면 이 메모와 1라인 3호 프레스(P103)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다."
+        "승인하면 이 메모와 1라인 3호 프레스 (P103)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다."
     )
 
 
@@ -463,7 +463,7 @@ def test_target_name_with_final_consonant_gets_right_particle():
     doc["evidence"]["targetLabels"] = {"mes.equipment:CT1": "냉각탑"}
     reason = readable(items)[5]["evidence"]["reason"]
     # 조사는 괄호가 아니라 이름(냉각탑)에 맞춘다
-    assert "이 메모와 냉각탑(CT1)이 이어져" in reason
+    assert "이 메모와 냉각탑 (CT1)이 이어져" in reason
 
 
 def test_link_rule_reason_handles_self_link_condition_and_masked_values():

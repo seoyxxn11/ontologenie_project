@@ -286,7 +286,7 @@ def _observed(evidence: dict) -> str:
 def _document_name(
     payload: dict, evidence: dict, names: Names, choices: int
 ) -> tuple[str, str] | None:
-    """문서 연결 제목·이유. 현업이 읽게 메모 이름('10/29 야간 인수인계')과 대상 이름('1라인 3호 프레스(P103)')을 쓰고,
+    """문서 연결 제목·이유. 현업이 읽게 메모 이름('10/29 야간 인수인계')과 대상 이름('1라인 3호 프레스 (P103)')을 쓰고,
     이유에는 왜 이 대상인지, 메모에 무엇이 적혔는지, 승인하면 무엇이 되는지를 적는다."""
     ref = payload.get("targetObjectRef") or ""
     if ":" not in ref:
@@ -294,10 +294,10 @@ def _document_name(
     table, key = ref.split(":", 1)
     target = names.table(table)  # 대상 종류('설비')
     label = (evidence.get("targetLabels") or {}).get(ref)
-    shown = f"{label}({key})" if label else f"{target} {key}"
+    shown = f"{label} ({key})" if label else f"{target} {key}"
 
     def shown_josa(pair: str) -> str:
-        # '냉각탑(CT1)'의 조사는 괄호가 아니라 이름(냉각탑)에 맞춘다
+        # '냉각탑 (CT1)'의 조사는 괄호가 아니라 이름(냉각탑)에 맞춘다
         return f"{shown}{particle(label, pair)}" if label else josa(shown, pair)
 
     doc = evidence.get("documentLabel") or payload.get("documentId") or "문서"
