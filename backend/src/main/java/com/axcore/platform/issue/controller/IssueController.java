@@ -7,6 +7,8 @@ import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.issue.dto.IssueForwardRequest;
 import com.axcore.platform.issue.dto.IssueHistoryResponse;
 import com.axcore.platform.issue.dto.IssueHistorySearchRequest;
+import com.axcore.platform.issue.dto.IssueManualLinkRequest;
+import com.axcore.platform.issue.dto.IssueManualLinkResponse;
 import com.axcore.platform.issue.dto.IssueResponse;
 import com.axcore.platform.issue.dto.IssueSearchRequest;
 import com.axcore.platform.issue.dto.IssueStatusChangeRequest;
@@ -14,6 +16,7 @@ import com.axcore.platform.issue.dto.IssueVerificationResponse;
 import com.axcore.platform.issue.dto.IssueVerificationSearchRequest;
 import com.axcore.platform.issue.service.IssueForwardService;
 import com.axcore.platform.issue.service.IssueHistoryService;
+import com.axcore.platform.issue.service.IssueManualLinkService;
 import com.axcore.platform.issue.service.IssueQueryService;
 import com.axcore.platform.issue.service.IssueStatusService;
 import com.axcore.platform.issue.service.IssueVerificationQueryService;
@@ -42,6 +45,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class IssueController {
 
     private final IssueQueryService issueQueryService;
+    private final IssueManualLinkService issueManualLinkService;
     private final IssueStatusService issueStatusService;
     private final IssueForwardService issueForwardService;
     private final IssueHistoryService issueHistoryService;
@@ -81,6 +85,16 @@ public class IssueController {
             @AuthenticationPrincipal LoginAccount account) {
         requireAdmin(account);
         return ApiResponse.of(issueForwardService.forward(id, request, account.id()));
+    }
+
+    @PostMapping("/{issueId}/manual-links")
+    public ApiResponse<IssueManualLinkResponse> createManualLink(
+            @PathVariable("issueId") @Min(value = 1, message = "issueId는 1 이상이어야 합니다.")
+                    long issueId,
+            @Valid @RequestBody IssueManualLinkRequest request,
+            @AuthenticationPrincipal LoginAccount account) {
+        requireAdmin(account);
+        return ApiResponse.of(issueManualLinkService.create(issueId, request, account));
     }
 
     @GetMapping("/{id}/history")

@@ -58,6 +58,17 @@ FN-ISS-01~04의 정합성 문제 목록·근거 조회, 처리 상태 변경, �
 
 최대 300자다. Notion 065 예시(`UNMATCHED:link_mapping:12:object:501`)와 ERD 예시(`UNMATCHED:W2E:W23`)가 서로 달라 위 형식으로 정했다. 명세 예시를 맞춰야 한다.
 
+## 수동 연결 (058)
+
+`POST /api/v1/issues/{issueId}/manual-links`는 관리자가 확인중인 미연결 문제에 도착 객체를 연결한다.
+
+- 요청은 `targetObjectId`(1 이상의 정수), `reason`(1~1000자, 공백만은 안 됨), `rowVersion`(066에서 읽은 0 이상의 정수)이다.
+- 서버는 문제에 기록된 출발 객체와 발견 당시 규칙의 관계 유형을 사용한다. 해당 문제는 `UNMATCHED`이고 `CHECKING`이어야 한다.
+- 성공은 HTTP 200이며 `data`에 `issueId`, `linkId`, `outcome`(`CREATED` 또는 `REACTIVATED`), `actionExecutionId`를 담는다. 연결과 성공 감사 기록을 같은 트랜잭션에 저장한다.
+- 형식 오류는 400, 인증·권한 오류는 401·403, 없는 문제·규칙·연결 대상은 404다. 버전이나 상태가 다르거나 이미 연결돼 있으면 409, 문제 유형이나 연결 조건이 맞지 않으면 422다. 연결 조건별 오류 코드는 [확정 연결 저장](confirmed-link.md)을 따른다.
+- 저장 후 문제는 확인중 상태다. 관리자가 067로 조치완료로 바꾼 뒤 재검증하고, 통과 기록으로 해결 처리한다.
+- 이전 보류 건은 056·057에서 기존 보류 이력으로 조회한다. 현재 문제 상태는 066, 문제별 재검증 결과는 070에서 조회한다.
+
 ## 상태 변경 (067)
 
 요청: `status`(CHECKING·FIXED_PENDING_REVERIFY·RESOLVED), `reason`(1~1000자, 공백만은 안 됨), `resolvedCheckRunId`(RESOLVED일 때만), `rowVersion`.

@@ -174,7 +174,7 @@ test('개별 보류 건 탭에서 서버 페이지를 이동하고 사라진 건
   const user = userEvent.setup()
   await screen.findByRole('region', { name: '승인·반영 상태' })
   expect(list).not.toHaveBeenCalled()
-  await user.click(screen.getByRole('button', { name: '개별 보류 건' }))
+  await user.click(screen.getByRole('button', { name: '기존 보류 이력' }))
   await screen.findByRole('button', { name: '보류 건 #801' })
   await user.click(screen.getByRole('button', { name: '다음 페이지' }))
   await user.click(await screen.findByRole('button', { name: '보류 건 #802' }))
@@ -430,4 +430,32 @@ test('승인 상태 조회 실패 시 오래된 반영 정보를 표시하지 �
   expect(
     screen.queryByRole('region', { name: '승인·반영 상태' }),
   ).not.toBeInTheDocument()
+})
+
+test('기존 보류 상세에서 당시 상태만 조회하고 수동 처리 화면은 표시하지 않는다', async () => {
+  const held = {
+    id: 801,
+    proposalItemId: 303,
+    status: 'HELD',
+    holdReason: '대상 값이 없습니다.',
+    createdAt: '2026-11-10T00:00:00Z',
+  }
+  server.use(
+    http.get('/api/v1/held-items', () =>
+      HttpResponse.json({
+        data: [held],
+        meta: { page: 0, size: 20, totalElements: 1, hasNext: false },
+      }),
+    ),
+    http.get('/api/v1/held-items/801', () => HttpResponse.json({ data: held })),
+  )
+
+  open('/admin/rules/303/history?view=held')
+  await userEvent.click(
+    await screen.findByRole('button', { name: '보류 건 #801' }),
+  )
+  const detail = within(screen.getByRole('dialog'))
+  expect(await detail.findByText('당시 상태')).toBeInTheDocument()
+  expect(detail.getByText('보류')).toBeInTheDocument()
+  expect(detail.queryByText('개별 보류 건 수동 처리')).not.toBeInTheDocument()
 })

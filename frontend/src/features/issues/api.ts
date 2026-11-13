@@ -136,6 +136,23 @@ export function fetchReverificationComparison(
   )
 }
 
+export function createIssueManualLink({
+  issueId,
+  ...request
+}: {
+  issueId: number
+  targetObjectId: number
+  reason: string
+  rowVersion: number
+}) {
+  return apiPost<{
+    issueId: number
+    linkId: number
+    outcome: 'CREATED' | 'REACTIVATED'
+    actionExecutionId: number
+  }>(`/issues/${issueId}/manual-links`, request)
+}
+
 export function changeIssueStatus(
   id: number,
   request: {

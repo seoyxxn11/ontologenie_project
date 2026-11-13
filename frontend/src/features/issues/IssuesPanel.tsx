@@ -10,6 +10,7 @@ import Dialog from '../../components/Dialog'
 import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
 import Pagination from '../../components/Pagination'
 import StatusBadge from '../../components/StatusBadge'
+import IssueManualLinkForm from './IssueManualLinkForm'
 import IssueReverification from './IssueReverification'
 import IssueStatusForm from './IssueStatusForm'
 import IssueTracking from './IssueTracking'
@@ -90,6 +91,12 @@ function IssueDetail({ id, onClose }: { id: number; onClose: () => void }) {
                 </div>
               ))}
             </dl>
+            {issue.issueKind === 'UNMATCHED' &&
+              issue.status === 'CHECKING' &&
+              issue.objectInstanceId !== null &&
+              issue.linkMappingId !== null && (
+                <IssueManualLinkForm issue={issue} />
+              )}
             <IssueStatusForm issue={issue} statusLabels={statusLabels} />
             <IssueReverification
               key={`reverification:${issue.id}`}
