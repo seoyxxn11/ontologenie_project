@@ -210,6 +210,19 @@ class AgentResponderTests {
                         AgentCompletionEstimateTools.ESTIMATE_COMPLETION);
     }
 
+    /** 경로 후보 도구는 설정으로 켜서 ObjectPathPlanner가 있을 때만 준다(381). 없을 때는 위 테스트가 확인한다. */
+    @Test
+    void givesObjectPathsToolOnlyWhenPlannerIsEnabled() {
+        beans.addBean(
+                "objectPathPlanner",
+                new ObjectPathPlanner(
+                        mock(ModelSummaryService.class), mock(DataAccessPolicy.class)));
+
+        Prompt prompt = askAboutPr03();
+
+        assertThat(toolNames(prompt)).contains(AgentObjectPathTools.OBJECT_PATHS);
+    }
+
     private static List<String> toolNames(Prompt prompt) {
         return ((ToolCallingChatOptions) prompt.getOptions())
                 .getToolCallbacks().stream()
@@ -242,6 +255,7 @@ class AgentResponderTests {
                         mock(ObjectSearchQuery.class),
                         beans.getBeanProvider(ObjectDetailQuery.class),
                         beans.getBeanProvider(ObjectEvidenceQuery.class),
+                        beans.getBeanProvider(ObjectPathPlanner.class),
                         mock(ModelSummaryService.class),
                         mock(DataAccessPolicy.class),
                         actionTools,

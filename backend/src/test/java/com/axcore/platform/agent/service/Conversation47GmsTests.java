@@ -331,6 +331,7 @@ class Conversation47GmsTests {
                         mock(ObjectSearchQuery.class),
                         queries.getBeanProvider(ObjectDetailQuery.class),
                         queries.getBeanProvider(ObjectEvidenceQuery.class),
+                        queries.getBeanProvider(ObjectPathPlanner.class),
                         mock(ModelSummaryService.class),
                         mock(DataAccessPolicy.class),
                         actions,

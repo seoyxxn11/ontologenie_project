@@ -108,6 +108,7 @@ public class AgentResponder {
     private final ObjectSearchQuery objectSearch;
     private final ObjectProvider<ObjectDetailQuery> objectDetails;
     private final ObjectProvider<ObjectEvidenceQuery> objectEvidence;
+    private final ObjectProvider<ObjectPathPlanner> objectPaths;
     private final ModelSummaryService modelSummary;
     private final DataAccessPolicy dataAccess;
     private final AgentActionTools actionTools;
@@ -129,6 +130,7 @@ public class AgentResponder {
             ObjectSearchQuery objectSearch,
             ObjectProvider<ObjectDetailQuery> objectDetails,
             ObjectProvider<ObjectEvidenceQuery> objectEvidence,
+            ObjectProvider<ObjectPathPlanner> objectPaths,
             ModelSummaryService modelSummary,
             DataAccessPolicy dataAccess,
             AgentActionTools actionTools,
@@ -141,6 +143,7 @@ public class AgentResponder {
         this.objectSearch = objectSearch;
         this.objectDetails = objectDetails;
         this.objectEvidence = objectEvidence;
+        this.objectPaths = objectPaths;
         this.modelSummary = modelSummary;
         this.dataAccess = dataAccess;
         this.actionTools = actionTools;
@@ -179,7 +182,10 @@ public class AgentResponder {
         return content.strip();
     }
 
-    /** 상세·관계·근거 조회는 구현(S15P31C106-137·138)이 배포된 뒤에만 준다. 부를 수 없는 도구를 AI에게 보여 주지 않는다. */
+    /**
+     * 상세·관계·근거 조회는 구현(S15P31C106-137·138)이 배포된 뒤에만 준다. 부를 수 없는 도구를 AI에게 보여 주지 않는다. 경로 후보는 설정으로 켰을
+     * 때만 준다(381).
+     */
     private Object[] tools(AgentQuerySession session) {
         List<Object> tools = new ArrayList<>();
         tools.add(new AgentQueryTools(session, executions, objectSearch));
@@ -190,6 +196,7 @@ public class AgentResponder {
         objectDetails.ifAvailable(query -> tools.add(new AgentObjectDetailTools(session, query)));
         objectEvidence.ifAvailable(
                 query -> tools.add(new AgentObjectEvidenceTools(session, query)));
+        objectPaths.ifAvailable(planner -> tools.add(new AgentObjectPathTools(session, planner)));
         tools.add(new AgentCompletionEstimateTools(session, completionEstimator));
         tools.add(actionTools.forAnswer(session));
         return tools.toArray();

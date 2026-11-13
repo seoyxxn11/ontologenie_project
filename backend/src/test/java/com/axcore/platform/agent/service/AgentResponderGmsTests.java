@@ -59,6 +59,7 @@ class AgentResponderGmsTests {
     @Autowired AuditExecutionQueryService executions;
     @Autowired ObjectSearchQuery objectSearch;
     @Autowired ObjectProvider<ObjectEvidenceQuery> objectEvidence;
+    @Autowired ObjectProvider<ObjectPathPlanner> objectPaths;
     @Autowired ModelSummaryService modelSummary;
     @Autowired DataAccessPolicy dataAccess;
     @Autowired PropertyValueSampleService propertyValues;
@@ -195,6 +196,7 @@ class AgentResponderGmsTests {
                 objectSearch,
                 details.getBeanProvider(ObjectDetailQuery.class),
                 objectEvidence,
+                objectPaths,
                 modelSummary,
                 dataAccess,
                 actionTools,
