@@ -187,6 +187,7 @@ class ModelComparisonGmsTests {
                                                             new SyncTaskExecutor(),
                                                             dataAsOf,
                                                             mock(ConversationSummaries.class));
+                                            long startedAtMs = System.currentTimeMillis();
                                             long started = System.nanoTime();
                                             processor.onRequested(
                                                     new AgentAnswerRequested(
@@ -267,6 +268,8 @@ class ModelComparisonGmsTests {
                                             row.put("candidateExpectedValue", candidateValue);
                                             row.put("answerReasoningEffort", reasoningEffort);
                                             row.put("role", actor.roleCode());
+                                            row.put("startedAtMs", startedAtMs);
+                                            row.put("endedAtMs", System.currentTimeMillis());
                                             synchronized (this) {
                                                 Files.writeString(
                                                         output.resolve("outcomes.jsonl"),
@@ -393,6 +396,7 @@ class ModelComparisonGmsTests {
                             call.put("objectId", invocation.getArgument(5));
                             call.put("succeeded", result.succeeded());
                             call.put("category", result.resultCategory());
+                            call.put("sources", result.sources());
                             calls.add(call);
                             return null;
                         })
@@ -513,11 +517,13 @@ class ModelComparisonGmsTests {
                         .noneMatch(
                                 pattern -> Pattern.compile(pattern).matcher(used.answer()).find());
         boolean periodOk =
-                turn.from() == null && turn.to() == null
-                        || used.conditions() != null
-                                && used.conditions().hasPeriod()
-                                && used.conditions().from().toString().equals(turn.from())
-                                && used.conditions().to().toString().equals(turn.to());
+                Boolean.TRUE.equals(turn.periodAbsent())
+                        ? used.conditions() != null && !used.conditions().hasPeriod()
+                        : turn.from() == null && turn.to() == null
+                                || used.conditions() != null
+                                        && used.conditions().hasPeriod()
+                                        && used.conditions().from().toString().equals(turn.from())
+                                        && used.conditions().to().toString().equals(turn.to());
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("model", model);
         row.put("run", run);
@@ -568,10 +574,14 @@ class ModelComparisonGmsTests {
             List<String> forbiddenPatterns,
             List<String> categories,
             Integer candidateIndex,
-            String candidateProperty) {
+            String candidateProperty,
+            Boolean periodAbsent) {
         Turn {
             forbiddenPatterns = forbiddenPatterns == null ? List.of() : forbiddenPatterns;
             categories = categories == null ? List.of("FOUND") : categories;
+            if (Boolean.TRUE.equals(periodAbsent) && (from != null || to != null)) {
+                throw new IllegalArgumentException("기간 없음과 날짜 범위를 함께 기대할 수 없습니다.");
+            }
         }
 
         Turn(
@@ -594,6 +604,7 @@ class ModelComparisonGmsTests {
                     null,
                     List.of(),
                     List.of("FOUND"),
+                    null,
                     null,
                     null);
         }
@@ -624,6 +635,7 @@ class ModelComparisonGmsTests {
                     to,
                     forbiddenPatterns,
                     categories,
+                    null,
                     null,
                     null);
         }

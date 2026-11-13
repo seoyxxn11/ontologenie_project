@@ -364,8 +364,7 @@
       "patterns": [
         "정지"
       ],
-      "from": "2026-11-12",
-      "to": "2026-11-12"
+      "periodAbsent": true
     },
     {
       "id": "greeting-between-questions",
