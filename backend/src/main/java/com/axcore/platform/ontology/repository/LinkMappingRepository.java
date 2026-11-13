@@ -39,6 +39,27 @@ public interface LinkMappingRepository extends JpaRepository<LinkMapping, Long> 
     List<LinkMapping> findLatestRevisions(
             @Param("linkTypeId") Long linkTypeId, @Param("status") LinkMappingStatus status);
 
+    /**
+     * 현재 쓰는 규칙의 출발·도착 조건({@code {property, equals}})이 이 유형의 속성을 가리키는지(391). 조건은 jsonb라 native로 읽는다.
+     * 속성은 코드나 "유형코드.속성코드"로 저장된다.
+     */
+    @Query(
+            value =
+                    """
+                    select exists (
+                        select 1 from link_mapping m join link_type lt on lt.id = m.link_type_id
+                        where m.status = 'ACTIVE'
+                          and ((lt.source_type_id = :typeId
+                                and m.source_filter ->> 'property' in (:code, :qualifiedCode))
+                            or (lt.target_type_id = :typeId
+                                and m.target_filter ->> 'property' in (:code, :qualifiedCode))))
+                    """,
+            nativeQuery = true)
+    boolean existsActiveFilterOn(
+            @Param("typeId") Long typeId,
+            @Param("code") String code,
+            @Param("qualifiedCode") String qualifiedCode);
+
     /** 규칙 코드의 특정 개정본(API 047). */
     Optional<LinkMapping> findByCodeAndRevision(String code, int revision);
 

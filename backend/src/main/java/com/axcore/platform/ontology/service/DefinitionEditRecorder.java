@@ -14,6 +14,7 @@ import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.ontology.domain.DefinitionEditAction;
 import com.axcore.platform.ontology.repository.DefinitionSnapshotRepository;
 import jakarta.persistence.EntityManager;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +53,7 @@ public class DefinitionEditRecorder {
     private final EntityManager entityManager;
     private final TransactionTemplate transactionTemplate;
     private final JsonMapper json;
+    private final DefinitionSideEffects sideEffects;
 
     public DefinitionEditRecorder(
             ActionDefinitionLookup actionDefinitions,
@@ -59,13 +61,15 @@ public class DefinitionEditRecorder {
             DefinitionSnapshotRepository snapshots,
             EntityManager entityManager,
             PlatformTransactionManager transactionManager,
-            JsonMapper json) {
+            JsonMapper json,
+            DefinitionSideEffects sideEffects) {
         this.actionDefinitions = actionDefinitions;
         this.audits = audits;
         this.snapshots = snapshots;
         this.entityManager = entityManager;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.json = json;
+        this.sideEffects = sideEffects;
     }
 
     /** 감사 기록의 입력. 경로의 대상 ID(있으면 {@code id})와 요청 본문 칸을 그대로 담는다. 정의 요청에는 비밀값이 없다. */
@@ -173,6 +177,13 @@ public class DefinitionEditRecorder {
                                     ? List.of()
                                     : List.of(ChangeEntry.delete(action.table(), rowKey, before));
                 };
+        // 서비스가 요청 대상 밖의 정의 행을 덩달아 바꿨으면(예: 원천 정책으로 속성 민감 승격) 함께 남긴다(391).
+        List<ChangeEntry> sideChanges = sideEffects.drain();
+        if (!sideChanges.isEmpty()) {
+            List<ChangeEntry> all = new ArrayList<>(changes);
+            all.addAll(sideChanges);
+            changes = all;
+        }
         Map<String, Object> outcome = new LinkedHashMap<>();
         outcome.put("targetTable", action.table());
         outcome.put("targetId", id);

@@ -13,6 +13,7 @@ import com.axcore.platform.global.security.LoginAccount;
 import com.jayway.jsonpath.JsonPath;
 import jakarta.servlet.http.Cookie;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -328,6 +329,78 @@ class MappingPreviewApiTests {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(body("", null)))
                 .andExpect(status().isForbidden());
+    }
+
+    /**
+     * 391: 미리보기도 원천 데이터 정책을 따른다. 금지 표·컬럼은 매핑과 같은 이유로, 민감 컬럼은 관리자가 값을 볼 수 없어 미리보기에서 읽지 않는다. 원천을 읽기
+     * 전에 막으므로 작업도 만들지 않는다.
+     */
+    @Test
+    void rejectsColumnsTheSourcePolicyKeepsOut() throws Exception {
+        long sourceId =
+                jdbc.sql(
+                                "insert into data_source (code, name, source_kind) values (:code, '정책', 'POSTGRES') returning id")
+                        .param(
+                                "code",
+                                "POL_" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
+                        .query(Long.class)
+                        .single();
+        long employee = resource(sourceId, "erp.employee", true);
+        column(employee, "id", 1);
+        long empName = column(employee, "emp_name", 2);
+        long maintenance = resource(sourceId, "mes.maintenance_order", true);
+        column(maintenance, "id", 1);
+        long technician = column(maintenance, "technician", 2);
+        long attendance = resource(sourceId, "erp.attendance", true);
+        column(attendance, "id", 1);
+
+        send(post(PATH, employee), body(propertyJson(woNo, empName, "[]"), null), "ADMIN")
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(
+                        jsonPath("$.error.details.field")
+                                .value("mapping.propertyMappings[0].sourceColumnId"))
+                .andExpect(jsonPath("$.error.details.forbiddenColumns[0]").value("emp_name"));
+        send(
+                        post(PATH, employee),
+                        """
+                        {"mapping": {"objectTypeId": %d, "keyColumns": ["emp_name"]}}
+                        """
+                                .formatted(typeId),
+                        "ADMIN")
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.error.details.field").value("mapping.keyColumns"));
+        send(post(PATH, attendance), body("", null), "ADMIN")
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.error.details.forbiddenColumns[0]").value("*"));
+        send(post(PATH, maintenance), body(propertyJson(woNo, technician, "[]"), null), "ADMIN")
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(
+                        jsonPath("$.error.details.field")
+                                .value("mapping.propertyMappings[0].sourceColumnId"))
+                .andExpect(jsonPath("$.error.details.restrictedColumns[0]").value("technician"));
+
+        assertThat(
+                        jdbc.sql(
+                                        "select count(*) from source_preview where source_resource_id in (:ids)")
+                                .param("ids", List.of(employee, maintenance, attendance))
+                                .query(Long.class)
+                                .single())
+                .isZero();
+    }
+
+    /** 민감 속성은 일반 컬럼에 매핑해도 미리보기에서 읽지 않는다. 미리보기 결과는 가리지 않은 원천 값이다(391). */
+    @Test
+    void rejectsRestrictedProperty() throws Exception {
+        jdbc.sql("update property_definition set sensitivity = 'RESTRICTED' where id = :id")
+                .param("id", woNo)
+                .update();
+
+        send(post(PATH, resourceId), body(propertyJson(woNo, woNoColumn, "[]"), null), "ADMIN")
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(
+                        jsonPath("$.error.details.field")
+                                .value("mapping.propertyMappings[0].propertyDefinitionId"))
+                .andExpect(jsonPath("$.error.details.reason").value("RESTRICTED_PROPERTY"));
     }
 
     private void assertViolation(String body, String field) throws Exception {

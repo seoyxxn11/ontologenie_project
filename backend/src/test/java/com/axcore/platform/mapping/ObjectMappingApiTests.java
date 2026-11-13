@@ -276,6 +276,48 @@ class ObjectMappingApiTests {
         mockMvc.perform(get(BASE_PATH)).andExpect(status().isUnauthorized());
     }
 
+    /** 원천 데이터 정책상 들이지 않는 컬럼은 키로 쓸 수 없다(391). */
+    @Test
+    void rejectsForbiddenKeyColumn() throws Exception {
+        LoginSession admin = loginAs("ADMIN");
+        long resource = insertResource(null);
+        jdbcClient
+                .sql("update source_resource set resource_key = 'erp.employee' where id = :id")
+                .param("id", resource)
+                .update();
+        long type = insertObjectType();
+
+        send(admin, post(BASE_PATH), body(resource, type, "\"emp_no\", \"emp_name\"", ""))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.details.field").value("keyColumns"))
+                .andExpect(jsonPath("$.error.details.forbiddenColumns", contains("emp_name")));
+        createMapping(admin, resource, type, "\"emp_no\"");
+    }
+
+    /** 민감 컬럼도 키로 쓸 수 없다. 키 값은 원천 키·표시 이름 대체값으로 가리지 않고 드러난다(391). */
+    @Test
+    void rejectsRestrictedKeyColumn() throws Exception {
+        LoginSession admin = loginAs("ADMIN");
+        long resource = insertResource(null);
+        jdbcClient
+                .sql(
+                        "update source_resource set resource_key = 'mes.maintenance_order' where id = :id")
+                .param("id", resource)
+                .update();
+        jdbcClient
+                .sql(
+                        "update source_column set column_name = 'technician' where source_resource_id = :id and column_name = 'emp_name'")
+                .param("id", resource)
+                .update();
+        long type = insertObjectType();
+
+        send(admin, post(BASE_PATH), body(resource, type, "\"technician\"", ""))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.details.reason").value("RESTRICTED_KEY"))
+                .andExpect(jsonPath("$.error.details.restrictedColumns", contains("technician")));
+        createMapping(admin, resource, type, "\"emp_no\"");
+    }
+
     private long createMapping(LoginSession admin, long resource, long type, String keys)
             throws Exception {
         return createMapping(admin, resource, type, keys, "");
@@ -331,7 +373,7 @@ class ObjectMappingApiTests {
                                 """
                                 insert into source_resource
                                     (data_source_id, resource_key, resource_kind, is_readable, sync_strategy, loaded_lsn)
-                                values (:source, 'erp.employee', 'TABLE', true, 'CDC', :lsn)
+                                values (:source, 'erp.staff', 'TABLE', true, 'CDC', :lsn)
                                 returning id
                                 """)
                         .param("source", source)

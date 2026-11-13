@@ -14,6 +14,7 @@ import com.axcore.platform.ontology.domain.DefinitionSource;
 import com.axcore.platform.ontology.repository.ObjectTypeRepository;
 import com.axcore.platform.ontology.service.LinkRecomputeService;
 import com.axcore.platform.source.domain.SourceResource;
+import com.axcore.platform.source.policy.SourceColumnPolicy;
 import com.axcore.platform.source.service.SourceCatalogService;
 import java.util.HashSet;
 import java.util.List;
@@ -39,6 +40,7 @@ public class ObjectMappingService {
     private final ObjectTypeRepository objectTypeRepository;
     private final SourceCatalogService catalogService;
     private final LinkRecomputeService linkRecompute;
+    private final SourceColumnPolicy sourceColumnPolicy;
 
     /** API 034. */
     public Page<ObjectMappingResponse> search(
@@ -63,6 +65,9 @@ public class ObjectMappingService {
         SourceResource resource = lockResource(request.sourceResourceId());
         validateReferences(
                 request.sourceResourceId(), request.objectTypeId(), request.keyColumns());
+        // 원천 데이터 정책상 들이지 않는 표·컬럼과 민감 컬럼은 키로 쓰지 않는다(384·391).
+        sourceColumnPolicy.requireKeyColumns(
+                resource.getResourceKey(), request.keyColumns(), "keyColumns");
         boolean active = !Boolean.FALSE.equals(request.isActive());
         if (active
                 && mappingRepository.existsActive(
@@ -123,6 +128,8 @@ public class ObjectMappingService {
         }
         validateReferences(
                 request.sourceResourceId(), request.objectTypeId(), request.keyColumns());
+        sourceColumnPolicy.requireKeyColumns(
+                target.getResourceKey(), request.keyColumns(), "keyColumns");
 
         boolean identityChanged =
                 mapping.changesIdentity(

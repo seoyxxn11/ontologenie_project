@@ -2,6 +2,9 @@ package com.axcore.platform.ontology.service;
 
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
+import com.axcore.platform.mapping.domain.PropertySourceMapping;
+import com.axcore.platform.mapping.repository.PropertySourceMappingRepository;
+import com.axcore.platform.mapping.service.MappedResourceReload;
 import com.axcore.platform.ontology.domain.DefinitionSource;
 import com.axcore.platform.ontology.domain.PropertyConstraints;
 import com.axcore.platform.ontology.domain.PropertyDataType;
@@ -17,10 +20,17 @@ import com.axcore.platform.ontology.repository.ObjectTypeRepository;
 import com.axcore.platform.ontology.repository.PropertyDefinitionRepository;
 import com.axcore.platform.ontology.repository.PropertyValueRepository;
 import com.axcore.platform.ontology.repository.PropertyValueRepository.ValueConflict;
+import com.axcore.platform.source.domain.SourceColumn;
+import com.axcore.platform.source.domain.SourceResource;
+import com.axcore.platform.source.policy.SourceColumnGrade;
+import com.axcore.platform.source.policy.SourceColumnPolicy;
+import com.axcore.platform.source.repository.SourceColumnRepository;
+import com.axcore.platform.source.repository.SourceResourceRepository;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +44,12 @@ public class PropertyService {
     private final PropertyDefinitionRepository propertyDefinitionRepository;
     private final PropertyValueRepository propertyValueRepository;
     private final DefinitionReferenceRepository referenceRepository;
+    private final PropertySourceMappingRepository propertyMappingRepository;
+    private final SourceColumnRepository sourceColumnRepository;
+    private final SourceResourceRepository sourceResourceRepository;
+    private final SourceColumnPolicy sourceColumnPolicy;
+    private final LinkKeyUsage linkKeyUsage;
+    private final MappedResourceReload mappedResourceReload;
 
     /** API 026. 등록 순서로 돌려준다. */
     public List<PropertyResponse> findProperties(Long objectTypeId) {
@@ -76,6 +92,7 @@ public class PropertyService {
                         .sensitivity(enumOrNull(PropertySensitivity.class, request.sensitivity()))
                         .temporalRole(temporalRole)
                         .build();
+        rejectRestrictedKey(property, property.isIdentifier(), property.getSensitivity());
         property.recordSource(source);
         return PropertyResponse.from(propertyDefinitionRepository.saveAndFlush(property));
     }
@@ -89,9 +106,17 @@ public class PropertyService {
         if (request.hasCode()) {
             throw BusinessException.invalidField("code", "속성 코드는 바꿀 수 없습니다. 새 속성을 등록하세요.");
         }
+        // 민감으로 올리면 이 속성이 매핑된 표를 다시 읽는다(391, MappedResourceReload). 매핑 변경·수집과 같은 순서(원천 자원 → 정의)로
+        // 잠그려고
+        // 속성 행보다 먼저 원천 자원을 잠근다.
+        List<SourceResource> mappedResources =
+                PropertySensitivity.RESTRICTED.name().equals(request.getSensitivity())
+                        ? mappedResourceReload.lockMappedResources(id, Set.of())
+                        : List.of();
         // 024(대표 속성 지정)와 같은 행 잠금을 잡는다. 대표 지정과 민감 전환이 동시에 와도 뒤의 요청이 최신 값을 보고 거절된다.
         PropertyDefinition property =
                 propertyDefinitionRepository.findForUpdate(id).orElseThrow(() -> notFound(id));
+        PropertySensitivity before = property.getSensitivity();
         if (request.getRowVersion() != property.getRowVersion()) {
             throw new BusinessException(
                     CommonErrorCode.VERSION_CONFLICT,
@@ -116,6 +141,13 @@ public class PropertyService {
                         ? property.getSensitivity()
                         : PropertySensitivity.valueOf(request.getSensitivity());
         rejectRestrictedDisplayProperty(property, sensitivity);
+        rejectBelowSourcePolicy(property, sensitivity);
+        rejectRestrictedKey(
+                property,
+                request.getIsIdentifier() == null
+                        ? property.isIdentifier()
+                        : request.getIsIdentifier(),
+                sensitivity);
 
         property.update(
                 request.getName(),
@@ -129,6 +161,11 @@ public class PropertyService {
                 constraints,
                 sensitivity,
                 temporalRole);
+        // 391 이전 매핑 때문에 적재 계획이 실패해 CDC가 건너뛴 변경을 되찾는다. 이미 민감이었으면 다시 읽지 않는다.
+        if (before != PropertySensitivity.RESTRICTED
+                && sensitivity == PropertySensitivity.RESTRICTED) {
+            mappedResourceReload.requireFullReload(mappedResources);
+        }
         // 응답의 rowVersion·수정 시각이 이번 변경을 반영하도록 먼저 DB에 쓴다.
         propertyDefinitionRepository.flush();
         return PropertyResponse.from(property);
@@ -206,6 +243,66 @@ public class PropertyService {
                             conflict.count(),
                             "objectIds",
                             conflict.objectIds()));
+        }
+    }
+
+    /**
+     * 속성 민감도는 매핑된 원천 컬럼 등급보다 낮을 수 없다(384·391). 민감 컬럼(RESTRICTED)을 담는 속성을 일반으로 내리면 거절한다. 등급을 낮추려면 원천
+     * 데이터 정책(application.yml)을 바꾼다. 사유 없이 화면에서 낮추지 못하게 한다.
+     */
+    private void rejectBelowSourcePolicy(
+            PropertyDefinition property, PropertySensitivity sensitivity) {
+        if (sensitivity == PropertySensitivity.RESTRICTED) {
+            return;
+        }
+        List<PropertySourceMapping> mappings =
+                propertyMappingRepository.findByPropertyDefinitionId(property.getId());
+        for (PropertySourceMapping mapping : mappings) {
+            if (mapping.getSourceColumnId() == null) {
+                continue;
+            }
+            SourceColumn column =
+                    sourceColumnRepository.findById(mapping.getSourceColumnId()).orElse(null);
+            SourceResource resource =
+                    sourceResourceRepository.findById(mapping.getSourceResourceId()).orElse(null);
+            if (column != null
+                    && resource != null
+                    && sourceColumnPolicy.gradeOf(resource.getResourceKey(), column.getColumnName())
+                            == SourceColumnGrade.RESTRICTED) {
+                throw new BusinessException(
+                        CommonErrorCode.BUSINESS_RULE_VIOLATION,
+                        "원천 데이터 정책상 민감 컬럼을 담는 속성이라 일반으로 내릴 수 없습니다.",
+                        Map.of(
+                                "field",
+                                "sensitivity",
+                                "resourceKey",
+                                resource.getResourceKey(),
+                                "column",
+                                column.getColumnName()));
+            }
+        }
+    }
+
+    /**
+     * 식별 속성과 연결 규칙의 조건(키·출발·도착 조건)에 쓰는 속성은 민감 속성이 될 수 없다(384·391). 객체를 찾고 잇는 값이라 가리면 조회·연결이 끊기고,
+     * 가리지 않으면 민감 값이 연결 근거로 드러난다. 민감한 원천 값은 키가 아닌 속성에 담는다.
+     */
+    private void rejectRestrictedKey(
+            PropertyDefinition property, boolean identifier, PropertySensitivity sensitivity) {
+        if (sensitivity != PropertySensitivity.RESTRICTED) {
+            return;
+        }
+        if (identifier) {
+            throw new BusinessException(
+                    CommonErrorCode.BUSINESS_RULE_VIOLATION,
+                    "식별 속성은 민감 속성이 될 수 없습니다.",
+                    Map.of("field", "sensitivity", "reason", "IDENTIFIER"));
+        }
+        if (linkKeyUsage.isUsed(property)) {
+            throw new BusinessException(
+                    CommonErrorCode.BUSINESS_RULE_VIOLATION,
+                    "연결 규칙의 조건에 쓰는 속성은 민감 속성이 될 수 없습니다.",
+                    Map.of("field", "sensitivity", "reason", "LINK_KEY"));
         }
     }
 

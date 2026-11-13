@@ -35,6 +35,9 @@ public interface PropertySourceMappingRepository
             @Param("propertyDefinitionId") Long propertyDefinitionId,
             @Param("excludeId") Long excludeId);
 
+    /** 한 속성을 채우는 매핑. 속성 민감도의 하한(384·391)을 계산할 때 쓴다. */
+    List<PropertySourceMapping> findByPropertyDefinitionId(Long propertyDefinitionId);
+
     /** 여러 객체 매핑의 속성 매핑. 전체 읽기(Jira 197)가 쓴다. */
     List<PropertySourceMapping> findBySourceMappingIdInOrderById(Collection<Long> sourceMappingIds);
 }

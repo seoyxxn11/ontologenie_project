@@ -9,6 +9,7 @@ import com.axcore.platform.mapping.repository.ObjectSourceMappingRepository;
 import com.axcore.platform.mapping.repository.PropertySourceMappingRepository;
 import com.axcore.platform.ontology.domain.ObjectType;
 import com.axcore.platform.ontology.domain.PropertyDefinition;
+import com.axcore.platform.ontology.domain.PropertySensitivity;
 import com.axcore.platform.ontology.repository.ObjectTypeRepository;
 import com.axcore.platform.ontology.repository.PropertyDefinitionRepository;
 import com.axcore.platform.source.domain.FullLoadPlan;
@@ -16,9 +17,12 @@ import com.axcore.platform.source.domain.FullLoadPlan.MappingPlan;
 import com.axcore.platform.source.domain.FullLoadPlan.PropertyPlan;
 import com.axcore.platform.source.domain.SourceColumn;
 import com.axcore.platform.source.domain.SourceResource;
+import com.axcore.platform.source.policy.SourceColumnGrade;
+import com.axcore.platform.source.policy.SourceColumnPolicy;
 import com.axcore.platform.source.repository.SourceColumnRepository;
 import com.axcore.platform.source.repository.SourceResourceRepository;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -44,6 +48,7 @@ public class FullLoadPlanner {
     private final SourceColumnRepository columnRepository;
     private final PropertyDefinitionRepository propertyRepository;
     private final ObjectTypeRepository objectTypeRepository;
+    private final SourceColumnPolicy sourceColumnPolicy;
 
     @Transactional(readOnly = true)
     public FullLoadPlan plan(long resourceId) {
@@ -88,6 +93,63 @@ public class FullLoadPlanner {
                 .forEach(propertyIds::add);
         Map<Long, PropertyDefinition> properties =
                 byId(propertyRepository.findAllById(propertyIds), PropertyDefinition::getId);
+
+        // 원천 데이터 정책상 들이지 않는 표·컬럼을 가리키는 매핑은 적재하지 않는다(384·391). CDC 반영도 이 계획을 쓰므로
+        // Kafka에 남은 옛 이벤트도 들어오지 않는다.
+        List<String> denied =
+                sourceColumnPolicy.forbidsTable(resource.getResourceKey())
+                        ? List.of("*")
+                        : forbiddenMappedColumns(
+                                resource.getResourceKey(), mappings, columns.values());
+        if (!denied.isEmpty()) {
+            throw new QueuedJobFailure(
+                    "원천 데이터 정책상 들이지 않는 표·컬럼을 매핑이 가리킵니다: %s %s"
+                            .formatted(resource.getResourceKey(), denied));
+        }
+        // 민감 컬럼을 키로 쓰는 매핑(391 이전 매핑)은 원천 키로 민감 값이 드러나므로 적재하지 않는다.
+        List<String> restrictedKeys =
+                mappings.stream()
+                        .flatMap(
+                                mapping ->
+                                        sourceColumnPolicy
+                                                .restrictedColumns(
+                                                        resource.getResourceKey(),
+                                                        mapping.getKeyColumns())
+                                                .stream())
+                        .distinct()
+                        .toList();
+        if (!restrictedKeys.isEmpty()) {
+            throw new QueuedJobFailure(
+                    "원천 데이터 정책상 민감 컬럼을 매핑 키로 씁니다. 키를 바꾸고 다시 적재하세요: %s %s"
+                            .formatted(resource.getResourceKey(), restrictedKeys));
+        }
+        // 속성 민감도는 매핑된 원천 컬럼 등급보다 낮을 수 없다. 기본값 NORMAL을 분류가 끝난 것으로 보지 않고 적재 때 다시 본다.
+        // 391 이전에 만든 매핑이나 서비스를 거치지 않은 변경이 민감 값을 일반 속성으로 들이지 않게 한다.
+        List<String> underClassified =
+                propertyMappings.stream()
+                        .filter(p -> p.getSourceColumnId() != null)
+                        .filter(p -> columns.containsKey(p.getSourceColumnId()))
+                        .filter(
+                                p ->
+                                        sourceColumnPolicy.gradeOf(
+                                                        resource.getResourceKey(),
+                                                        columns.get(p.getSourceColumnId())
+                                                                .getColumnName())
+                                                == SourceColumnGrade.RESTRICTED)
+                        .map(p -> properties.get(p.getPropertyDefinitionId()))
+                        .filter(
+                                p ->
+                                        p != null
+                                                && p.getSensitivity()
+                                                        != PropertySensitivity.RESTRICTED)
+                        .map(PropertyDefinition::getCode)
+                        .distinct()
+                        .toList();
+        if (!underClassified.isEmpty()) {
+            throw new QueuedJobFailure(
+                    "원천 데이터 정책상 민감 컬럼을 일반 속성이 담습니다. 속성을 민감으로 바꾸고 다시 적재하세요: %s %s"
+                            .formatted(resource.getResourceKey(), underClassified));
+        }
 
         List<MappingPlan> plans = new ArrayList<>();
         for (ObjectSourceMapping mapping : mappings) {
@@ -166,6 +228,17 @@ public class FullLoadPlanner {
                                         TransformOperation.valueOf((String) step.get("op")),
                                         step.get("arg")))
                 .toList();
+    }
+
+    /** 켜진 매핑의 키 컬럼과 속성 매핑 컬럼 가운데 원천 데이터 정책상 금지인 것. */
+    private List<String> forbiddenMappedColumns(
+            String resourceKey,
+            List<ObjectSourceMapping> mappings,
+            Collection<SourceColumn> mappedColumns) {
+        List<String> names = new ArrayList<>();
+        mappings.forEach(mapping -> names.addAll(mapping.getKeyColumns()));
+        mappedColumns.forEach(column -> names.add(column.getColumnName()));
+        return sourceColumnPolicy.forbiddenColumns(resourceKey, names.stream().distinct().toList());
     }
 
     private static <T> Map<Long, T> byId(Iterable<T> values, Function<T, Long> id) {

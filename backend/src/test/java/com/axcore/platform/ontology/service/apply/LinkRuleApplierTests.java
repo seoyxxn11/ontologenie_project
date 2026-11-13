@@ -10,6 +10,8 @@ import com.axcore.platform.ontology.domain.ProposalItemKind;
 import com.axcore.platform.ontology.domain.ProposalOrigin;
 import com.axcore.platform.ontology.dto.ApplyCommand;
 import com.axcore.platform.ontology.dto.ApplyResult;
+import com.axcore.platform.ontology.dto.PropertyUpdateRequest;
+import com.axcore.platform.ontology.service.PropertyService;
 import com.axcore.platform.ontology.service.ProposalApplyService;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,6 +40,7 @@ class LinkRuleApplierTests {
     @Autowired ProposalApplyService service;
     @Autowired JdbcClient jdbc;
     @Autowired TransactionTemplate tx;
+    @Autowired PropertyService propertyService;
 
     long account;
     String workOrderType;
@@ -349,6 +352,95 @@ class LinkRuleApplierTests {
         payload.put("linkTypeId", otherLinkType);
 
         assertApplyError(payload, ApplyErrorCode.APPLY_PAYLOAD_INVALID, "payload.linkTypeCode");
+    }
+
+    /** 연결 조건의 키는 민감 속성이 될 수 없다(391). 민감 속성으로 규칙을 만들 수 없고, 규칙의 키가 된 속성은 민감으로 바꿀 수 없다. */
+    @Test
+    void linkKeysStayNormal() {
+        setEquipmentCodeSensitivity("RESTRICTED");
+        assertApplyError(
+                rulePayload(List.of()),
+                ApplyErrorCode.APPLY_PAYLOAD_INVALID,
+                "payload.conditions[0].targetProperty");
+        assertThat(count("link_mapping", "code = '" + ruleCode + "'")).isZero();
+
+        setEquipmentCodeSensitivity("NORMAL");
+        apply(proposal(), rulePayload(List.of()));
+        long key =
+                jdbc.sql(
+                                "select id from property_definition where object_type_id = :type and code = 'code'")
+                        .param("type", equipmentTypeId)
+                        .query(Long.class)
+                        .single();
+        PropertyUpdateRequest request = new PropertyUpdateRequest();
+        request.setName("code");
+        request.setDataType("STRING");
+        request.setIsRequired(false);
+        request.setSensitivity("RESTRICTED");
+        request.setRowVersion(
+                jdbc.sql("select row_version from property_definition where id = :id")
+                        .param("id", key)
+                        .query(Long.class)
+                        .single());
+
+        assertThatThrownBy(() -> propertyService.update(key, request))
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        e -> assertThat(e.getDetails()).containsEntry("reason", "LINK_KEY"));
+    }
+
+    /**
+     * 출발·도착 조건({@code {property, equals}})에도 민감 속성을 쓸 수 없다. 조건 값이 규칙 정의에 그대로 남기 때문이다. 조건에 쓰는 속성은
+     * 민감으로 바꿀 수 없다(391).
+     */
+    @Test
+    void filterPropertiesStayNormal() {
+        jdbc.sql(
+                        "update property_definition set sensitivity = 'RESTRICTED' where object_type_id = :type and code = 'kind'")
+                .param("type", equipmentTypeId)
+                .update();
+        Map<String, Object> restricted = rulePayload(List.of());
+        restricted.put("targetFilter", Map.of("property", "kind", "equals", "PRESS"));
+        assertApplyError(
+                restricted, ApplyErrorCode.APPLY_PAYLOAD_INVALID, "payload.targetFilter.property");
+        assertThat(count("link_mapping", "code = '" + ruleCode + "'")).isZero();
+
+        jdbc.sql(
+                        "update property_definition set sensitivity = 'NORMAL' where object_type_id = :type and code = 'kind'")
+                .param("type", equipmentTypeId)
+                .update();
+        Map<String, Object> normal = rulePayload(List.of());
+        normal.put("targetFilter", Map.of("property", equipmentType + ".kind", "equals", "PRESS"));
+        apply(proposal(), normal);
+        long kind =
+                jdbc.sql(
+                                "select id from property_definition where object_type_id = :type and code = 'kind'")
+                        .param("type", equipmentTypeId)
+                        .query(Long.class)
+                        .single();
+        PropertyUpdateRequest request = new PropertyUpdateRequest();
+        request.setName("kind");
+        request.setDataType("STRING");
+        request.setIsRequired(false);
+        request.setSensitivity("RESTRICTED");
+        request.setRowVersion(
+                jdbc.sql("select row_version from property_definition where id = :id")
+                        .param("id", kind)
+                        .query(Long.class)
+                        .single());
+
+        assertThatThrownBy(() -> propertyService.update(kind, request))
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        e -> assertThat(e.getDetails()).containsEntry("reason", "LINK_KEY"));
+    }
+
+    private void setEquipmentCodeSensitivity(String sensitivity) {
+        jdbc.sql(
+                        "update property_definition set sensitivity = :sensitivity where object_type_id = :type and code = 'code'")
+                .param("sensitivity", sensitivity)
+                .param("type", equipmentTypeId)
+                .update();
     }
 
     private Map<String, Object> rulePayload(List<Map<String, Object>> sourceTransforms) {

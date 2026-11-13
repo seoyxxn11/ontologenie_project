@@ -19,6 +19,7 @@ import com.axcore.platform.source.domain.SourceEndpoint;
 import com.axcore.platform.source.domain.SourceKind;
 import com.axcore.platform.source.domain.SourceResource;
 import com.axcore.platform.source.domain.SourceRow;
+import com.axcore.platform.source.policy.TestSourcePolicy;
 import com.axcore.platform.source.repository.DataSourceRepository;
 import com.axcore.platform.source.repository.SourceColumnRepository;
 import com.axcore.platform.source.repository.SourcePreviewRepository;
@@ -67,7 +68,8 @@ class SourceSampleJobTests {
                     credentials,
                     reader,
                     json,
-                    Clock.fixed(NOW, ZoneOffset.UTC));
+                    Clock.fixed(NOW, ZoneOffset.UTC),
+                    TestSourcePolicy.DEFAULT);
 
     @ParameterizedTest
     @CsvSource({
@@ -76,6 +78,7 @@ class SourceSampleJobTests {
         "mes.worker, name",
         "mes.maintenance_order, technician"
     })
+    /** 금지 컬럼과 민감 컬럼은 표본에서 빠진다. 표본은 원천 값을 그대로 보여 주므로 일반 컬럼만 읽는다. */
     void excludesPersonalColumnFromTheReadAndPersistedResult(String tableKey, String personal)
             throws SQLException {
         table(
@@ -127,6 +130,16 @@ class SourceSampleJobTests {
         assertThatThrownBy(() -> job.run(PREVIEW_ID))
                 .isInstanceOf(QueuedJobFailure.class)
                 .hasMessageContaining("컬럼");
+        verifyNoInteractions(reader);
+    }
+
+    @Test
+    void failsWithoutReadingWhenTheWholeTableIsForbidden() {
+        table("erp.attendance", List.of(column("emp_no", true), column("work_date", true)));
+
+        assertThatThrownBy(() -> job.run(PREVIEW_ID))
+                .isInstanceOf(QueuedJobFailure.class)
+                .hasMessageContaining("원천 데이터 정책");
         verifyNoInteractions(reader);
     }
 
