@@ -265,7 +265,7 @@ export default function ProposalHistoryPage({
               aria-pressed={held}
               onClick={() => changeView('held')}
             >
-              개별 보류 건
+              기존 보류 이력
             </Button>
             <Button
               variant={business ? 'primary' : 'secondary'}

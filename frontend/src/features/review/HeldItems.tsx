@@ -1,4 +1,4 @@
-import { useIsMutating, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import Button from '../../components/Button'
 import DataTable from '../../components/DataTable'
@@ -10,8 +10,6 @@ import {
   fetchHeldItems,
   HELD_ITEM_PAGE_SIZE,
 } from './heldItemApi'
-import HeldItemResolution from './HeldItemResolution'
-import type { HeldResolutionAccess } from './heldResolution'
 
 const statusLabels: Record<string, string> = {
   HELD: '보류',
@@ -20,17 +18,7 @@ const statusLabels: Record<string, string> = {
   DISMISSED: '종결',
 }
 
-function HeldItemDetail({
-  id,
-  onClose,
-  resolutionAccess,
-}: {
-  id: number
-  onClose: () => void
-  resolutionAccess?: HeldResolutionAccess
-}) {
-  const saving =
-    useIsMutating({ mutationKey: ['held-item-resolution', id] }) > 0
+function HeldItemDetail({ id, onClose }: { id: number; onClose: () => void }) {
   const query = useQuery({
     queryKey: ['held-items', 'detail', id],
     queryFn: ({ signal }) => fetchHeldItem(id, signal),
@@ -41,13 +29,7 @@ function HeldItemDetail({
   })
   const item = query.data
   return (
-    <Dialog
-      title={`개별 보류 건 #${id}`}
-      onClose={() => {
-        if (!saving) onClose()
-      }}
-      size="wide"
-    >
+    <Dialog title={`개별 보류 건 #${id}`} onClose={onClose} size="wide">
       <div className="mt-4">
         {query.isPending || query.isFetching || query.isPaused ? (
           <LoadingState message="보류 건 상세를 불러오는 중…" />
@@ -60,7 +42,7 @@ function HeldItemDetail({
           <>
             <dl className="grid gap-4 sm:grid-cols-2">
               {[
-                ['상태', statusLabels[item.status] ?? item.status],
+                ['당시 상태', statusLabels[item.status] ?? item.status],
                 ['보류 사유', item.holdReason],
                 ['원천 객체 ID', item.sourceObjectId],
                 ['원천 값', item.rawValue],
@@ -87,14 +69,6 @@ function HeldItemDetail({
                 </div>
               ))}
             </dl>
-            <HeldItemResolution
-              item={item}
-              access={resolutionAccess}
-              onRefresh={async () => {
-                const result = await query.refetch()
-                return result.isSuccess ? result.data : undefined
-              }}
-            />
           </>
         ) : null}
       </div>
@@ -105,11 +79,9 @@ function HeldItemDetail({
 export default function HeldItems({
   page,
   onPageChange,
-  resolutionAccess,
 }: {
   page: number
   onPageChange: (page: number) => void
-  resolutionAccess?: HeldResolutionAccess
 }) {
   const [detailId, setDetailId] = useState<number>()
   const query = useQuery({
@@ -119,11 +91,11 @@ export default function HeldItems({
   })
 
   return (
-    <section className="space-y-4" aria-label="개별 보류 건">
-      <h3 className="font-semibold">전체 개별 보류 건</h3>
+    <section className="space-y-4" aria-label="기존 보류 이력">
+      <h3 className="font-semibold">기존 보류 이력</h3>
       <p className="text-sm text-slate-600">
-        승인 반영 과정에서 개별 데이터가 보류된 기록입니다. 전체 제안의 보류
-        건을 조회하며, 제안 자체의 검토 결정은 활동 기록에서 확인할 수 있습니다.
+        이전에 승인 반영 중 보류된 기록입니다. 현재 처리 상태와 재검증 결과는
+        문제 상세에서 확인할 수 있습니다.
       </p>
       {query.isPending ? (
         <LoadingState message="개별 보류 건을 불러오는 중…" />
@@ -137,11 +109,13 @@ export default function HeldItems({
             <DataTable label="개별 보류 건 목록">
               <thead className="bg-slate-50 text-slate-600">
                 <tr>
-                  {['보류 건', '제안', '상태', '보류 사유'].map((label) => (
-                    <th key={label} className="p-3">
-                      {label}
-                    </th>
-                  ))}
+                  {['보류 건', '제안', '당시 상태', '보류 사유'].map(
+                    (label) => (
+                      <th key={label} className="p-3">
+                        {label}
+                      </th>
+                    ),
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -186,7 +160,6 @@ export default function HeldItems({
         <HeldItemDetail
           key={detailId}
           id={detailId}
-          resolutionAccess={resolutionAccess}
           onClose={() => setDetailId(undefined)}
         />
       )}

@@ -76,7 +76,7 @@ public record IssueTestFixtures(JdbcClient jdbc) {
             String triggerKind,
             String status,
             Instant startedAt,
-            long comparedToRunId,
+            Long comparedToRunId,
             long accountId) {
         return jdbc.sql(
                         """
@@ -95,7 +95,7 @@ public record IssueTestFixtures(JdbcClient jdbc) {
                 .param("kind", triggerKind)
                 .param("status", status)
                 .param("workKey", "issue-test-run-" + UUID.randomUUID())
-                .param("comparedTo", comparedToRunId)
+                .param("comparedTo", comparedToRunId, Types.BIGINT)
                 .param("accountId", accountId)
                 .param("startedAt", Timestamp.from(startedAt), Types.TIMESTAMP)
                 .query(Long.class)

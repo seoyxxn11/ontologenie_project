@@ -590,3 +590,48 @@ test('마지막 페이지의 유일한 문제를 상태 변경하면 첫 페이�
   expect(pages).toEqual([1, 1, 0])
   expect(screen.getByText('1 / 1쪽 · 20건')).toBeInTheDocument()
 })
+
+test('확인중인 미연결 문제에서 058을 호출하고 연결 결과를 표시한다', async () => {
+  server.use(
+    http.get('/api/v1/issues/1', () =>
+      HttpResponse.json({
+        data: {
+          ...issueFixture,
+          issueKind: 'UNMATCHED',
+          status: 'CHECKING',
+          objectInstanceId: 11,
+          linkMappingId: 12,
+          rowVersion: 3,
+        },
+      }),
+    ),
+    http.post('/api/v1/issues/1/manual-links', async ({ request }) => {
+      expect(await request.json()).toEqual({
+        targetObjectId: 301,
+        reason: '인사 기록 확인',
+        rowVersion: 3,
+      })
+      return HttpResponse.json({
+        data: {
+          issueId: 1,
+          linkId: 812,
+          outcome: 'CREATED',
+          actionExecutionId: 1001,
+        },
+      })
+    }),
+  )
+
+  open('?view=issues&issue=1')
+  const user = userEvent.setup()
+  const dialog = within(await screen.findByRole('dialog'))
+  await user.type(await dialog.findByLabelText('연결할 도착 객체 ID'), '301')
+  await user.type(dialog.getByLabelText('연결 사유'), '인사 기록 확인')
+  await user.click(dialog.getByRole('button', { name: '수동 연결 저장' }))
+  expect(
+    await dialog.findByText(
+      '수동 연결을 저장했습니다. 조치완료로 바꾼 뒤 재검증하세요.',
+    ),
+  ).toBeInTheDocument()
+  expect(dialog.getByText('확인중')).toBeInTheDocument()
+})
