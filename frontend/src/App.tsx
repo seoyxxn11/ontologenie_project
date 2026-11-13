@@ -1,4 +1,12 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
+import { useState } from 'react'
+import {
+  createBrowserRouter,
+  createRoutesFromElements,
+  Navigate,
+  Outlet,
+  Route,
+  RouterProvider,
+} from 'react-router'
 import AppLayout from './components/AppLayout'
 import NotFoundPage from './components/NotFoundPage'
 import AgentPage from './features/agent/AgentPage'
@@ -23,10 +31,16 @@ import ObjectTypesPage from './features/ontology/ObjectTypesPage'
 import CheckRunsPage from './features/checks/CheckRunsPage'
 
 function App() {
-  return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Routes>
+  const [router] = useState(() =>
+    createBrowserRouter(
+      createRoutesFromElements(
+        <Route
+          element={
+            <AuthProvider>
+              <Outlet />
+            </AuthProvider>
+          }
+        >
           <Route path="/login" element={<LoginPage />} />
 
           <Route element={<RequireAuth />}>
@@ -76,10 +90,11 @@ function App() {
               </Route>
             </Route>
           </Route>
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+        </Route>,
+      ),
+    ),
   )
+  return <RouterProvider router={router} />
 }
 
 export default App

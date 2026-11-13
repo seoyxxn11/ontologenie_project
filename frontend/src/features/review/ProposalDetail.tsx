@@ -220,7 +220,8 @@ export default function ProposalDetail({
               검토 상태:{' '}
               <StatusBadge
                 tone={
-                  item.reviewStatus === 'HELD'
+                  item.reviewStatus === 'HELD' ||
+                  item.reviewStatus === 'PENDING'
                     ? 'warning'
                     : item.reviewStatus === 'APPROVED'
                       ? 'info'

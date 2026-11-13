@@ -1,3 +1,4 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import Button from '../../components/Button'
 import StatusBadge from '../../components/StatusBadge'
 import DataTable from '../../components/DataTable'
@@ -189,7 +190,7 @@ function ExecutionHistory({
             return (
               <tr key={execution.id}>
                 <td className="px-3 py-3">
-                  <p>{requestedAt.toLocaleString('ko-KR')}</p>
+                  <p>{formatKstDateTime(requestedAt)}</p>
                   <p className="text-sm text-slate-500">
                     {actorLabel(execution)}
                   </p>

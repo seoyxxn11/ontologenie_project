@@ -7,10 +7,17 @@ type DialogProps = {
   children: ReactNode
   // wide: 표 두 개를 나란히 두는 선택 창처럼 넓은 내용
   size?: 'default' | 'wide'
+  closeOnBackdrop?: boolean
 }
 
 // 화면 위에 뜨는 팝업 공통 틀. [닫기], Esc 키, 바깥 배경 클릭으로 닫힌다.
-function Dialog({ title, onClose, children, size = 'default' }: DialogProps) {
+function Dialog({
+  title,
+  onClose,
+  children,
+  size = 'default',
+  closeOnBackdrop = true,
+}: DialogProps) {
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef(onClose)
@@ -80,7 +87,7 @@ function Dialog({ title, onClose, children, size = 'default' }: DialogProps) {
     <div
       className="ui-dialog-overlay"
       onClick={(event) => {
-        if (event.target === event.currentTarget) {
+        if (closeOnBackdrop && event.target === event.currentTarget) {
           onClose()
         }
       }}

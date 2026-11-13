@@ -55,10 +55,7 @@ export default function ManualCheckForm({
     revisions.data?.filter((rule) => rule.status === 'ACTIVE') ?? []
 
   return (
-    <section
-      aria-label="수동 검사 실행"
-      className="space-y-4 rounded-xl border border-slate-200 p-5"
-    >
+    <section aria-label="수동 검사 실행" className="management-panel space-y-4">
       <h2 className="font-semibold">수동 검사 실행</h2>
       <p className="text-sm text-slate-600">
         수집된 데이터를 기준으로 반영 중인 연결 규칙을 점검합니다. 승인 전 후보

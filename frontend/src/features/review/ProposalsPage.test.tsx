@@ -61,6 +61,7 @@ test('후보 카드 선택과 상세 탭에서 근거·신뢰도를 확인한다
     await screen.findByRole('region', { name: '후보 검토 상세' }),
   )
   await detail.findByText('신뢰도: 86.0%')
+  expect(detail.getByText('검토 대기')).toHaveClass('bg-amber-50')
   await user.click(detail.getByRole('button', { name: '제안 이유·원본' }))
   expect(
     detail.getByText('작업지시의 설비 코드와 설비 원장의 코드가 대응합니다.'),

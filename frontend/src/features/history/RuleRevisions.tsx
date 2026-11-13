@@ -1,3 +1,4 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import Button from '../../components/Button'
@@ -8,7 +9,7 @@ import { ruleOriginLabels, ruleStatusLabels } from './labels'
 import type { RuleCondition, RuleRevision, RuleSummary } from './types'
 
 function formatDateTime(value?: string | null) {
-  return value ? new Date(value).toLocaleString('ko-KR') : '-'
+  return value ? formatKstDateTime(value) : '-'
 }
 
 function formatTransforms(transforms: Record<string, unknown>[]) {

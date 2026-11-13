@@ -5,7 +5,7 @@ import type { EntityChange } from './types'
 
 type EntityChangeTableProps = {
   change: EntityChange
-  // 권한으로 가린 속성 키. 이 키의 null은 "-" 대신 "권한으로 가림"으로 보여 준다.
+  // 권한으로 가린 속성 키. 이 키의 null은 "—" 대신 "권한으로 가림"으로 보여 준다.
   restrictedCodes?: string[]
 }
 

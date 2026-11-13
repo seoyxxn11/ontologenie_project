@@ -2,7 +2,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
+import {
+  createMemoryRouter,
+  MemoryRouter,
+  Outlet,
+  Route,
+  RouterProvider,
+  Routes,
+  useLocation,
+} from 'react-router'
 import { afterEach, expect, test, vi } from 'vitest'
 import { resetAnalysisMocks } from '../../mocks/analysisHandlers'
 import { server } from '../../mocks/node'
@@ -574,19 +582,30 @@ test('이미 끝난 분석을 열면 불러오던 후보 목록을 다시 요청
 
 test('분석 대상 선택의 원천 등록은 데이터 연결 화면에서 등록 창을 연다', async () => {
   const user = userEvent.setup()
+  const router = createMemoryRouter(
+    [
+      {
+        element: (
+          <>
+            <LocationProbe />
+            <Outlet />
+          </>
+        ),
+        children: [
+          { path: '/admin/rules', element: <ProposalsPage /> },
+          { path: '/admin/sources', element: <SourcesPage /> },
+        ],
+      },
+    ],
+    { initialEntries: ['/admin/rules'] },
+  )
   render(
     <QueryClientProvider
       client={
         new QueryClient({ defaultOptions: { queries: { retry: false } } })
       }
     >
-      <MemoryRouter initialEntries={['/admin/rules']}>
-        <LocationProbe />
-        <Routes>
-          <Route path="/admin/rules" element={<ProposalsPage />} />
-          <Route path="/admin/sources" element={<SourcesPage />} />
-        </Routes>
-      </MemoryRouter>
+      <RouterProvider router={router} />
     </QueryClientProvider>,
   )
   await user.click(screen.getByRole('button', { name: 'AI 관계 제안 받기' }))

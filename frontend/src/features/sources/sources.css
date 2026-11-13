@@ -35,8 +35,8 @@
   line-height: 24px;
 }
 .sources-detail-heading {
-  font-size: 20px;
-  line-height: 30px;
+  font-size: 24px;
+  line-height: 36px;
   overflow-wrap: anywhere;
 }
 .sources-list .ui-table-container {
@@ -57,7 +57,7 @@
 .sources-table tr[data-selected='true'] th {
   border-left-color: var(--ui-brand-strong);
 }
-.sources-select {
+.sources-table .sources-select {
   color: var(--ui-text);
   font-weight: 600;
   text-align: left;
@@ -119,11 +119,6 @@
 }
 .sources-page :is(.text-slate-400, .text-slate-500) {
   color: var(--ui-text-secondary);
-}
-.sources-page .ui-status-badge {
-  font-size: 14px;
-  line-height: 21px;
-  white-space: normal;
 }
 .sources-facts {
   display: grid;

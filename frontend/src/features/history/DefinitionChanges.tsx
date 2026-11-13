@@ -1,3 +1,4 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import Button from '../../components/Button'
 import DataTable from '../../components/DataTable'
 import { LoadingState, EmptyState, ErrorState } from '../../components/Feedback'
@@ -99,7 +100,7 @@ function DefinitionChanges() {
           {changePage.data.map((change) => (
             <tr key={change.id}>
               <td className="px-3 py-3">
-                <p>{new Date(change.requestedAt).toLocaleString('ko-KR')}</p>
+                <p>{formatKstDateTime(change.requestedAt)}</p>
                 <p className="text-sm text-slate-500">{actorLabel(change)}</p>
               </td>
               <td className="px-3 py-3">

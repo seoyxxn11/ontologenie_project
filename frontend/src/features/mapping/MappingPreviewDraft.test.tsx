@@ -1,3 +1,4 @@
+import { createMemoryRouter, RouterProvider } from 'react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -32,7 +33,14 @@ function open(access?: MappingPreviewAccess) {
         new QueryClient({ defaultOptions: { queries: { retry: false } } })
       }
     >
-      <MappingPanel sourceId={1} previewAccess={access} />
+      <RouterProvider
+        router={createMemoryRouter([
+          {
+            path: '*',
+            element: <MappingPanel sourceId={1} previewAccess={access} />,
+          },
+        ])}
+      />
     </QueryClientProvider>,
   )
   return userEvent.setup()

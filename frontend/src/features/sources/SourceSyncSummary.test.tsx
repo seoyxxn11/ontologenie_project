@@ -1,3 +1,4 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   cleanup,
@@ -93,13 +94,11 @@ test('074를 원천별 1건 조회하고 최근 전체 읽기 상태·완료와 
   expect(await first.findByText('전체 읽기 · 완료')).toBeInTheDocument()
   expect(await second.findByText('전체 읽기 · 실패')).toBeInTheDocument()
   expect(first.getByText(/전체 읽기 완료:/)).toHaveTextContent(
-    new Date(finished).toLocaleString('ko-KR'),
+    formatKstDateTime(finished),
   )
-  expect(first.getByText(/CDC 반영:/)).toHaveTextContent(
-    new Date(cdc).toLocaleString('ko-KR'),
-  )
+  expect(first.getByText(/CDC 반영:/)).toHaveTextContent(formatKstDateTime(cdc))
   expect(second.getByText(/최근 실행 종료:/)).toHaveTextContent(
-    new Date(finished).toLocaleString('ko-KR'),
+    formatKstDateTime(finished),
   )
   expect(second.queryByText(/전체 읽기 완료:/)).not.toBeInTheDocument()
   expect(requests.sort()).toEqual([
@@ -117,7 +116,7 @@ test('전체 읽기 이력이 없어도 CDC 반영 시각은 표시하고 미수
   open()
   expect(await screen.findByText('전체 읽기 이력 없음')).toBeInTheDocument()
   expect(screen.getByText(/CDC 반영:/)).toHaveTextContent(
-    new Date(cdc).toLocaleString('ko-KR'),
+    formatKstDateTime(cdc),
   )
   expect(screen.queryByText('미수집')).not.toBeInTheDocument()
 })
@@ -191,7 +190,7 @@ test('대기·실행 중인 최근 실행을 자동 조회해 완료 시각으�
     { timeout: 5000 },
   )
   expect(screen.getByText(/전체 읽기 완료:/)).toHaveTextContent(
-    new Date(finished).toLocaleString('ko-KR'),
+    formatKstDateTime(finished),
   )
 })
 
@@ -211,9 +210,7 @@ test('갱신 실패 뒤 이전 수집 시각을 현재 결과처럼 남기지 �
   )
   await client.invalidateQueries({ queryKey: ['sources', 1, 'sync-runs'] })
   expect(await screen.findByText('요약 조회 실패')).toBeInTheDocument()
-  expect(
-    screen.queryByText(new Date(cdc).toLocaleString('ko-KR')),
-  ).not.toBeInTheDocument()
+  expect(screen.queryByText(formatKstDateTime(cdc))).not.toBeInTheDocument()
 })
 
 test.each([

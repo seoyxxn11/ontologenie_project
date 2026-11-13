@@ -1,3 +1,4 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import { useEffect, useRef, useState } from 'react'
 import { ApiError, getHttpErrorMessage } from '../../api/errors'
 import Button from '../../components/Button'
@@ -190,7 +191,7 @@ export default function MappingPreview({
       {receipt && (
         <p>
           미리보기 #{receipt.previewId} · 만료{' '}
-          {new Date(receipt.expiresAt).toLocaleString('ko-KR')}
+          {formatKstDateTime(receipt.expiresAt)}
           {receipt.joined ? ' · 기존 진행 중인 요청을 확인합니다.' : ''}
         </p>
       )}

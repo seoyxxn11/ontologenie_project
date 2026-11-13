@@ -1,3 +1,4 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import { useQuery } from '@tanstack/react-query'
 import { ApiError, getHttpErrorMessage } from '../../api/errors'
 import Button from '../../components/Button'
@@ -29,7 +30,7 @@ const text = (value: string | null) =>
 function time(value: string | null) {
   if (!value) return '제공되지 않음'
   return Number.isFinite(Date.parse(value))
-    ? new Date(value).toLocaleString('ko-KR')
+    ? formatKstDateTime(value)
     : '시각을 확인할 수 없음'
 }
 function safeError(error: unknown) {

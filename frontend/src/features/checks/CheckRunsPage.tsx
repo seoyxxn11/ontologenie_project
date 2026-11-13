@@ -51,7 +51,7 @@ export default function CheckRunsPage() {
     })
   }
   return (
-    <div className="space-y-5">
+    <div className="management-page space-y-5">
       <h1 className="ui-page-title">정합성 검사</h1>
       <div className="flex flex-wrap items-center justify-end gap-3">
         <Link to="/admin/rules" className="text-sm underline">
@@ -75,7 +75,7 @@ export default function CheckRunsPage() {
       )}
       <section
         aria-label="검사 실행 목록"
-        className="space-y-4 rounded-xl border border-slate-200 p-5"
+        className="management-panel space-y-4"
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-semibold">검사 실행 목록</h2>
@@ -228,8 +228,10 @@ export default function CheckRunsPage() {
                           {runStatuses[run.status]}
                         </StatusBadge>
                       </td>
-                      <td className="p-3">{runTime(run.requestedAt)}</td>
-                      <td className="p-3">
+                      <td className="p-3 tabular-nums">
+                        {runTime(run.requestedAt)}
+                      </td>
+                      <td className="p-3 text-right tabular-nums">
                         {run.triggerKind === 'CANDIDATE'
                           ? '승인 전 후보'
                           : `${run.scope.linkMappingIds?.length ?? 0}개 규칙`}

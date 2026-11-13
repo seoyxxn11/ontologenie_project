@@ -1,3 +1,4 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { ApiError, getHttpErrorMessage } from '../../api/errors'
@@ -164,7 +165,7 @@ function SampleRequest({
       {receipt && (
         <p className="text-sm">
           표본 요청 #{receipt.previewId} · 만료{' '}
-          {new Date(receipt.expiresAt).toLocaleString('ko-KR')}
+          {formatKstDateTime(receipt.expiresAt)}
           {receipt.joined ? ' · 기존 진행 중인 요청을 확인합니다.' : ''}
         </p>
       )}

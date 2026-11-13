@@ -11,6 +11,7 @@ AI 작업에서 확인할 팀 문서의 위치다. 저장소 밖 문서는 Notio
 | 문서 | 위치 | 쓰임 |
 | --- | --- | --- |
 | 개발 가이드 | [docs/development-guide.md](../docs/development-guide.md) | 팀 컨벤션 전문 |
+| 디자인 시스템 | [공통 기준](../docs/design-system.md) | 현재 유효한 UI 원칙·규격·공통 동작 |
 | AI 규칙·절차 | [rules/](rules/), [workflows/](workflows/) | AI 작업 규칙과 실행 절차 |
 | 인프라 설정 | [infra/README.md](../infra/README.md) | 메인 서버 배포 설정 사본과 적용 방법 |
 | MR 템플릿 | [.gitlab/merge_request_templates/Default.md](../.gitlab/merge_request_templates/Default.md) | MR 본문 형식 |

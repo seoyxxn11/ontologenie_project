@@ -19,6 +19,7 @@ import SourceSyncSummary from './SourceSyncSummary'
 import SourceSamples from './SourceSamples'
 import { sourceSyncApi } from './syncApi'
 import './sources.css'
+import FormSaveStatus from './FormSaveStatus'
 
 const tabs = [
   { key: 'connection', label: '접속 정보' },
@@ -96,15 +97,15 @@ function SourcesPage() {
             return (
               <tr key={source.id} data-selected={active || undefined}>
                 <th scope="row" className="px-4 py-3 text-left">
-                  <button
-                    type="button"
+                  <Button
+                    variant="text"
                     aria-pressed={active}
                     aria-controls="source-detail"
                     onClick={() => select(source.id)}
                     className="sources-select"
                   >
                     {source.name}
-                  </button>
+                  </Button>
                 </th>
                 <td className="px-4 py-3">
                   {sourceKindLabels[source.sourceKind]}
@@ -131,6 +132,7 @@ function SourcesPage() {
           </Button>
         }
       />
+      <FormSaveStatus />
       <div className="sources-workbench">
         <section className="sources-list" aria-label="원천 선택">
           <div className="sources-panel-heading">
@@ -161,9 +163,9 @@ function SourcesPage() {
         </section>
         {registering && (
           <SourceFormDialog
-            onClose={() => {
+            onClose={(navigating) => {
               setRegistering(false)
-              if (searchParams.has('register')) {
+              if (!navigating && searchParams.has('register')) {
                 const next = new URLSearchParams(searchParams)
                 next.delete('register')
                 setSearchParams(next, { replace: true })

@@ -1,3 +1,4 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -82,9 +83,7 @@ test('전달 기록은 최신 버전을 보내고 연속 클릭을 막으며 목
   expect(region.getByText('전달됨')).toBeInTheDocument()
   expect(region.getByText('계정 #5')).toBeInTheDocument()
   expect(
-    region.getByText(
-      new Date(state.issue.forwardedAt!).toLocaleString('ko-KR'),
-    ),
+    region.getByText(formatKstDateTime(state.issue.forwardedAt!)),
   ).toBeInTheDocument()
   expect(post).toHaveBeenCalledTimes(1)
   expect(detail.mock.calls.length).toBeGreaterThan(1)

@@ -1,3 +1,4 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import DataTable from '../../components/DataTable'
@@ -14,7 +15,7 @@ const planStatusLabels: Record<string, string> = {
 const ALL_OPERATIONS = '남은 공정 전체'
 
 function formatDateTime(value: string) {
-  return new Date(value).toLocaleString('ko-KR')
+  return formatKstDateTime(value)
 }
 
 // 선정 근거는 정해진 모양이 없어, reason이 있으면 그 문장을, 없으면 값을 그대로 보여 준다.

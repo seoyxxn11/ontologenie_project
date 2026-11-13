@@ -1,3 +1,4 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router'
 import Button from '../../components/Button'
@@ -20,7 +21,7 @@ const decisionLabels: Record<string, string> = {
 }
 
 function dateTime(value: string | null) {
-  return value ? new Date(value).toLocaleString('ko-KR') : '제공되지 않음'
+  return value ? formatKstDateTime(value) : '제공되지 않음'
 }
 
 function ApprovalStatus({ proposal }: { proposal: Proposal }) {

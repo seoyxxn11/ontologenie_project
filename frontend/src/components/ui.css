@@ -19,6 +19,7 @@
   --ui-text-secondary: #505050;
   --ui-border: #e2e2e2;
   --ui-input-border: #8a8a8a;
+  --ui-input-invalid-border: #b91c1c;
   --ui-radius: 4px;
   --ui-panel-radius: 8px;
   --ui-font:
@@ -96,6 +97,24 @@ body {
 
 .app-shell input:is([type='checkbox'], [type='radio']) {
   accent-color: var(--ui-brand-strong);
+}
+
+:is(.app-shell, .auth-utility-page, .ui-dialog)
+  :is(input, select, textarea)[aria-invalid='true']:not(:disabled) {
+  border-color: var(--ui-input-invalid-border);
+}
+
+.ui-field-error {
+  margin-top: 4px;
+  color: var(--ui-input-invalid-border);
+  font-size: 14px;
+  line-height: 21px;
+}
+
+:is(.app-shell, .ui-dialog) fieldset[aria-invalid='true'] {
+  border: 1px solid var(--ui-input-invalid-border);
+  border-radius: var(--ui-radius);
+  padding: 12px;
 }
 
 .ui-button {

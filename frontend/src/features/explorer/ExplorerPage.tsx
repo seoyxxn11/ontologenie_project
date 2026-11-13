@@ -113,6 +113,16 @@ function ExplorerPage() {
   })
 
   function handleSearch(nextFilters: ObjectFilters) {
+    const properties = filters.propertyValues ?? {}
+    const nextProperties = nextFilters.propertyValues ?? {}
+    const sameConditions =
+      (filters.q ?? '') === (nextFilters.q ?? '') &&
+      filters.objectTypeId === nextFilters.objectTypeId &&
+      Object.keys(properties).length === Object.keys(nextProperties).length &&
+      Object.entries(properties).every(
+        ([key, value]) => nextProperties[key] === value,
+      )
+    if (!sameConditions) selectObject(null)
     setFilters(nextFilters)
     setPage(0)
   }

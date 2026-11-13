@@ -1,3 +1,4 @@
+import { formatKstDateTime } from '../../utils/dateTime'
 import Markdown, { type Components, type Options } from 'react-markdown'
 import { Link } from 'react-router'
 import remarkGfm from 'remark-gfm'
@@ -66,12 +67,7 @@ const answerMarkdown: Components = {
 }
 
 function formatAsOf(value: string) {
-  return new Date(value).toLocaleString('ko-KR', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return formatKstDateTime(value)
 }
 
 // 정보 하나의 결과 이름. 조회를 못 끝낸 항목은 "데이터 없음"과 구분한다.

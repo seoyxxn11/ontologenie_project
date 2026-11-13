@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, expect, test, vi } from 'vitest'
 import { resetAnalysisMocks } from '../../mocks/analysisHandlers'
 import { server } from '../../mocks/node'
@@ -20,18 +20,20 @@ afterEach(() => {
 })
 
 function renderAt(path: string) {
+  const router = createMemoryRouter(
+    [
+      { path: '/admin/sources', element: <SourcesPage /> },
+      { path: '/admin/rules', element: <ProposalsPage /> },
+    ],
+    { initialEntries: [path] },
+  )
   render(
     <QueryClientProvider
       client={
         new QueryClient({ defaultOptions: { queries: { retry: false } } })
       }
     >
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>
-          <Route path="/admin/sources" element={<SourcesPage />} />
-          <Route path="/admin/rules" element={<ProposalsPage />} />
-        </Routes>
-      </MemoryRouter>
+      <RouterProvider router={router} />
     </QueryClientProvider>,
   )
 }
