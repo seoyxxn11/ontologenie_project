@@ -21,14 +21,18 @@ import java.util.stream.Collectors;
  *   <li>그 밖의 역할은 유형의 접근 그룹(object_type.access_group)이 역할의 허용 그룹(role_data_scope)에 있어야 본다. 그룹이 없는
  *       유형과 허용 행이 없는 그룹은 보이지 않는다.
  *   <li>민감(RESTRICTED) 값은 그 허용 행의 can_view_restricted가 true일 때만 본다.
+ *   <li>읽는 용도({@link DataPurpose})가 모델이면 민감 값은 역할과 관계없이 가린다(S15P31C106-384). 정의 조회 용도로는 객체 값을 읽지
+ *       않는다.
  * </ul>
  */
 public final class DataAccess {
 
     private final Map<Long, ObjectTypeScope> scopes;
     private final Map<String, ObjectTypeScope> scopesByCode;
+    private final DataPurpose purpose;
 
-    DataAccess(List<ObjectTypeScope> scopes) {
+    DataAccess(List<ObjectTypeScope> scopes, DataPurpose purpose) {
+        this.purpose = purpose;
         this.scopes =
                 scopes.stream()
                         .collect(
@@ -72,10 +76,39 @@ public final class DataAccess {
         return scope != null && scope.visible();
     }
 
-    /** 볼 수 없는 유형이면 false다. */
+    /** 볼 수 없는 유형이면 false다. 모델 용도면 항상 false다. */
     public boolean canViewRestricted(long objectTypeId) {
         ObjectTypeScope scope = scopes.get(objectTypeId);
-        return scope != null && scope.visible() && scope.canViewRestricted();
+        return purpose != DataPurpose.MODEL
+                && scope != null
+                && scope.visible()
+                && scope.canViewRestricted();
+    }
+
+    /** 이 범위를 만든 용도. */
+    public DataPurpose purpose() {
+        return purpose;
+    }
+
+    /** 볼 수 있는 유형 중 민감 값을 가려야 하는 유형 ID. 객체 SQL이 표시 이름·원천 키를 가릴 때 쓴다. */
+    public Set<Long> maskedObjectTypeIds() {
+        return scopes.values().stream()
+                .filter(ObjectTypeScope::visible)
+                .map(ObjectTypeScope::objectTypeId)
+                .filter(id -> !canViewRestricted(id))
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    /**
+     * 객체 값을 읽어도 되는 범위인지 확인한다. 정의 조회 용도({@link DataPurpose#DEFINITIONS})는 모든 유형과 민감 속성의 정의를 보므로, 그
+     * 범위로 객체 값을 읽으면 민감 값이 가려지지 않는다. 그래서 막는다.
+     *
+     * @throws IllegalStateException 정의 조회 용도이면
+     */
+    public void requireObjectValues() {
+        if (purpose == DataPurpose.DEFINITIONS) {
+            throw new IllegalStateException("정의 조회 용도의 범위로는 객체 값을 읽을 수 없습니다.");
+        }
     }
 
     /** 볼 수 없는 유형의 객체는 없는 객체처럼 404로 거절한다. 객체가 있다는 사실도 알리지 않는다. */

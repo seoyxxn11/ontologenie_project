@@ -128,7 +128,7 @@ class ModelSummaryServiceTests {
 
     @Test
     void internalServiceSeesEveryDefinitionAndOnlyActiveRevisions() {
-        ModelSummaryResponse summary = service.summarize(policy.internalService());
+        ModelSummaryResponse summary = service.summarize(policy.forDefinitions());
 
         assertThat(typeIds(summary)).contains(equipment, workOrder, hidden);
         assertThat(propertyIds(summary))
