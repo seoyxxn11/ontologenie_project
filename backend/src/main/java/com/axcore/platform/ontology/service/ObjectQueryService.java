@@ -7,6 +7,7 @@ import com.axcore.platform.auth.service.MaskedProperties;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
 import com.axcore.platform.global.security.LoginAccount;
+import com.axcore.platform.ontology.domain.LinkType;
 import com.axcore.platform.ontology.domain.PropertyDataType;
 import com.axcore.platform.ontology.dto.ObjectDetailResponse;
 import com.axcore.platform.ontology.dto.ObjectLinkEvidenceResponse;
@@ -14,9 +15,12 @@ import com.axcore.platform.ontology.dto.ObjectLinkGroupResponse;
 import com.axcore.platform.ontology.dto.ObjectLinkResponse;
 import com.axcore.platform.ontology.dto.ObjectLinkSearchRequest;
 import com.axcore.platform.ontology.dto.ObjectLinkSearchRequest.Direction;
+import com.axcore.platform.ontology.dto.ObjectSearchAroundRequest;
+import com.axcore.platform.ontology.dto.ObjectSearchAroundResult;
 import com.axcore.platform.ontology.dto.ObjectSearchRequest;
 import com.axcore.platform.ontology.dto.ObjectSearchRequest.Status;
 import com.axcore.platform.ontology.dto.ObjectSearchResponse;
+import com.axcore.platform.ontology.repository.LinkTypeRepository;
 import com.axcore.platform.ontology.repository.ObjectQueryRepository;
 import com.axcore.platform.ontology.repository.ObjectQueryRepository.DetailRow;
 import com.axcore.platform.ontology.repository.ObjectQueryRepository.ObjectRow;
@@ -26,6 +30,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -46,8 +51,12 @@ public class ObjectQueryService
     /** 공백만 다른 저장 값은 하나인지만 알면 된다. 같은 값이 섞여 있어도 판단할 수 있게 넉넉히 읽는다. */
     private static final int MAX_SPACING_VARIANTS = 10;
 
+    /** Search Around(379)의 기준 객체 수와 결과 건수 상한. Agent가 한 번에 다룰 객체 집합의 크기다. */
+    static final int SEARCH_AROUND_LIMIT = 5000;
+
     private final DataAccessPolicy dataAccessPolicy;
     private final ObjectQueryRepository objects;
+    private final LinkTypeRepository linkTypes;
     private final ObjectSearchFilterValidator filterValidator;
 
     // 권한, 목록, 전체 건수를 같은 스냅샷에서 읽는다.
@@ -207,6 +216,167 @@ public class ObjectQueryService
             throw notFound(objectId);
         }
         return objects.linkGroups(objectId, visibleTypeIds);
+    }
+
+    // 기준 객체 확인, 조건 검증, 한 홉 조회를 같은 스냅샷에서 한다.
+    @Override
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public ObjectSearchAroundResult searchAround(
+            LoginAccount actor, ObjectSearchAroundRequest request) {
+        List<Long> baseIds = baseObjectIds(request.objectIds());
+        if (request.linkTypeId() == null || request.linkTypeId() < 1) {
+            throw BusinessException.invalidField("linkTypeId", "관계 유형 ID를 1 이상으로 지정해 주세요.");
+        }
+        DataAccess access = dataAccessPolicy.of(actor);
+        LinkType linkType =
+                linkTypes
+                        .findById(request.linkTypeId())
+                        .filter(
+                                type ->
+                                        access.canView(type.getSourceTypeId())
+                                                && access.canView(type.getTargetTypeId()))
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                CommonErrorCode.RESOURCE_NOT_FOUND,
+                                                Map.of(
+                                                        "resource",
+                                                        "link_type",
+                                                        "id",
+                                                        request.linkTypeId())));
+        boolean sameEnds = linkType.getSourceTypeId().equals(linkType.getTargetTypeId());
+        if (request.direction() == Direction.BOTH && !sameEnds) {
+            throw BusinessException.invalidField(
+                    "direction", "출발·도착 유형이 다른 관계 유형은 OUT 또는 IN을 지정해 주세요.");
+        }
+
+        Map<Long, Long> baseTypes =
+                objects.findActiveObjectTypes(baseIds, access.visibleObjectTypeIds());
+        for (long id : baseIds) {
+            if (!baseTypes.containsKey(id)) {
+                throw notFound(id);
+            }
+        }
+        long firstId = baseIds.getFirst();
+        boolean inferred = request.direction() == null;
+        Direction direction =
+                inferred
+                        ? inferDirection(linkType, sameEnds, firstId, baseTypes.get(firstId))
+                        : request.direction();
+        long baseTypeId =
+                direction == Direction.IN ? linkType.getTargetTypeId() : linkType.getSourceTypeId();
+        long relatedTypeId =
+                direction == Direction.IN ? linkType.getSourceTypeId() : linkType.getTargetTypeId();
+        for (long id : baseIds) {
+            if (baseTypes.get(id) != baseTypeId) {
+                throw baseTypeMismatch(linkType, direction, inferred, firstId, id);
+            }
+        }
+
+        SearchFilters filters =
+                filterValidator.validate(
+                        relatedTypeId,
+                        request.propertyValues(),
+                        request.dateProperty(),
+                        request.from(),
+                        request.to(),
+                        access);
+        if (!filters.values().isEmpty()) {
+            filters = matchStoredSpacing(filters, relatedTypeId, Status.ACTIVE);
+        }
+        List<Long> related =
+                objects.searchAround(
+                        baseIds,
+                        linkType.getId(),
+                        direction,
+                        relatedTypeId,
+                        filters,
+                        SEARCH_AROUND_LIMIT + 1);
+        if (related.size() > SEARCH_AROUND_LIMIT) {
+            throw new BusinessException(
+                    CommonErrorCode.BUSINESS_RULE_VIOLATION,
+                    "연결된 객체가 " + SEARCH_AROUND_LIMIT + "건을 넘습니다. 상대 객체의 속성이나 기간 조건을 더해 범위를 줄여 주세요.",
+                    Map.of("limit", SEARCH_AROUND_LIMIT));
+        }
+        return ObjectSearchAroundResult.of(direction, relatedTypeId, related);
+    }
+
+    /**
+     * 방향을 생략하면 기준 객체 유형이 관계 유형의 어느 끝인지로 정한다. AI가 방향을 잘못 고르거나 빠뜨려 다시 호출하는 일을 줄이기 위해서다. 양 끝 유형이 같으면
+     * 어느 쪽인지 정할 수 없어 BOTH로 본다. 첫 기준 객체로 정하고, 다른 기준 객체가 맞지 않으면 호출자의 유형 검사가 거절한다.
+     */
+    private static Direction inferDirection(
+            LinkType linkType, boolean sameEnds, long baseId, long baseTypeId) {
+        if (sameEnds) {
+            return Direction.BOTH;
+        }
+        if (baseTypeId == linkType.getSourceTypeId()) {
+            return Direction.OUT;
+        }
+        if (baseTypeId == linkType.getTargetTypeId()) {
+            return Direction.IN;
+        }
+        throw BusinessException.invalidField(
+                "objectIds",
+                "기준 객체 #"
+                        + baseId
+                        + "의 유형이 관계 유형의 어느 끝과도 맞지 않습니다. 관계 유형을 확인해 주세요. "
+                        + linkEnds(linkType));
+    }
+
+    /**
+     * Agent가 오류만 보고 무엇을 고칠지 알 수 있게 원인별로 문구를 나눈다. 방향을 추론했다면 방향이 아니라 기준 객체 유형이 섞인 것이 원인이다. 관계 유형의 양
+     * 끝은 이미 볼 수 있는 유형으로 확인했으므로 유형 ID를 알려도 된다.
+     */
+    private static BusinessException baseTypeMismatch(
+            LinkType linkType, Direction direction, boolean inferred, long firstId, long id) {
+        String reason;
+        if (inferred && id != firstId) {
+            reason =
+                    "기준 객체의 유형이 섞여 있습니다. 기준 객체 #"
+                            + firstId
+                            + "와 #"
+                            + id
+                            + "의 유형이 다릅니다. 한 유형의 객체만 지정해 주세요.";
+        } else if (direction == Direction.BOTH) {
+            reason = "기준 객체 #" + id + "의 유형이 관계 유형의 끝 유형과 다릅니다. 관계 유형을 확인해 주세요.";
+        } else {
+            reason =
+                    "기준 객체 #"
+                            + id
+                            + "의 유형이 관계 유형의 "
+                            + (direction == Direction.IN ? "도착" : "출발")
+                            + " 유형과 다릅니다. 방향을 생략하거나 관계 유형을 확인해 주세요.";
+        }
+        return BusinessException.invalidField("objectIds", reason + " " + linkEnds(linkType));
+    }
+
+    private static String linkEnds(LinkType linkType) {
+        return "(관계 유형 #"
+                + linkType.getId()
+                + ": 출발 유형 #"
+                + linkType.getSourceTypeId()
+                + ", 도착 유형 #"
+                + linkType.getTargetTypeId()
+                + ")";
+    }
+
+    private static List<Long> baseObjectIds(List<Long> objectIds) {
+        if (objectIds.isEmpty()) {
+            throw BusinessException.invalidField("objectIds", "기준 객체 ID를 1개 이상 지정해 주세요.");
+        }
+        Set<Long> distinct = new LinkedHashSet<>();
+        for (Long id : objectIds) {
+            if (id == null || id < 1) {
+                throw BusinessException.invalidField("objectIds", "객체 ID는 1 이상이어야 합니다.");
+            }
+            distinct.add(id);
+        }
+        if (distinct.size() > SEARCH_AROUND_LIMIT) {
+            throw BusinessException.invalidField(
+                    "objectIds", "기준 객체는 " + SEARCH_AROUND_LIMIT + "개까지 지정할 수 있습니다.");
+        }
+        return List.copyOf(distinct);
     }
 
     @Override

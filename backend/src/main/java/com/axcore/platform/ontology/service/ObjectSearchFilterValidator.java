@@ -39,39 +39,56 @@ public class ObjectSearchFilterValidator {
         if (!request.hasFilters()) {
             return new SearchFilters(List.of(), null);
         }
-        long typeId = request.objectTypeId();
+        return validate(
+                request.objectTypeId(),
+                request.propertyValues(),
+                request.dateProperty(),
+                request.from(),
+                request.to(),
+                access);
+    }
+
+    /**
+     * typeId 유형의 속성 조건을 076과 같은 규칙으로 검증한다. Search Around(379)는 상대 유형을 관계 유형의 끝에서 정해 이 메서드를 부른다.
+     * 호출자가 typeId를 볼 수 있는지 먼저 확인해야 한다. 확인하지 않으면 숨긴 유형의 속성 구성이 오류 차이로 드러나므로, 그 확인을 하는 같은 패키지의 조회
+     * 서비스만 부르게 공개 범위를 좁힌다. 조건이 없으면 빈 조건을 돌려준다.
+     */
+    SearchFilters validate(
+            long typeId,
+            Map<String, String> propertyValues,
+            String dateProperty,
+            String from,
+            String to,
+            DataAccess access) {
+        if (propertyValues.isEmpty() && dateProperty == null && from == null && to == null) {
+            return new SearchFilters(List.of(), null);
+        }
         List<PropertyDefinition> defined = properties.findByObjectTypeIdOrderById(typeId);
         Map<String, PropertyDefinition> definitions =
                 defined.stream()
                         .collect(
                                 Collectors.toMap(PropertyDefinition::getCode, Function.identity()));
         var values = new ArrayList<PropertyFilter>();
-        request.propertyValues()
-                .forEach(
-                        (code, value) -> {
-                            String field = "propertyValues[" + code + "]";
-                            PropertyDefinition property =
-                                    requireProperty(
-                                            definitions,
-                                            code,
-                                            typeId,
-                                            access,
-                                            field,
-                                            UNKNOWN_PROPERTY);
-                            values.add(
-                                    new PropertyFilter(
-                                            code,
-                                            property.getDataType(),
-                                            normalize(property.getDataType(), value, field)));
-                        });
+        propertyValues.forEach(
+                (code, value) -> {
+                    String field = "propertyValues[" + code + "]";
+                    PropertyDefinition property =
+                            requireProperty(
+                                    definitions, code, typeId, access, field, UNKNOWN_PROPERTY);
+                    values.add(
+                            new PropertyFilter(
+                                    code,
+                                    property.getDataType(),
+                                    normalize(property.getDataType(), value, field)));
+                });
 
         PeriodFilter period = null;
-        if (request.dateProperty() != null || request.from() != null || request.to() != null) {
+        if (dateProperty != null || from != null || to != null) {
             String hint = periodPropertiesHint(defined, typeId, access);
             PropertyDefinition property =
                     requireProperty(
                             definitions,
-                            request.dateProperty(),
+                            dateProperty,
                             typeId,
                             access,
                             "dateProperty",
@@ -81,15 +98,15 @@ public class ObjectSearchFilterValidator {
                 throw BusinessException.invalidField(
                         "dateProperty", "DATE 또는 DATETIME 속성만 기간으로 검색할 수 있습니다." + hint);
             }
-            if (request.from() == null && request.to() == null) {
+            if (from == null && to == null) {
                 throw BusinessException.invalidField("from", "기간의 시작 또는 끝을 지정해 주세요.");
             }
-            String from = request.from() == null ? null : normalize(type, request.from(), "from");
-            String to = request.to() == null ? null : normalize(type, request.to(), "to");
-            if (from != null && to != null && after(type, from, to)) {
+            String start = from == null ? null : normalize(type, from, "from");
+            String end = to == null ? null : normalize(type, to, "to");
+            if (start != null && end != null && after(type, start, end)) {
                 throw BusinessException.invalidField("to", "기간의 끝은 시작보다 빠를 수 없습니다.");
             }
-            period = new PeriodFilter(property.getCode(), type, from, to);
+            period = new PeriodFilter(property.getCode(), type, start, end);
         }
         return new SearchFilters(List.copyOf(values), period);
     }
