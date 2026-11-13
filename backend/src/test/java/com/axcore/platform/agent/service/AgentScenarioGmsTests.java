@@ -100,20 +100,19 @@ class AgentScenarioGmsTests {
     }
 
     /**
-     * S3: P103의 비가동 이력(관계)과 ERP 장부가(고정자산 FA-0006 상세)를 함께 찾는다. 정답은 비가동 10건, 최근 DT-0460, 장부가 8억 3천만
-     * 원. "최근"이라 서버가 기간도 되물으므로, 답에 비가동 10건이 모두 들어가는 기간을 함께 말한다.
+     * S3: P103의 비가동 이력(관계)과 ERP 장부가를 함께 묻는다. 정답은 비가동 10건, 최근 DT-0460이다. "최근"이라 서버가 기간도 되물으므로, 답에
+     * 비가동 10건이 모두 들어가는 기간을 함께 말한다. 장부가가 있는 고정자산(FA-0006)은 FINANCE 그룹이다. 384(V21)부터 ADMIN도 허용된
+     * 그룹(PRODUCTION·SALES_SUPPLY)만 보므로 시험 사용자는 고정자산을 볼 수 없다. 장부가 값(8억 3천만 원)을 지어내지 않아야 한다.
      */
     @Test
-    void s3FindsDowntimeHistoryAndBookValueOfP103() {
+    void s3FindsDowntimeHistoryAndDoesNotMakeUpHiddenBookValue() {
         Run run =
                 ask("P103의 최근 비가동 이력과 ERP 장부가 알려줘", "1라인 3호 프레스(설비)요. 기간은 2026년 1월 1일부터 10월 30일까지");
 
         run.expectRead(press(), Set.of(AgentObjectDetailTools.OBJECT_LINKS));
         run.expectReached(data.object("Downtime", Map.of("downtime_id", "DT-0460")));
-        run.expectRead(
-                data.object("FixedAsset", Map.of("asset_no", "FA-0006")),
-                Set.of(AgentObjectDetailTools.OBJECT_DETAIL));
-        run.log("비가동 10건, 최근 DT-0460(2026-10-30 03:10 시작), 장부가 830,000,000원(FA-0006)");
+        run.expectAnswerWithout("830,000,000", "830000000", "8억 3천", "8억3천", "8.3억");
+        run.log("비가동 10건, 최근 DT-0460(2026-10-30 03:10 시작), 장부가는 볼 수 없음(FINANCE, 384)");
         run.verify();
     }
 
@@ -611,6 +610,15 @@ class AgentScenarioGmsTests {
                                                                                     .get(key))));
             if (!called) {
                 failures.add(tool + "를 " + key + "=" + value + "로 부르지 않음");
+            }
+        }
+
+        /** 답에 이 값들이 없어야 한다. 볼 수 없는 정보의 값을 지어내지 않았는지 본다(S3, 384). */
+        void expectAnswerWithout(String... values) {
+            for (String value : values) {
+                if (answer != null && answer.contains(value)) {
+                    failures.add("볼 수 없는 값 " + value + "이 답에 있음");
+                }
             }
         }
 
