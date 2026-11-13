@@ -192,7 +192,7 @@ def looks_like_name(value: str) -> bool:
 # 사람을 적는 칸(담당·작성·검사자 등). 이런 칸에 든 이름 모양 값만 가린다. 상태('진행')·지역('서울')·상호는 안 가린다
 PERSON_COLUMN = re.compile(
     r"담당|작성|검사자|검수자|기사|처리자|요청자|승인자|작업자명|"
-    r"technician|inspector|manager|owner|staff|assignee|handler|writer|_rep|buyer",
+    r"technician|inspector|manager|owner|staff|assignee|handler|writer|_rep|buyer|contact",
     re.IGNORECASE,
 )
 

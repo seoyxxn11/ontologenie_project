@@ -14,13 +14,6 @@
     "detail": "직원 표에 GP0057 없음"
   },
   {
-    "check_id": "K3",
-    "kind": "key_link",
-    "title": "ERP 고정자산 FA-0003 → MES 설비 P101",
-    "verdict": "통과",
-    "detail": "equipment_code = P101"
-  },
-  {
     "check_id": "K4",
     "kind": "key_link",
     "title": "MES 금형 MD-990T-01의 제품 BRK-990T → ERP 품목",

@@ -30,6 +30,7 @@ from app.models.candidate import (
 )
 from app.models.source import ColumnRef, TableSchema
 from app.proposers import confidence as score
+from app.source_policy import is_restricted
 from app.sources.csv_reader import CsvSourceReader
 
 TIME_TYPES = ("date", "timestamp", "datetime", "time")
@@ -203,9 +204,10 @@ def type_codes(table_keys: Iterable[str]) -> dict[str, str]:
 def is_personal_column(
     stats: ColumnAnalysis, name: str, comment: str | None, values: list
 ) -> bool:
-    """개인정보 컬럼. 이름·주석, 값이 사람 이름 모양, 담당·검사자처럼 사람을 적는 칸에 이름이 섞인 경우."""
+    """개인정보 컬럼. 이름·주석, 원천 정책의 민감 컬럼, 값이 사람 이름 모양, 담당·검사자처럼 사람을 적는 칸에 이름이 섞인 경우."""
     return (
         stats.is_personal
+        or is_restricted(stats.ref)
         or looks_like_person_names(values)
         or (
             is_person_column(f"{name} {comment or ''}")
@@ -524,6 +526,8 @@ def _table_candidates(
         why_personal = (
             "이름·주석이 개인정보를 가리킴"
             if stats.is_personal
+            else "원천 정책의 민감 컬럼"
+            if is_restricted(stats.ref)
             else "값이 사람 이름 모양"
             if personal
             else ""

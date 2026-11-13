@@ -59,24 +59,6 @@
     }
   },
   {
-    "rule_id": "R-ASSET",
-    "rule_type": "mapping_column",
-    "from": "erp.fixed_asset.equipment_code",
-    "to": "mes.equipment.code",
-    "description": "자산 표의 설비 코드 칸을 그대로 비교함",
-    "examples": [
-      {
-        "from": "P103",
-        "to": "P103"
-      }
-    ],
-    "notes": "설비가 아닌 자산은 빈 값이 정상. P201 자산은 오타 P2O1",
-    "reference_transforms": {
-      "source_transforms": [],
-      "target_transforms": []
-    }
-  },
-  {
     "rule_id": "R-ITEM",
     "rule_type": "same_value",
     "from": "mes.*.product_code",

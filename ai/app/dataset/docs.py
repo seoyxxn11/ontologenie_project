@@ -118,7 +118,7 @@ def gold_readme(
         f"| `ontology.json` | 객체 유형 {len(types)} · 속성 {len(props)} · 관계 {len(links)} |",
         f"| `mapping_rules.json` | ERP·MES 식별자 연결 규칙 {len(rules)} |",
         "| `id_links.json` | 연결 규칙의 값 단위 정답 (연결·미연결·결측·모호) |",
-        "| `integrity_checks.json` | 정합성 검사 9건의 기대 판정 |",
+        "| `integrity_checks.json` | 정합성 검사 8건의 기대 판정 (고정자산 K3는 금지 표라 뺌) |",
         "| `integrity_issues.json` | 문제가 있는 값 목록 (미연결·제약 위반) |",
         "| `scenario_answers.json` | 시나리오·페르소나 질문의 기대 답 |",
         "| `note_annotations.json` | 메모·정비 기록의 개체·관계와 원문 위치 |",

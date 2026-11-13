@@ -6,10 +6,10 @@
 
 | 파일 | 내용 |
 | --- | --- |
-| `ontology.json` | 객체 유형 31 · 속성 235 · 관계 60 |
-| `mapping_rules.json` | ERP·MES 식별자 연결 규칙 6 |
+| `ontology.json` | 객체 유형 29 · 속성 214 · 관계 58 |
+| `mapping_rules.json` | ERP·MES 식별자 연결 규칙 5 |
 | `id_links.json` | 연결 규칙의 값 단위 정답 (연결·미연결·결측·모호) |
-| `integrity_checks.json` | 정합성 검사 9건의 기대 판정 |
+| `integrity_checks.json` | 정합성 검사 8건의 기대 판정 (고정자산 K3는 금지 표라 뺌) |
 | `integrity_issues.json` | 문제가 있는 값 목록 (미연결·제약 위반) |
 | `scenario_answers.json` | 시나리오·페르소나 질문의 기대 답 |
 | `note_annotations.json` | 메모·정비 기록의 개체·관계와 원문 위치 |
@@ -38,8 +38,6 @@
 | JournalEntry | 분개 | 문서 상세 줄 | `erp.journal_entry` | entry_no, line_no |
 | Employee | 직원 | 기준 정보 | `erp.employee` | emp_no |
 | Department | 부서 | 기준 정보 | `erp.department` | dept_code |
-| Attendance | 근태 | 발생 기록 | `erp.attendance` | emp_no, work_date |
-| FixedAsset | 고정자산 | 기준 정보 | `erp.fixed_asset` | asset_no |
 | Equipment | 설비 | 기준 정보 | `mes.equipment` | code |
 | Worker | 현장 작업자 | 기준 정보 | `mes.worker` | id |
 | Routing | 제품별 공정 | 기준 정보 | `mes.routing` | product_code, op_seq |
@@ -58,7 +56,7 @@
 ## 속성
 
 모든 컬럼이 속성입니다(관계 조건은 속성끼리 비교). 식별자는 기본키, 참조는 관계의 출발 컬럼입니다.
-필수 여부는 기본키만 정답으로 두었습니다(나머지는 채점하지 않음). 개인정보 컬럼: `erp.vendor.contact_name`, `erp.employee.emp_name`, `mes.worker.name`, `mes.maintenance_order.technician`
+필수 여부는 기본키만 정답으로 두었습니다(나머지는 채점하지 않음). 개인정보 컬럼: `erp.vendor.contact_name`, `mes.worker.skill_level`, `mes.maintenance_order.technician`
 
 ## 관계
 
@@ -87,8 +85,6 @@
 | `erp.employee.dept_code` → `erp.department.dept_code` | 기본키 | MANY_TO_ONE |  |  |
 | `erp.department.parent_code` → `erp.department.dept_code` | 기본키 | MANY_TO_ONE |  |  |
 | `erp.department.manager_emp_no` → `erp.employee.emp_no` | 기본키 | ONE_TO_ONE |  |  |
-| `erp.attendance.emp_no` → `erp.employee.emp_no` | 기본키 | MANY_TO_ONE |  |  |
-| `erp.fixed_asset.equipment_code` → `mes.equipment.code` | 기본키 | ONE_TO_ONE | R-ASSET |  |
 | `mes.worker.id` → `erp.employee.emp_no` | 기본키 | ONE_TO_ONE | R-W |  |
 | `mes.routing.product_code` → `erp.item.item_code` | 기본키 | MANY_TO_ONE | R-ITEM |  |
 | `mes.routing.equipment_kind` → `mes.equipment.kind` | 키 아님 | MANY_TO_MANY |  | 특정 설비가 아니라 설비 종류를 가리킴 |
@@ -140,7 +136,6 @@
 | --- | --- | --- |
 | R-SO | `mes.work_order.so_ref` → `erp.sales_order.so_no` | 양쪽에서 숫자만 남겨 비교함. 2610021 = OD-2610-021 |
 | R-W | `mes.worker.id` → `erp.employee.emp_no` | 번호를 4자리로 0 채우고 앞에 GP를 붙임 |
-| R-ASSET | `erp.fixed_asset.equipment_code` → `mes.equipment.code` | 자산 표의 설비 코드 칸을 그대로 비교함 |
 | R-ITEM | `mes.*.product_code` → `erp.item.item_code` | 제품·자재 코드를 그대로 비교함 |
 | R-LOT | `erp.shipment.lot_no` → `mes.inspection.lot_no` | 출하 로트와 최종 검사 로트를 그대로 비교함 |
 | R-ALIAS | `mes.handover_note.content` → `mes.equipment.code` | 설비 이름·'L라인 N호'·'L-N호'·코드 표기를 설비 코드로 연결함 |
@@ -152,7 +147,6 @@
 | P103이 멈춰서 납기가 위험한 수주는? | JB2610-0141 → OD-2610-021 (납기 2026-11-04). 대체 설비 {'P101': '가능', 'P201': '불가 (300톤 < 400톤)'}. 가공 17.9시간, 교대 반영 완료 2026-10-31 15:34 → 납기 내. 연결 작업지시 JB2610-0145가 대기(계획 시작 2026-11-02) — 납기 2026-10-31 위험 |
 | JB2610-0141 남은 수량을 P101에서 찍으면 몇 시간? | 3,200개 × 11.5초 = 10.2시간 (준비 70분 포함 11.4시간) |
 | P103 진동이 언제부터 상한을 넘었어? | 2026-10-28 09:00:00 (4.90 > 4.50) |
-| P103 수리비가 장부가 대비 얼마야? | RP-26-041 부품비 1,650,000원 / 장부가(FA-0006) 830,000,000원 = 0.20% |
 | LT261025-2 로트 검사 결과는? | 최종 검사 기록 없음 — 연결된 검사 행 없음('데이터 없음'으로 안내) |
 | 수주 참조 규칙 적용 시 연결률은? | 134 / 136 = 98.5% (빈 값 3건 제외) |
 
@@ -160,7 +154,6 @@
 
 | 사례 | 내용 | 위치 |
 | --- | --- | --- |
-| M-ASSET-TYPO | 자산의 설비 코드 오타 P2O1 (실제 P201) | FA-0001 |
 | D1 | 작업지시 수주 참조(so_ref) — ERP 수주 번호와 표기가 다름 (2610021 ↔ OD-2610-021) | JB2610-0141, JB2610-0138, JB2610-0145 |
 | D2 | 공정별 배정: JB2610-0141의 성형·트리밍 = P103 | JB2610-0141 |
 | D3 | P103 고장(비가동 진행 중)·정비 진행, 진동이 10/28부터 상한 초과 | DT-0460, RP-26-041 |

@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
 
-from app.dataset import schema
 from app.dataset.build import generate
+from app.dataset.gold import allowed_relations
 from app.dataset.stress import build, evaluate
 
 
@@ -19,4 +19,4 @@ def test_stress_set_keeps_gold_apart_and_adds_decoys(tmp_path):
     assert header.endswith("shift_seq")
     assert not (sample / "expected.json").exists()
     report = evaluate(sample, expected)
-    assert report["must_total"] == len(schema.RELATIONS)
+    assert report["must_total"] == len(allowed_relations())

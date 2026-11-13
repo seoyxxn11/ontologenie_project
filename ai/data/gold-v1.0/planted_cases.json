@@ -1,14 +1,5 @@
 [
   {
-    "case_id": "M-ASSET-TYPO",
-    "description": "자산의 설비 코드 오타 P2O1 (실제 P201)",
-    "location": "erp.fixed_asset.equipment_code",
-    "rows": [
-      "FA-0001"
-    ],
-    "values": null
-  },
-  {
     "case_id": "D1",
     "description": "작업지시 수주 참조(so_ref) — ERP 수주 번호와 표기가 다름 (2610021 ↔ OD-2610-021)",
     "location": "시나리오 4",
@@ -134,15 +125,6 @@
     "location": "K2_worker",
     "rows": [
       "57"
-    ],
-    "values": null
-  },
-  {
-    "case_id": "CASE-K3_asset",
-    "description": "정합성 검사 대상",
-    "location": "K3_asset",
-    "rows": [
-      "FA-0003"
     ],
     "values": null
   },

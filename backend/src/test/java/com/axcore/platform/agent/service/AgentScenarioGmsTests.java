@@ -101,8 +101,8 @@ class AgentScenarioGmsTests {
 
     /**
      * S3: P103의 비가동 이력(관계)과 ERP 장부가를 함께 묻는다. 정답은 비가동 10건, 최근 DT-0460이다. "최근"이라 서버가 기간도 되물으므로, 답에
-     * 비가동 10건이 모두 들어가는 기간을 함께 말한다. 장부가가 있는 고정자산(FA-0006)은 FINANCE 그룹이다. 384(V21)부터 ADMIN도 허용된
-     * 그룹(PRODUCTION·SALES_SUPPLY)만 보므로 시험 사용자는 고정자산을 볼 수 없다. 장부가 값(8억 3천만 원)을 지어내지 않아야 한다.
+     * 비가동 10건이 모두 들어가는 기간을 함께 말한다. 장부가가 있는 고정자산은 원천 정책의 금지 표라 시험 데이터에 없다(406). 없는 장부가 값(원천의 8억 3천만
+     * 원)을 지어내지 않아야 한다.
      */
     @Test
     void s3FindsDowntimeHistoryAndDoesNotMakeUpHiddenBookValue() {
@@ -112,7 +112,7 @@ class AgentScenarioGmsTests {
         run.expectRead(press(), Set.of(AgentObjectDetailTools.OBJECT_LINKS));
         run.expectReached(data.object("Downtime", Map.of("downtime_id", "DT-0460")));
         run.expectAnswerWithout("830,000,000", "830000000", "8억 3천", "8억3천", "8.3억");
-        run.log("비가동 10건, 최근 DT-0460(2026-10-30 03:10 시작), 장부가는 볼 수 없음(FINANCE, 384)");
+        run.log("비가동 10건, 최근 DT-0460(2026-10-30 03:10 시작), 장부가는 데이터에 없음(고정자산은 금지 표, 406)");
         run.verify();
     }
 

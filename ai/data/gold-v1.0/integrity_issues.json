@@ -98,15 +98,5 @@
     "rule": "R-SO",
     "reason": "ERP 수주에 OD-2609-970 없음",
     "planted_id": "S-MISSING"
-  },
-  {
-    "issue_id": "G-I11",
-    "kind": "unlinked",
-    "column": "erp.fixed_asset.equipment_code",
-    "row_key": "FA-0001",
-    "raw_value": "P2O1",
-    "rule": "R-ASSET",
-    "reason": "설비 코드에 P2O1이 없음 (오타)",
-    "planted_id": "M-ASSET-TYPO"
   }
 ]
