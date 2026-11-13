@@ -404,6 +404,40 @@ class SourceApiTests extends SourceApiTestSupport {
                 .isZero();
     }
 
+    /**
+     * 385: 아직 소비하지 않은 원천이라도 CDC 테이블이 있으면 접속 정보를 바꿀 때 소비 상태 행을 원천 교체로 만든다. 토픽에 쌓인 옛 DB 이벤트를 새 DB 스냅샷
+     * 위에 반영하지 않도록, 재연결 전까지 첫 적재·반영을 멈춘다. 재연결하면 다른 원천과 같이 다시 읽는다.
+     */
+    @Test
+    void configChangeStopsCdcOfSourceNotConsumedYet() throws Exception {
+        LoginSession admin = loginAs("ADMIN");
+        String code = uniqueCode();
+        long id = createPostgresSource(admin, code);
+        long table = cdcTable(id, 7L);
+
+        send(
+                        admin,
+                        patch(BASE_PATH + "/" + id),
+                        """
+                        {"connectionConfig": {"host": "10.0.0.9", "port": 15432, "database": "erp"},
+                         "rowVersion": 0}
+                        """)
+                .andExpect(status().isOk());
+
+        Map<String, Object> state = recovery(code + ".all");
+        assertThat(state.get("recovery_reason")).isEqualTo("SOURCE_CHANGED");
+        assertThat(state.get("recovery_at")).isNotNull();
+        assertThat(state.get("healthy_since")).isNull();
+        assertThat(loadedLsn(table)).isEqualTo(7L);
+
+        send(admin, post(BASE_PATH + "/" + id + "/cdc/reconnected"), null)
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.data.recoveryReason").value("SLOT_LOST"))
+                .andExpect(jsonPath("$.data.reloadTables").value(1));
+        assertThat(recovery(code + ".all").get("recovery_reason")).isEqualTo("SLOT_LOST");
+        assertThat(loadedLsn(table)).isNull();
+    }
+
     /** 199: 원천 교체 뒤 커넥터를 맞췄다고 알리면 슬롯 재생성 복구로 바꾸고 CDC 테이블을 모두 다시 읽기 대상으로 표시한다. 교체 중이 아니면 거절한다. */
     @Test
     void reconnectAfterSourceChangeRequestsReload() throws Exception {

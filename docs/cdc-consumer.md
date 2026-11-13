@@ -182,7 +182,7 @@ Debezium이 원천마다 토픽 하나(`{data_source.code}.all`)에 보낸 변�
 
 | 언제 | 하는 일 |
 |---|---|
-| API 012에서 host·port·database가 실제로 바뀜 | 소비 중인 원천(`cdc_offset` 행 있음)이면 `recovery_reason = SOURCE_CHANGED`, `recovery_at = now()`, `healthy_since = NULL`. `loaded_lsn`은 그대로(커넥터가 아직 옛 DB를 본다). 감시 작업도 이 원천은 건너뛴다. 이름·계정만 바뀌면 안 한다 |
+| API 012에서 host·port·database가 실제로 바뀜 | 소비 중인 원천(`cdc_offset` 행 있음)이면 `recovery_reason = SOURCE_CHANGED`, `recovery_at = now()`, `healthy_since = NULL`. `loaded_lsn`은 그대로(커넥터가 아직 옛 DB를 본다). 감시 작업도 이 원천은 건너뛴다. 아직 소비하지 않은 원천이라도 CDC 테이블이 하나라도 있으면 `{data_source.code}.all` 0번 파티션 행을 `SOURCE_CHANGED`로 새로 만든다(385). 토픽에 쌓인 옛 DB 이벤트를 새 DB 스냅샷 위에 반영하지 않기 위해서다. CDC 테이블이 없으면 만들지 않는다. 이름·계정만 바뀌면 안 한다 |
 | 관리자가 커넥터를 새 DB에 맞춘 뒤 `POST /api/v1/sources/{id}/cdc/reconnected` | `SOURCE_CHANGED`일 때만 받는다(아니면 409). `SLOT_LOST`로 바꾸고 `recovery_at = now()`, 그 원천 CDC 테이블을 모두 `loaded_lsn = NULL`. 이후는 위 흐름 2~4와 같다 |
 
 ### 시험
@@ -193,5 +193,6 @@ Debezium이 원천마다 토픽 하나(`{data_source.code}.all`)에 보낸 변�
   - `sourceChangeIsNotReleasedByReload`: 원천 교체는 다시 읽어도 안 풀림
 - `CdcConsumerLoopTests.resumesFromFirstBeginAfterResumeTimeWhenRecoveryIsReleased`: 깨진 메시지로 복구 → 풀리면 기준 시각 뒤로 가서 앞 트랜잭션의 END·heartbeat를 건너뛰고 첫 BEGIN(758)부터 반영, 위치 20, `resume_after` 비움, `last_txid` 758
 - `SourceApiTests`
-  - `configChangeStopsCdcOfConsumedSourceWithoutReload`: 012에서 접속 설정이 바뀌면 `SOURCE_CHANGED`, `loaded_lsn` 그대로, 이름만 바꾸거나 소비 전 원천은 그대로
+  - `configChangeStopsCdcOfConsumedSourceWithoutReload`: 012에서 접속 설정이 바뀌면 `SOURCE_CHANGED`, `loaded_lsn` 그대로, 이름만 바꾸거나 CDC 테이블 없는 소비 전 원천은 그대로
+  - `configChangeStopsCdcOfSourceNotConsumedYet`: 소비 전 원천도 CDC 테이블이 있으면 `SOURCE_CHANGED` 행이 생기고 `loaded_lsn` 그대로, 재연결하면 `SLOT_LOST`·`loaded_lsn` 비움
   - `reconnectAfterSourceChangeRequestsReload`: 교체 중이 아니면 409, 맞으면 202·`SLOT_LOST`·`loaded_lsn` 비움, ADMIN만
