@@ -144,6 +144,53 @@ test('후보가 여럿인 보류 언급은 미확정으로 두고 후보 대상�
   ).toBeInTheDocument()
 })
 
+test('메모·대상은 번호 대신 이름으로 보여준다', async () => {
+  serve(
+    documentLink({
+      evidence: {
+        ...documentLink().evidence,
+        documentLabel: '10/29 야간 인수인계',
+        targetLabels: {
+          'equipment:P103': '1라인 3호 프레스',
+          'equipment:P203': '2라인 3호 프레스',
+        },
+      },
+    }),
+  )
+  renderDetail()
+
+  const result = await screen.findByRole('region', { name: '정보 추출 결과' })
+  expect(
+    within(result).getByText('원문 · 10/29 야간 인수인계 (HN-0007)'),
+  ).toBeInTheDocument()
+  expect(
+    within(result).getByText('1라인 3호 프레스 (P103)'),
+  ).toBeInTheDocument()
+  expect(within(result).queryByText('equipment:P103')).not.toBeInTheDocument()
+})
+
+test('보류 후보 목록도 대상 이름으로 보여준다', async () => {
+  serve(
+    documentLink({
+      reviewStatus: 'HELD',
+      evidence: {
+        originalText: note,
+        holdRecommended: true,
+        targetLabels: {
+          'equipment:P103': '1라인 3호 프레스',
+          'equipment:P203': '2라인 3호 프레스',
+        },
+      },
+    }),
+    [option(1, 'equipment:P103'), option(2, 'equipment:P203')],
+  )
+  renderDetail()
+
+  const candidates = await screen.findByRole('list', { name: '후보 대상' })
+  expect(candidates).toHaveTextContent('1. 1라인 3호 프레스 (P103)')
+  expect(candidates).toHaveTextContent('2. 2라인 3호 프레스 (P203)')
+})
+
 test('원문이 없으면 없다고 알리고 추출 결과만 보여준다', async () => {
   serve(documentLink({ evidence: {} }))
   renderDetail()

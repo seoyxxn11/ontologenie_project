@@ -18,6 +18,9 @@ export const INTERNAL_EVIDENCE_KEYS = [
   'confidenceCap',
   'method',
   'title',
+  // 문서 연결 화면이 제목·원문 옆에 따로 보인다
+  'documentLabel',
+  'targetLabels',
 ]
 
 export type Row = Record<string, unknown>
