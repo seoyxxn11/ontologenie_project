@@ -1,0 +1,149 @@
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import Button from '../../components/Button'
+import Pagination from '../../components/Pagination'
+import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
+import { fetchObjectLinks, OBJECT_PAGE_SIZE } from './api'
+import { formatCount, formatObjectCode } from './format'
+import type { LinkGroup } from './graphLayout'
+import ObjectCard from './ObjectCard'
+
+type Props = {
+  objectId: number
+  anchorName: string
+  group: LinkGroup
+  selectedId: number | null
+  vanished: boolean
+  onSelect: (id: number) => void
+  onReturn: () => void
+}
+
+export default function RelatedObjectList({ vanished, ...props }: Props) {
+  if (vanished) {
+    return (
+      <section aria-label={`${props.group.relatedTypeName} 연결 목록`}>
+        <ListHeading {...props} total={0} />
+        <EmptyState message="지금은 이 묶음에 연결이 없습니다." />
+      </section>
+    )
+  }
+  return <RelatedObjectPage {...props} />
+}
+
+function ListHeading({
+  anchorName,
+  group,
+  onReturn,
+  total,
+}: Omit<Props, 'vanished'> & { total: number }) {
+  return (
+    <>
+      <div className="explorer-panel-heading">
+        <h2>{group.relatedTypeName}</h2>
+        <span className="explorer-count">{formatCount(total)}건</span>
+      </div>
+      <div className="explorer-related-context">
+        <Button variant="text" onClick={onReturn}>
+          ← 검색 결과
+        </Button>
+        <p>
+          {anchorName} · {group.linkTypeName}
+        </p>
+      </div>
+    </>
+  )
+}
+
+function RelatedObjectPage(props: Omit<Props, 'vanished'>) {
+  const { objectId, group, selectedId, onSelect } = props
+  const [page, setPage] = useState(0)
+  const client = useQueryClient()
+  const query = useQuery({
+    queryKey: ['objects', objectId, 'related', group.key, page],
+    queryFn: () =>
+      fetchObjectLinks(
+        objectId,
+        page,
+        { linkTypeId: group.linkTypeId, direction: group.direction },
+        OBJECT_PAGE_SIZE,
+      ),
+    placeholderData: keepPreviousData,
+  })
+  const [lastSuccessful, setLastSuccessful] = useState<typeof query.data>()
+  if (
+    query.isSuccess &&
+    !query.isPlaceholderData &&
+    query.data !== lastSuccessful
+  ) {
+    setLastSuccessful(query.data)
+  }
+  const data = query.data ?? lastSuccessful
+  const total =
+    data?.meta?.totalElements ?? data?.data.length ?? group.linkCount
+  const latestTotal = query.data?.meta?.totalElements
+  useEffect(() => {
+    if (
+      !query.isPlaceholderData &&
+      latestTotal !== undefined &&
+      latestTotal !== group.linkCount
+    ) {
+      void client.invalidateQueries({
+        queryKey: ['objects', objectId, 'link-groups'],
+      })
+    }
+  }, [client, objectId, group.linkCount, latestTotal, query.isPlaceholderData])
+
+  if (!query.isFetching && !query.isError) {
+    const last = Math.max(0, Math.ceil(total / OBJECT_PAGE_SIZE) - 1)
+    if (page > last) setPage(last)
+  }
+
+  return (
+    <section aria-label={`${group.relatedTypeName} 연결 목록`}>
+      <ListHeading {...props} total={total} />
+      <div className="explorer-object-list" aria-busy={query.isFetching}>
+        {query.isError && (
+          <ErrorState
+            error={query.error}
+            onRetry={() => void query.refetch()}
+          />
+        )}
+        {query.isPending && !data ? (
+          <LoadingState message="연결을 불러오는 중…" />
+        ) : data?.data.length === 0 ? (
+          <EmptyState message="지금은 이 묶음에 연결이 없습니다." />
+        ) : (
+          data?.data.map((link) => (
+            <ObjectCard
+              key={link.id}
+              code={formatObjectCode(link.relatedObject.id)}
+              name={link.relatedObject.displayName}
+              typeLabel={link.relatedObject.objectTypeName}
+              selected={link.relatedObject.id === selectedId}
+              onSelect={() => onSelect(link.relatedObject.id)}
+            />
+          ))
+        )}
+      </div>
+      {data && total > 0 && (
+        <Pagination
+          page={
+            query.isPlaceholderData || query.isError
+              ? (data.meta?.page ?? page)
+              : page
+          }
+          size={OBJECT_PAGE_SIZE}
+          totalElements={total}
+          onChange={setPage}
+          pending={query.isFetching}
+          compact
+          showSummary={false}
+        />
+      )}
+    </section>
+  )
+}

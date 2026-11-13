@@ -74,6 +74,7 @@ test('같은 검색 조건을 다시 적용해도 선택 객체를 유지하고 
   await user.click(await list.findByRole('button', { name: /프레스 3호기/ }))
   const details = within(screen.getByRole('region', { name: '상세 정보' }))
   await details.findByRole('heading', { name: '프레스 3호기' })
+  await user.click(details.getByText('수집 정보', { selector: 'summary' }))
   expect(details.getByText('2026-10-27 09:00:00 KST')).toBeVisible()
   await user.click(screen.getByRole('button', { name: '검색' }))
   expect(details.getByRole('heading', { name: '프레스 3호기' })).toBeVisible()
@@ -149,17 +150,15 @@ test('객체를 고르면 상세 API로 받은 정보를 보여준다', async ()
     await screen.findByRole('heading', { name: '프레스 3호기' }),
   ).toBeInTheDocument()
   expect(screen.getByText('설비 / PR-03')).toBeInTheDocument()
-  expect(
-    screen.getByText('MES · mes.equipment · 원천 레코드'),
-  ).toBeInTheDocument()
+  expect(screen.getByText('MES · mes.equipment')).toBeInTheDocument()
   expect(screen.getByText('설비 코드')).toBeInTheDocument()
 
   const evidence = screen.getByRole('button', {
-    name: '원본·연결 근거 보기 ↗',
+    name: '원본·연결 근거',
   })
   const properties = screen.getByRole('heading', { name: '속성' })
   expect(
-    evidence.compareDocumentPosition(properties) &
+    properties.compareDocumentPosition(evidence) &
       Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy()
   expect(screen.getByText('원천에 있음')).toBeInTheDocument()
@@ -308,7 +307,7 @@ test('객체 유형을 선택하기 전에는 속성 조건을 막고 칸 안에
   const property = screen.getByLabelText('속성 조건')
   const value = screen.getByLabelText('속성 값 · 정확 일치')
   expect(property).toBeDisabled()
-  expect(property).toHaveDisplayValue('-')
+  expect(property).toHaveDisplayValue('객체 유형 선택 후 사용')
   expect(value).toBeDisabled()
   expect(value).toHaveAttribute('placeholder', '객체 유형을 먼저 선택하세요')
   expect(property).toHaveAccessibleDescription('객체 유형을 먼저 선택하세요')
@@ -413,7 +412,7 @@ test('속성 조회 권한이 없어도 유형과 검색어 검색은 사용할 
     await screen.findByText('이 계정은 속성 목록 조회 권한이 없습니다.'),
   ).toBeInTheDocument()
   expect(screen.getByLabelText('속성 조건')).toBeDisabled()
-  expect(screen.getByLabelText('속성 조건')).toHaveDisplayValue('-')
+  expect(screen.getByLabelText('속성 조건')).toHaveDisplayValue('—')
   expect(screen.getByLabelText('속성 값 · 정확 일치')).toHaveAttribute(
     'placeholder',
     '-',
@@ -514,7 +513,7 @@ async function openEvidenceDialog(objectName: RegExp) {
   renderExplorerPage()
   await user.click(await screen.findByRole('button', { name: objectName }))
   await user.click(
-    await screen.findByRole('button', { name: '원본·연결 근거 보기 ↗' }),
+    await screen.findByRole('button', { name: '원본·연결 근거' }),
   )
   return user
 }
@@ -1046,7 +1045,7 @@ test('자기 유형 관계도 관계선과 유형 상세에 표시한다', async
   expect(screen.getByText('활성 연결 0건 · 전체 2건')).toBeInTheDocument()
 })
 
-test('관계도에서 연결된 객체 카드를 누르면 그 객체로 이동한다', async () => {
+test('관계명으로 왼쪽 연결 목록을 열고 상세를 확인한 뒤 그 객체의 관계로 이동한다', async () => {
   const user = userEvent.setup()
   renderExplorerPage()
 
@@ -1058,17 +1057,42 @@ test('관계도에서 연결된 객체 카드를 누르면 그 객체로 이동�
   expect(
     graph.getByRole('heading', { name: '프레스 3호기와 연결된 정보' }),
   ).toBeInTheDocument()
-  expect(await graph.findByText('#1101')).toBeInTheDocument()
+  const list = within(screen.getByRole('region', { name: '객체 목록' }))
+  expect(list.getByRole('heading', { name: '객체 목록' })).toBeVisible()
+  expect(
+    graph.queryByRole('region', { name: /연결 목록/ }),
+  ).not.toBeInTheDocument()
+  await user.click(
+    graph.getByRole('button', { name: '현재 배정 설비 연결 객체 보기' }),
+  )
+  expect(await list.findByText('#1101')).toBeVisible()
 
-  await user.click(graph.getByRole('button', { name: /프레스 작업/ }))
+  await user.click(list.getByRole('button', { name: /프레스 작업/ }))
 
   expect(
     await screen.findByRole('heading', { name: '프레스 작업' }),
   ).toBeInTheDocument()
-  expect(await graph.findByText('연결된 정보 · 3건')).toBeInTheDocument()
+  expect(graph.getByText('연결된 정보 · 2건')).toBeVisible()
+  expect(
+    graph.getByRole('heading', { name: '프레스 3호기와 연결된 정보' }),
+  ).toBeVisible()
+  expect(list.getByRole('button', { name: /프레스 작업/ })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await user.click(
+    graph.getByRole('button', { name: '프레스 3호기 상세 보기' }),
+  )
+  expect(
+    await screen.findByRole('heading', { name: '프레스 3호기' }),
+  ).toBeVisible()
+  await user.click(list.getByRole('button', { name: /프레스 작업/ }))
+  await user.click(screen.getByRole('button', { name: '관계 보기' }))
+  expect(await graph.findByText('연결된 정보 · 3건')).toBeVisible()
   expect(
     graph.getByRole('heading', { name: '프레스 작업과 연결된 정보' }),
   ).toBeInTheDocument()
+  expect(list.getByRole('heading', { name: '객체 목록' })).toBeVisible()
 })
 
 test('연결이 없으면 관계도에 안내를 보여준다', async () => {
@@ -1208,153 +1232,106 @@ function mockManyLinks(
   return { searches, groupCalls }
 }
 
-test('한 관계 유형의 연결이 100건을 넘어도 첫 화면에 모든 관계 유형 묶음과 건수를 보여준다', async () => {
+async function openDefectGroup(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
+  const graph = within(screen.getByRole('region', { name: '관계도' }))
+  await user.click(
+    await graph.findByRole('button', { name: /불량 기록\s*\d+건/ }),
+  )
+  const list = within(
+    await screen.findByRole('region', { name: '불량 기록 연결 목록' }),
+  )
+  return { graph, list }
+}
+
+test('한 관계 유형의 연결이 100건을 넘어도 모든 묶음을 보여주고 선택한 연결만 왼쪽에 8개씩 받는다', async () => {
   const { searches } = mockManyLinks(230, { maintenance: 3 })
   const user = userEvent.setup()
   renderExplorerPage()
-
-  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
-  const graph = within(screen.getByRole('region', { name: '관계도' }))
-
-  expect(await graph.findByText('연결된 정보 · 233건')).toBeInTheDocument()
+  const { graph, list } = await openDefectGroup(user)
+  expect(graph.getByText('연결된 정보 · 233건')).toBeInTheDocument()
   expect(
     graph.getByRole('button', { name: /불량 기록\s*230건/ }),
   ).toHaveAttribute('aria-pressed', 'true')
   expect(
     graph.getByRole('button', { name: /정비 지시\s*3건/ }),
   ).toHaveAttribute('aria-pressed', 'false')
-  expect(graph.getAllByText('불량 발생 설비')).toHaveLength(1)
-  expect(graph.getByText('정비 대상 설비')).toBeInTheDocument()
-
-  const defectList = within(
-    graph.getByRole('region', { name: '불량 기록 연결 목록' }),
+  expect(await list.findAllByRole('button', { name: /불량 \d+/ })).toHaveLength(
+    8,
   )
+  expect(list.getByRole('heading', { name: '불량 기록' })).toBeVisible()
+  expect(list.getByText('230건')).toBeVisible()
+  expect(list.getByText('프레스 3호기 · 불량 발생 설비')).toBeVisible()
   expect(
-    defectList.getByRole('heading', {
-      name: '불량 발생 설비 · 불량 기록 230건',
-    }),
-  ).toBeInTheDocument()
-  expect(await defectList.findByText('전체 230건 중 100건')).toBeInTheDocument()
-  expect(defectList.getAllByRole('button', { name: /불량 \d+/ })).toHaveLength(
-    100,
-  )
-  expect(searches).toEqual(['?linkTypeId=7&direction=IN&page=0&size=100'])
+    graph.queryByRole('region', { name: /연결 목록/ }),
+  ).not.toBeInTheDocument()
+  expect(searches).toEqual(['?linkTypeId=7&direction=IN&page=0&size=8'])
 })
 
-test('묶음 안에서 더 불러오기를 누르면 그 묶음의 다음 쪽을 이어 보여준다', async () => {
+test('묶음의 다음·마지막 페이지에서 전체 연결에 접근한다', async () => {
   const { searches } = mockManyLinks(230, { maintenance: 3 })
   const user = userEvent.setup()
   renderExplorerPage()
-
-  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
-  const graph = within(screen.getByRole('region', { name: '관계도' }))
-  const defectList = within(
-    await graph.findByRole('region', { name: '불량 기록 연결 목록' }),
-  )
-  await user.click(
-    await defectList.findByRole('button', { name: '더 불러오기' }),
-  )
-
-  expect(await defectList.findByText('전체 230건 중 200건')).toBeInTheDocument()
-  expect(searches).toContain('?linkTypeId=7&direction=IN&page=1&size=100')
-
-  await user.click(defectList.getByRole('button', { name: '더 불러오기' }))
-
-  expect(
-    await defectList.findByRole('button', { name: /불량 229/ }),
-  ).toBeInTheDocument()
-  expect(defectList.getAllByRole('button', { name: /불량 \d+/ })).toHaveLength(
-    230,
-  )
-  expect(
-    defectList.queryByRole('button', { name: '더 불러오기' }),
-  ).not.toBeInTheDocument()
-  expect(graph.getByText('연결된 정보 · 233건')).toBeInTheDocument()
+  const { graph, list } = await openDefectGroup(user)
+  await list.findByRole('button', { name: /불량 0$/ })
+  await user.click(list.getByRole('button', { name: '다음 페이지' }))
+  expect(await list.findByRole('button', { name: /불량 8$/ })).toBeVisible()
+  expect(searches).toContain('?linkTypeId=7&direction=IN&page=1&size=8')
+  await user.click(list.getByRole('button', { name: '마지막 페이지' }))
+  expect(await list.findByRole('button', { name: /불량 229$/ })).toBeVisible()
+  expect(list.getAllByRole('button', { name: /불량 \d+/ })).toHaveLength(6)
+  expect(list.getByRole('button', { name: '다음 페이지' })).toBeDisabled()
+  expect(searches).toContain('?linkTypeId=7&direction=IN&page=28&size=8')
+  expect(graph.getByText('연결된 정보 · 233건')).toBeVisible()
 })
 
-test('유형 카드를 고르면 그 유형의 객체 목록을 보여준다', async () => {
+test('관계 묶음을 고르면 왼쪽 목록만 바꾸고 해당 관계의 객체를 조회한다', async () => {
   const { searches } = mockManyLinks(230, { maintenance: 3 })
   const user = userEvent.setup()
   renderExplorerPage()
-
-  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
-  const graph = within(screen.getByRole('region', { name: '관계도' }))
-  await user.click(
-    await graph.findByRole('button', { name: /정비 지시\s*3건/ }),
-  )
-
+  const { graph } = await openDefectGroup(user)
+  await user.click(graph.getByRole('button', { name: /정비 지시\s*3건/ }))
   expect(
-    graph.queryByRole('region', { name: '불량 기록 연결 목록' }),
+    screen.queryByRole('region', { name: '불량 기록 연결 목록' }),
   ).not.toBeInTheDocument()
-  const maintenanceList = within(
-    graph.getByRole('region', { name: '정비 지시 연결 목록' }),
+  const list = within(
+    screen.getByRole('region', { name: '정비 지시 연결 목록' }),
   )
-  expect(
-    maintenanceList.getByRole('heading', {
-      name: '정비 대상 설비 · 정비 지시 3건',
-    }),
-  ).toBeInTheDocument()
-  expect(
-    await maintenanceList.findAllByRole('button', { name: /정비 \d+/ }),
-  ).toHaveLength(3)
-  expect(
-    maintenanceList.queryByRole('button', { name: '더 불러오기' }),
-  ).not.toBeInTheDocument()
-  expect(searches).toContain('?linkTypeId=8&direction=IN&page=0&size=100')
+  expect(await list.findAllByRole('button', { name: /정비 \d+/ })).toHaveLength(
+    3,
+  )
+  expect(list.getByRole('heading', { name: '정비 지시' })).toBeVisible()
+  expect(list.getByText('3건')).toBeVisible()
+  expect(searches).toContain('?linkTypeId=8&direction=IN&page=0&size=8')
 })
 
-test('묶음의 다음 쪽을 불러오지 못해도 이미 불러온 목록은 유지한다', async () => {
+test('묶음의 다음 쪽 조회 실패 시 이전 목록을 유지하고 재시도할 수 있다', async () => {
   mockManyLinks(230, { failPage: 1 })
   const user = userEvent.setup()
   renderExplorerPage()
-
-  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
-  const graph = within(screen.getByRole('region', { name: '관계도' }))
-  const defectList = within(
-    await graph.findByRole('region', { name: '불량 기록 연결 목록' }),
-  )
-  await user.click(
-    await defectList.findByRole('button', { name: '더 불러오기' }),
-  )
-
-  expect(
-    await defectList.findByText('연결을 더 불러오지 못했습니다.'),
-  ).toBeInTheDocument()
-  expect(defectList.getAllByRole('button', { name: /불량 \d+/ })).toHaveLength(
-    100,
-  )
-  expect(
-    graph.getByRole('button', { name: /불량 기록\s*230건/ }),
-  ).toBeInTheDocument()
+  const { graph, list } = await openDefectGroup(user)
+  await list.findByRole('button', { name: /불량 0$/ })
+  await user.click(list.getByRole('button', { name: '다음 페이지' }))
+  expect(await list.findByText('연결을 더 불러오지 못했습니다.')).toBeVisible()
+  expect(list.getAllByRole('button', { name: /불량 \d+/ })).toHaveLength(8)
+  expect(list.getByRole('button', { name: '다시 불러오기' })).toBeEnabled()
+  expect(graph.getByRole('button', { name: /불량 기록\s*230건/ })).toBeVisible()
 })
 
-test('다음 쪽을 받는 사이 연결이 줄면 더 불러오기를 숨긴다', async () => {
-  mockManyLinks(230, {
-    changeAfterFirstPage: (links) => links.slice(0, 100),
-  })
+test('다음 쪽을 받는 사이 연결이 줄면 실제 건수와 페이지 범위를 갱신한다', async () => {
+  mockManyLinks(230, { changeAfterFirstPage: (links) => links.slice(0, 12) })
   const user = userEvent.setup()
   renderExplorerPage()
-
-  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
-  const graph = within(screen.getByRole('region', { name: '관계도' }))
-  const defectList = within(
-    await graph.findByRole('region', { name: '불량 기록 연결 목록' }),
-  )
-  await user.click(
-    await defectList.findByRole('button', { name: '더 불러오기' }),
-  )
-
-  await waitFor(() =>
-    expect(
-      defectList.queryByRole('button', { name: '더 불러오기' }),
-    ).not.toBeInTheDocument(),
-  )
-  expect(defectList.getAllByRole('button', { name: /불량 \d+/ })).toHaveLength(
-    100,
-  )
+  const { list } = await openDefectGroup(user)
+  await list.findByRole('button', { name: /불량 0$/ })
+  await user.click(list.getByRole('button', { name: '다음 페이지' }))
+  expect(await list.findByRole('button', { name: /불량 11$/ })).toBeVisible()
+  expect(list.getByText('12건')).toBeVisible()
+  expect(list.getAllByRole('button', { name: /불량 \d+/ })).toHaveLength(4)
+  expect(list.getByRole('button', { name: '다음 페이지' })).toBeDisabled()
 })
 
-test('다음 쪽을 받는 사이 앞쪽 연결이 늘어도 같은 연결은 한 번만 보여준다', async () => {
+test('페이지 사이 앞쪽 연결이 늘어도 이전 페이지를 누적하지 않고 8개만 표시한다', async () => {
   mockManyLinks(230, {
     changeAfterFirstPage: (links) => [
       ...Array.from({ length: 5 }, (_, index) => ({
@@ -1366,20 +1343,13 @@ test('다음 쪽을 받는 사이 앞쪽 연결이 늘어도 같은 연결은 �
   })
   const user = userEvent.setup()
   renderExplorerPage()
-
-  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
-  const graph = within(screen.getByRole('region', { name: '관계도' }))
-  const defectList = within(
-    await graph.findByRole('region', { name: '불량 기록 연결 목록' }),
-  )
-  await user.click(
-    await defectList.findByRole('button', { name: '더 불러오기' }),
-  )
-
-  expect(await defectList.findByText('전체 235건 중 195건')).toBeInTheDocument()
-  expect(defectList.getAllByRole('button', { name: /불량 \d+/ })).toHaveLength(
-    195,
-  )
+  const { list } = await openDefectGroup(user)
+  await list.findByRole('button', { name: /불량 0$/ })
+  await user.click(list.getByRole('button', { name: '다음 페이지' }))
+  expect(await list.findByRole('button', { name: /불량 10$/ })).toBeVisible()
+  expect(list.getByText('235건')).toBeVisible()
+  expect(list.getAllByRole('button', { name: /불량 \d+/ })).toHaveLength(8)
+  expect(list.getAllByRole('button', { name: /불량 3$/ })).toHaveLength(1)
 })
 
 test('묶음 건수와 목록 건수가 다르면 묶음 건수를 다시 받아 맞춘다', async () => {
@@ -1389,22 +1359,16 @@ test('묶음 건수와 목록 건수가 다르면 묶음 건수를 다시 받아
   })
   const user = userEvent.setup()
   renderExplorerPage()
-
-  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
-  const graph = within(screen.getByRole('region', { name: '관계도' }))
-
+  const { graph, list } = await openDefectGroup(user)
   expect(
     await graph.findByRole('button', { name: /불량 기록\s*228건/ }),
-  ).toBeInTheDocument()
-  expect(
-    graph.getByRole('heading', { name: '불량 발생 설비 · 불량 기록 228건' }),
-  ).toBeInTheDocument()
-  expect(graph.getByText('전체 228건 중 100건')).toBeInTheDocument()
-  expect(graph.getByText('연결된 정보 · 231건')).toBeInTheDocument()
+  ).toBeVisible()
+  expect(list.getByText('228건')).toBeVisible()
+  expect(graph.getByText('연결된 정보 · 231건')).toBeVisible()
   expect(groupCalls.count).toBe(2)
 })
 
-test('묶음 건수를 다시 받지 못해도 이미 그린 관계도는 유지한다', async () => {
+test('묶음 건수를 다시 받지 못해도 이미 그린 관계도와 왼쪽 목록은 유지한다', async () => {
   const { groupCalls } = mockManyLinks(228, {
     maintenance: 3,
     staleDefectCount: 230,
@@ -1412,27 +1376,14 @@ test('묶음 건수를 다시 받지 못해도 이미 그린 관계도는 유지
   })
   const user = userEvent.setup()
   renderExplorerPage()
-
-  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
-  const graph = within(screen.getByRole('region', { name: '관계도' }))
-  const defectList = within(
-    await graph.findByRole('region', { name: '불량 기록 연결 목록' }),
-  )
-  expect(await defectList.findByText('전체 228건 중 100건')).toBeInTheDocument()
+  const { graph, list } = await openDefectGroup(user)
+  expect(await list.findByText('228건')).toBeVisible()
   await waitFor(() => expect(groupCalls.count).toBe(2))
-
   expect(
     graph.getByRole('heading', { name: '프레스 3호기와 연결된 정보' }),
-  ).toBeInTheDocument()
-  expect(
-    graph.getByRole('button', { name: /불량 기록\s*230건/ }),
-  ).toBeInTheDocument()
-  expect(
-    graph.queryByText('관계 묶음을 다시 불러오지 못했습니다.'),
-  ).not.toBeInTheDocument()
-  expect(defectList.getAllByRole('button', { name: /불량 \d+/ })).toHaveLength(
-    100,
-  )
+  ).toBeVisible()
+  expect(graph.getByRole('button', { name: /불량 기록\s*230건/ })).toBeVisible()
+  expect(list.getAllByRole('button', { name: /불량 \d+/ })).toHaveLength(8)
 })
 
 test('고른 묶음의 연결이 그 사이 없어졌으면 빈 목록 안내를 보여준다', async () => {
@@ -1443,17 +1394,11 @@ test('고른 묶음의 연결이 그 사이 없어졌으면 빈 목록 안내를
   })
   const user = userEvent.setup()
   renderExplorerPage()
-
-  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
-  const graph = within(screen.getByRole('region', { name: '관계도' }))
-  const defectList = within(
-    await graph.findByRole('region', { name: '불량 기록 연결 목록' }),
-  )
-
+  const { list } = await openDefectGroup(user)
   expect(
-    await defectList.findByText('지금은 이 묶음에 연결이 없습니다.'),
-  ).toBeInTheDocument()
-  expect(defectList.queryByRole('list')).not.toBeInTheDocument()
+    await list.findByText('지금은 이 묶음에 연결이 없습니다.'),
+  ).toBeVisible()
+  expect(list.queryByRole('navigation')).not.toBeInTheDocument()
 })
 
 test('묶음 건수를 다시 받아 순서가 바뀌어도 보던 묶음을 그대로 보여준다', async () => {
@@ -1463,53 +1408,39 @@ test('묶음 건수를 다시 받아 순서가 바뀌어도 보던 묶음을 그
   })
   const user = userEvent.setup()
   renderExplorerPage()
-
-  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
-  const graph = within(screen.getByRole('region', { name: '관계도' }))
-
+  const { graph, list } = await openDefectGroup(user)
   expect(
     await graph.findByRole('button', { name: /불량 기록\s*2건/ }),
   ).toHaveAttribute('aria-pressed', 'true')
   expect(groupCalls.count).toBe(2)
+  expect(list.getByRole('heading', { name: '불량 기록' })).toBeVisible()
   expect(
     graph.getByRole('button', { name: /정비 지시\s*3건/ }),
   ).toHaveAttribute('aria-pressed', 'false')
-  expect(
-    graph.getByRole('region', { name: '불량 기록 연결 목록' }),
-  ).toBeInTheDocument()
-  expect(
-    graph.queryByRole('region', { name: '정비 지시 연결 목록' }),
-  ).not.toBeInTheDocument()
 })
 
-test('보던 묶음이 다시 받은 묶음 건수에서 빠지면 그 자리에 빈 묶음 안내를 남긴다', async () => {
+test('보던 묶음이 다시 받은 묶음 건수에서 빠지면 왼쪽에 빈 묶음 안내를 남긴다', async () => {
   mockManyLinks(0, { maintenance: 3, staleDefectCount: 5 })
   const user = userEvent.setup()
   renderExplorerPage()
-
-  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
-  const graph = within(screen.getByRole('region', { name: '관계도' }))
-
-  expect(
-    await graph.findByRole('heading', {
-      name: '불량 발생 설비 · 불량 기록 0건',
-    }),
-  ).toBeInTheDocument()
+  const { graph } = await openDefectGroup(user)
+  await waitFor(() =>
+    expect(
+      within(
+        screen.getByRole('region', { name: '불량 기록 연결 목록' }),
+      ).getByText('지금은 이 묶음에 연결이 없습니다.'),
+    ).toBeVisible(),
+  )
+  const list = within(
+    screen.getByRole('region', { name: '불량 기록 연결 목록' }),
+  )
+  expect(list.getByText('0건')).toBeVisible()
   expect(
     graph.queryByRole('button', { name: /불량 기록/ }),
   ).not.toBeInTheDocument()
-  const defectList = within(
-    graph.getByRole('region', { name: '불량 기록 연결 목록' }),
-  )
-  expect(
-    defectList.getByText('지금은 이 묶음에 연결이 없습니다.'),
-  ).toBeInTheDocument()
   expect(
     graph.getByRole('button', { name: /정비 지시\s*3건/ }),
   ).toHaveAttribute('aria-pressed', 'false')
-  expect(
-    graph.queryByRole('region', { name: '정비 지시 연결 목록' }),
-  ).not.toBeInTheDocument()
 })
 
 test('근거 팝업도 전체 건수를 보여주고 더 불러올 수 있다', async () => {
@@ -1534,7 +1465,7 @@ test('객체 상세의 이 객체 실행 이력은 그 객체의 실행 이력 �
   await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
 
   expect(
-    await screen.findByRole('link', { name: '이 객체 실행 이력' }),
+    await screen.findByRole('link', { name: '실행 이력' }),
   ).toHaveAttribute('href', '/audit?objectId=301')
 })
 
@@ -1555,14 +1486,16 @@ function mockManyObjects(count: number) {
   const all = manyObjects(count)
   server.use(
     http.get('/api/v1/objects', ({ request }) => {
-      const page = Number(new URL(request.url).searchParams.get('page'))
+      const params = new URL(request.url).searchParams
+      const page = Number(params.get('page'))
+      const size = Number(params.get('size'))
       return HttpResponse.json({
-        data: all.slice(page * 20, page * 20 + 20),
+        data: all.slice(page * size, (page + 1) * size),
         meta: {
           page,
-          size: 20,
+          size,
           totalElements: count,
-          hasNext: (page + 1) * 20 < count,
+          hasNext: (page + 1) * size < count,
         },
       })
     }),
@@ -1574,15 +1507,22 @@ test('다음·이전 페이지로 객체 목록을 넘긴다', async () => {
   mockManyObjects(25)
   renderExplorerPage()
 
-  expect(await screen.findByText('1 / 2쪽 · 25건')).toBeInTheDocument()
+  expect(
+    await screen.findByRole('button', { name: '1페이지로 이동' }),
+  ).toHaveAttribute('aria-current', 'page')
   expect(screen.getByRole('button', { name: '이전 페이지' })).toBeDisabled()
 
   await user.click(screen.getByRole('button', { name: '다음 페이지' }))
 
-  expect(await screen.findByText('2 / 2쪽 · 25건')).toBeInTheDocument()
-  expect(screen.getByText('설비 21')).toBeInTheDocument()
+  expect(await screen.findByText('설비 9')).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: '2페이지로 이동' }),
+  ).toHaveAttribute('aria-current', 'page')
   expect(screen.queryByText('설비 1')).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '마지막 페이지' }))
+  expect(await screen.findByText('설비 25')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '다음 페이지' })).toBeDisabled()
+  expect(screen.queryByText(/쪽 · 25건/)).not.toBeInTheDocument()
 })
 
 test('검색하면 첫 페이지로 돌아간다', async () => {
@@ -1591,11 +1531,94 @@ test('검색하면 첫 페이지로 돌아간다', async () => {
   renderExplorerPage()
 
   await user.click(await screen.findByRole('button', { name: '다음 페이지' }))
-  await screen.findByText('2 / 2쪽 · 25건')
+  await screen.findByText('설비 9')
 
   await user.click(screen.getByRole('button', { name: '검색' }))
 
-  expect(await screen.findByText('1 / 2쪽 · 25건')).toBeInTheDocument()
+  expect(await screen.findByText('설비 1')).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: '1페이지로 이동' }),
+  ).toHaveAttribute('aria-current', 'page')
+})
+
+test('객체를 8개씩 받고 페이지 번호는 최대 5개이며 하단 요약은 표시하지 않는다', async () => {
+  mockManyObjects(240)
+  const user = userEvent.setup()
+  renderExplorerPage()
+  const list = within(screen.getByRole('region', { name: '객체 목록' }))
+  await list.findByRole('button', { name: /설비 1$/ })
+  expect(list.getAllByRole('button', { name: /설비 \d+$/ })).toHaveLength(8)
+  const pager = within(list.getByRole('navigation', { name: '페이지 이동' }))
+  expect(
+    pager.getAllByRole('button', { name: /\d+페이지로 이동/ }),
+  ).toHaveLength(5)
+  expect(list.queryByText(/쪽 ·/)).not.toBeInTheDocument()
+  await user.click(pager.getByRole('button', { name: '마지막 페이지' }))
+  await list.findByRole('button', { name: /설비 240$/ })
+  expect(list.getAllByRole('button', { name: /설비 \d+$/ })).toHaveLength(8)
+  expect(
+    pager.getByRole('button', { name: '30페이지로 이동' }),
+  ).toHaveAttribute('aria-current', 'page')
+  await user.click(pager.getByRole('button', { name: '첫 페이지' }))
+  expect(await list.findByRole('button', { name: /설비 1$/ })).toBeVisible()
+})
+
+test('연결 목록은 왼쪽에서 8개씩 넘기고 묶음을 바꾸면 첫 페이지부터 표시한다', async () => {
+  mockManyLinks(230, { maintenance: 3 })
+  const user = userEvent.setup()
+  renderExplorerPage()
+  const { graph, list } = await openDefectGroup(user)
+  await list.findByRole('button', { name: /불량 0$/ })
+  expect(list.getAllByRole('button', { name: /불량 \d+/ })).toHaveLength(8)
+  await user.click(list.getByRole('button', { name: '다음 페이지' }))
+  expect(await list.findByRole('button', { name: /불량 8$/ })).toBeVisible()
+  expect(
+    list.queryByRole('button', { name: /불량 0$/ }),
+  ).not.toBeInTheDocument()
+  await user.click(graph.getByRole('button', { name: /정비 지시\s*3건/ }))
+  await user.click(graph.getByRole('button', { name: /불량 기록\s*230건/ }))
+  expect(await screen.findByRole('button', { name: /불량 0$/ })).toBeVisible()
+})
+
+test('관계명을 항상 표시하고 선택 묶음의 선과 화살촉 강조를 함께 옮긴다', async () => {
+  mockManyLinks(230, { maintenance: 3 })
+  const user = userEvent.setup()
+  renderExplorerPage()
+  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
+  const graph = within(screen.getByRole('region', { name: '관계도' }))
+  const diagram = await graph.findByRole('group', {
+    name: '선택 객체의 연결 다이어그램',
+  })
+  await user.click(graph.getByRole('button', { name: /불량 기록\s*230건/ }))
+  expect(within(diagram).getByText('불량 발생 설비')).toBeVisible()
+  expect(within(diagram).getByText('정비 대상 설비')).toBeVisible()
+  expect(
+    diagram.querySelectorAll('.object-graph-edge[data-selected="true"]'),
+  ).toHaveLength(1)
+  expect(
+    diagram.querySelector('.object-graph-edge[data-selected="true"]'),
+  ).toHaveAttribute('data-group-key', '7:in')
+  expect(
+    diagram
+      .querySelector(
+        '.object-graph-edge[data-selected="true"] line[marker-end]',
+      )
+      ?.getAttribute('marker-end'),
+  ).toMatch(/-selected\)$/)
+  const expand = graph.getByRole('button', { name: '관계도 확장' })
+  expect(expand).toHaveClass('ui-button--secondary')
+  await user.click(graph.getByRole('button', { name: /정비 지시\s*3건/ }))
+  expect(
+    diagram.querySelectorAll('.object-graph-edge[data-selected="true"]'),
+  ).toHaveLength(1)
+  expect(
+    diagram.querySelector('.object-graph-edge[data-selected="true"]'),
+  ).toHaveAttribute('data-group-key', '8:in')
+  expect(
+    diagram.querySelector('.object-graph-edge[data-group-key="7:in"]'),
+  ).toHaveAttribute('data-selected', 'false')
+  expect(within(diagram).getByText('불량 발생 설비')).toBeVisible()
+  expect(within(diagram).getByText('정비 대상 설비')).toBeVisible()
 })
 
 function AgentEntryProbe() {
@@ -1614,18 +1637,19 @@ test('검색 조건을 입력만 하면 현재 결과·페이지를 유지하고
   mockManyObjects(25)
   renderExplorerPage()
   await user.click(await screen.findByRole('button', { name: '다음 페이지' }))
-  await screen.findByText('2 / 2쪽 · 25건')
-  await screen.findByText('설비 21')
+  await screen.findByText('설비 9')
 
   await user.type(screen.getByLabelText('ID · 이름 검색'), '새 조건')
-  expect(screen.getByText('2 / 2쪽 · 25건')).toBeInTheDocument()
-  expect(screen.getByText('설비 21')).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: '2페이지로 이동' }),
+  ).toHaveAttribute('aria-current', 'page')
+  expect(screen.getByText('설비 9')).toBeInTheDocument()
   expect(screen.getByLabelText('적용된 검색 조건')).not.toHaveTextContent(
     '새 조건',
   )
 
   await user.click(screen.getByRole('button', { name: '검색' }))
-  await screen.findByText('1 / 2쪽 · 25건')
+  await screen.findByText('설비 1')
   expect(screen.getByLabelText('적용된 검색 조건')).toHaveTextContent('새 조건')
 })
 
@@ -1690,7 +1714,7 @@ test('객체 상세의 질문하기는 새 대화를 만들어 그 객체로 질
   )
 
   await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
-  await user.click(await screen.findByRole('button', { name: '질문하기' }))
+  await user.click(await screen.findByRole('button', { name: 'AI에 질문' }))
 
   expect(await screen.findByText(/^\?conversation=\d+$/)).toBeInTheDocument()
   expect(
@@ -1723,6 +1747,128 @@ function CurrentSearch() {
   const location = useLocation()
   return <p>{`주소: ${location.search}`}</p>
 }
+
+test('연결 목록에서 검색 결과로 돌아오면 기존 검색 페이지를 복원한다', async () => {
+  mockManyObjects(41)
+  mockManyLinks(230)
+  const user = userEvent.setup()
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <MemoryRouter initialEntries={['/explorer?object=301']}>
+        <ExplorerPage />
+        <CurrentSearch />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+  const list = within(screen.getByRole('region', { name: '객체 목록' }))
+  await user.click(await list.findByRole('button', { name: '다음 페이지' }))
+  await list.findByText('설비 9')
+  const graph = within(screen.getByRole('region', { name: '관계도' }))
+  await user.click(
+    await graph.findByRole('button', { name: /불량 기록\s*230건/ }),
+  )
+  await list.findByText('불량 0')
+  await user.click(list.getByRole('button', { name: '다음 페이지' }))
+  await list.findByText('불량 8')
+  await user.click(list.getByRole('button', { name: '← 검색 결과' }))
+  expect(await list.findByText('설비 9')).toBeVisible()
+  expect(list.getByRole('button', { name: '2페이지로 이동' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  )
+  expect(screen.getByText('주소: ?object=301')).toBeVisible()
+})
+
+test('주소에서 연결 목록·기준 객체·선택 상세를 복원하고 새 검색은 연결 탐색을 해제한다', async () => {
+  const user = userEvent.setup()
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <MemoryRouter
+        initialEntries={['/explorer?object=1101&anchor=301&relation=2:in']}
+      >
+        <ExplorerPage />
+        <CurrentSearch />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+  const list = within(screen.getByRole('region', { name: '객체 목록' }))
+  const graph = within(screen.getByRole('region', { name: '관계도' }))
+  expect(
+    await list.findByRole('button', { name: /프레스 작업/ }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  expect(
+    await graph.findByRole('heading', { name: '프레스 3호기와 연결된 정보' }),
+  ).toBeVisible()
+  expect(
+    await screen.findByRole('heading', { name: '프레스 작업' }),
+  ).toBeVisible()
+  await user.type(screen.getByLabelText('ID · 이름 검색'), '프레스 1호기')
+  await user.click(screen.getByRole('button', { name: '검색' }))
+  expect(
+    await list.findByRole('button', { name: /프레스 1호기/ }),
+  ).toBeVisible()
+  expect(list.getByRole('heading', { name: '객체 목록' })).toBeVisible()
+  expect(screen.getByText('주소:')).toBeVisible()
+})
+
+test('확장한 관계도에서 묶음을 고르면 분할 보기로 돌아와 왼쪽 결과를 보여준다', async () => {
+  const user = userEvent.setup()
+  renderExplorerPage()
+  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
+  const graph = within(screen.getByRole('region', { name: '관계도' }))
+  await graph.findByRole('button', { name: /현재 배정 설비 연결 객체 보기/ })
+  await user.click(graph.getByRole('button', { name: '관계도 확장' }))
+  await user.click(
+    graph.getByRole('button', { name: '현재 배정 설비 연결 객체 보기' }),
+  )
+  expect(
+    await within(screen.getByRole('region', { name: '객체 목록' })).findByText(
+      '프레스 작업',
+    ),
+  ).toBeVisible()
+  expect(graph.getByRole('button', { name: '관계도 확장' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  )
+})
+
+test('연결 객체의 AI 질문에는 기준 설비가 아닌 오른쪽 선택 객체를 전달한다', async () => {
+  const user = userEvent.setup()
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <MemoryRouter
+        initialEntries={['/explorer?object=1101&anchor=301&relation=2:in']}
+      >
+        <Routes>
+          <Route path="/explorer" element={<ExplorerPage />} />
+          <Route path="/agent" element={<AgentEntryProbe />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+  expect(
+    await screen.findByRole('heading', { name: '프레스 작업' }),
+  ).toBeVisible()
+  await user.click(screen.getByRole('button', { name: 'AI에 질문' }))
+  expect(await screen.findByText(/^\?conversation=\d+$/)).toBeVisible()
+  expect(
+    screen.getByText(
+      '1101 · 프레스 작업 · 작업지시 · 프레스 작업에 연결된 업무 정보를 알려줘',
+    ),
+  ).toBeVisible()
+})
 
 test('다른 객체를 고르거나 전체 구조로 돌아가면 주소의 객체 번호도 바뀐다', async () => {
   const user = userEvent.setup()

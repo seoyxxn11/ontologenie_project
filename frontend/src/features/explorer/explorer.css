@@ -1,5 +1,9 @@
 .explorer-page {
   min-width: 0;
+  container: explorer-page / inline-size;
+}
+.app-shell .workspace-main:has(> .explorer-page) {
+  padding-block: 8px;
 }
 .explorer-search {
   display: grid;
@@ -37,9 +41,12 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 24px 0 16px;
+  margin: 8px 0 12px;
   color: var(--ui-text-secondary);
   overflow-wrap: anywhere;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
 }
 .explorer-applied-filters > span {
   color: var(--ui-text);
@@ -47,11 +54,8 @@
 }
 .explorer-workbench {
   display: grid;
-  grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.65fr) minmax(
-      320px,
-      1fr
-    );
-  align-items: start;
+  grid-template-columns: 320px minmax(0, 1fr) 292px;
+  align-items: stretch;
   gap: 16px;
 }
 .explorer-panel {
@@ -62,23 +66,25 @@
 }
 .explorer-panel-heading {
   display: flex;
-  min-height: 64px;
+  min-height: 56px;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   border-bottom: 1px solid var(--ui-border);
-  padding: 12px 16px;
+  padding: 8px 16px;
 }
 .explorer-panel-heading h2 {
   color: var(--ui-text);
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 24px;
 }
 .explorer-count {
   color: var(--ui-text-secondary);
-  font-size: 14px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
   font-variant-numeric: tabular-nums;
 }
 .explorer-panel-body {
@@ -92,22 +98,21 @@
   overflow-wrap: anywhere;
 }
 .explorer-object-list {
-  max-height: max(320px, calc(100vh - 430px));
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
 }
-.explorer-list > .ui-pagination {
+.explorer-list .ui-pagination {
   border-top: 1px solid var(--ui-border);
-  padding: 12px 8px;
+  padding: 8px;
 }
 .explorer-object-row {
   display: block;
   width: 100%;
-  min-height: 64px;
+  min-height: 48px;
   border: 0;
-  border-left: 3px solid transparent;
   border-bottom: 1px solid var(--ui-border);
-  padding: 10px 16px 10px 13px;
+  padding: 4px 12px;
   background: var(--ui-surface);
   color: var(--ui-text);
   text-align: left;
@@ -116,31 +121,28 @@
   background: var(--ui-surface-subtle);
 }
 .explorer-object-row[aria-pressed='true'] {
-  border-left-color: var(--ui-brand-strong);
+  box-shadow: inset 0 0 0 1px var(--ui-brand);
   background: var(--ui-brand-subtle);
 }
 .explorer-object-meta {
   display: flex;
-  flex-wrap: wrap;
+  justify-content: space-between;
   gap: 4px 12px;
   color: var(--ui-text-secondary);
   font-size: 12px;
+  font-weight: 500;
   line-height: 18px;
 }
 .explorer-object-name {
   display: block;
-  margin-top: 4px;
+  margin-top: 0;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 21px;
   overflow-wrap: anywhere;
 }
-.explorer-detail {
-  position: sticky;
-  top: 16px;
-}
 .explorer-detail-body {
-  max-height: max(440px, calc(100vh - 340px));
+  max-height: 620px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -152,7 +154,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 16px;
+  margin: 12px 0;
 }
 .explorer-panel-body .explorer-detail-title {
   margin-top: 4px;
@@ -164,14 +166,15 @@
 .explorer-source-caption {
   margin: 8px 0 12px;
   color: var(--ui-text-secondary);
-  font-size: 14px;
-  line-height: 21px;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
 }
 .explorer-detail-times {
   display: grid;
   grid-template-columns: 6rem minmax(0, 1fr);
   gap: 8px 12px;
-  margin-top: 24px;
+  margin: 8px 0;
   font-size: 14px;
   line-height: 21px;
 }
@@ -187,13 +190,14 @@
 }
 .explorer-properties > div {
   display: grid;
-  grid-template-columns: minmax(90px, 0.9fr) minmax(0, 1.2fr);
-  gap: 8px 16px;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 8px;
   border-bottom: 1px solid var(--ui-border);
-  padding: 12px 0;
+  padding: 8px 0;
 }
 .explorer-properties dt {
   color: var(--ui-text-secondary);
+  font-weight: 500;
 }
 .explorer-properties dd {
   color: var(--ui-text);
@@ -210,13 +214,15 @@
 }
 /* 1440×900에서 관계도 그림 전체가 첫 화면에 들어오도록 창 높이에 맞춘다. */
 .explorer-graph-canvas {
-  height: max(360px, calc(100vh - 360px));
-  overflow-x: auto;
+  height: 480px;
+  overflow: auto;
+  border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius);
   background: var(--ui-surface-subtle);
 }
 .explorer-graph-canvas > .object-graph-canvas {
-  min-width: 560px;
+  min-width: 0;
+  min-height: 100%;
 }
 .object-graph-canvas {
   background-color: var(--ui-surface-subtle);
@@ -241,20 +247,51 @@
     var(--ui-surface);
 }
 .object-graph-center-name {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  display: block;
 }
-/* 관계 이름표는 자르지 않고 2줄까지 줄바꿈한다. */
+.object-graph-edge {
+  stroke: var(--ui-input-border);
+  stroke-width: 1.2;
+}
+.object-graph-edge[data-selected='true'] {
+  stroke: var(--ui-brand-strong);
+  stroke-width: 1.8;
+}
+.object-graph-arrow {
+  fill: var(--ui-input-border);
+}
+.object-graph-arrow.is-selected {
+  fill: var(--ui-brand-strong);
+}
 .object-graph-label {
-  display: -webkit-box;
+  position: absolute;
+  display: block;
+  width: max-content;
   max-width: 10rem;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface-subtle);
+  color: var(--ui-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
   word-break: keep-all;
   overflow-wrap: anywhere;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.object-graph-label:hover {
+  text-decoration: underline;
+}
+.object-graph-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.object-graph-label[data-selected='true'] {
+  color: var(--ui-brand-strong);
+  font-weight: 600;
 }
 /* 한국어는 단어 단위로 줄을 바꾸고, 띄어쓰기 없는 긴 이름은 칸 안에서 아무 곳에서나 줄을 바꾼다. */
 .explorer-object-name,
@@ -274,7 +311,9 @@
 }
 .object-graph-center {
   border-color: var(--ui-brand);
-  background: var(--ui-brand);
+  background:
+    linear-gradient(var(--ui-brand-subtle), var(--ui-brand-subtle)),
+    var(--ui-surface);
   color: var(--ui-text);
 }
 .object-graph-center :is(span, strong) {
@@ -386,7 +425,7 @@
   line-height: 21px;
 }
 
-@media (max-width: 1199px) {
+@media (max-width: 1023px) {
   .explorer-search {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -395,7 +434,7 @@
     justify-content: flex-end;
   }
   .explorer-workbench {
-    grid-template-columns: minmax(240px, 0.7fr) minmax(0, 1.4fr);
+    grid-template-columns: 304px minmax(0, 1fr);
   }
   .explorer-detail {
     position: static;
@@ -408,7 +447,7 @@
     grid-row: span 2;
   }
 }
-@media (max-width: 760px) {
+@media (max-width: 600px) {
   .explorer-workbench {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -422,10 +461,264 @@
     grid-template-columns: minmax(0, 1fr);
   }
   .explorer-object-list {
-    max-height: 320px;
+    max-height: none;
   }
 }
 /* 관계도 확장일 때만 그림을 더 높게 해서, 세로로 긴 유형 관계도를 더 크게 보여 준다. */
 .explorer-workbench.is-expanded .explorer-graph-canvas {
   height: max(360px, calc(100vh - 230px));
+}
+
+.explorer-object-row[aria-pressed='true'] .explorer-object-name {
+  font-weight: 600;
+}
+.explorer-graph > .explorer-panel-heading {
+  flex-wrap: nowrap;
+  padding-inline: 12px;
+}
+.explorer-graph > .explorer-panel-heading h2 {
+  flex: 1;
+}
+.explorer-panel-actions {
+  flex-shrink: 0;
+  gap: 8px;
+}
+.explorer-panel-actions > .ui-button,
+.explorer-detail-buttons > .ui-button {
+  padding-inline: 12px;
+}
+.explorer-graph > .explorer-panel-body {
+  padding: 8px;
+  container: explorer-plot / inline-size;
+}
+.explorer-graph {
+  display: flex;
+  flex-direction: column;
+}
+.explorer-graph > .explorer-panel-body:has(> .explorer-object-graph) {
+  display: flex;
+  flex: 1;
+}
+.explorer-object-graph {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+}
+.explorer-object-graph > .explorer-graph-canvas {
+  flex: 1;
+  min-height: 360px;
+}
+.explorer-object-graph > .explorer-graph-canvas.is-sparse {
+  min-height: 240px;
+}
+.object-graph-node {
+  width: 142px;
+  min-height: 64px;
+  padding: 8px 12px;
+  text-align: left;
+}
+.explorer-object-graph .object-graph-canvas {
+  min-width: 560px;
+}
+.object-graph-node strong {
+  font-weight: 600;
+  line-height: 21px;
+}
+.object-graph-node span,
+.object-graph-center > span {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+.object-graph-center {
+  width: 176px;
+  min-height: 88px;
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.object-graph-center-name {
+  margin-top: 8px;
+  font-size: 16px;
+  line-height: 24px;
+}
+.explorer-graph-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin: 8px 0 12px;
+  color: var(--ui-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+.explorer-related-context {
+  padding: 8px 12px 12px;
+  border-bottom: 1px solid var(--ui-border);
+}
+.explorer-related-context .ui-button {
+  padding-inline: 0;
+}
+.explorer-related-context p {
+  color: var(--ui-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+.explorer-detail > .explorer-panel-heading {
+  justify-content: flex-start;
+}
+.explorer-detail > .explorer-panel-heading h2 {
+  margin-right: auto;
+}
+.explorer-detail > .explorer-panel-heading .ui-button {
+  padding-inline: 0;
+}
+.explorer-page .ui-pagination {
+  padding: 8px;
+}
+.explorer-page .ui-pagination-controls {
+  flex-wrap: nowrap;
+  gap: 2px;
+}
+/* 이 업무 데이터 시안에서 승인한 작은 페이지네이션. 공통 기본 규격은 유지한다. */
+.explorer-page .ui-pagination button {
+  min-width: 28px;
+  min-height: 32px;
+  height: 32px;
+  padding: 4px 2px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 21px;
+  font-variant-numeric: tabular-nums;
+}
+.explorer-ai-handoff {
+  margin: 12px 0 16px;
+}
+.explorer-detail-more {
+  border-bottom: 1px solid var(--ui-border);
+}
+.explorer-detail-more summary {
+  min-height: 40px;
+  padding: 8px 0;
+  color: var(--ui-brand-strong);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 21px;
+  cursor: pointer;
+}
+.explorer-restricted-summary {
+  margin-bottom: 8px;
+  color: var(--ui-text-secondary);
+}
+.explorer-source-status {
+  margin-top: 12px;
+}
+.explorer-page .model-graph-directory {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-height: none;
+  overflow: visible;
+}
+.explorer-view-toggle button {
+  height: 40px;
+}
+.model-graph-zoom button {
+  min-height: 40px;
+  height: 40px;
+  font-size: 14px;
+}
+@media (min-width: 1024px) and (max-width: 1200px) {
+  .explorer-workbench {
+    grid-template-columns: 304px minmax(0, 1fr) 240px;
+    gap: 12px;
+  }
+}
+@media (max-width: 1200px) {
+  .object-graph-node {
+    width: 120px;
+  }
+  .object-graph-center {
+    width: 148px;
+  }
+  .explorer-detail-body {
+    padding-inline: 12px;
+  }
+  .explorer-page
+    .ui-pagination
+    button:is(:first-child, :last-child, :nth-child(2), :nth-last-child(2)) {
+    min-width: 24px;
+    padding-inline: 2px;
+  }
+}
+@media (max-width: 1023px) {
+  .explorer-panel-actions {
+    flex-wrap: wrap;
+  }
+  .explorer-graph > .explorer-panel-heading {
+    flex-wrap: wrap;
+  }
+  .explorer-detail-body {
+    max-height: none;
+  }
+}
+@media (max-width: 600px) {
+  .explorer-page .ui-pagination button {
+    font-size: 12px;
+  }
+  .explorer-object-graph > .explorer-graph-canvas {
+    height: 560px;
+  }
+  .explorer-object-graph .object-graph-canvas {
+    min-width: 560px;
+  }
+  .explorer-page .model-graph-directory {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@container explorer-plot (max-width: 500px) {
+  .object-graph-node {
+    width: 120px;
+  }
+  .object-graph-center {
+    width: 148px;
+  }
+}
+@container explorer-page (max-width: 1200px) {
+  .explorer-workbench {
+    grid-template-columns: 304px minmax(0, 1fr) 240px;
+    gap: 12px;
+  }
+}
+@container explorer-page (max-width: 960px) {
+  .explorer-search {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .explorer-search-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+  .explorer-workbench {
+    grid-template-columns: 304px minmax(0, 1fr);
+  }
+  .explorer-list {
+    grid-row: span 2;
+  }
+  .explorer-detail {
+    grid-column: 2;
+  }
+}
+@container explorer-page (max-width: 600px) {
+  .explorer-workbench,
+  .explorer-search {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .explorer-list {
+    grid-row: auto;
+  }
+  .explorer-detail {
+    grid-column: auto;
+  }
 }

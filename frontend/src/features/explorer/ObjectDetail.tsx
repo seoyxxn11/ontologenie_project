@@ -81,10 +81,31 @@ function ObjectDetailContent({ objectId }: ObjectDetailContentProps) {
   }
 
   const source = object.sourceSystemName
-    ? [object.sourceSystemName, object.sourceResourceKey, '원천 레코드']
+    ? [object.sourceSystemName, object.sourceResourceKey]
         .filter(Boolean)
         .join(' · ')
     : '플랫폼 객체'
+  const properties = Object.entries(object.properties)
+  const restrictedCount = object.restrictedPropertyCodes.length
+  const { propertyNames, restrictedPropertyCodes } = object
+  function propertyRows(entries: [string, unknown][]) {
+    return entries.map(([code, value]) => (
+      <div key={code}>
+        <dt>{propertyNames[code] ?? code}</dt>
+        <dd
+          className={
+            restrictedPropertyCodes.includes(code)
+              ? 'explorer-restricted'
+              : undefined
+          }
+        >
+          {restrictedPropertyCodes.includes(code)
+            ? '권한 없음'
+            : formatPropertyValue(value)}
+        </dd>
+      </div>
+    ))
+  }
 
   return (
     <div className="explorer-object-detail">
@@ -95,60 +116,63 @@ function ObjectDetailContent({ objectId }: ObjectDetailContentProps) {
       </p>
       <h2 className="explorer-detail-title">{object.displayName}</h2>
       <p className="explorer-source-caption">{source}</p>
-      {/* 근거는 이 화면의 핵심이라 스크롤 없이 보이도록 출처 바로 아래에 둔다. */}
-      <div className="explorer-detail-buttons">
-        <Button variant="secondary" onClick={() => setEvidenceOpen(true)}>
-          원본·연결 근거 보기 ↗
-        </Button>
+      <div className="explorer-ai-handoff">
         <Button
-          variant="secondary"
-          disabled={askMutation.isPending}
+          pending={askMutation.isPending}
           onClick={() => askMutation.mutate(object)}
         >
-          질문하기
+          AI에 질문
         </Button>
       </div>
       {askMutation.isError && (
         <p className="mb-3 text-sm text-red-600">대화를 만들지 못했어요.</p>
       )}
-      {/* 원천 상태 배지라서, 원천이 없는 플랫폼 객체에는 붙이지 않는다. */}
-      {object.sourceSystemName && (
-        <StatusBadge tone={object.status === 'ACTIVE' ? 'success' : 'warning'}>
-          {statusLabels[object.status]}
-        </StatusBadge>
+      {restrictedCount > 0 && (
+        <p className="explorer-restricted-summary">
+          권한 제한 속성 {restrictedCount}개
+        </p>
       )}
-
-      <dl className="explorer-detail-times">
-        <dt className="text-slate-500">기준 시점</dt>
-        <dd className="text-slate-900">{formatDateTime(object.dataAsOf)}</dd>
-        <dt className="text-slate-500">최근 동기화</dt>
-        <dd className="text-slate-900">
-          {formatDateTime(object.lastSyncedAt)}
-        </dd>
-      </dl>
-
-      <h3 className="explorer-detail-section-title">속성</h3>
+      <h3 className="ui-page-title">속성</h3>
       <dl className="explorer-properties">
-        {Object.entries(object.properties).map(([code, value]) => (
-          <div key={code}>
-            <dt>{object.propertyNames[code] ?? code}</dt>
-            {object.restrictedPropertyCodes.includes(code) ? (
-              <dd className="explorer-restricted">권한 없음</dd>
-            ) : (
-              <dd>{formatPropertyValue(value)}</dd>
-            )}
-          </div>
-        ))}
+        {propertyRows(properties.slice(0, 4))}
       </dl>
-
-      <div className="mt-6">
+      {properties.length > 4 && (
+        <details className="explorer-detail-more">
+          <summary>전체 속성 보기</summary>
+          <dl className="explorer-properties">
+            {propertyRows(properties.slice(4))}
+          </dl>
+        </details>
+      )}
+      <div className="explorer-detail-buttons">
+        <Button variant="secondary" onClick={() => setEvidenceOpen(true)}>
+          원본·연결 근거
+        </Button>
         <Link
           to={`/audit?objectId=${object.id}`}
           className="ui-button ui-button--secondary"
         >
-          이 객체 실행 이력
+          실행 이력
         </Link>
       </div>
+      <details className="explorer-detail-more">
+        <summary>수집 정보</summary>
+        <dl className="explorer-detail-times">
+          <dt>기준 시점</dt>
+          <dd>{formatDateTime(object.dataAsOf)}</dd>
+          <dt>최근 동기화</dt>
+          <dd>{formatDateTime(object.lastSyncedAt)}</dd>
+        </dl>
+      </details>
+      {object.sourceSystemName && (
+        <div className="explorer-source-status">
+          <StatusBadge
+            tone={object.status === 'ACTIVE' ? 'success' : 'warning'}
+          >
+            {statusLabels[object.status]}
+          </StatusBadge>
+        </div>
+      )}
 
       {evidenceOpen && (
         <EvidenceDialog
