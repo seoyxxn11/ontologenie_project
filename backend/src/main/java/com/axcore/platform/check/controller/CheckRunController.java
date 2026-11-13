@@ -80,15 +80,14 @@ public class CheckRunController {
                 PageMeta.from(comparison.rows()));
     }
 
-    /** 새로 접수하거나 진행 중인 같은 검사에 합류하면 202, 같은 기준의 성공 결과를 다시 쓰면 200이다. */
+    /** 새로 접수하거나 진행 중인 같은 검사에 합류하면 202다. 끝난 결과는 다시 쓰지 않는다(389). */
     @PostMapping
     public ResponseEntity<ApiResponse<CheckRunRequestResponse>> request(
             @Valid @RequestBody CheckRunCreateRequest request,
             @AuthenticationPrincipal LoginAccount account) {
         requireAdmin(account);
         CheckRunRequestResponse response = checkRunRequestService.request(request, account);
-        HttpStatus status = response.reused() ? HttpStatus.OK : HttpStatus.ACCEPTED;
-        return ResponseEntity.status(status).body(ApiResponse.of(response));
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.of(response));
     }
 
     private static void requireAdmin(LoginAccount account) {

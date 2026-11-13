@@ -47,11 +47,15 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * API 060 수동 검사·재검증 요청 접수(S15P31C106-191). 백엔드는 원천에 접속하지 않고 check_run에 QUEUED 작업만 넣는다. 실행은 배치가 한다.
  *
- * <p>같은 종류·비교 대상·범위(규칙 개정본 목록)·데이터 기준이면 같은 작업이다. 성공한 같은 작업이 있으면 다시 쓰고(200), 대기·실행 중이면 합류한다(202). 이
- * API는 중복 요청에 409를 쓰지 않는다.
+ * <p>같은 종류·비교 대상·범위(규칙 개정본 목록)·데이터 기준이면 같은 작업이다. 대기·실행 중이면 합류한다(202). 이 API는 중복 요청에 409를 쓰지 않는다.
  *
- * <p>감사 기록은 접수 줄을 남긴다(개발 가이드 14.2). 새로 넣었든 합류했든 다시 썼든 요청한 사람·{@code SUCCEEDED} 한 줄이고, 배치 실행 틀이 남기는
- * 결과 줄과 {@code check_run} ID로 묶인다. 범위 종류와 규칙·문제 개수만 남기고 ID 목록은 넣지 않는다.
+ * <p>사람이 요청한 검사는 끝난 결과를 다시 쓰지 않고 항상 지금 기준으로 새로 돈다(Jira 389). 재검증은 마지막 조치완료 뒤에 시작한 실행만 해결 근거가
+ * 되는데(246), 끝난 실행은 정의상 지금보다 먼저 시작했다. 그래서 재검증 통과 뒤 확인중 → 조치완료로 되돌리고 다시 요청했을 때 예전 결과를 돌려주면, 데이터가 바뀔
+ * 때까지 해결할 수 없었다. 수동 검사도 같은 규칙으로 맞춘다. 수집 뒤 검사(SYNC, {@link SyncCheckRequester})는 데이터가 그대로면 다시 돌지 않도록
+ * 재사용을 유지한다. 응답의 {@code reused}는 프런트 호환을 위해 남기고 늘 false다.
+ *
+ * <p>감사 기록은 접수 줄을 남긴다(개발 가이드 14.2). 새로 넣었든 합류했든 요청한 사람·{@code SUCCEEDED} 한 줄이고, 배치 실행 틀이 남기는 결과 줄과
+ * {@code check_run} ID로 묶인다. 범위 종류와 규칙·문제 개수만 남기고 ID 목록은 넣지 않는다.
  */
 @Service
 @RequiredArgsConstructor
@@ -150,25 +154,21 @@ public class CheckRunRequestService {
     // 같은 작업이 그 사이 끝나거나 롤백되면 다시 본다.
     private CheckRunRequestResponse accept(NewRun run, ReverificationScope reverificationScope) {
         for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-            Optional<Long> succeeded = checkRunRepository.findSucceeded(run.workKey());
-            if (succeeded.isPresent()) {
-                return response(succeeded.get(), false, true);
-            }
             // 재검증은 대기 중인 작업에만 기준과 상관없이 합류한다. 실행 중인 작업은 같은 기준(work_key)일 때만 아래에서 합류한다.
             if (reverificationScope != null) {
                 Optional<Long> queued =
                         checkRunRepository.findQueuedReverification(reverificationScope);
                 if (queued.isPresent()) {
-                    return response(queued.get(), true, false);
+                    return response(queued.get(), true);
                 }
             }
             Optional<Long> inserted = checkRunRepository.insertQueued(run);
             if (inserted.isPresent()) {
-                return response(inserted.get(), false, false);
+                return response(inserted.get(), false);
             }
             Optional<Long> active = checkRunRepository.findActive(run.workKey());
             if (active.isPresent()) {
-                return response(active.get(), true, false);
+                return response(active.get(), true);
             }
         }
         throw new IllegalStateException("검사 요청을 접수하지 못했습니다: " + run.workKey());
@@ -388,9 +388,9 @@ public class CheckRunRequestService {
         return ruleIds;
     }
 
-    private CheckRunRequestResponse response(long runId, boolean joined, boolean reused) {
+    private CheckRunRequestResponse response(long runId, boolean joined) {
         return new CheckRunRequestResponse(
-                checkRunRepository.findById(runId).orElseThrow(), joined, reused);
+                checkRunRepository.findById(runId).orElseThrow(), joined, false);
     }
 
     private static BusinessException rejected(
@@ -414,13 +414,11 @@ public class CheckRunRequestService {
             String scopeJson,
             String basisJson,
             String linkState) {
-        // 이전 배치가 성공한 재검증에는 문제별 이력이 없을 수 있어 새 실행을 접수한다.
-        String version = "REVERIFY".equals(triggerKind) ? "|verification-history-v1" : "";
         return triggerKind
                 + ":"
                 + (comparedToRunId == null ? "-" : comparedToRunId)
                 + ":"
-                + sha256(scopeJson + "|" + basisJson + "|" + linkState + version);
+                + sha256(scopeJson + "|" + basisJson + "|" + linkState);
     }
 
     /** 규칙 개정본들의 관계 유형(연결 상태를 읽을 범위, 367). 없는 ID는 무시한다. */
