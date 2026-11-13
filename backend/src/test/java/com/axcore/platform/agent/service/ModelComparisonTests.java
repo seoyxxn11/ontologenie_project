@@ -19,8 +19,54 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import tools.jackson.databind.json.JsonMapper;
 
 class ModelComparisonTests {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void currentStatusFixtureRejectsAnInventedTodayPeriod(boolean inventedPeriod) throws Exception {
+        ModelComparisonGmsTests.Turn turn;
+        try (var input = getClass().getResourceAsStream("/agent-eval/diverse-questions.json")) {
+            assertThat(input).isNotNull();
+            var specification =
+                    new JsonMapper().readValue(input, ModelComparisonGmsTests.Specification.class);
+            turn =
+                    specification.turns().stream()
+                            .filter(item -> item.id().equals("current-status"))
+                            .findFirst()
+                            .orElseThrow();
+        }
+        assertThat(turn.periodAbsent()).isTrue();
+        LocalDate today = LocalDate.parse("2026-11-12");
+        var conditions =
+                new QuestionInterpretation(
+                        "현재 상태",
+                        List.of("P104"),
+                        inventedPeriod ? today : null,
+                        inventedPeriod ? today : null,
+                        List.of(new AgentReferenceObject(9L, "P104", "설비")),
+                        null);
+        var result =
+                new ModelComparisonGmsTests.Result("ANSWERED", "정지 상태입니다", conditions, Map.of());
+        var calls =
+                List.<Map<String, Object>>of(
+                        Map.of("tool", "OBJECT_DETAIL", "succeeded", true, "category", "FOUND"));
+
+        assertThat(
+                        ModelComparisonGmsTests.outcome(
+                                "test",
+                                1,
+                                0,
+                                turn,
+                                result,
+                                calls,
+                                List.of(9L),
+                                100,
+                                new ModelComparisonGmsTests.ModelUsage(null, "unused")))
+                .containsEntry("periodOk", !inventedPeriod)
+                .containsEntry("passed", !inventedPeriod);
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"none", "low"})
     void selectsRequestedModelAndPreservesRequestOptions(String effort) {
