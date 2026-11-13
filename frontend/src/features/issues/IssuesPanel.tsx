@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import {
   useLocation,
   useNavigate,
   useSearchParams,
   type NavigateOptions,
 } from 'react-router'
+import { ApiError } from '../../api/errors'
 import DataTable from '../../components/DataTable'
 import Dialog from '../../components/Dialog'
 import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
@@ -40,19 +42,31 @@ function relatedRule(issue: Issue) {
 }
 
 function IssueDetail({ id, onClose }: { id: number; onClose: () => void }) {
+  const [savingLink, setSavingLink] = useState(false)
   const query = useQuery({
     queryKey: ['issues', 'detail', id],
     queryFn: ({ signal }) => fetchIssue(id, signal),
     retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
   const issue = query.data?.data
+  const hiddenDetail =
+    query.error instanceof ApiError &&
+    ['unauthenticated', 'forbidden', 'not-found'].includes(query.error.kind)
   const evidence = Object.entries(issue?.evidence ?? {}).filter(
     ([key]) => key !== 'causeConfirmed',
   )
 
   return (
-    <Dialog title={`적용 후 문제 상세 #${id}`} onClose={onClose}>
-      <div className="mt-4 space-y-4">
+    <Dialog
+      title={`적용 후 문제 상세 #${id}`}
+      onClose={() => {
+        if (!savingLink) onClose()
+      }}
+      closeOnBackdrop={!savingLink}
+    >
+      <fieldset disabled={savingLink} className="mt-4 min-w-0 space-y-4">
         {query.isPending && <LoadingState message="문제 상세를 불러오는 중…" />}
         {query.isError && (
           <ErrorState
@@ -60,7 +74,7 @@ function IssueDetail({ id, onClose }: { id: number; onClose: () => void }) {
             onRetry={() => void query.refetch()}
           />
         )}
-        {query.isSuccess && issue && (
+        {issue && !hiddenDetail && (
           <>
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               {[
@@ -95,18 +109,27 @@ function IssueDetail({ id, onClose }: { id: number; onClose: () => void }) {
               issue.status === 'CHECKING' &&
               issue.objectInstanceId !== null &&
               issue.linkMappingId !== null && (
-                <IssueManualLinkForm issue={issue} />
+                <IssueManualLinkForm
+                  issue={issue}
+                  unavailable={query.isFetching || query.isError}
+                  onPendingChange={setSavingLink}
+                />
               )}
-            <IssueStatusForm issue={issue} statusLabels={statusLabels} />
-            <IssueReverification
-              key={`reverification:${issue.id}`}
-              issue={issue}
-            />
-            <IssueTracking
-              key={issue.id}
-              issue={issue}
-              statusLabels={statusLabels}
-            />
+            <fieldset
+              disabled={query.isFetching || query.isError}
+              className="min-w-0 space-y-4"
+            >
+              <IssueStatusForm issue={issue} statusLabels={statusLabels} />
+              <IssueReverification
+                key={`reverification:${issue.id}`}
+                issue={issue}
+              />
+              <IssueTracking
+                key={issue.id}
+                issue={issue}
+                statusLabels={statusLabels}
+              />
+            </fieldset>
             <section aria-label="원천 근거" className="space-y-2">
               <h3 className="font-semibold">원천 근거</h3>
               {evidence.length ? (
@@ -130,7 +153,7 @@ function IssueDetail({ id, onClose }: { id: number; onClose: () => void }) {
             </section>
           </>
         )}
-      </div>
+      </fieldset>
     </Dialog>
   )
 }

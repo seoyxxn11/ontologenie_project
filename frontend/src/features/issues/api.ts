@@ -136,7 +136,7 @@ export function fetchReverificationComparison(
   )
 }
 
-export function createIssueManualLink({
+export async function createIssueManualLink({
   issueId,
   ...request
 }: {
@@ -145,12 +145,27 @@ export function createIssueManualLink({
   reason: string
   rowVersion: number
 }) {
-  return apiPost<{
+  const response = await apiPost<{
     issueId: number
     linkId: number
     outcome: 'CREATED' | 'REACTIVATED'
     actionExecutionId: number
   }>(`/issues/${issueId}/manual-links`, request)
+  const result = response?.data
+  if (
+    !result ||
+    result.issueId !== issueId ||
+    !Number.isSafeInteger(result.linkId) ||
+    result.linkId <= 0 ||
+    !Number.isSafeInteger(result.actionExecutionId) ||
+    result.actionExecutionId <= 0 ||
+    !['CREATED', 'REACTIVATED'].includes(result.outcome)
+  ) {
+    throw new ApiError('수동 연결 저장 결과를 확인할 수 없습니다.', {
+      kind: 'invalid-response',
+    })
+  }
+  return response!
 }
 
 export function changeIssueStatus(
