@@ -12,6 +12,7 @@ from pathlib import Path
 import pandas as pd
 
 from app.analyzers.structured import (
+    MIN_MATCHED,
     ColumnAnalysis,
     ColumnValues,
     StructuredAnalysis,
@@ -741,6 +742,9 @@ def _single(source: Column, target: Column, key: str) -> Relation | None:
             rel.hold = "수량·개수 컬럼이라 번호와 숫자가 우연히 겹칠 수 있음"
             rel.number_only = True
         few, targets = len(_distinct(source)), len(_distinct(target))
+        if rel.hold is None and _hierarchy(source, target) and few < MIN_MATCHED:
+            # 위계로 보고 값이 적어도 비교했다. 이어진 상위 값이 한두 개라 우연일 수 있어 확인을 받는다
+            rel.hold = f"같은 표의 상위 코드인데 이어진 값이 {few}개뿐이라 확인 필요"
         if (
             rel.hold is None
             and few < FEW_VALUES
@@ -770,9 +774,27 @@ def _prefix_swap(steps: list[dict]) -> tuple[str, str] | None:
     return None
 
 
+# 같은 표의 위계(부서의 상위 부서). 위쪽 행이 몇 개 없어 값 종류가 적어도 비교한다
+_HIERARCHY = re.compile(r"(^|_)(parent|upper|super)(_|$)|상위|부모", re.IGNORECASE)
+
+
+def _hierarchy(source: Column, target: Column) -> bool:
+    """같은 표 안에서 상위 코드가 기본키를 가리키는지(parent_code → dept_code)."""
+    return source.table == target.table and bool(
+        _HIERARCHY.search(source.name)
+        or _HIERARCHY.search(source.analysis.comment or "")
+    )
+
+
 def _compare(source: Column, target: Column, key: str) -> Relation | None:
     link = _best_link(
-        source.analysis, target.analysis, _column_values(source), _column_values(target)
+        source.analysis,
+        target.analysis,
+        _column_values(source),
+        _column_values(target),
+        min_matched=1
+        if key == "primary" and _hierarchy(source, target)
+        else MIN_MATCHED,
     )
     targets = _distinct(target)
     if link is not None:

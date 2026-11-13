@@ -707,3 +707,44 @@ def test_numbered_relation_code_stays_within_backend_length():
     code = _numbered("A" * 100, 2)
     assert len(code) == 100 and code.endswith("_2")
     assert TYPE_CODE.fullmatch(code)
+
+
+def test_parent_code_in_same_table_is_linked_even_with_one_value(tmp_path):
+    # 상위 부서가 하나뿐이어도(값 종류 1개) 같은 표의 위계 관계로 제안한다
+    write_table(
+        tmp_path,
+        "erp",
+        "department",
+        ["dept_code"],
+        {
+            "dept_code": ("varchar(10)", ["DP10", "DP20", "DP21", "DP30", "DP40"]),
+            "parent_code": ("varchar(10)", ["", "DP10", "DP10", "DP10", ""]),
+            "backup_code": ("varchar(10)", ["DP10", "", "DP10", "", ""]),
+        },
+    )
+    found = {c.candidate_id: c for c in propose_links(tmp_path)}
+    ids = set(found)
+    assert "LR-department_parent_code_to_department" in ids
+    # 이어진 상위 값이 하나뿐이라 확정이 아니라 보류로 낸다
+    assert found["LR-department_parent_code_to_department"].review_status == "HELD"
+    # 위계를 뜻하지 않는 칸은 값이 적으면 지금처럼 비교하지 않는다
+    assert "LR-department_backup_code_to_department" not in ids
+
+
+def test_upper_limit_number_is_not_a_hierarchy_link(tmp_path):
+    # upper_limit(상한값)도 정규식에 걸리지만 수치라 기본키와 이어지지 않는다
+    write_table(
+        tmp_path,
+        "mes",
+        "spec",
+        ["spec_id"],
+        {
+            "spec_id": ("int", [str(i) for i in range(1, 13)]),
+            "upper_limit": ("int", ["5"] * 12),
+        },
+    )
+    assert not any(
+        "upper_limit" in c.candidate_id
+        for c in propose_links(tmp_path)
+        if c.candidate_id.startswith("LR-")
+    )
