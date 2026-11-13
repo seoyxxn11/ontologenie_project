@@ -224,7 +224,7 @@ def test_document_link_shows_alias_and_memo_excerpt():
     )
     # 메모에 무엇이 적혔는지(부정한 관찰은 빼고), 승인하면 무엇이 되는지
     assert " 메모 내용: “새벽 2시쯤 1라인 3호 프레스 진동이" in reason
-    assert "(진동 기록)" in reason and "누유" not in reason
+    assert "(관찰: 진동)" in reason and "누유" not in reason
     assert reason.endswith(
         "승인하면 이 메모와 1라인 3호 프레스 (P103)가 이어져 탐색 화면과 Agent에서 함께 찾을 수 있습니다."
     )

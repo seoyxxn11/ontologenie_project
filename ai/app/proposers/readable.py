@@ -308,7 +308,7 @@ def _document_name(
     if excerpt:
         content = f" 메모 내용: “{excerpt}”"
         if observed:
-            content += f" ({observed} 기록)"
+            content += f" (관찰: {observed})"
     if choices > 1:
         title = f"{doc} → {target} 후보 {choices}개"
         lead = (

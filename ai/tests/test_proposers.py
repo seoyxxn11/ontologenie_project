@@ -1083,3 +1083,80 @@ def test_llm_outage_or_unexpected_error_does_not_stop_semantics(data, result):
     assert report["failed"][0] == {"table": tables[0], "error": "예상하지 못한 답"}
     assert all("남은 호출을 건너뜀" in f["error"] for f in report["failed"][4:])
     assert len(merged) == len(candidates)
+
+
+def test_register_with_own_name_is_master_and_status_with_dates_is_transaction():
+    # 참조되지 않고 일자가 있어도 자기 이름 칸(자산명)이 있으면 대장(기준 정보), 상태·일자 여럿이면 거래
+    cols = [
+        ("asset_no", "varchar(10)"),
+        ("asset_name", "varchar(20)"),
+        ("acquired_on", "date"),
+    ]
+    analysis = [
+        _col("asset_no", "varchar(10)"),
+        _col("asset_name", "varchar(20)", "자산명"),
+        _col("acquired_on", "date", "취득일"),
+    ]
+    values = {
+        "asset_no": ["A1"],
+        "asset_name": ["프레스"],
+        "acquired_on": ["2026-01-01"],
+    }
+    kind, reason = classify(
+        _schema(["asset_no"], *cols).model_copy(update={"name": "fixed_asset"}),
+        analysis,
+        values,
+        set(),
+        set(),
+    )
+    assert kind == "master" and "asset_name" in reason
+
+    cols = [
+        ("mo_no", "varchar(10)"),
+        ("status", "varchar(10)"),
+        ("planned", "date"),
+        ("done", "date"),
+    ]
+    analysis = [_col(n, t) for n, t in cols]
+    values = {n: ["2026-01-01"] if t == "date" else ["a"] for n, t in cols}
+    assert (
+        classify(_schema(["mo_no"], *cols), analysis, values, set(), set())[0]
+        == "transaction"
+    )
+
+    # 이름 칸이 담당자 이름이면 대장으로 보지 않는다
+    cols = [
+        ("log_id", "varchar(10)"),
+        ("manager_name", "varchar(20)"),
+        ("logged", "date"),
+    ]
+    analysis = [_col(n, t) for n, t in cols]
+    values = {"log_id": ["L1"], "manager_name": ["x"], "logged": ["2026-01-01"]}
+    assert (
+        classify(_schema(["log_id"], *cols), analysis, values, set(), set())[0]
+        == "history"
+    )
+
+
+def test_record_tables_with_copied_names_stay_records():
+    # 기록·실적 표의 이름 칸(불량명·공정명)이나 다른 것의 이름(원료명)은 대장 근거가 아니다
+    from app.proposers.objects import _own_name_column
+
+    def cols(*names_and_comments):
+        return [_col(n, "varchar(20)", c) for n, c in names_and_comments]
+
+    assert _own_name_column("defect_log", cols(("defect_name", "불량명"))) is None
+    assert _own_name_column("mes_batch_step", cols(("step_nm", "공정명"))) is None
+    assert (
+        _own_name_column(
+            "raw_material_receiving_inspection", cols(("raw_material_name", "원료명"))
+        )
+        is None
+    )
+    assert _own_name_column("work_log", cols(("operator_name", "작업자명"))) is None
+    # 대장은 표의 주체 낱말과 같은 이름 칸이 있다
+    assert (
+        _own_name_column("fixed_asset", cols(("asset_name", "자산명"))) == "asset_name"
+    )
+    assert _own_name_column("eqp_mst", cols(("eqp_nm", "설비명"))) == "eqp_nm"
+    assert _own_name_column("equipment", cols(("name", "설비 이름"))) == "name"

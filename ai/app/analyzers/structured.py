@@ -346,8 +346,11 @@ def _as_values(values) -> ColumnValues:
     return values if isinstance(values, ColumnValues) else ColumnValues(values)
 
 
-def _best_link(source, target, source_values, target_values) -> LinkCandidate | None:
-    """source_values·target_values는 값 목록 또는 ColumnValues(여러 번 비교할 때 변환을 다시 하지 않게)."""
+def _best_link(
+    source, target, source_values, target_values, min_matched: int = MIN_MATCHED
+) -> LinkCandidate | None:
+    """source_values·target_values는 값 목록 또는 ColumnValues(여러 번 비교할 때 변환을 다시 하지 않게).
+    min_matched는 이어져야 하는 서로 다른 값 수다(같은 표의 상위 코드처럼 값이 적은 위계만 낮춘다)."""
     src, tgt = _as_values(source_values), _as_values(target_values)
     distinct_source = src.distinct
     if not distinct_source:
@@ -371,7 +374,7 @@ def _best_link(source, target, source_values, target_values) -> LinkCandidate | 
         )
         if better:
             best = (coverage, rule_type, src_steps, tgt_steps, target_map, hit)
-    if best is None or best[0] < MIN_COVERAGE or best[5] < MIN_MATCHED:
+    if best is None or best[0] < MIN_COVERAGE or best[5] < min_matched:
         return None
     coverage, rule_type, src_steps, tgt_steps, target_map, _ = best
     converted_values = src.converted(src_steps)

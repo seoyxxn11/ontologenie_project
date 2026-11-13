@@ -279,6 +279,44 @@ def _is_status(name: str, comment: str | None) -> bool:
     return "status" in name.lower() or "상태" in (comment or "")
 
 
+# 표 이름 끝이 이 낱말이면 기록·실적 표라 이름 칸이 있어도 대장으로 보지 않는다(defect_log, batch_step)
+_RECORD_WORDS = {
+    "log",
+    "logs",
+    "history",
+    "hist",
+    "step",
+    "steps",
+    "result",
+    "results",
+    "record",
+    "records",
+    "inspection",
+    "receiving",
+    "line",
+    "lines",
+    "detail",
+}
+_MASTER_WORDS = {"mst", "master", "m"}
+
+
+def _own_name_column(table: str, columns: list[ColumnAnalysis]) -> str | None:
+    """그 표 자신의 이름 칸. 이름 칸 앞말이 표의 주체 낱말과 같아야 한다(fixed_asset의 asset_name, eqp_mst의 eqp_nm).
+    다른 것의 이름을 옮겨 적은 칸(원료명·담당자명)과 기록·실적 표는 대장 근거로 쓰지 않는다."""
+    words = [w for w in table.lower().split("_") if w]
+    if not words or words[-1] in _RECORD_WORDS:
+        return None
+    subject = words[-2] if words[-1] in _MASTER_WORDS and len(words) > 1 else words[-1]
+    for c in columns:
+        name = c.column.lower()
+        match = re.fullmatch(r"(?:(\w+)_)?(name|nm)", name)
+        if not match or is_person_column(f"{name} {c.comment or ''}") or c.is_personal:
+            continue
+        if match.group(1) in (None, subject):
+            return c.column
+    return None
+
+
 def classify(
     schema: TableSchema,
     columns: list[ColumnAnalysis],
@@ -310,16 +348,21 @@ def classify(
                 f"복합 기본키 {_cols(pk)} 중 {_cols(refs)} 상위 참조, {_cols(seq)} 순번",
             )
         return "snapshot", f"복합 기본키 {_cols(pk)} 기준"
-    if not in_tables and times:
-        return (
-            "history",
-            f"참조하는 테이블 없음, 일자 컬럼 {', '.join(times)} 보유",
-        )
+    # 상태와 일자 여럿(계획·완료)이 있으면 참조되지 않아도 거래다(정비 지시)
     status = [n for n, c in names.items() if _is_status(n, c.comment)]
     if status and len(times) >= 2:
         return (
             "transaction",
             f"상태 컬럼 {', '.join(status)}, 일자 컬럼 {len(times)}개 보유",
+        )
+    if not in_tables and times:
+        named = _own_name_column(schema.name, columns)
+        if named:
+            # 자기 이름 칸이 있는 대장(고정자산의 자산명)은 일자가 있어도 기준 정보다
+            return "master", f"이름 컬럼 {named} 보유(대장)"
+        return (
+            "history",
+            f"참조하는 테이블 없음, 일자 컬럼 {', '.join(times)} 보유",
         )
     return (
         "master",
