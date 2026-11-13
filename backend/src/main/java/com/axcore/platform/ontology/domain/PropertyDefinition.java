@@ -93,6 +93,14 @@ public class PropertyDefinition extends BaseAuditEntity {
         this.origin = DefinitionOrigin.MANUAL;
     }
 
+    /**
+     * 원천 데이터 정책상 민감 컬럼(RESTRICTED)을 담게 되어 민감 속성으로 올린다(384·391). 내리는 쪽은 없다. 식별 속성 여부는 부르는 쪽이 먼저
+     * 확인한다.
+     */
+    public void restrictBySourcePolicy() {
+        this.sensitivity = PropertySensitivity.RESTRICTED;
+    }
+
     /** 코드·소속 유형·출처를 뺀 값을 바꾼다 (API 028). 기존 값과 맞는지는 서비스가 먼저 확인한다. */
     public void update(
             String name,

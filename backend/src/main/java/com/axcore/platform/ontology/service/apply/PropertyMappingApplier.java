@@ -53,6 +53,6 @@ class PropertyMappingApplier implements ProposalApplier {
                 written.id(),
                 List.of(written.sourceResourceId()),
                 Map.of("objectTypeCode", type.getCode(), "propertyCode", propertyCode),
-                List.of(written.change()));
+                written.changes());
     }
 }

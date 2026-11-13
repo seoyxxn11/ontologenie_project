@@ -15,12 +15,20 @@ import com.axcore.platform.mapping.dto.TransformStepPayload;
 import com.axcore.platform.mapping.repository.ObjectSourceMappingRepository;
 import com.axcore.platform.mapping.repository.PropertySourceMappingRepository;
 import com.axcore.platform.ontology.domain.PropertyDefinition;
+import com.axcore.platform.ontology.domain.PropertySensitivity;
+import com.axcore.platform.ontology.repository.ObjectTypeRepository;
 import com.axcore.platform.ontology.repository.PropertyDefinitionRepository;
+import com.axcore.platform.ontology.service.DefinitionSideEffects;
+import com.axcore.platform.ontology.service.LinkKeyUsage;
 import com.axcore.platform.source.domain.SourceColumn;
 import com.axcore.platform.source.domain.SourceResource;
+import com.axcore.platform.source.policy.SourceColumnGrade;
+import com.axcore.platform.source.policy.SourceColumnPolicy;
 import com.axcore.platform.source.repository.SourceColumnRepository;
+import com.axcore.platform.source.repository.SourceResourceRepository;
 import com.axcore.platform.source.service.SourceCatalogService;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +54,12 @@ public class PropertyMappingService {
     private final PropertyDefinitionRepository propertyRepository;
     private final SourceColumnRepository columnRepository;
     private final SourceCatalogService catalogService;
+    private final SourceColumnPolicy sourceColumnPolicy;
+    private final ObjectTypeRepository objectTypeRepository;
+    private final LinkKeyUsage linkKeyUsage;
+    private final SourceResourceRepository resourceRepository;
+    private final DefinitionSideEffects sideEffects;
+    private final MappedResourceReload mappedResourceReload;
 
     /** API 037. */
     public Page<PropertyMappingResponse> search(Long sourceMappingId, Pageable pageable) {
@@ -59,18 +73,29 @@ public class PropertyMappingService {
     public PropertyMappingWriteResponse create(PropertyMappingCreateRequest request) {
         requireColumnSource(request.sourceColumnId(), request.sourcePath());
         List<TransformStep> steps = TransformStepsValidator.parse(request.transformSteps());
-        SourceResource resource = lockResource(request.sourceResourceId());
+        Map<Long, SourceResource> locked =
+                lockResources(
+                        List.of(request.sourceResourceId()),
+                        request.propertyDefinitionId(),
+                        request.sourceColumnId());
+        SourceResource resource = locked.get(request.sourceResourceId());
         ObjectSourceMapping parent =
                 findParent(request.sourceMappingId(), request.sourceResourceId());
-        validateTarget(
-                parent,
-                request.propertyDefinitionId(),
-                request.sourceColumnId(),
-                request.sourceResourceId(),
-                steps);
+        Target target =
+                validateTarget(
+                        parent,
+                        request.propertyDefinitionId(),
+                        request.sourceColumnId(),
+                        request.sourceResourceId(),
+                        steps);
+        boolean raised = applySourcePolicy(resource, target);
         if (propertyMappingRepository.existsForProperty(
                 parent.getId(), request.propertyDefinitionId(), null)) {
             throw duplicateProperty();
+        }
+        if (raised) {
+            mappedResourceReload.reloadMapped(
+                    target.property().getId(), locked, Set.of(resource.getId()));
         }
         PropertySourceMapping mapping =
                 propertyMappingRepository.saveAndFlush(
@@ -105,21 +130,20 @@ public class PropertyMappingService {
                             "expected", request.rowVersion(),
                             "actual", mapping.getRowVersion()));
         }
-        // 두 자원을 잠글 때 순서를 정해 두어 서로 기다리다 멈추지 않게 한다.
-        Map<Long, SourceResource> locked = new HashMap<>();
-        for (Long resourceId :
-                new TreeSet<>(List.of(mapping.getSourceResourceId(), request.sourceResourceId()))) {
-            locked.put(resourceId, lockResource(resourceId));
-        }
+        List<Long> requested = List.of(mapping.getSourceResourceId(), request.sourceResourceId());
+        Map<Long, SourceResource> locked =
+                lockResources(requested, request.propertyDefinitionId(), request.sourceColumnId());
         ObjectSourceMapping previousParent = findParent(mapping.getSourceMappingId(), null);
         ObjectSourceMapping parent =
                 findParent(request.sourceMappingId(), request.sourceResourceId());
-        validateTarget(
-                parent,
-                request.propertyDefinitionId(),
-                request.sourceColumnId(),
-                request.sourceResourceId(),
-                steps);
+        Target target =
+                validateTarget(
+                        parent,
+                        request.propertyDefinitionId(),
+                        request.sourceColumnId(),
+                        request.sourceResourceId(),
+                        steps);
+        boolean raised = applySourcePolicy(locked.get(request.sourceResourceId()), target);
         if (propertyMappingRepository.existsForProperty(
                 parent.getId(), request.propertyDefinitionId(), id)) {
             throw duplicateProperty();
@@ -148,6 +172,15 @@ public class PropertyMappingService {
                     reloadReason = ReloadReason.PROPERTY_MAPPING_CHANGED;
                 }
             }
+        }
+        if (raised) {
+            // 같은 값을 다시 저장해도 정책 때문에 민감으로 올렸으면 그동안 CDC가 건너뛴 변경을 되찾도록 다시 읽는다(391).
+            if (reloadReason == null && parent.isActive()) {
+                catalogService.requireFullReload(locked.get(request.sourceResourceId()));
+                reloadReason = ReloadReason.PROPERTY_MAPPING_CHANGED;
+            }
+            mappedResourceReload.reloadMapped(
+                    target.property().getId(), locked, new HashSet<>(requested));
         }
         // 응답의 rowVersion·수정 시각이 이번 변경을 반영하도록 먼저 DB에 쓴다.
         propertyMappingRepository.flush();
@@ -212,8 +245,100 @@ public class PropertyMappingService {
         return parent;
     }
 
+    /**
+     * 원천 데이터 정책을 적용하고, 속성을 민감으로 올렸으면 true를 돌려준다(384·391). 금지 컬럼이면 거절한다. 민감 컬럼이면 속성을
+     * 민감(RESTRICTED)으로 올린다. 속성 민감도는 매핑된 원천 컬럼 등급보다 낮을 수 없다. 식별·연결 키 속성은 민감이 될 수 없어 거절하고, 대표 속성이면
+     * 대표를 비운다(표시 이름은 원천 키로 대신한다).
+     */
+    private boolean applySourcePolicy(SourceResource resource, Target target) {
+        String column = target.column().getColumnName();
+        sourceColumnPolicy.requireCollectable(
+                resource.getResourceKey(), List.of(column), "sourceColumnId");
+        PropertyDefinition property = target.property();
+        if (sourceColumnPolicy.gradeOf(resource.getResourceKey(), column)
+                        != SourceColumnGrade.RESTRICTED
+                || property.getSensitivity() == PropertySensitivity.RESTRICTED) {
+            return false;
+        }
+        if (property.isIdentifier()) {
+            throw new BusinessException(
+                    CommonErrorCode.BUSINESS_RULE_VIOLATION,
+                    "원천 데이터 정책상 민감 컬럼이라 식별 속성에 매핑할 수 없습니다.",
+                    Map.of("field", "sourceColumnId", "column", column, "reason", "IDENTIFIER"));
+        }
+        if (linkKeyUsage.isUsed(property)) {
+            throw new BusinessException(
+                    CommonErrorCode.BUSINESS_RULE_VIOLATION,
+                    "원천 데이터 정책상 민감 컬럼이라 연결 규칙의 조건에 쓰는 속성에 매핑할 수 없습니다.",
+                    Map.of("field", "sourceColumnId", "column", column, "reason", "LINK_KEY"));
+        }
+        // 요청 대상(속성 매핑) 밖의 정의 행을 바꾸므로 감사 기록에 함께 남긴다.
+        sideEffects.beforeUpdate("property_definition", property.getId());
+        property.restrictBySourcePolicy();
+        objectTypeRepository
+                .findById(property.getObjectTypeId())
+                .filter(type -> property.getId().equals(type.getDisplayPropertyId()))
+                .ifPresent(
+                        type -> {
+                            sideEffects.beforeUpdate("object_type", type.getId());
+                            type.update(
+                                    type.getName(),
+                                    type.getDescription(),
+                                    type.getSynonyms(),
+                                    type.getAccessGroup(),
+                                    null);
+                        });
+        return true;
+    }
+
+    /**
+     * 요청한 원천 자원을 잠근다. 이 요청이 속성을 민감으로 올릴 수 있으면(일반 속성에 민감 컬럼) 그 속성을 담는 다른 켜진 매핑의 자원도 함께 잠근다.
+     * 수집(SyncRunJob)과 같이 모든 자원을 ID 순서로 한 번에 잡아 서로 기다리다 멈추지 않게 한다(391). 올렸을 때 그 자원들을 다시 읽기로
+     * 표시한다({@link MappedResourceReload}). 391 이전 매핑이 있던 표는 적재 계획이 실패해 CDC가 건너뛰었으므로 빠진 변경을 되찾아야 한다.
+     */
+    private Map<Long, SourceResource> lockResources(
+            List<Long> requested, Long propertyId, Long columnId) {
+        Set<Long> ids = new TreeSet<>(requested);
+        if (mayRaise(propertyId, columnId)) {
+            ids.addAll(mappedResourceReload.activeResourceIds(propertyId));
+        }
+        Map<Long, SourceResource> locked = new HashMap<>();
+        for (Long id : ids) {
+            if (requested.contains(id)) {
+                locked.put(id, lockResource(id));
+            } else {
+                catalogService.lockResource(id).ifPresent(resource -> locked.put(id, resource));
+            }
+        }
+        return locked;
+    }
+
+    /** 잠그기 전에 읽은 값으로, 이 매핑이 일반 속성에 민감 컬럼을 담는지 본다. 잠근 뒤 다시 판단하므로 여기서는 잠글 범위만 정한다. */
+    private boolean mayRaise(Long propertyId, Long columnId) {
+        if (propertyId == null || columnId == null) {
+            return false;
+        }
+        PropertyDefinition property = propertyRepository.findById(propertyId).orElse(null);
+        SourceColumn column = columnRepository.findById(columnId).orElse(null);
+        if (property == null
+                || column == null
+                || property.getSensitivity() == PropertySensitivity.RESTRICTED) {
+            return false;
+        }
+        return resourceRepository
+                .findById(column.getSourceResourceId())
+                .map(
+                        resource ->
+                                sourceColumnPolicy.gradeOf(
+                                                resource.getResourceKey(), column.getColumnName())
+                                        == SourceColumnGrade.RESTRICTED)
+                .orElse(false);
+    }
+
+    private record Target(PropertyDefinition property, SourceColumn column) {}
+
     /** 속성이 매핑의 객체 유형에 속하는지, 컬럼이 같은 자원에 지금 있는지, 변환 결과를 속성에 넣을 수 있는지. */
-    private void validateTarget(
+    private Target validateTarget(
             ObjectSourceMapping parent,
             Long propertyDefinitionId,
             Long sourceColumnId,
@@ -246,6 +371,7 @@ public class PropertyMappingService {
                     Map.of("field", "sourceColumnId"));
         }
         TransformStepsValidator.requireCompatible(steps, property.getDataType());
+        return new Target(property, column);
     }
 
     /** 문서 경로 형식이 정해지기 전에는 표 컬럼만 매핑한다(2026-11-03). 경로를 보내면 무시하지 않고 거절한다. */

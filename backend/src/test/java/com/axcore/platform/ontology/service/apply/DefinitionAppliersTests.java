@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.axcore.platform.TestcontainersConfiguration;
+import com.axcore.platform.audit.domain.ChangeKind;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.ontology.domain.ApplyErrorCode;
 import com.axcore.platform.ontology.domain.DefinitionOrigin;
@@ -179,7 +180,11 @@ class DefinitionAppliersTests {
     }
 
     @Test
-    void displayPropertyMustBeABundledNormalProperty() {
+    /**
+     * 대표로 고른 속성이 민감이면 승인을 깨지 않고 대표만 비운다(391). 원천 정책으로 속성이 민감으로 올라가는 경우가 있어 승인 실패로 두면 제안 전체가 막힌다. 없는
+     * 속성을 고르면 여전히 실패다.
+     */
+    void restrictedDisplayPropertyIsSkippedAndMissingOneFails() {
         String code = "DISPLAY_" + suffix().substring(0, 8).toUpperCase();
         Map<String, Object> restricted = new LinkedHashMap<>();
         restricted.put("code", code);
@@ -194,19 +199,116 @@ class DefinitionAppliersTests {
                                 "sensitivity", "RESTRICTED")));
         restricted.put("displayPropertyCode", "worker_name");
 
-        assertApplyError(
-                () -> apply(proposal("OBJECT_TYPE"), ProposalItemKind.OBJECT_TYPE, restricted),
-                ApplyErrorCode.APPLY_PAYLOAD_INVALID,
-                "payload.displayPropertyCode");
-        assertThat(count("object_type", "code = '" + code + "'")).isZero();
+        ApplyResult applied =
+                apply(proposal("OBJECT_TYPE"), ProposalItemKind.OBJECT_TYPE, restricted);
+        assertThat(applied.summary()).containsEntry("skippedDisplayPropertyCode", "worker_name");
+        assertThat(count("object_type", "code = '" + code + "' and display_property_id is null"))
+                .isEqualTo(1);
 
         Map<String, Object> missing = new LinkedHashMap<>(restricted);
+        missing.put("code", code + "_2");
         missing.put("displayPropertyCode", "no_such_property");
         assertApplyError(
                 () -> apply(proposal("OBJECT_TYPE"), ProposalItemKind.OBJECT_TYPE, missing),
                 ApplyErrorCode.APPLY_REFERENCE_MISSING,
                 "payload.displayPropertyCode");
+        assertThat(count("object_type", "code = '" + code + "_2'")).isZero();
+    }
+
+    /**
+     * 승인 반영도 원천 데이터 정책을 따른다(391). 금지 컬럼을 매핑한 묶음은 아무것도 쓰지 않고 거절한다. 민감 컬럼을 매핑한 속성은 민감으로 올라가고, 그 속성을
+     * 대표로 골랐으면 대표를 비운다.
+     */
+    @Test
+    void bundleFollowsTheSourceDataPolicy() {
+        resourceKey = "mes.worker";
+        jdbc.sql("update source_resource set resource_key = :key where id = :id")
+                .param("key", resourceKey)
+                .param("id", resourceId)
+                .update();
+        column("name", "varchar", 3, false);
+        column("skill_level", "varchar", 4, false);
+        String code = "WORKER_" + suffix().substring(0, 8).toUpperCase();
+
+        Map<String, Object> forbidden = workerBundle(code, "name");
+        assertApplyError(
+                () -> apply(proposal("OBJECT_TYPE"), ProposalItemKind.OBJECT_TYPE, forbidden),
+                ApplyErrorCode.APPLY_PAYLOAD_INVALID,
+                "payload");
         assertThat(count("object_type", "code = '" + code + "'")).isZero();
+
+        ApplyResult applied =
+                apply(
+                        proposal("OBJECT_TYPE"),
+                        ProposalItemKind.OBJECT_TYPE,
+                        workerBundle(code, "skill_level"));
+        assertThat(
+                        count(
+                                "property_definition",
+                                "object_type_id = "
+                                        + applied.targetId()
+                                        + " and code = 'detail' and sensitivity = 'RESTRICTED'"))
+                .isEqualTo(1);
+        assertThat(
+                        count(
+                                "object_type",
+                                "id = " + applied.targetId() + " and display_property_id is null"))
+                .isEqualTo(1);
+        // 속성 매핑이 속성을 민감으로 올린 변경도 승인 기록에 남는다.
+        assertThat(applied.changes())
+                .anySatisfy(
+                        change -> {
+                            assertThat(change.tableName()).isEqualTo("property_definition");
+                            assertThat(change.kind()).isEqualTo(ChangeKind.UPDATE);
+                            assertThat(change.before()).containsEntry("sensitivity", "NORMAL");
+                            assertThat(change.after()).containsEntry("sensitivity", "RESTRICTED");
+                        });
+    }
+
+    private Map<String, Object> workerBundle(String code, String detailColumn) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("code", code);
+        payload.put("name", "작업자");
+        payload.put(
+                "objectMapping",
+                Map.of(
+                        "sourceId",
+                        sourceCode,
+                        "resourceKey",
+                        resourceKey,
+                        "keyColumns",
+                        List.of("eq_id")));
+        payload.put(
+                "properties",
+                List.of(
+                        Map.of(
+                                "code",
+                                "code",
+                                "name",
+                                "작업자 코드",
+                                "dataType",
+                                "STRING",
+                                "isIdentifier",
+                                true,
+                                "sourceColumn",
+                                Map.of(
+                                        "sourceId", sourceCode,
+                                        "resourceKey", resourceKey,
+                                        "column", "eq_id")),
+                        Map.of(
+                                "code",
+                                "detail",
+                                "name",
+                                "상세",
+                                "dataType",
+                                "STRING",
+                                "sourceColumn",
+                                Map.of(
+                                        "sourceId", sourceCode,
+                                        "resourceKey", resourceKey,
+                                        "column", detailColumn))));
+        payload.put("displayPropertyCode", "detail");
+        return payload;
     }
 
     @Test

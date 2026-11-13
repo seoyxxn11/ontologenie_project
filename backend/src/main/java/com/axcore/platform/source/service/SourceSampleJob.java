@@ -8,6 +8,8 @@ import com.axcore.platform.source.domain.SourceAccount;
 import com.axcore.platform.source.domain.SourceColumn;
 import com.axcore.platform.source.domain.SourceEndpoint;
 import com.axcore.platform.source.domain.SourceKind;
+import com.axcore.platform.source.policy.SourceColumnGrade;
+import com.axcore.platform.source.policy.SourceColumnPolicy;
 import com.axcore.platform.source.repository.DataSourceRepository;
 import com.axcore.platform.source.repository.SourceColumnRepository;
 import com.axcore.platform.source.repository.SourcePreviewRepository;
@@ -34,14 +36,6 @@ import tools.jackson.databind.json.JsonMapper;
 @RequiredArgsConstructor
 public class SourceSampleJob implements QueuedJobHandler<SourceSampleJob.Result> {
 
-    // 현재 ERP·MES 데이터셋의 PERSONAL_COLUMNS (ai/app/dataset/schema.py).
-    private static final Map<String, String> EXCLUDED_COLUMNS =
-            Map.of(
-                    "erp.employee", "emp_name",
-                    "erp.vendor", "contact_name",
-                    "mes.worker", "name",
-                    "mes.maintenance_order", "technician");
-
     private final SourcePreviewRepository previews;
     private final SourceResourceRepository resources;
     private final DataSourceRepository sources;
@@ -50,6 +44,7 @@ public class SourceSampleJob implements QueuedJobHandler<SourceSampleJob.Result>
     private final SourceTableReader reader;
     private final JsonMapper json;
     private final Clock clock;
+    private final SourceColumnPolicy sourceColumnPolicy;
 
     @Override
     public QueuedJobType type() {
@@ -78,14 +73,20 @@ public class SourceSampleJob implements QueuedJobHandler<SourceSampleJob.Result>
                         .orElseThrow(() -> new QueuedJobFailure("PostgreSQL 원천을 찾을 수 없습니다."));
 
         String resourceKey = resource.getResourceKey();
-        String excluded = EXCLUDED_COLUMNS.get(resourceKey);
+        // 원천 데이터 정책(384·391): 들이지 않는 표는 표본도 읽지 않고, 금지·민감 컬럼은 표본에서 뺀다.
+        if (sourceColumnPolicy.forbidsTable(resourceKey)) {
+            throw new QueuedJobFailure("원천 데이터 정책상 들이지 않는 표라 표본을 읽지 않습니다.");
+        }
         List<String> selected =
                 columns
                         .findBySourceResourceIdOrderByOrdinalPositionAscIdAsc(resource.getId())
                         .stream()
                         .filter(SourceColumn::isPresent)
                         .map(SourceColumn::getColumnName)
-                        .filter(name -> !name.equals(excluded))
+                        .filter(
+                                name ->
+                                        sourceColumnPolicy.gradeOf(resourceKey, name)
+                                                == SourceColumnGrade.NORMAL)
                         .toList();
         if (selected.isEmpty()) {
             throw new QueuedJobFailure("표본으로 조회할 수 있는 컬럼이 없습니다.");

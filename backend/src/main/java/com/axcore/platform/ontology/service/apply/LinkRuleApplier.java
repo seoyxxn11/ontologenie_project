@@ -10,6 +10,7 @@ import com.axcore.platform.ontology.domain.LinkMappingStatus;
 import com.axcore.platform.ontology.domain.LinkType;
 import com.axcore.platform.ontology.domain.ObjectType;
 import com.axcore.platform.ontology.domain.PropertyDefinition;
+import com.axcore.platform.ontology.domain.PropertySensitivity;
 import com.axcore.platform.ontology.domain.ProposalItemKind;
 import com.axcore.platform.ontology.dto.ApplyCommand;
 import com.axcore.platform.ontology.dto.ApplyResult;
@@ -255,6 +256,9 @@ class LinkRuleApplier implements ProposalApplier {
                 property(condition, "sourceProperty", sourceType, field);
         PropertyDefinition targetProperty =
                 property(condition, "targetProperty", targetType, field);
+        // 연결 키는 민감 속성이 될 수 없다(384·391). 민감 값이 연결 근거로 드러나지 않게 한다.
+        requireNormalKey(sourceProperty, field + ".sourceProperty");
+        requireNormalKey(targetProperty, field + ".targetProperty");
         String operator = support.optionalText(condition, "operator", field);
         if (operator != null && !"EQ".equals(operator)) {
             throw ApplySupport.invalid(field + ".operator", "비교는 EQ만 지원합니다.");
@@ -264,6 +268,12 @@ class LinkRuleApplier implements ProposalApplier {
                 targetProperty.getId(),
                 transforms(condition, "sourceTransforms", field),
                 transforms(condition, "targetTransforms", field));
+    }
+
+    private static void requireNormalKey(PropertyDefinition property, String field) {
+        if (property.getSensitivity() == PropertySensitivity.RESTRICTED) {
+            throw ApplySupport.invalid(field, "민감 속성은 연결 규칙의 조건에 쓸 수 없습니다: " + property.getCode());
+        }
     }
 
     /** {@code 유형코드.속성코드} 또는 {@code 속성코드}. 유형코드를 붙였다면 그 쪽(출발·도착) 유형과 같아야 한다. */
@@ -313,7 +323,8 @@ class LinkRuleApplier implements ProposalApplier {
         if (filter.isEmpty()) {
             return;
         }
-        property(filter, "property", type, field);
+        // 조건 값(equals)이 규칙 정의에 그대로 남으므로 민감 속성은 조건에 쓸 수 없다(391).
+        requireNormalKey(property(filter, "property", type, field), field + ".property");
     }
 
     private record ParsedCondition(

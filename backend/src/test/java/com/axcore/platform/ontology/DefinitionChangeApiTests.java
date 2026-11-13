@@ -66,7 +66,7 @@ class DefinitionChangeApiTests {
                 jdbc.sql(
                                 """
                                 insert into source_resource (data_source_id, resource_key, resource_kind, is_readable, sync_strategy, loaded_lsn)
-                                values (:source, 'erp.employee', 'TABLE', true, 'CDC', 100) returning id
+                                values (:source, 'erp.staff', 'TABLE', true, 'CDC', 100) returning id
                                 """)
                         .param("source", dataSource)
                         .query(Long.class)

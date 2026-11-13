@@ -67,6 +67,23 @@ axcore:
     ssl-mode: ${AXCORE_SOURCE_SSL_MODE:require}
     # Debezium 커넥터가 쓰는 원천 publication 이름(infra/cdc/connectors). 여기 든 표만 수집 방식을 CDC로 둔다.
     cdc-publication: ${AXCORE_SOURCE_CDC_PUBLICATION:axcore_cdc}
+  # 원천 데이터 정책(Jira 384·391). 스키마.표.컬럼, 표 전체는 스키마.표.*.
+  # forbidden: 들이지 않는다(매핑·적재·표본 모두 막음). restricted: 들이지만 민감(RESTRICTED) 속성으로만 담는다.
+  # 원천 계정 권한·publication 스크립트(infra/source-db)와 같은 목록을 유지한다.
+  source-data-policy:
+    forbidden:
+      - erp.attendance.*
+      - erp.fixed_asset.*
+      - erp.employee.emp_name
+      - erp.employee.position
+      - erp.employee.hire_date
+      - erp.employee.employment_type
+      - erp.employee.status
+      - mes.worker.name
+    restricted:
+      - mes.maintenance_order.technician
+      - erp.vendor.contact_name
+      - mes.worker.skill_level
   # 원천 테이블 전체 읽기(batch, Jira 197). 행을 메모리에 모두 올리므로 한 실행에서 읽는 행 수를 제한한다.
   # 시간대 없는 timestamp 컬럼은 zone-id의 시각으로 보고 DATETIME 속성(시간대 포함)으로 바꾼다.
   source-load:

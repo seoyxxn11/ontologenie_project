@@ -47,6 +47,9 @@ FN-MAP-04. 저장하기 전의 매핑 초안으로 원천 표본 행을 객체 �
 | 없는 객체 유형, 이 테이블에 없는(또는 사라진) 컬럼, 다른 유형의 속성, 앞뒤가 안 맞는 변환 단계 | 422 `BUSINESS_RULE_VIOLATION` |
 | `rowFilter`가 비어 있지 않음, `sourcePath`(문서 경로) | 422. 전체 읽기가 아직 못 읽는 매핑이라 미리보기에서만 보여 주지 않는다 |
 | SYNC 계정이 읽을 수 없는 테이블(`isReadable=false`) | 422 |
+| 원천 데이터 정책(391, [data-access.md](data-access.md)): 금지 표·키 컬럼·속성 컬럼 | 422 `details.forbiddenColumns`(표 전체면 `*`) |
+| 원천 데이터 정책(391): 민감 속성(사람이 지정한 것 포함) | 422 `details.reason` RESTRICTED_PROPERTY |
+| 원천 데이터 정책: 민감 컬럼(키·속성) | 422 `details.restrictedColumns`. 관리자는 민감 값을 볼 수 없어 미리보기에서 읽지 않는다. 그 컬럼을 빼고 미리본다 |
 | 없는 원천 테이블 | 404 |
 
 ## 102 응답

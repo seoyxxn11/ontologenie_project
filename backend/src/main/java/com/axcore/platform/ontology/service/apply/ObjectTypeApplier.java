@@ -115,18 +115,25 @@ class ObjectTypeApplier implements ProposalApplier {
                             support.transformSteps(bundled.get(i), field),
                             field);
             reload.add(written.sourceResourceId());
-            changes.add(written.change());
+            changes.addAll(written.changes());
             propertyMappings++;
         }
 
         // 대표 속성: 등록 API(022)는 속성이 없어 지정할 수 없으므로, 묶음 속성을 만든 뒤 같은 트랜잭션에서 지정한다
+        // 대표로 고른 속성이 민감이면(제안 그대로이거나, 원천 정책으로 속성 매핑 때 올라간 경우) 대표를 비우고 표시 이름은 원천 키로 대신한다(384·391).
         String displayCode = support.optionalText(payload, "displayPropertyCode", FIELD);
+        String skippedDisplay = null;
         if (displayCode != null) {
             String field = FIELD + ".displayPropertyCode";
             PropertyDefinition display = support.property(type, displayCode, field);
             if (display.getSensitivity() == PropertySensitivity.RESTRICTED) {
-                throw ApplySupport.invalid(field, "민감 속성은 대표 속성으로 지정할 수 없습니다.");
+                skippedDisplay = displayCode;
+                displayCode = null;
             }
+        }
+        if (displayCode != null) {
+            PropertyDefinition display =
+                    support.property(type, displayCode, FIELD + ".displayPropertyCode");
             type.update(
                     type.getName(),
                     type.getDescription(),
@@ -142,6 +149,9 @@ class ObjectTypeApplier implements ProposalApplier {
         summary.put("objectMappingId", objectMappingId);
         summary.put("propertyMappingCount", propertyMappings);
         summary.put("displayPropertyCode", displayCode);
+        if (skippedDisplay != null) {
+            summary.put("skippedDisplayPropertyCode", skippedDisplay);
+        }
         return new ApplyResult("object_type", type.getId(), List.copyOf(reload), summary, changes);
     }
 }

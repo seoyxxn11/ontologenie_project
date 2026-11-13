@@ -17,6 +17,7 @@ import com.axcore.platform.ontology.dto.LinkTypeResponse;
 import com.axcore.platform.ontology.dto.PropertyCreateRequest;
 import com.axcore.platform.ontology.dto.PropertyResponse;
 import com.axcore.platform.ontology.repository.LinkTypeRepository;
+import com.axcore.platform.ontology.service.DefinitionSideEffects;
 import com.axcore.platform.ontology.service.LinkTypeService;
 import com.axcore.platform.ontology.service.PropertyService;
 import com.axcore.platform.source.domain.SourceColumn;
@@ -40,6 +41,7 @@ class ApplyWriter {
     private final PropertyMappingService propertyMappingService;
     private final LinkTypeService linkTypeService;
     private final LinkTypeRepository linkTypes;
+    private final DefinitionSideEffects sideEffects;
 
     /** 속성 하나. payload 칸은 API 027과 같고 이름만 후보 형식(isRequired 생략 = false)이다. */
     Written property(
@@ -137,10 +139,12 @@ class ApplyWriter {
         after.put("sourceMappingId", parent.getId());
         after.put("propertyDefinitionId", property.getId());
         after.put("sourceColumnId", column.getId());
+        // 원천 정책으로 속성이 민감으로 오르거나 대표가 비워지면 그 변경도 함께 남긴다(391).
         return new WrittenMapping(
                 created.id(),
                 resource.id(),
-                ChangeEntry.insert("property_source_mapping", Map.of("id", created.id()), after));
+                ChangeEntry.insert("property_source_mapping", Map.of("id", created.id()), after),
+                sideEffects.drain());
     }
 
     /**
@@ -183,5 +187,19 @@ class ApplyWriter {
 
     record Written(long id, ChangeEntry change) {}
 
-    record WrittenMapping(long id, long sourceResourceId, ChangeEntry change) {}
+    record WrittenMapping(
+            long id, long sourceResourceId, ChangeEntry change, List<ChangeEntry> sideEffects) {
+
+        WrittenMapping(long id, long sourceResourceId, ChangeEntry change) {
+            this(id, sourceResourceId, change, List.of());
+        }
+
+        /** 이 쓰기의 변경과 그 때문에 덩달아 바뀐 정의 행. */
+        List<ChangeEntry> changes() {
+            List<ChangeEntry> all = new java.util.ArrayList<>();
+            all.add(change);
+            all.addAll(sideEffects);
+            return all;
+        }
+    }
 }

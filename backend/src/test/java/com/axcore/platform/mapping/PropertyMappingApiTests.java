@@ -327,6 +327,166 @@ class PropertyMappingApiTests {
         mockMvc.perform(get(BASE_PATH)).andExpect(status().isUnauthorized());
     }
 
+    /** 원천 데이터 정책상 들이지 않는 컬럼은 매핑할 수 없다(391). 같은 표의 다른 컬럼은 매핑된다. */
+    @Test
+    void rejectsForbiddenSourceColumn() throws Exception {
+        LoginSession admin = loginAs("ADMIN");
+        Fixture f = fixture(4096L, true);
+        renameResource(f, "erp.employee");
+
+        send(
+                        admin,
+                        post(BASE_PATH),
+                        body(f, f.properties.get("emp_name"), f.columns.get("emp_name"), ""))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.code").value("BUSINESS_RULE_VIOLATION"))
+                .andExpect(jsonPath("$.error.details.forbiddenColumns", contains("emp_name")));
+        createMapping(admin, f, f.properties.get("emp_no"), f.columns.get("emp_no"), "", true);
+    }
+
+    /**
+     * 민감 컬럼을 매핑하면 속성을 민감으로 올리고, 대표 속성이었으면 대표를 비운다. 그 뒤 속성을 일반으로 내리면 거절한다. 식별 속성에는 민감 컬럼을 매핑할 수
+     * 없다(391).
+     */
+    @Test
+    void restrictedSourceColumnRaisesThePropertyAndBlocksLowering() throws Exception {
+        LoginSession admin = loginAs("ADMIN");
+        Fixture f = fixture(4096L, true);
+        renameResource(f, "mes.worker");
+        long skill = f.columns.get("emp_name");
+        jdbcClient
+                .sql("update source_column set column_name = 'skill_level' where id = :id")
+                .param("id", skill)
+                .update();
+        long property = f.properties.get("emp_name");
+        jdbcClient
+                .sql(
+                        """
+                        update object_type set display_property_id = :property
+                        where id = (select object_type_id from property_definition where id = :property)
+                        """)
+                .param("property", property)
+                .update();
+
+        long created = createMapping(admin, f, property, skill, "", true);
+        // 속성 민감 승격과 대표 비움도 이 편집의 변경으로 남는다.
+        assertThat(
+                        jdbcClient
+                                .sql(
+                                        """
+                                        select c.table_name from entity_change c
+                                        join action_execution e on e.id = c.action_execution_id
+                                        where e.target_type = 'property_source_mapping' and e.target_id = :id
+                                          and e.status = 'SUCCEEDED'
+                                        order by c.id
+                                        """)
+                                .param("id", created)
+                                .query(String.class)
+                                .list())
+                .containsExactly("property_source_mapping", "property_definition", "object_type");
+
+        assertThat(
+                        jdbcClient
+                                .sql(
+                                        """
+                                        select p.sensitivity || '/' || coalesce(t.display_property_id::text, '-')
+                                        from property_definition p join object_type t on t.id = p.object_type_id
+                                        where p.id = :id
+                                        """)
+                                .param("id", property)
+                                .query(String.class)
+                                .single())
+                .isEqualTo("RESTRICTED/-");
+        long rowVersion =
+                jdbcClient
+                        .sql("select row_version from property_definition where id = :id")
+                        .param("id", property)
+                        .query(Long.class)
+                        .single();
+        send(
+                        admin,
+                        patch("/api/v1/ontology/properties/" + property),
+                        """
+                        {"name": "emp_name", "dataType": "STRING", "isRequired": false,
+                         "sensitivity": "NORMAL", "rowVersion": %d}
+                        """
+                                .formatted(rowVersion))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.details.column").value("skill_level"));
+
+        long identifier = f.properties.get("emp_no");
+        jdbcClient
+                .sql("update property_definition set is_identifier = true where id = :id")
+                .param("id", identifier)
+                .update();
+        send(admin, post(BASE_PATH), body(f, identifier, skill, ""))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.details.column").value("skill_level"));
+    }
+
+    /**
+     * 391: 391 이전에 민감 컬럼을 일반 속성에 매핑해 둔 표는 적재 계획이 실패해 CDC가 건너뛴다. 관리자가 속성을 민감으로 올리면(028) 그 표를 다시 읽어
+     * 빠진 변경을 되찾는다. 이미 민감인 속성을 다시 저장하면 다시 읽지 않는다.
+     */
+    @Test
+    void raisingAPre391PropertyToRestrictedRequestsReload() throws Exception {
+        LoginSession admin = loginAs("ADMIN");
+        Fixture f = fixture(4096L, true);
+        renameResource(f, "mes.worker");
+        long skill = f.columns.get("emp_name");
+        jdbcClient
+                .sql("update source_column set column_name = 'skill_level' where id = :id")
+                .param("id", skill)
+                .update();
+        long property = f.properties.get("emp_name");
+        // 391 이전처럼 서비스를 거치지 않고 일반 속성에 민감 컬럼을 매핑해 둔다.
+        jdbcClient
+                .sql(
+                        """
+                        insert into property_source_mapping
+                            (source_mapping_id, source_resource_id, property_definition_id, source_column_id)
+                        values (:mapping, :resource, :property, :column)
+                        """)
+                .param("mapping", f.mapping)
+                .param("resource", f.resource)
+                .param("property", property)
+                .param("column", skill)
+                .update();
+        setLoadedLsn(f.resource, 8192L);
+
+        send(admin, patch("/api/v1/ontology/properties/" + property), restrict(property))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.sensitivity").value("RESTRICTED"));
+        assertThat(loadedLsn(f.resource)).isNull();
+
+        setLoadedLsn(f.resource, 8192L);
+        send(admin, patch("/api/v1/ontology/properties/" + property), restrict(property))
+                .andExpect(status().isOk());
+        assertThat(loadedLsn(f.resource)).isEqualTo(8192L);
+    }
+
+    private String restrict(long property) {
+        long rowVersion =
+                jdbcClient
+                        .sql("select row_version from property_definition where id = :id")
+                        .param("id", property)
+                        .query(Long.class)
+                        .single();
+        return """
+                {"name": "skill", "dataType": "STRING", "isRequired": false,
+                 "sensitivity": "RESTRICTED", "rowVersion": %d}
+                """
+                .formatted(rowVersion);
+    }
+
+    private void renameResource(Fixture f, String resourceKey) {
+        jdbcClient
+                .sql("update source_resource set resource_key = :key where id = :id")
+                .param("key", resourceKey)
+                .param("id", f.resource)
+                .update();
+    }
+
     private long createMapping(
             LoginSession admin, Fixture f, long property, long column, String extra, boolean reload)
             throws Exception {
@@ -377,7 +537,7 @@ class PropertyMappingApiTests {
                                 """
                                 insert into source_resource
                                     (data_source_id, resource_key, resource_kind, is_readable, sync_strategy, loaded_lsn)
-                                values (:source, 'erp.employee', 'TABLE', true, 'CDC', :lsn)
+                                values (:source, 'erp.staff', 'TABLE', true, 'CDC', :lsn)
                                 returning id
                                 """)
                         .param("source", source)
