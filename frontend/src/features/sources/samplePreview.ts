@@ -1,6 +1,6 @@
 import type { CheckStatus } from './types'
 
-// 화면 전용 모델. 016·102 계약과 가림 정책 확정 후 어댑터에서 변환한다.
+// 016·102 응답을 sampleApi 어댑터에서 화면 모델로 변환한다.
 // 가린 셀에는 원문을 전달하지 않는다.
 export type SampleCell =
   | { kind: 'visible'; value: string | number | boolean | null }
@@ -26,5 +26,5 @@ export type SourceSampleAccess = {
     resourceId: number,
     rowLimit: number,
   ) => Promise<SampleReceipt>
-  read: (previewId: number) => Promise<SamplePreview>
+  read: (previewId: number, resourceId?: number) => Promise<SamplePreview>
 }

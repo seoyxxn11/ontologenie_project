@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router'
+import { useEffect, useState } from 'react'
+import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import Button from '../../components/Button'
 import DataTable from '../../components/DataTable'
 import PageHeader from '../../components/PageHeader'
@@ -17,6 +17,7 @@ import SourceFormDialog from './SourceFormDialog'
 import SourceSyncRuns from './SourceSyncRuns'
 import SourceSyncSummary from './SourceSyncSummary'
 import SourceSamples from './SourceSamples'
+import { sourceSampleApi } from './sampleApi'
 import { sourceSyncApi } from './syncApi'
 import './sources.css'
 import FormSaveStatus from './FormSaveStatus'
@@ -35,9 +36,18 @@ type TabKey = (typeof tabs)[number]['key']
 function SourcesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   // 다른 화면의 [+ 원천 등록]은 ?register=1로 들어와 등록 창을 바로 연다.
-  const [registering, setRegistering] = useState(
-    () => searchParams.get('register') === '1',
-  )
+  const location = useLocation()
+  const [closedRegistration, setClosedRegistration] = useState<string>()
+  const registering =
+    searchParams.get('register') === '1' && closedRegistration !== location.key
+  // 먼저 폼과 이탈 보호를 닫은 뒤 URL을 정리해 폐기 확인을 두 번 띄우지 않는다.
+  useEffect(() => {
+    if (closedRegistration === location.key && searchParams.has('register')) {
+      const next = new URLSearchParams(searchParams)
+      next.delete('register')
+      setSearchParams(next, { replace: true })
+    }
+  }, [closedRegistration, location.key, searchParams, setSearchParams])
   const [createdId, setCreatedId] = useState<number>()
   const [analyzing, setAnalyzing] = useState(false)
   const navigate = useNavigate()
@@ -58,6 +68,13 @@ function SourcesPage() {
 
   function select(sourceId: number, nextTab: TabKey = 'connection') {
     setSearchParams({ source: String(sourceId), tab: nextTab })
+  }
+
+  function register() {
+    const next = new URLSearchParams(searchParams)
+    next.set('register', '1')
+    next.set('tab', 'connection')
+    setSearchParams(next)
   }
 
   let list
@@ -127,7 +144,7 @@ function SourcesPage() {
         title="데이터 연결"
         description="원천별 접속 상태를 비교하고, 수집 대상·매핑·실행 이력을 확인하세요."
         action={
-          <Button variant="secondary" onClick={() => setRegistering(true)}>
+          <Button variant="secondary" onClick={register}>
             + 원천 등록
           </Button>
         }
@@ -164,15 +181,9 @@ function SourcesPage() {
         {registering && (
           <SourceFormDialog
             onClose={(navigating) => {
-              setRegistering(false)
-              if (!navigating && searchParams.has('register')) {
-                const next = new URLSearchParams(searchParams)
-                next.delete('register')
-                setSearchParams(next, { replace: true })
-              }
+              if (!navigating) setClosedRegistration(location.key)
             }}
             onSaved={(source) => {
-              setRegistering(false)
               setCreatedId(source.id)
               select(source.id)
             }}
@@ -246,7 +257,15 @@ function SourcesPage() {
                   api={sourceSyncApi}
                 />
               ) : tab === 'samples' ? (
-                <SourceSamples key={selected.id} sourceId={selected.id} />
+                selected.sourceKind === 'POSTGRES' ? (
+                  <SourceSamples
+                    key={selected.id}
+                    sourceId={selected.id}
+                    access={sourceSampleApi}
+                  />
+                ) : (
+                  <EmptyState message="CSV·문서 원천의 표본 조회는 지원하지 않습니다." />
+                )
               ) : (
                 <MappingPanel
                   key={selected.id}
@@ -274,7 +293,7 @@ function SourcesPage() {
                 }}
                 onRegister={() => {
                   setAnalyzing(false)
-                  setRegistering(true)
+                  register()
                 }}
               />
             )}

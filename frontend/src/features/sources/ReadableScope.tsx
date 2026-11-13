@@ -142,10 +142,11 @@ function ReadableScope({ source }: { source: Source }) {
         <p className="text-xs text-slate-500">{`표 ${resources.length}개`}</p>
       )}
       {content}
-      {!isError &&
+      {source.sourceKind === 'POSTGRES' &&
+        !isError &&
         resources?.some(
           (resource) => resource.syncStrategy === 'FULL_COMPARE',
-        ) && <SourceSyncSchedule key={source.rowVersion} schedule={source} />}
+        ) && <SourceSyncSchedule key={source.id} sourceId={source.id} />}
     </div>
   )
 }

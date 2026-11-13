@@ -166,12 +166,17 @@ function ConnectionInfo({
           <Button
             variant="secondary"
             pending={checking}
+            disabled={source.sourceKind !== 'POSTGRES'}
             onClick={() => request.mutate()}
           >
             {checking ? '확인 중…' : '연결 다시 확인'}
           </Button>
         </div>
       </div>
+
+      {source.sourceKind !== 'POSTGRES' && (
+        <p>CSV·문서 원천의 파일 업로드·연결 검사는 현재 지원하지 않습니다.</p>
+      )}
 
       {savedNotice && (
         <p role="status" className="rounded-lg bg-amber-50 p-3 text-amber-800">
