@@ -95,7 +95,6 @@ class DocumentLinkApplierTests {
         ApplyResult result = apply(proposal, payload("OBSERVED"));
 
         assertThat(result.targetTable()).isEqualTo("object_link");
-        assertThat(result.heldItemIds()).isEmpty();
         assertThat(result.summary())
                 .containsEntry("outcome", "CREATED")
                 .containsEntry("linkTypeCode", linkTypeCode)

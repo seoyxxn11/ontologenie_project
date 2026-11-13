@@ -241,13 +241,7 @@ class CandidateCheckJobTests {
                                 .query((rs, rowNum) -> List.of(rs.getLong(1), rs.getLong(2)))
                                 .list())
                 .containsExactlyInAnyOrder(List.of(first, second), List.of(second, first));
-        // 승인 반영은 보류 건을 만들지 않는다(366). 혼자인 객체는 아래 SYNC가 판정한다.
-        assertThat(
-                        jdbc.sql("select count(*) from held_item where link_mapping_id=:rule")
-                                .param("rule", rule)
-                                .query(Long.class)
-                                .single())
-                .isZero();
+        // 혼자인 객체는 승인 반영이 따로 기록하지 않고 아래 SYNC가 판정한다(366).
 
         long syncRun =
                 fixtures.insertQueuedRun(

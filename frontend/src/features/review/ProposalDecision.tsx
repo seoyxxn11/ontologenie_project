@@ -35,7 +35,6 @@ export default function ProposalDecision({
   onClearSelection,
   onRefresh,
   historyUrl,
-  heldItemsUrl,
 }: {
   proposal: Proposal
   unavailable?: boolean
@@ -43,7 +42,6 @@ export default function ProposalDecision({
   onClearSelection: () => void
   onRefresh: () => Promise<boolean>
   historyUrl: string
-  heldItemsUrl: string
 }) {
   const draftKey = `${proposal.revision}:${proposal.reviewStatus}`
   const [draft, setDraft] = useState({
@@ -66,11 +64,7 @@ export default function ProposalDecision({
       saveProposalDecision(proposal.id, input),
     networkMode: 'always',
     retry: false,
-    onSuccess: () =>
-      Promise.all([
-        client.invalidateQueries({ queryKey: ['proposals'] }),
-        client.invalidateQueries({ queryKey: ['held-items'] }),
-      ]),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['proposals'] }),
   })
   const apiError = mutation.error instanceof ApiError ? mutation.error : null
   const conflict = apiError?.kind === 'conflict'
@@ -243,15 +237,7 @@ export default function ProposalDecision({
             검토: {reviewLabels[result.reviewStatus] ?? result.reviewStatus} ·
             반영: {applyLabels[result.applyStatus] ?? result.applyStatus}
           </p>
-          <p>
-            반영 대상 {result.appliedEntityIds.length}건 · 개별 보류{' '}
-            {result.heldItemIds.length}건
-          </p>
-          {result.heldItemIds.length > 0 && (
-            <Link className="text-violet-700 underline" to={heldItemsUrl}>
-              개별 보류 건 조회
-            </Link>
-          )}
+          <p>반영 대상 {result.appliedEntityIds.length}건</p>
         </div>
       )}
     </section>

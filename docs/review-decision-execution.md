@@ -23,7 +23,6 @@
 | reviewStatus | APPROVED / REJECTED / HELD |
 | applyStatus | APPLIED / NOT_APPLIED |
 | appliedEntityIds | 실제 ApplyResult.targetId의 숫자 배열. 비승인은 빈 배열 |
-| heldItemIds | ApplyResult의 목록 그대로. 비승인은 빈 배열 |
 | actionExecutionId | 실제 성공 감사 ID |
 
 targetTable·reloadResourceIds·summary는 내부 감사 result에 남기며 공개 응답 필드로 추가하지 않는다.

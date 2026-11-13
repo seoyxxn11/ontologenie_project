@@ -80,7 +80,7 @@ class ProposalDecisionApiTests {
                         .andExpect(jsonPath("$.data.reviewStatus").value(status))
                         .andExpect(jsonPath("$.data.applyStatus").value("NOT_APPLIED"))
                         .andExpect(jsonPath("$.data.appliedEntityIds").isEmpty())
-                        .andExpect(jsonPath("$.data.heldItemIds").isEmpty())
+                        .andExpect(jsonPath("$.data.heldItemIds").doesNotExist())
                         .andReturn();
 
         long auditId =

@@ -11,7 +11,6 @@ FN-REV-06·07의 결과는 기존 후보 상세(049), 결정 이력(055), 실행
 | 096 | `GET /api/v1/audit/actions` | 성공·실패·차단된 실행의 요약(대상 후보, 상태, 시각, 변경 건수 `changeCount`). 입력·결과는 097, 변경 내역은 098로 본다 |
 | 097 | `GET /api/v1/audit/actions/{id}` | 실행 하나의 입력·결과·막힌 이유·실패 이유 |
 | 098 | `GET /api/v1/audit/actions/{id}/changes` | 실행 하나의 변경 내역 전체 |
-| 056·057 | `GET /api/v1/held-items`, `GET /api/v1/held-items/{id}` | 승인 과정에서 생성된 개별 보류 건의 현재 상태와 근거 |
 
 후보 검토 화면(049·055)은 ADMIN이다. 감사 목록(096)은 ADMIN에게 전체, 그 밖의 역할에게 본인 실행만 제공한다. 감사 상세(097)와 변경 전후(098)는 096과 같은 범위를 따른다. 범위 밖 기록은 없는 기록과 같은 404다. 기존 인증·임시 비밀번호 제한을 그대로 따른다.
 
@@ -30,10 +29,10 @@ FN-REV-06·07의 결과는 기존 후보 상세(049), 결정 이력(055), 실행
 
 - `decision`, `revision`, `reviewStatus`, `applyStatus`
 - `basisCheckRunId`: 139 적용 이후 서버가 승인 조건 확인에 사용한 검사 실행 ID. 거절·보류, 후보 검사 대상이 아닌 종류(LINK_RULE 외)의 승인, 근거 선택 전 차단은 `null`이며, 기존 감사에는 필드가 없을 수 있다. 이후 새 검사로 다시 계산하지 않는다.
-- `appliedEntityIds`, `heldItemIds`
+- `appliedEntityIds`(예전 감사 결과에는 377 전의 `heldItemIds`가 남아 있을 수 있다)
 - 실제 반영 결과가 있을 때 `targetTable`, `targetId`, `reloadResourceIds`, `summary`
 
-`SUCCEEDED`는 결정 처리 성공이다. HOLD·REJECT도 성공 실행이며, 이 경우 반영 상태는 `NOT_APPLIED`, 반영 대상·보류 건 ID 배열은 비어 있다. APPROVE 성공일 때만 `APPLIED`다. `APPLIED`와 개별 `held_item.status=HELD`는 함께 있을 수 있다. 후보 자체의 HOLD와 개별 보류 건은 서로 다른 상태다. 매핑 APPLIED를 후속 객체 수집 완료로 해석하지 않는다.
+`SUCCEEDED`는 결정 처리 성공이다. HOLD·REJECT도 성공 실행이며, 이 경우 반영 상태는 `NOT_APPLIED`, 반영 대상 ID 배열은 비어 있다. APPROVE 성공일 때만 `APPLIED`다. 규칙이 잇지 못한 개별 출발은 SYNC 검사가 문제(issue)로 기록한다(366, 보류 건은 377에서 삭제). 매핑 APPLIED를 후속 객체 수집 완료로 해석하지 않는다.
 
 ## 실패·차단과 롤백
 
@@ -68,7 +67,7 @@ GET /api/v1/audit/actions/456
 
 `ProposalApplyResultQueryApiTests`는 실제 PostgreSQL과 MockMvc로 054 요청이 종료된 후 별도 GET 요청을 보낸다. 테스트 전체를 자동 롤백 트랜잭션으로 감싸지 않는다. 사용자 요청에 따라 신규 검증은 핵심 3건만 둔다.
 
-- 정상 승인 후 후보 상세·결정 이력·감사 목록/상세·실제 보류 건의 ID 연결.
+- 정상 승인 후 후보 상세·결정 이력·감사 목록/상세의 ID 연결.
 - 기존 HOLD 이후 반영 업무 오류가 났을 때 이전 상태·결정 유지와 실패 감사 조회.
 - 기존 HOLD 이후 실제 DB 커밋이 실패했을 때 업무 행·성공 감사 롤백과 실패 감사 조회.
 

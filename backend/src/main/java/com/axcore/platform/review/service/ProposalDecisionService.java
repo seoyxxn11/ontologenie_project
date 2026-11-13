@@ -198,7 +198,6 @@ public class ProposalDecisionService {
             changes.add(ChangeEntry.update("proposal_item", Map.of("id", id), before, after));
         }
         List<Long> entityIds = applied == null ? List.of() : List.of(applied.targetId());
-        List<Long> heldIds = applied == null ? List.of() : applied.heldItemIds();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("decisionId", decisionId);
         result.put("basisCheckRunId", recorded.basisCheckRunId());
@@ -207,7 +206,6 @@ public class ProposalDecisionService {
         result.put("reviewStatus", item.getReviewStatus());
         result.put("applyStatus", item.getApplyStatus());
         result.put("appliedEntityIds", entityIds);
-        result.put("heldItemIds", heldIds);
         if (applied != null) {
             changes.addAll(applied.changes());
             result.put("targetTable", applied.targetTable());
@@ -229,7 +227,6 @@ public class ProposalDecisionService {
                 item.getReviewStatus(),
                 item.getApplyStatus(),
                 entityIds,
-                heldIds,
                 auditId);
     }
 

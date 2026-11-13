@@ -8,7 +8,6 @@ import Pagination from '../../components/Pagination'
 import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
 import { fetchProposal } from './api'
 import { DECISION_PAGE_SIZE, fetchProposalDecisions } from './decisionApi'
-import HeldItems from './HeldItems'
 import BusinessApprovalStatus from './BusinessApprovalStatus'
 import type { BusinessApprovalSource } from './businessApproval'
 import { applyLabels, proposalTitle, reviewLabels } from './labels'
@@ -181,7 +180,6 @@ export default function ProposalHistoryPage({
     /^\d+$/.test(id ?? '') && Number.isSafeInteger(proposalId) && proposalId > 0
   const view = params.get('view')
   const activity = view === 'activity'
-  const held = view === 'held'
   const business = view === 'business'
   const rawPage = params.get('historyPage') ?? '0'
   const page =
@@ -200,7 +198,7 @@ export default function ProposalHistoryPage({
   })
 
   function changeView(
-    nextView: 'approval' | 'activity' | 'held' | 'business',
+    nextView: 'approval' | 'activity' | 'business',
     nextPage = 0,
   ) {
     const next = new URLSearchParams(params)
@@ -248,8 +246,8 @@ export default function ProposalHistoryPage({
             className="flex flex-wrap gap-2"
           >
             <Button
-              variant={activity || held || business ? 'secondary' : 'primary'}
-              aria-pressed={!activity && !held && !business}
+              variant={activity || business ? 'secondary' : 'primary'}
+              aria-pressed={!activity && !business}
               onClick={() => changeView('approval')}
             >
               승인 상태
@@ -260,13 +258,6 @@ export default function ProposalHistoryPage({
               onClick={() => changeView('activity')}
             >
               활동 기록
-            </Button>
-            <Button
-              variant={held ? 'primary' : 'secondary'}
-              aria-pressed={held}
-              onClick={() => changeView('held')}
-            >
-              기존 보류 이력
             </Button>
             <Button
               variant={business ? 'primary' : 'secondary'}
@@ -288,12 +279,6 @@ export default function ProposalHistoryPage({
               proposalId={proposalId}
               revision={query.data.revision}
               source={businessApprovalSource}
-            />
-          ) : held ? (
-            <HeldItems
-              key={`${proposalId}:${page}`}
-              page={page}
-              onPageChange={(next) => changeView('held', next)}
             />
           ) : (
             <ApprovalStatus proposal={query.data} />

@@ -199,8 +199,6 @@ export default function ProposalDetail({
     const historyUrl = `/admin/rules/${item.id}/history`
     const activityParams = new URLSearchParams(search)
     activityParams.set('view', 'activity')
-    const heldParams = new URLSearchParams(search)
-    heldParams.set('view', 'held')
     content = (
       <article className="candidate-detail">
         <header className="candidate-heading">
@@ -392,7 +390,6 @@ export default function ProposalDetail({
           onClearSelection={() => setSelection(undefined)}
           onRefresh={refreshProposal}
           historyUrl={`${historyUrl}?${activityParams}`}
-          heldItemsUrl={`${historyUrl}?${heldParams}`}
         />
         {item.applyError && (
           <p role="alert" className="rounded-lg bg-red-50 p-4 text-red-800">

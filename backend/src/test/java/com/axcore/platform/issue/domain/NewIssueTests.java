@@ -53,7 +53,6 @@ class NewIssueTests {
                                         null,
                                         null,
                                         null,
-                                        null,
                                         null))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(
@@ -68,7 +67,6 @@ class NewIssueTests {
                                         null,
                                         null,
                                         null,
-                                        null,
                                         null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
@@ -78,17 +76,7 @@ class NewIssueTests {
         Map<String, Object> evidence = new HashMap<>(Map.of("source", "MES"));
         NewIssue issue =
                 new NewIssue(
-                        IssueKind.UNMATCHED,
-                        KEY,
-                        1,
-                        "사유",
-                        1L,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        evidence);
+                        IssueKind.UNMATCHED, KEY, 1, "사유", 1L, null, null, null, null, evidence);
         evidence.put("source", "ERP");
 
         assertThat(issue.evidence()).containsEntry("source", "MES");
@@ -103,7 +91,6 @@ class NewIssueTests {
                 "사유",
                 linkMappingId,
                 proposalItemId,
-                null,
                 null,
                 null,
                 null,

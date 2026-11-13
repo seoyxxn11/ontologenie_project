@@ -4,7 +4,6 @@ import type {
   DecisionInput,
   ProposalDecisionRecord,
 } from '../features/review/decisionApi'
-import type { HeldItem } from '../features/review/heldItemApi'
 
 export const proposalFixtures: Proposal[] = [
   {
@@ -136,13 +135,11 @@ let savedOptions: Record<string, ProposalOption[]> = {
   '303:2': structuredClone(comparisonFixtures),
 }
 let savedDecisions: ProposalDecisionRecord[] = []
-let heldItems: HeldItem[] = []
 
 export function resetProposalMocks() {
   proposals = structuredClone(proposalFixtures)
   savedOptions = { '303:2': structuredClone(comparisonFixtures) }
   savedDecisions = []
-  heldItems = []
 }
 function failed(status: number, code: string, message: string) {
   return HttpResponse.json(
@@ -214,28 +211,6 @@ export const proposalHandlers = [
       decidedBy: 1,
       decidedAt: now,
     })
-    const heldItemIds = []
-    if (decision === 'APPROVE' && item.id === 303) {
-      const heldItemId = 801
-      heldItems.unshift({
-        id: heldItemId,
-        proposalItemId: item.id,
-        linkMappingId: 2,
-        sourceObjectId: 101,
-        linkTypeId: 2,
-        status: 'HELD',
-        rawValue: ' pr-99 ',
-        transformedValue: 'PR-99',
-        holdReason: '대상 설비가 없습니다.',
-        resolvedLinkId: null,
-        resolvedSyncRunId: null,
-        resolvedBy: null,
-        resolvedAt: null,
-        resolutionNote: null,
-        createdAt: now,
-      })
-      heldItemIds.push(heldItemId)
-    }
     return HttpResponse.json({
       data: {
         decisionId: id,
@@ -243,32 +218,9 @@ export const proposalHandlers = [
         reviewStatus: item.reviewStatus,
         applyStatus: item.applyStatus,
         appliedEntityIds: decision === 'APPROVE' ? [2] : [],
-        heldItemIds,
         actionExecutionId: id + 1000,
       },
     })
-  }),
-  http.get('/api/v1/held-items', async ({ request }) => {
-    await delay()
-    const search = new URL(request.url).searchParams
-    const page = Number(search.get('page') ?? 0)
-    const size = Number(search.get('size') ?? 20)
-    return HttpResponse.json({
-      data: heldItems.slice(page * size, (page + 1) * size),
-      meta: {
-        page,
-        size,
-        totalElements: heldItems.length,
-        hasNext: (page + 1) * size < heldItems.length,
-      },
-    })
-  }),
-  http.get('/api/v1/held-items/:id', async ({ params }) => {
-    await delay()
-    const item = heldItems.find((item) => item.id === Number(params.id))
-    return item
-      ? HttpResponse.json({ data: item })
-      : failed(404, 'RESOURCE_NOT_FOUND', '보류 건을 찾을 수 없습니다.')
   }),
   http.get('/api/v1/proposals/:id/decisions', async ({ params, request }) => {
     await delay()

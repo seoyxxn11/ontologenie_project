@@ -46,9 +46,9 @@ import org.springframework.stereotype.Component;
  *   <li>커밋 뒤 SYNC 검사를 넣도록 알린다({@link LinkRuleApproved}).
  * </ol>
  *
- * <p>이어지지 않은 출발은 보류 건(held_item)으로 남기지 않는다(366). 미연결은 SYNC 검사가 판정해 문제(issue)로 남기고, 관리자는 원천 수정·규칙
- * 개정·문제에서의 수동 연결로 고친다. 승인 반영에는 SYNC의 보호 장치(적재 전·복구 중 건너뛰기, 원천 사이 확인 대기)가 없어, 여기서 기록하면 곧 이어질 출발까지
- * 미연결로 남기 때문이다.
+ * <p>이어지지 않은 출발은 여기서 따로 기록하지 않는다(366, 보류 건은 377에서 삭제). 미연결은 SYNC 검사가 판정해 문제(issue)로 남기고, 관리자는 원천
+ * 수정·규칙 개정·문제에서의 수동 연결로 고친다. 승인 반영에는 SYNC의 보호 장치(적재 전·복구 중 건너뛰기, 원천 사이 확인 대기)가 없어, 여기서 기록하면 곧 이어질
+ * 출발까지 미연결로 남기 때문이다.
  *
  * <p>조건은 {@code conditions[]} {sourceProperty, targetProperty, operator(EQ), sourceTransforms,
  * targetTransforms}로, 속성은 {@code 유형코드.속성코드} 또는 {@code 속성코드}로 가리킨다. 출발·도착 조건(filter)은 {@code {}} 또는
@@ -206,8 +206,7 @@ class LinkRuleApplier implements ProposalApplier {
         summary.put("linksActivated", links.activatedLinkIds().size());
         summary.put("linksUpdated", links.updatedLinkIds().size());
         summary.put("linksInactivated", links.inactivatedLinkIds().size());
-        return new ApplyResult(
-                "link_mapping", created.getId(), List.of(), List.of(), summary, changes);
+        return new ApplyResult("link_mapping", created.getId(), List.of(), summary, changes);
     }
 
     /**

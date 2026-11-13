@@ -27,8 +27,8 @@ class DatabaseMigrationTests {
 
     // V1 18개 + V5 cdc_offset + V11 source_delete_mark + V12 source_load_failure
     private static final int ONTOLOGY_TABLES = 21;
-    // V2 23개 + V12 link_check_pending
-    private static final int OPERATION_TABLES = 24;
+    // V2 23개 + V12 link_check_pending - V22 held_item
+    private static final int OPERATION_TABLES = 23;
     private static final int SESSION_TABLES = 2;
     private static final int SPRING_BATCH_TABLES = 6;
 
@@ -47,7 +47,7 @@ class DatabaseMigrationTests {
         assertThat(Arrays.stream(applied).map(info -> info.getVersion().getVersion()))
                 .containsExactly(
                         "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14",
-                        "15", "16", "17", "18", "19", "20", "21");
+                        "15", "16", "17", "18", "19", "20", "21", "22");
         assertThat(applied).allMatch(info -> info.getState() == MigrationState.SUCCESS);
         assertThat(flyway.info().pending()).isEmpty();
     }

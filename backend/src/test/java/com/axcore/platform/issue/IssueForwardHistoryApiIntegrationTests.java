@@ -326,7 +326,6 @@ class IssueForwardHistoryApiIntegrationTests {
                                 mappingId,
                                 null,
                                 null,
-                                null,
                                 "W23",
                                 "E023",
                                 Map.of()))

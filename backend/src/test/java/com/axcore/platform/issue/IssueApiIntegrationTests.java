@@ -72,7 +72,7 @@ class IssueApiIntegrationTests {
                 .andExpect(jsonPath("$.data.detectedCheckRunId").value(runId))
                 .andExpect(jsonPath("$.data.objectInstanceId").value(nullValue()))
                 .andExpect(jsonPath("$.data.proposalItemId").value(nullValue()))
-                .andExpect(jsonPath("$.data.heldItemId").value(nullValue()))
+                .andExpect(jsonPath("$.data.heldItemId").doesNotExist())
                 .andExpect(jsonPath("$.data.resolvedCheckRunId").value(nullValue()))
                 .andExpect(jsonPath("$.data.forwardedAt").value(nullValue()))
                 .andExpect(jsonPath("$.data.forwardedBy").value(nullValue()))

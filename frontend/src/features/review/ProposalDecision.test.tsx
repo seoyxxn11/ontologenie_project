@@ -22,7 +22,6 @@ function renderDecision(item = proposal, unavailable = false) {
           onClearSelection={vi.fn()}
           onRefresh={async () => true}
           historyUrl="/history?view=activity"
-          heldItemsUrl="/history?view=held"
         />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -143,7 +142,7 @@ test('실제 상세 화면에서 제안 개정이 바뀌면 이전 사유를 남
   ).toBeInTheDocument()
 })
 
-test('선택한 대안은 승인할 때 저장되고 반영 결과·보류 건·결정 이력으로 이어진다', async () => {
+test('선택한 대안은 승인할 때 저장되고 반영 결과·결정 이력으로 이어진다', async () => {
   openDetail()
   const user = userEvent.setup()
   await user.click(
@@ -158,20 +157,11 @@ test('선택한 대안은 승인할 때 저장되고 반영 결과·보류 건·
     '코드 대조 완료',
   )
   await user.click(screen.getByRole('button', { name: '승인' }))
-  expect(
-    await screen.findByText(/반영 대상 1건 · 개별 보류 1건/),
-  ).toBeInTheDocument()
+  expect(await screen.findByText('반영 대상 1건')).toBeInTheDocument()
+  expect(screen.queryByText(/개별 보류/)).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '승인' })).not.toBeInTheDocument()
-  await user.click(screen.getByRole('link', { name: '개별 보류 건 조회' }))
-  await user.click(await screen.findByRole('button', { name: '보류 건 #801' }))
-  const dialog = await screen.findByRole('dialog', {
-    name: '개별 보류 건 #801',
-  })
-  expect(
-    await within(dialog).findByText('PR-99', { exact: true }),
-  ).toBeInTheDocument()
-  await user.click(within(dialog).getByRole('button', { name: '닫기' }))
-  await user.click(screen.getByRole('button', { name: '활동 기록' }))
+  await user.click(screen.getByRole('link', { name: '이력' }))
+  await user.click(await screen.findByRole('button', { name: '활동 기록' }))
   expect(await screen.findByText('대안 ID #502')).toBeInTheDocument()
   expect(screen.getByText('코드 대조 완료')).toBeInTheDocument()
 })
@@ -195,7 +185,6 @@ test.each([
           reviewStatus: decision === 'HOLD' ? 'HELD' : 'REJECTED',
           applyStatus: 'NOT_APPLIED',
           appliedEntityIds: [],
-          heldItemIds: [],
           actionExecutionId: 1703,
         },
       })

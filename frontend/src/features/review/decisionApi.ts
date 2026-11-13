@@ -15,7 +15,6 @@ export type DecisionResult = {
   reviewStatus: string
   applyStatus: string
   appliedEntityIds: number[]
-  heldItemIds: number[]
   actionExecutionId: number
 }
 
@@ -31,8 +30,7 @@ export async function saveProposalDecision(
   if (
     result?.decision !== input.decision ||
     !Number.isSafeInteger(result.decisionId) ||
-    !Array.isArray(result.appliedEntityIds) ||
-    !Array.isArray(result.heldItemIds)
+    !Array.isArray(result.appliedEntityIds)
   )
     throw new ApiError('결정 저장 응답을 확인할 수 없습니다.', {
       kind: 'invalid-response',

@@ -114,7 +114,6 @@ class ProposalApplyResultQueryApiTests {
     static class QueryProbeApplier {
         private final JdbcClient jdbc;
         long linkType;
-        long sourceObject;
         boolean businessFailure;
         boolean commitFailure;
 
@@ -139,20 +138,6 @@ class ProposalApplyResultQueryApiTests {
                             .param("actor", command.decidedBy())
                             .query(Long.class)
                             .single();
-            long held =
-                    jdbc.sql(
-                                    """
-                    insert into held_item(proposal_item_id, link_mapping_id, link_type_id,
-                        source_object_id, raw_value, transformed_value, hold_reason)
-                    values (:proposal, :mapping, :type, :object, 'W23', 'E023', '대상 객체 없음')
-                    returning id
-                    """)
-                            .param("proposal", command.proposalItemId())
-                            .param("mapping", mapping)
-                            .param("type", linkType)
-                            .param("object", sourceObject)
-                            .query(Long.class)
-                            .single();
             if (businessFailure) {
                 throw new BusinessException(ApplyErrorCode.APPLY_REFERENCE_MISSING);
             }
@@ -169,22 +154,13 @@ class ProposalApplyResultQueryApiTests {
             return new ApplyResult(
                     "link_mapping",
                     mapping,
-                    List.of(held),
                     List.of(),
-                    Map.of("heldCount", 1),
+                    Map.of("linksActivated", 1),
                     List.of(
                             ChangeEntry.insert(
                                     "link_mapping",
                                     Map.of("id", mapping),
-                                    Map.of("proposal_item_id", command.proposalItemId())),
-                            ChangeEntry.insert(
-                                    "held_item",
-                                    Map.of("id", held),
-                                    Map.of(
-                                            "proposal_item_id",
-                                            command.proposalItemId(),
-                                            "status",
-                                            "HELD"))));
+                                    Map.of("proposal_item_id", command.proposalItemId()))));
         }
     }
 
@@ -210,28 +186,18 @@ class ProposalApplyResultQueryApiTests {
                         .param("type", type)
                         .query(Long.class)
                         .single();
-        applier.sourceObject =
-                jdbc.sql(
-                                """
-                insert into object_instance(object_type_id,display_name)
-                values (:type,'조회 테스트 객체') returning id
-                """)
-                        .param("type", type)
-                        .query(Long.class)
-                        .single();
         applier.businessFailure = false;
         applier.commitFailure = false;
     }
 
     @Test
-    void readsCommittedApprovalAndActualHeldReferencesThroughExistingApis() throws Exception {
+    void readsCommittedApprovalThroughExistingApis() throws Exception {
         JsonNode executed = data(decide(proposal, 1, "APPROVE").andExpect(status().isOk()));
         long decision = executed.path("decisionId").asLong();
         long execution = executed.path("actionExecutionId").asLong();
         long mapping = executed.at("/appliedEntityIds/0").asLong();
-        long held = executed.at("/heldItemIds/0").asLong();
         assertThat(mapping).isPositive();
-        assertThat(held).isPositive();
+        assertThat(executed.has("heldItemIds")).isFalse();
 
         read("/api/v1/proposals/" + proposal)
                 .andExpect(jsonPath("$.data.reviewStatus").value("APPROVED"))
@@ -254,26 +220,18 @@ class ProposalApplyResultQueryApiTests {
                 .andExpect(jsonPath("$.data[0].targetId").value(proposal))
                 .andExpect(jsonPath("$.data[0].actionCode").value("DECIDE_PROPOSAL"))
                 .andExpect(jsonPath("$.data[0].status").value("SUCCEEDED"))
-                .andExpect(jsonPath("$.data[0].changeCount").value(4))
+                .andExpect(jsonPath("$.data[0].changeCount").value(3))
                 .andExpect(jsonPath("$.data[0].result").doesNotExist());
         read(AUDIT + "/" + execution)
                 .andExpect(jsonPath("$.data.result.decisionId").value(decision))
                 .andExpect(jsonPath("$.data.result.appliedEntityIds[0]").value(mapping))
-                .andExpect(jsonPath("$.data.result.heldItemIds[0]").value(held))
+                .andExpect(jsonPath("$.data.result.heldItemIds").doesNotExist())
                 .andExpect(jsonPath("$.data.result.targetTable").value("link_mapping"))
                 .andExpect(jsonPath("$.data.result.targetId").value(mapping))
                 .andExpect(jsonPath("$.data.result.applyStatus").value("APPLIED"))
-                .andExpect(jsonPath("$.data.result.summary.heldCount").value(1));
+                .andExpect(jsonPath("$.data.result.summary.linksActivated").value(1));
         read(AUDIT + "/" + execution + "/changes")
-                .andExpect(jsonPath("$.data.changes.length()").value(4));
-        read("/api/v1/held-items/" + held)
-                .andExpect(jsonPath("$.data.proposalItemId").value(proposal))
-                .andExpect(jsonPath("$.data.linkMappingId").value(mapping))
-                .andExpect(jsonPath("$.data.status").value("HELD"))
-                .andExpect(jsonPath("$.data.holdReason").value("대상 객체 없음"));
-        read("/api/v1/held-items?linkTypeId=" + applier.linkType)
-                .andExpect(jsonPath("$.meta.totalElements").value(1))
-                .andExpect(jsonPath("$.data[0].id").value(held));
+                .andExpect(jsonPath("$.data.changes.length()").value(3));
         assertThat(
                         jdbc.sql("select id from link_mapping where proposal_item_id=:id")
                                 .param("id", proposal)
@@ -322,7 +280,7 @@ class ProposalApplyResultQueryApiTests {
     }
 
     private void assertNoAppliedRows() {
-        for (String table : List.of("link_mapping", "held_item")) {
+        for (String table : List.of("link_mapping")) {
             assertThat(
                             jdbc.sql(
                                             "select count(*) from "

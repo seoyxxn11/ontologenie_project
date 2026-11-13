@@ -33,7 +33,6 @@ public class TestAnalysisCleanupRepository {
             """
             select p.id from proposal_item p
             where p.analysis_run_id = :run and p.apply_status = 'NOT_APPLIED'
-              and not exists (select 1 from held_item h where h.proposal_item_id = p.id)
               and not exists (select 1 from issue i where i.proposal_item_id = p.id)
               and not exists (select 1 from object_type t where t.proposal_item_id = p.id)
               and not exists (select 1 from property_definition t where t.proposal_item_id = p.id)

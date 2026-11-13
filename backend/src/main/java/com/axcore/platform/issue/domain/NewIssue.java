@@ -12,7 +12,6 @@ public record NewIssue(
         Long linkMappingId,
         Long proposalItemId,
         Long objectInstanceId,
-        Long heldItemId,
         String rawValue,
         String transformedValue,
         Map<String, Object> evidence) {
