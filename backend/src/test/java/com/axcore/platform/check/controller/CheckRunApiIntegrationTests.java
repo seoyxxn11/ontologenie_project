@@ -153,31 +153,32 @@ class CheckRunApiIntegrationTests {
         assertThat(runCount()).isEqualTo(1);
     }
 
+    /** 389: 사람이 요청한 검사는 같은 기준으로 끝난 결과가 있어도 다시 쓰지 않고 새로 돈다. */
     @Test
-    void reusesSucceededCheckWithSameBasis() throws Exception {
+    void runsAgainEvenAfterSucceededCheckWithSameBasis() throws Exception {
         rule();
         long first = id(request(MANUAL_ALL).andExpect(status().isAccepted()));
         fixtures.setStatus(first, "SUCCEEDED");
 
-        request(MANUAL_ALL)
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.id").value(first))
-                .andExpect(jsonPath("$.data.status").value("SUCCEEDED"))
-                .andExpect(jsonPath("$.data.joined").value(false))
-                .andExpect(jsonPath("$.data.reused").value(true));
+        long second =
+                id(
+                        request(MANUAL_ALL)
+                                .andExpect(status().isAccepted())
+                                .andExpect(jsonPath("$.data.status").value("QUEUED"))
+                                .andExpect(jsonPath("$.data.joined").value(false))
+                                .andExpect(jsonPath("$.data.reused").value(false)));
+        assertThat(second).isNotEqualTo(first);
     }
 
     /**
-     * 개발 가이드 14.2: 오래 걸리는 작업은 접수 1줄과 결과 1줄을 남긴다. 접수 줄은 요청한 사람·SUCCEEDED이고 합류하거나 결과를 재사용해도 남긴다. 범위
-     * 종류와 개수만 남기고 ID 목록은 넣지 않는다.
+     * 개발 가이드 14.2: 오래 걸리는 작업은 접수 1줄과 결과 1줄을 남긴다. 접수 줄은 요청한 사람·SUCCEEDED이고 합류해도 남긴다. 범위 종류와 개수만 남기고
+     * ID 목록은 넣지 않는다.
      */
     @Test
-    void recordsIntakeLineForNewJoinedAndReusedRequests() throws Exception {
+    void recordsIntakeLineForNewAndJoinedRequests() throws Exception {
         rule();
         long first = id(request(MANUAL_ALL).andExpect(status().isAccepted()));
         request(MANUAL_ALL).andExpect(status().isAccepted());
-        fixtures.setStatus(first, "SUCCEEDED");
-        request(MANUAL_ALL).andExpect(status().isOk());
 
         List<Map<String, Object>> lines =
                 jdbcClient
@@ -192,7 +193,7 @@ class CheckRunApiIntegrationTests {
                         .param("id", first)
                         .query()
                         .listOfRows();
-        assertThat(lines).hasSize(3);
+        assertThat(lines).hasSize(2);
         assertThat(lines)
                 .allSatisfy(
                         line ->
@@ -211,8 +212,6 @@ class CheckRunApiIntegrationTests {
         assertThat((String) lines.get(0).get("result"))
                 .contains("\"joined\": false", "\"reused\": false");
         assertThat((String) lines.get(1).get("result")).contains("\"joined\": true");
-        assertThat((String) lines.get(2).get("result"))
-                .contains("\"reused\": true", "\"status\": \"SUCCEEDED\"");
     }
 
     @Test
@@ -368,8 +367,9 @@ class CheckRunApiIntegrationTests {
                 .andExpect(jsonPath("$.data.scope.linkMappingIds[0]").value(second));
     }
 
+    /** 대기 중인 같은 재검증에는 합류하고, 끝난 재검증은 데이터가 그대로여도 다시 쓰지 않고 새로 돈다(389). */
     @Test
-    void joinsAndReusesReverificationUntilNewDataIsCollected() throws Exception {
+    void joinsReverificationButRunsAgainAfterItFinished() throws Exception {
         long ruleId = rule();
         long detected = fixtures.insertRun("MANUAL", "SUCCEEDED", accountId, key());
         long issueId = issue(detected, ruleId);
@@ -382,13 +382,17 @@ class CheckRunApiIntegrationTests {
                 .andExpect(jsonPath("$.data.joined").value(true));
 
         fixtures.setStatus(first, "SUCCEEDED");
-        request(body)
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.id").value(first))
-                .andExpect(jsonPath("$.data.reused").value(true))
-                .andExpect(
-                        jsonPath("$.data.dataBasis.resources[0].lastSyncRunId")
-                                .value(lastWorkerSync));
+        long second =
+                id(
+                        request(body)
+                                .andExpect(status().isAccepted())
+                                .andExpect(jsonPath("$.data.status").value("QUEUED"))
+                                .andExpect(jsonPath("$.data.reused").value(false))
+                                .andExpect(
+                                        jsonPath("$.data.dataBasis.resources[0].lastSyncRunId")
+                                                .value(lastWorkerSync)));
+        assertThat(second).isNotEqualTo(first);
+        fixtures.setStatus(second, "SUCCEEDED");
 
         long sync =
                 fixtures.insertSync(
@@ -405,7 +409,7 @@ class CheckRunApiIntegrationTests {
                                 .andExpect(
                                         jsonPath("$.data.dataBasis.resources[0].lastSyncRunId")
                                                 .value(sync)));
-        assertThat(next).isNotEqualTo(first);
+        assertThat(next).isNotEqualTo(first).isNotEqualTo(second);
     }
 
     @Test

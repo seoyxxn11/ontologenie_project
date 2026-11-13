@@ -471,12 +471,13 @@ class CheckRunJobTests {
         assertThat(captured.getValue())
                 .extracting(IssueReverification::issueId, IssueReverification::verdict)
                 .containsExactly(tuple(issue, Verdict.PASSED));
-        CheckRunRequestResponse reused = requests.request(request, admin);
-        assertThat(reused.reused()).isTrue();
-        assertThat(reused.run().id()).isEqualTo(queued.id());
-        assertThat(reused.run().dataBasis().resources())
+        // 끝난 재검증은 다시 쓰지 않고 지금 기준으로 새로 돈다(389).
+        CheckRunRequestResponse again = requests.request(request, admin);
+        assertThat(again.reused()).isFalse();
+        assertThat(again.run().id()).isNotEqualTo(queued.id());
+        assertThat(again.run().dataBasis().resources())
                 .contains(new Resource(eqResource, updatedSync));
-        assertThat(runner.runNext(job)).isFalse();
+        assertThat(runner.runNext(job)).isTrue();
     }
 
     @Test
@@ -545,6 +546,57 @@ class CheckRunJobTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("RESOLVED"))
                 .andExpect(jsonPath("$.data.resolvedCheckRunId").value(run));
+    }
+
+    /**
+     * 389: 재검증 통과 뒤 확인중 → 조치완료로 되돌리고 데이터가 그대로인 채 다시 요청해도, 예전 성공 결과를 돌려주지 않고 새 재검증을 돈다. 예전 실행은 마지막
+     * 조치완료보다 먼저 시작해 해결 근거가 안 되고, 새 실행으로는 해결된다.
+     */
+    @Test
+    void reverificationRequestedAgainAfterMarkingFixedRunsAnewAndResolves() throws Exception {
+        long rule = rule("{}");
+        long baseline = queue("MANUAL", rule);
+        assertThat(runner.runNext(job)).isTrue();
+        IssueTestFixtures issueFixtures = new IssueTestFixtures(jdbc);
+        long issue = issueOn(issueFixtures, baseline, rule, woObject("WO2"));
+        issueFixtures.markFixedAt(issue, accountId, Instant.EPOCH);
+        fixtures.insertObject(eqMapping, eqType, "EQ2", "{\"code\": \"E2\"}", "ACTIVE");
+        fixtures.insertSync(dataSource, eqResource, accountId, "SUCCEEDED", Instant.now());
+        Scope scope = new Scope("ISSUES", null, List.of(issue));
+        long first = requestReverification(scope, baseline);
+        assertThat(runner.runNext(job)).isTrue();
+        assertThat(runStatus(first)).isEqualTo("SUCCEEDED");
+
+        // 확인중으로 되돌렸다가 다시 조치완료. 원천 데이터·연결은 그대로라 work_key가 같다.
+        issueFixtures.markFixedAt(issue, accountId, Instant.now());
+        var again =
+                requests.request(
+                        new CheckRunCreateRequest("REVERIFY", scope, baseline),
+                        new LoginAccount(accountId, "admin", "ADMIN", false));
+        assertThat(again.reused()).isFalse();
+        assertThat(again.joined()).isFalse();
+        assertThat(again.run().id()).isNotEqualTo(first);
+        assertThat(runner.runNext(job)).isTrue();
+
+        String resolve =
+                """
+                {"status":"RESOLVED","reason":"재검증 통과","resolvedCheckRunId":%d,"rowVersion":2}
+                """;
+        mvc.perform(
+                        patch("/api/v1/issues/{id}/status", issue)
+                                .with(admin())
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(resolve.formatted(first)))
+                .andExpect(jsonPath("$.error.code").value("REVERIFICATION_REQUIRED"));
+        mvc.perform(
+                        patch("/api/v1/issues/{id}/status", issue)
+                                .with(admin())
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(resolve.formatted(again.run().id())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("RESOLVED"));
     }
 
     @Test
@@ -638,8 +690,8 @@ class CheckRunJobTests {
         assertThat(verificationCount(legacy)).isZero();
         assertThat(verificationCount(accepted.run().id())).isEqualTo(1);
         CheckRunRequestResponse repeated = requests.request(request, account);
-        assertThat(repeated.reused()).isTrue();
-        assertThat(repeated.run().id()).isEqualTo(accepted.run().id());
+        assertThat(repeated.reused()).isFalse();
+        assertThat(repeated.run().id()).isNotEqualTo(accepted.run().id());
     }
 
     private long requestReverification(Scope scope, long baseline) {
@@ -661,7 +713,7 @@ class CheckRunJobTests {
     }
 
     @Test
-    void reusesLatestResultWhenRequestWaitsForCompletion() throws Exception {
+    void acceptsNewRunWhenWaitedRequestFindsTheRunFinished() throws Exception {
         long rule = rule("{}");
         long detected =
                 fixtures.insertRun(
@@ -715,11 +767,13 @@ class CheckRunJobTests {
                                     return response;
                                 });
 
-        CheckRunRequestResponse reused = waiting.get(10, TimeUnit.SECONDS);
-        assertThat(reused.reused()).isTrue();
-        assertThat(reused.run().id()).isEqualTo(runId);
-        assertThat(reused.run().status()).isEqualTo("SUCCEEDED");
-        assertThat(runner.runNext(job)).isFalse();
+        // 기다리던 사이 같은 범위의 재검증이 끝났으면 그 결과를 다시 쓰지 않고 새로 접수한다(389).
+        CheckRunRequestResponse accepted = waiting.get(10, TimeUnit.SECONDS);
+        assertThat(accepted.reused()).isFalse();
+        assertThat(accepted.joined()).isFalse();
+        assertThat(accepted.run().id()).isNotEqualTo(runId);
+        assertThat(accepted.run().status()).isEqualTo("QUEUED");
+        assertThat(runner.runNext(job)).isTrue();
     }
 
     @Test
