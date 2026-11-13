@@ -82,6 +82,8 @@ services:
       AXCORE_AGENT_LLM: ${AXCORE_AGENT_LLM:-none}
       AXCORE_AGENT_LLM_API_KEY: ${AI_ONTOLOGY_LLM_API_KEY:-}
       AXCORE_AGENT_LLM_BASE_URL: https://gms.ssafy.io/gmsapi/api.openai.com/v1
+      # Agent 경로 후보 도구(OBJECT_PATHS, 381). 일반 설정이다. 382 비교 결과를 보고 켠다.
+      AXCORE_AGENT_OBJECT_PATHS_ENABLED: ${AXCORE_AGENT_OBJECT_PATHS_ENABLED:-false}
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       DB_USERNAME: ${POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}

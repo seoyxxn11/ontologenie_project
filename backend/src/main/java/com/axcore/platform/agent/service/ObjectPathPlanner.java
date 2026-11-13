@@ -59,12 +59,16 @@ public class ObjectPathPlanner {
     /** 경로 후보 하나. fanOut은 한 단계라도 MANY면 MANY다. */
     public record PathCandidate(int hops, FanOut fanOut, List<PathStep> steps) {}
 
+    /** truncated는 {@value MAX_HOPS}단계 안에 보낸 후보 말고도 경로가 더 있다는 뜻이다. */
     public record ObjectPaths(
             Long fromTypeId,
             String fromTypeName,
             Long toTypeId,
             String toTypeName,
-            List<PathCandidate> candidates) {}
+            List<PathCandidate> candidates,
+            boolean truncated) {}
+
+    record PathSearch(List<PathCandidate> candidates, boolean truncated) {}
 
     /**
      * 유형은 ID, 코드, 이름 중 하나로 받는다. 볼 수 없는 유형은 없는 유형과 같게 다뤄 입력 오류로 돌려준다.
@@ -78,12 +82,14 @@ public class ObjectPathPlanner {
         if (from.id().equals(to.id())) {
             throw new AgentQuerySession.InvalidInput("출발 유형과 도착 유형이 같습니다.", null);
         }
+        PathSearch search = search(summary, from.id(), to.id());
         return new ObjectPaths(
                 from.id(),
                 from.name(),
                 to.id(),
                 to.name(),
-                candidates(summary, from.id(), to.id()));
+                search.candidates(),
+                search.truncated());
     }
 
     private static ObjectTypeSummary resolve(
@@ -116,9 +122,11 @@ public class ObjectPathPlanner {
     /**
      * 짧은 경로부터 최대 {@value MAX_CANDIDATES}개를 돌려준다. 같은 길이에서는 단계별 관계 유형 ID, OUT·IN 순서다. 입력 순서와 관계없이 같은
      * 모델이면 같은 결과가 나온다. 한 경로에서 같은 유형을 두 번 지나지 않는다.
+     *
+     * <p>같은 길이 안의 순서는 업무 의미와 관계가 없다. 시험 데이터(유형 27개)에서 상대 수가 적은 경로나 거치는 유형의 관계 수가 적은 경로를 앞에 두는 방법도
+     * 비교했지만 뜻 없는 경로가 오히려 앞에 오는 쌍이 있어 바꾸지 않았다. 대신 잘렸으면 truncated로 알린다.
      */
-    static List<PathCandidate> candidates(
-            ModelSummaryResponse summary, long fromTypeId, long toTypeId) {
+    static PathSearch search(ModelSummaryResponse summary, long fromTypeId, long toTypeId) {
         Map<Long, String> typeNames = new HashMap<>();
         summary.objectTypes().forEach(type -> typeNames.put(type.id(), type.name()));
         Map<Long, List<Edge>> edges = new HashMap<>();
@@ -157,12 +165,10 @@ public class ObjectPathPlanner {
                     List<Edge> extended = new ArrayList<>(path);
                     extended.add(edge);
                     if (edge.to() == toTypeId) {
-                        found.add(extended);
                         if (found.size() == MAX_CANDIDATES) {
-                            return found.stream()
-                                    .map(steps -> candidate(steps, typeNames))
-                                    .toList();
+                            return result(found, typeNames, true);
                         }
+                        found.add(extended);
                     } else if (hops < MAX_HOPS) {
                         next.add(extended);
                     }
@@ -170,7 +176,13 @@ public class ObjectPathPlanner {
             }
             frontier = next;
         }
-        return found.stream().map(steps -> candidate(steps, typeNames)).toList();
+        return result(found, typeNames, false);
+    }
+
+    private static PathSearch result(
+            List<List<Edge>> found, Map<Long, String> typeNames, boolean truncated) {
+        return new PathSearch(
+                found.stream().map(steps -> candidate(steps, typeNames)).toList(), truncated);
     }
 
     private static PathCandidate candidate(List<Edge> edges, Map<Long, String> typeNames) {
