@@ -128,8 +128,6 @@ public class ObjectMappingService {
         }
         validateReferences(
                 request.sourceResourceId(), request.objectTypeId(), request.keyColumns());
-        sourceColumnPolicy.requireKeyColumns(
-                target.getResourceKey(), request.keyColumns(), "keyColumns");
 
         boolean identityChanged =
                 mapping.changesIdentity(
@@ -141,6 +139,12 @@ public class ObjectMappingService {
         boolean wasActive = mapping.isActive();
         long objectTypeBefore = mapping.getObjectTypeId();
         boolean active = request.isActive() == null ? wasActive : request.isActive();
+        if (active) {
+            // 꺼 둔 매핑은 적재하지 않으므로 정책을 보지 않고, 다시 켤 때 본다. 정책이 막는 표를 가리키는 매핑(391 이전에 만든 것)도 꺼서 정리할
+            // 수 있어야 한다(398).
+            sourceColumnPolicy.requireKeyColumns(
+                    target.getResourceKey(), request.keyColumns(), "keyColumns");
+        }
         if (active
                 && mappingRepository.existsActive(
                         request.sourceResourceId(), request.objectTypeId(), id)) {

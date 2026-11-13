@@ -294,6 +294,37 @@ class ObjectMappingApiTests {
         createMapping(admin, resource, type, "\"emp_no\"");
     }
 
+    /** 391 이전에 만든, 정책이 막는 컬럼을 키로 쓰는 매핑도 끌 수 있다. 다시 켜는 것은 막는다(398). */
+    @Test
+    void turnsOffMappingOnForbiddenKeyButDoesNotTurnItBackOn() throws Exception {
+        LoginSession admin = loginAs("ADMIN");
+        long resource = insertResource(null);
+        jdbcClient
+                .sql("update source_resource set resource_key = 'erp.employee' where id = :id")
+                .param("id", resource)
+                .update();
+        long type = insertObjectType();
+        long mapping = createMapping(admin, resource, type, "\"emp_no\"");
+        jdbcClient
+                .sql(
+                        "update object_source_mapping set key_columns = '[\"emp_no\", \"emp_name\"]'::jsonb where id = :id")
+                .param("id", mapping)
+                .update();
+
+        send(
+                        admin,
+                        patch(BASE_PATH + "/" + mapping),
+                        updateBody(resource, type, "\"emp_no\", \"emp_name\"", false, 0))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.isActive").value(false));
+        send(
+                        admin,
+                        patch(BASE_PATH + "/" + mapping),
+                        updateBody(resource, type, "\"emp_no\", \"emp_name\"", true, 1))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.details.forbiddenColumns", contains("emp_name")));
+    }
+
     /** 민감 컬럼도 키로 쓸 수 없다. 키 값은 원천 키·표시 이름 대체값으로 가리지 않고 드러난다(391). */
     @Test
     void rejectsRestrictedKeyColumn() throws Exception {
