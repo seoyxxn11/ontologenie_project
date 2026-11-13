@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
  * restrictedPropertyCodes에 담는다. 가릴 자리는 기록을 남기는 쪽이 {@link RecordedPropertyPaths}로 알린다.
  */
 @Component
-class AuditValueMasker {
+public class AuditValueMasker {
 
     private static final String EACH = "*";
 
@@ -40,7 +40,7 @@ class AuditValueMasker {
     }
 
     /** 실행 하나의 입력값만 가린다(097). 실행한 정의의 Handler가 알린 자리만 본다. */
-    Masked<Map<String, Object>> maskInput(
+    public Masked<Map<String, Object>> maskInput(
             Long actionDefinitionId, Map<String, Object> input, DataAccess access) {
         Set<String> masked = new TreeSet<>();
         Map<String, Object> value =
@@ -49,7 +49,18 @@ class AuditValueMasker {
     }
 
     /** 실행 하나의 변경 내역만 가린다(098). */
-    Masked<List<AuditEntityChangeResponse>> maskChanges(
+    /**
+     * 변경 기록에 알린 자리로 표 한 행을 가린다(384·390). 재배정 계획 항목(093~095)처럼 저장된 행을 그대로 돌려줄 때 쓴다. 그 표에 알린 자리가 없으면
+     * 받은 값을 그대로 돌려준다.
+     */
+    public Masked<Map<String, Object>> maskRow(
+            String tableName, Map<String, Object> row, DataAccess access) {
+        Set<String> masked = new TreeSet<>();
+        Map<String, Object> value = blank(row, paths(changePaths, tableName), access, masked);
+        return new Masked<>(value, List.copyOf(masked));
+    }
+
+    public Masked<List<AuditEntityChangeResponse>> maskChanges(
             List<AuditEntityChangeResponse> changes, DataAccess access) {
         Set<String> masked = new TreeSet<>();
         List<AuditEntityChangeResponse> value =
@@ -157,5 +168,5 @@ class AuditValueMasker {
     }
 
     /** 가린 값과, 값을 가린 민감 속성 코드(이름순). */
-    record Masked<T>(T value, List<String> restrictedPropertyCodes) {}
+    public record Masked<T>(T value, List<String> restrictedPropertyCodes) {}
 }

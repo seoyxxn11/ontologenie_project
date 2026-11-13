@@ -1,15 +1,23 @@
 package com.axcore.platform.action.service;
 
 import com.axcore.platform.action.dto.ActionExecutionDetailResponse;
+import com.axcore.platform.action.dto.ActionExecutionDetailResponse.EntityChangeResponse;
 import com.axcore.platform.audit.domain.ActionExecution;
 import com.axcore.platform.audit.domain.EventKind;
+import com.axcore.platform.audit.dto.AuditEntityChangeResponse;
 import com.axcore.platform.audit.repository.ActionExecutionRepository;
 import com.axcore.platform.audit.repository.EntityChangeRepository;
+import com.axcore.platform.audit.service.AuditValueMasker;
+import com.axcore.platform.audit.service.AuditValueMasker.Masked;
+import com.axcore.platform.auth.service.DataAccess;
+import com.axcore.platform.auth.service.DataAccessPolicy;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
 import com.axcore.platform.global.security.LoginAccount;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 실행 기록 하나의 결과·차단 이유 조회 (API 092, FN-ACT-06·FN-LOG-02). 091에서 BLOCKED로 돌려받은 실행도 같은 id로 본다. 실행자
  * 본인(Agent가 본인을 대신한 실행 포함)과 ADMIN만 볼 수 있다. Agent 조회 기록(AGENT_QUERY)은 공개하지 않으므로 없는 기록처럼 404다.
+ *
+ * <p>input과 변경 내용의 민감 속성 값은 보는 사람의 범위로 가린다. 감사 097·098과 같은 가림({@link AuditValueMasker})을 쓰므로 같은 기록은
+ * 어느 API로 봐도 같게 가려진다. ADMIN도 허용 행대로 가린다(384·390).
  */
 @Service
 @RequiredArgsConstructor
@@ -27,6 +38,8 @@ public class ActionExecutionQueryService {
 
     private final ActionExecutionRepository executions;
     private final EntityChangeRepository changes;
+    private final AuditValueMasker masker;
+    private final DataAccessPolicy dataAccessPolicy;
 
     public ActionExecutionDetailResponse get(LoginAccount viewer, long id) {
         ActionExecution execution =
@@ -43,7 +56,30 @@ public class ActionExecutionQueryService {
             throw new BusinessException(
                     CommonErrorCode.FORBIDDEN, Map.of("requiredPermission", ADMIN));
         }
+        DataAccess access = dataAccessPolicy.of(viewer);
+        Masked<Map<String, Object>> input =
+                masker.maskInput(execution.getActionDefinitionId(), execution.getInput(), access);
+        Masked<List<AuditEntityChangeResponse>> changed =
+                masker.maskChanges(
+                        changes.findByActionExecutionIdOrderByIdAsc(id).stream()
+                                .map(AuditEntityChangeResponse::from)
+                                .toList(),
+                        access);
+        TreeSet<String> restricted = new TreeSet<>(input.restrictedPropertyCodes());
+        restricted.addAll(changed.restrictedPropertyCodes());
         return ActionExecutionDetailResponse.of(
-                execution, changes.findByActionExecutionIdOrderByIdAsc(id));
+                execution,
+                input.value(),
+                changed.value().stream()
+                        .map(
+                                change ->
+                                        new EntityChangeResponse(
+                                                change.tableName(),
+                                                change.rowKey(),
+                                                change.changeKind(),
+                                                change.beforeData(),
+                                                change.afterData()))
+                        .toList(),
+                List.copyOf(restricted));
     }
 }

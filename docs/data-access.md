@@ -60,10 +60,18 @@ Agent 도구 결과는 외부 언어 모델의 입력이 된다. 그래서 Agent
 - `DataAccessPolicy.of(actor, purpose)`는 VIEW·MODEL만 받는다. 정의 조회 범위는 `forDefinitions()`로만 만든다.
 - Agent의 실행 이력 조회(감사)와 Agent가 실행한 Action의 문구는 김산이 담당 범위다(아래).
 
-## 옮겨야 하는 곳 (384, 김산이)
+## Action·재배정·감사 응답 (390)
 
-- `ReassignmentObjectRepository`: 재배정 검증과 완료 시각 계산이 범위 없이 객체를 읽는다. 검증은 대상(정지 설비)만 범위 검사를 한다. Agent가 실행한 경우의 문구는 `MODEL` 용도로 만든다.
-- `AuditExecutionQueryRepository`: 실행 이력의 대상 표시 이름이 가림 규칙 없이 원본 `display_name`이다.
+| 경로 | 범위 | 가림 |
+|---|---|---|
+| 091 실행(재배정 Handler) | 대상 객체는 공통 실행기가, 검사가 더 읽는 작업지시·공정·공정 표준은 Handler가 실행자의 범위로 읽는다(`ReassignmentObjectRepository` → `ScopedObjectReader`) | Agent가 실행하면 `ActionContext.dataPurpose()`가 `MODEL`이라 차단 문구에 민감 값이 들어가지 않는다 |
+| 092 Action 결과 | 실행자 본인·ADMIN | input·변경 내용을 097·098과 같은 `AuditValueMasker`로 가리고 `restrictedPropertyCodes`를 준다. result는 Handler가 만든 ID·건수다 |
+| 093~095 재배정 계획 | 설비·작업지시·공정 유형을 모두 볼 수 있어야 계획이 보인다(아니면 목록은 비고 한 건은 404) | 항목의 공정 코드와 스냅샷을 Handler가 변경 기록에 알린 자리로 가린다(`AuditValueMasker.maskRow`) |
+| 096·080 실행 이력 목록 | 기존과 같음 | 대상 표시 이름을 볼 수 있는 유형만, `ObjectDisplaySql`로 가린다. Agent는 080을 `MODEL`로 부른다 |
+| 097·098 실행 상세·변경 | 기존과 같음 | ADMIN도 허용 행대로 가린다(예전엔 ADMIN은 원본) |
+
+- 재배정 검사에 필요한 값이 보는 사람에게 가려져 있으면 그 검사는 "속성이 없음"으로 막힌다. 값을 알려 주지 않고 실패하는 쪽을 택했다.
+- 스냅샷에 들어가는 자리는 Handler가 정한 것(작업지시 번호·상태, 공정 순서·설비 코드·상태)뿐이고, 그 자리는 `recordedPropertyPaths`로 알린다. 새 자리를 스냅샷에 넣으면 같이 알려야 가려진다.
 
 ## 역할별 범위 (V21)
 
@@ -82,4 +90,4 @@ Agent 도구 결과는 외부 언어 모델의 입력이 된다. 그래서 Agent
 
 ## 아직 남은 것 (384 다른 작업)
 
-- 091·092·093~095 응답 허용 목록(작업 7)
+- 정책 파일·속성 등급 하한·금지 컬럼 매핑 차단(391), 그룹·민감도 지정 경로(392), 가드레일(393), 열람 기록(394), 원천 스크립트(395), 검증(396), 재적재(397)

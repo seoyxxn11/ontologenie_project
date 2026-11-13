@@ -64,6 +64,10 @@ class ReassignmentPlanQueryApiTests {
     @BeforeEach
     void createPlan() {
         planner = createAccount("PLANNER");
+        // 384·390: 계획이 가리키는 설비·작업지시·공정 유형을 보는 역할만 계획을 본다.
+        for (String type : List.of("EQUIPMENT", "WORK_ORDER", "WORK_ORDER_OPERATION")) {
+            allowRolesToSeeType(type);
+        }
         long typeId = createObjectType();
         fromEquipment = createObject(typeId, "P103");
         toEquipment = createObject(typeId, "P101");
@@ -382,6 +386,30 @@ class ReassignmentPlanQueryApiTests {
                         .query(Long.class)
                         .single();
         return new TestAccount(id, loginId, roleCode);
+    }
+
+    /** 유형이 없으면 만들고, 그룹이 없으면 시험용 그룹을 붙여 ADMIN·PLANNER·VIEWER에게 연다. 다른 시험이 붙인 그룹이면 그 그룹을 연다. */
+    private void allowRolesToSeeType(String code) {
+        jdbcClient
+                .sql(
+                        "insert into object_type (code, name) values (:code, :code) on conflict (code) do nothing")
+                .param("code", code)
+                .update();
+        jdbcClient
+                .sql(
+                        "update object_type set access_group = 'PLAN_TEST_' || code where code = :code and access_group is null")
+                .param("code", code)
+                .update();
+        jdbcClient
+                .sql(
+                        """
+                        insert into role_data_scope (role_id, access_group)
+                        select r.id, t.access_group from role r, object_type t
+                        where r.code in ('ADMIN', 'PLANNER', 'VIEWER') and t.code = :code
+                        on conflict do nothing
+                        """)
+                .param("code", code)
+                .update();
     }
 
     private record TestAccount(Long id, String loginId, String roleCode) {}

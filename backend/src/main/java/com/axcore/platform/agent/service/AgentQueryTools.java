@@ -130,6 +130,7 @@ public class AgentQueryTools {
                                             executions
                                                     .objectExecutions(
                                                             session.asker(),
+                                                            DataPurpose.MODEL,
                                                             id,
                                                             new ObjectExecutionSearchRequest(
                                                                     startOf(from),

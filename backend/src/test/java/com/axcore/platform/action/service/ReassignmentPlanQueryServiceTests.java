@@ -43,6 +43,12 @@ import org.springframework.test.context.ActiveProfiles;
 @Import(TestcontainersConfiguration.class)
 class ReassignmentPlanQueryServiceTests {
 
+    private static final LoginAccount ADMIN = new LoginAccount(1L, "tester", "ADMIN", false);
+
+    /** 권한·범위가 없는 미구성 역할(384). */
+    private static final LoginAccount UNCONFIGURED =
+            new LoginAccount(2L, "tester", "MAINTENANCE", false);
+
     @Autowired ReassignmentPlanQueryService service;
 
     @Autowired ReassignmentPlanRepository planRepository;
@@ -67,6 +73,10 @@ class ReassignmentPlanQueryServiceTests {
         fromEquipment = createObject(typeId, "P103");
         toEquipment = createObject(typeId, "P101");
         workOrder = createObject(typeId, "JB2610-0141");
+        // 384·390: 계획이 가리키는 설비·작업지시·공정 유형을 보는 사람만 계획을 본다. 시험 계정(ADMIN)에 그 유형들을 열어 준다.
+        for (String type : List.of("EQUIPMENT", "WORK_ORDER", "WORK_ORDER_OPERATION")) {
+            allowAdminToSeeType(type);
+        }
     }
 
     @AfterEach
@@ -85,7 +95,7 @@ class ReassignmentPlanQueryServiceTests {
         long withFourPlans = statementsToSearch();
 
         Page<ReassignmentPlanResponse> page =
-                service.search(fromEquipment, null, PageRequest.of(0, 20));
+                service.search(ADMIN, fromEquipment, null, PageRequest.of(0, 20));
         assertThat(page.getContent()).hasSize(4);
         assertThat(page.getContent())
                 .allSatisfy(
@@ -106,17 +116,19 @@ class ReassignmentPlanQueryServiceTests {
         insertItem(newerHighId, null);
 
         Page<ReassignmentPlanResponse> page =
-                service.search(fromEquipment, plannerId, PageRequest.of(0, 2));
+                service.search(ADMIN, fromEquipment, plannerId, PageRequest.of(0, 2));
 
         assertThat(page.getContent())
                 .extracting(ReassignmentPlanResponse::id)
                 .containsExactly(newerHighId, newerLowId);
         assertThat(page.getTotalElements()).isEqualTo(3);
-        assertThat(service.search(fromEquipment, plannerId, PageRequest.of(1, 2)).getContent())
+        assertThat(
+                        service.search(ADMIN, fromEquipment, plannerId, PageRequest.of(1, 2))
+                                .getContent())
                 .extracting(ReassignmentPlanResponse::id)
                 .containsExactly(oldest);
 
-        ReassignmentPlanResponse plan = service.get(newerHighId);
+        ReassignmentPlanResponse plan = service.get(ADMIN, newerHighId);
         assertThat(plan.status()).isEqualTo("CREATED");
         assertThat(plan.selectionBasis())
                 .isEqualTo(
@@ -137,7 +149,7 @@ class ReassignmentPlanQueryServiceTests {
         assertThat(item.fromEquipmentId()).isEqualTo(fromEquipment);
         assertThat(item.toEquipmentId()).isEqualTo(toEquipment);
         assertThat(item.sourceSnapshot()).isEqualTo(Map.of("status", "중단"));
-        assertThat(service.items(newerLowId)).isEmpty();
+        assertThat(service.items(ADMIN, newerLowId)).isEmpty();
     }
 
     // ---------------------------------------------------------------- 도우미
@@ -146,7 +158,7 @@ class ReassignmentPlanQueryServiceTests {
     private long statementsToSearch() {
         statistics.setStatisticsEnabled(true);
         statistics.clear();
-        service.search(fromEquipment, null, PageRequest.of(0, 20));
+        service.search(ADMIN, fromEquipment, null, PageRequest.of(0, 20));
         long count = statistics.getPrepareStatementCount();
         statistics.setStatisticsEnabled(false);
         return count;
@@ -268,5 +280,104 @@ class ReassignmentPlanQueryServiceTests {
                 .param("name", name)
                 .query(Long.class)
                 .single();
+    }
+
+    /** 계획이 가리키는 유형을 볼 수 없는 역할에게는 계획이 없는 것처럼 보인다(384·390). */
+    @Test
+    void hidesPlansFromRolesThatCannotSeePlanObjects() {
+        long planId = insertPlan("2026-10-30T02:00:00Z");
+
+        assertThat(service.search(UNCONFIGURED, fromEquipment, null, PageRequest.of(0, 20)))
+                .isEmpty();
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.get(UNCONFIGURED, planId))
+                .isInstanceOf(com.axcore.platform.global.error.BusinessException.class);
+        assertThat(service.get(ADMIN, planId).id()).isEqualTo(planId);
+    }
+
+    /** 스냅샷의 민감 속성 값은 보는 사람의 범위로 가린다. 자리는 Handler가 변경 기록에 알린 것이다(384·390). */
+    @Test
+    void masksRestrictedSnapshotValuesByTheViewersScope() {
+        long planId = insertPlan("2026-10-30T03:00:00Z");
+        jdbcClient
+                .sql(
+                        """
+                        insert into reassignment_plan_item (plan_id, work_order_id, operation_code,
+                                                            from_equipment_id, to_equipment_id, source_snapshot)
+                        values (:planId, :workOrder, '20', :from, :to,
+                                '{"workOrderNo": "JB2610-0141", "workOrderStatus": "진행"}'::jsonb)
+                        """)
+                .param("planId", planId)
+                .param("workOrder", workOrder)
+                .param("from", fromEquipment)
+                .param("to", toEquipment)
+                .update();
+        jdbcClient
+                .sql(
+                        """
+                        insert into property_definition (object_type_id, code, name, data_type, sensitivity)
+                        select id, 'wo_no', 'wo_no', 'STRING', 'NORMAL' from object_type where code = 'WORK_ORDER'
+                        on conflict (object_type_id, code) do nothing
+                        """)
+                .update();
+        String before = sensitivityOfWorkOrderNumber();
+        setSensitivityOfWorkOrderNumber("RESTRICTED");
+        try {
+            ReassignmentPlanItemResponse item = service.items(ADMIN, planId).getFirst();
+
+            assertThat(item.sourceSnapshot())
+                    .containsEntry("workOrderNo", null)
+                    .containsEntry("workOrderStatus", "진행");
+            assertThat(item.operationCode()).isEqualTo("20");
+            assertThat(item.restrictedPropertyCodes()).containsExactly("wo_no");
+        } finally {
+            setSensitivityOfWorkOrderNumber(before);
+        }
+    }
+
+    private String sensitivityOfWorkOrderNumber() {
+        return jdbcClient
+                .sql(
+                        """
+                        select p.sensitivity from property_definition p join object_type t on t.id = p.object_type_id
+                        where t.code = 'WORK_ORDER' and p.code = 'wo_no'
+                        """)
+                .query(String.class)
+                .single();
+    }
+
+    private void setSensitivityOfWorkOrderNumber(String sensitivity) {
+        jdbcClient
+                .sql(
+                        """
+                        update property_definition p set sensitivity = :sensitivity
+                        from object_type t
+                        where t.id = p.object_type_id and t.code = 'WORK_ORDER' and p.code = 'wo_no'
+                        """)
+                .param("sensitivity", sensitivity)
+                .update();
+    }
+
+    /** 유형이 없으면 만들고, 그룹이 없으면 시험용 그룹을 붙여 ADMIN에게 연다. 다른 시험이 붙인 그룹이면 그 그룹을 연다. */
+    private void allowAdminToSeeType(String code) {
+        jdbcClient
+                .sql(
+                        "insert into object_type (code, name) values (:code, :code) on conflict (code) do nothing")
+                .param("code", code)
+                .update();
+        jdbcClient
+                .sql(
+                        "update object_type set access_group = 'PLAN_TEST_' || code where code = :code and access_group is null")
+                .param("code", code)
+                .update();
+        jdbcClient
+                .sql(
+                        """
+                        insert into role_data_scope (role_id, access_group)
+                        select r.id, t.access_group from role r, object_type t
+                        where r.code = 'ADMIN' and t.code = :code
+                        on conflict do nothing
+                        """)
+                .param("code", code)
+                .update();
     }
 }
