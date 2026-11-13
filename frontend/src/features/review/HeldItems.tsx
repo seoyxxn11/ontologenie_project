@@ -54,8 +54,7 @@ function HeldItemDetail({ id, onClose }: { id: number; onClose: () => void }) {
                 ['등록 시각', formatKstDateTime(item.createdAt)],
                 [
                   '처리 시각',
-                  item.resolvedAt &&
-                    formatKstDateTime(item.resolvedAt),
+                  item.resolvedAt && formatKstDateTime(item.resolvedAt),
                 ],
                 ['처리자 ID', item.resolvedBy],
                 ['처리 연결 ID', item.resolvedLinkId],
