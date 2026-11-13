@@ -213,7 +213,7 @@ function ObjectMappings({
                         </Button>
                       </th>
                       <td className="px-4 py-3">
-                        {mapping.keyColumns.join(' → ')}
+                        {mapping.keyColumns.join(' + ')}
                       </td>
                       <td className="px-4 py-3">
                         {originLabels[mapping.origin] ?? mapping.origin}

@@ -5,6 +5,7 @@ import Button from '../../components/Button'
 import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
 import Pagination from '../../components/Pagination'
 import { fetchIssueVerifications, fetchReverificationComparison } from './api'
+import IssueRuleName from './IssueRuleName'
 
 const categories = [
   ['RESOLVED', '해결 문제'],
@@ -54,7 +55,8 @@ function ComparisonResults({ runId }: { runId: number }) {
                   .filter((row) => row.category === category)
                   .map((row) => (
                     <li key={`${row.ruleCode}:${row.objectInstanceId}`}>
-                      {row.ruleCode} · 객체 #{row.objectInstanceId}
+                      <IssueRuleName code={row.ruleCode} /> · 객체 #
+                      {row.objectInstanceId}
                       <div>이전 · {evidenceText(row.before)}</div>
                       <div>이번 · {evidenceText(row.after)}</div>
                     </li>

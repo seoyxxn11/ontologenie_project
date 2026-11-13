@@ -284,7 +284,7 @@ export default function ObjectMappingDialog({
             <p className="text-slate-500">
               선택한 순서대로 객체 식별 키를 구성합니다.
             </p>
-            {keys.length > 0 && <p>키 순서: {keys.join(' → ')}</p>}
+            {keys.length > 0 && <p>키 조합(선택 순서): {keys.join(' + ')}</p>}
             {columns.isPending && (
               <LoadingState message="원천 컬럼을 불러오는 중…" />
             )}
