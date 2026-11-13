@@ -15,6 +15,7 @@ import com.axcore.platform.audit.repository.EntityChangeRepository;
 import com.axcore.platform.audit.service.AuditValueMasker.Masked;
 import com.axcore.platform.auth.service.DataAccess;
 import com.axcore.platform.auth.service.DataAccessPolicy;
+import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
 import com.axcore.platform.global.security.LoginAccount;
@@ -73,7 +74,8 @@ public class AuditExecutionQueryService {
                         request.targetId(),
                         request.from(),
                         request.to());
-        return history.search(filter, admin ? null : viewer.id(), pageable);
+        return history.search(
+                filter, admin ? null : viewer.id(), dataAccessPolicy.of(viewer), pageable);
     }
 
     public static String scopeOf(LoginAccount viewer) {
@@ -81,13 +83,12 @@ public class AuditExecutionQueryService {
     }
 
     /**
-     * 097. 실행 하나의 입력·결과·막힌 이유·실패 이유. ADMIN은 전체, 그 밖의 역할은 096과 같은 본인 실행 범위만 열고 입력값의 민감 속성 값을 가린다.
+     * 097. 실행 하나의 입력·결과·막힌 이유·실패 이유. ADMIN은 전체 기록, 그 밖의 역할은 096과 같은 본인 실행 범위만 연다. 입력값의 민감 속성 값은 역할의
+     * 허용 행대로 가린다(ADMIN 포함, 384).
      */
     public AuditExecutionDetailResponse get(LoginAccount viewer, long id) {
         ActionExecution execution = visibleExecution(viewer, id);
-        if (isAdmin(viewer)) {
-            return AuditExecutionDetailResponse.of(execution, execution.getInput(), List.of());
-        }
+        // ADMIN도 role_data_scope 허용 행대로 가린다(384: 정의·시스템 관리와 값 열람을 나눈다).
         Masked<Map<String, Object>> input =
                 masker.maskInput(
                         execution.getActionDefinitionId(),
@@ -97,16 +98,13 @@ public class AuditExecutionQueryService {
                 execution, input.value(), input.restrictedPropertyCodes());
     }
 
-    /** 098. 실행 하나가 바꾼 행 전체. 열람 범위는 097과 같고, ADMIN이 아니면 변경 내역의 민감 속성 값을 가린다. */
+    /** 098. 실행 하나가 바꾼 행 전체. 열람 범위는 097과 같고, 변경 내역의 민감 속성 값은 역할의 허용 행대로 가린다(ADMIN 포함, 384). */
     public AuditExecutionChangesResponse changes(LoginAccount viewer, long id) {
         visibleExecution(viewer, id);
         List<AuditEntityChangeResponse> found =
                 changes.findByActionExecutionIdOrderByIdAsc(id).stream()
                         .map(AuditEntityChangeResponse::from)
                         .toList();
-        if (isAdmin(viewer)) {
-            return new AuditExecutionChangesResponse(found, List.of());
-        }
         Masked<List<AuditEntityChangeResponse>> masked =
                 masker.maskChanges(found, dataAccessPolicy.of(viewer));
         return new AuditExecutionChangesResponse(masked.value(), masked.restrictedPropertyCodes());
@@ -129,7 +127,17 @@ public class AuditExecutionQueryService {
             long objectId,
             ObjectExecutionSearchRequest request,
             Pageable pageable) {
-        DataAccess access = dataAccessPolicy.of(viewer);
+        return objectExecutions(viewer, DataPurpose.VIEW, objectId, request, pageable);
+    }
+
+    /** 위와 같고, 읽는 용도를 정한다. Agent는 모델 용도로 불러 대상 표시 이름의 민감 값을 늘 가린다(384·390). */
+    public Page<AuditExecutionResponse> objectExecutions(
+            LoginAccount viewer,
+            DataPurpose purpose,
+            long objectId,
+            ObjectExecutionSearchRequest request,
+            Pageable pageable) {
+        DataAccess access = dataAccessPolicy.of(viewer, purpose);
         history.findObjectTypeId(objectId)
                 .filter(access::canView)
                 .orElseThrow(
@@ -149,7 +157,7 @@ public class AuditExecutionQueryService {
                         objectId,
                         request.from(),
                         request.to());
-        return history.search(filter, null, pageable);
+        return history.search(filter, null, access, pageable);
     }
 
     private static boolean isAdmin(LoginAccount viewer) {

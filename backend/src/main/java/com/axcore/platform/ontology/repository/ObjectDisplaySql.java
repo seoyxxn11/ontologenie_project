@@ -11,11 +11,11 @@ package com.axcore.platform.ontology.repository;
  *       때)·가리지 않는 원천 키·{@code #id} 순으로 다시 만든 {@code shown.display_name}을 낸다.
  * </ul>
  */
-final class ObjectDisplaySql {
+public final class ObjectDisplaySql {
 
     private ObjectDisplaySql() {}
 
-    static final String SOURCE_SCOPE_JOINS =
+    public static final String SOURCE_SCOPE_JOINS =
             """
             cross join lateral (
                 select oi.object_type_id <> all(:maskedTypeIds) as can_view_restricted
@@ -37,7 +37,7 @@ final class ObjectDisplaySql {
             """;
 
     // 수집 시의 표시 이름은 매핑 변경 후에도 남을 수 있어 제한 사용자에게는 읽을 수 있는 값으로 다시 만든다.
-    static final String DISPLAY_JOINS =
+    public static final String DISPLAY_JOINS =
             """
             join object_type ot on ot.id = oi.object_type_id
             left join property_definition display_property on display_property.id = ot.display_property_id

@@ -497,15 +497,17 @@ class ActionExecutionApiTests {
             assertThat(changedSnapshot.has("workOrderNo")).isTrue();
             assertThat(changedSnapshot.get("workOrderNo").isNull()).isTrue();
             assertThat(changedSnapshot.get("workOrderStatus").asString()).isEqualTo("진행");
+            // 384: ADMIN도 허용 행대로 가린다(정의·시스템 관리와 값 열람을 나눈다).
             JsonNode adminChanges =
                     auditData("/api/v1/audit/actions/" + executionId + "/changes", admin);
-            assertThat(adminChanges.get("restrictedPropertyCodes").isEmpty()).isTrue();
+            assertThat(adminChanges.get("restrictedPropertyCodes").toString())
+                    .isEqualTo("[\"wo_no\"]");
             assertThat(
                             itemChangeIn(adminChanges.get("changes"))
                                     .get("source_snapshot")
                                     .get("workOrderNo")
-                                    .asString())
-                    .isEqualTo(s4.orderNo);
+                                    .isNull())
+                    .isTrue();
         } finally {
             jdbcClient
                     .sql("delete from property_definition where id = :id")
@@ -563,11 +565,21 @@ class ActionExecutionApiTests {
                 assertThat(operation.get("equipmentCode").asString()).isEqualTo(s4.p103Code);
             }
 
-            // ADMIN은 097에서 가리지 않은 원본 입력값을 받는다.
+            // 384: ADMIN도 097에서 허용 행대로 가린 입력값을 받는다.
             JsonNode adminDetail = auditData("/api/v1/audit/actions/" + executionId, admin);
-            assertThat(adminDetail.get("restrictedPropertyCodes").isEmpty()).isTrue();
-            assertThat(adminDetail.get("input").get("items").get(0).get("operationCode").asString())
-                    .isEqualTo("20");
+            assertThat(adminDetail.get("restrictedPropertyCodes").toString())
+                    .isEqualTo("[\"op_seq\"]");
+            assertThat(adminDetail.get("input").get("items").get(0).get("operationCode").isNull())
+                    .isTrue();
+
+            // 390: 092(Action 결과 조회)도 097·098과 같게 가린다.
+            JsonNode actionResult = auditData("/api/v1/action-executions/" + executionId, planner);
+            assertThat(actionResult.get("restrictedPropertyCodes").toString())
+                    .isEqualTo("[\"op_seq\"]");
+            assertThat(actionResult.get("input").get("items").get(0).get("operationCode").isNull())
+                    .isTrue();
+            JsonNode resultItem = itemChangeIn(actionResult.get("entityChanges"));
+            assertThat(resultItem.get("operation_code").isNull()).isTrue();
         } finally {
             jdbcClient
                     .sql("delete from property_definition where id = :id")

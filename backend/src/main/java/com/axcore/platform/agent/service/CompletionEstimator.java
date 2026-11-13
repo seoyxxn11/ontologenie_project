@@ -118,7 +118,7 @@ public class CompletionEstimator {
         if (equipmentId != null) {
             ids.add(equipmentId);
         }
-        Map<Long, ObjectRow> rows = objects.findByIds(ids);
+        Map<Long, ObjectRow> rows = objects.findByIds(access, ids);
         List<ObjectRow> orders = new ArrayList<>();
         List<String> missing = new ArrayList<>();
         for (Long id : workOrderIds) {
@@ -200,9 +200,10 @@ public class CompletionEstimator {
         }
 
         List<ObjectRow> operations =
-                objects.findActiveByProperty(operation.type(), operation.workOrder(), orderNumbers);
+                objects.findActiveByProperty(
+                        access, operation.type(), operation.workOrder(), orderNumbers);
         List<ObjectRow> routings =
-                objects.findActiveByProperty(routing.type(), routing.product(), products);
+                objects.findActiveByProperty(access, routing.type(), routing.product(), products);
 
         List<Plan> plans = new ArrayList<>();
         for (ObjectRow order : orders) {

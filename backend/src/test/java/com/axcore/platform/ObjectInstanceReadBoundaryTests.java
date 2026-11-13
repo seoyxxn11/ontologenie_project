@@ -34,7 +34,9 @@ class ObjectInstanceReadBoundaryTests {
                     "ontology/repository/ObjectQueryRepository.java",
                             "객체 조회 076~078. ObjectQueryService가 DataAccess로 거르고 가린다",
                     "ontology/repository/PropertyValueSampleRepository.java",
-                            "Agent 조건 값 종류. PropertyValueSampleService가 볼 수 있는 유형·속성만 넘긴다");
+                            "Agent 조건 값 종류. PropertyValueSampleService가 볼 수 있는 유형·속성만 넘긴다",
+                    "audit/repository/AuditExecutionQueryRepository.java",
+                            "실행 이력의 대상 표시 이름. 볼 수 있는 유형만, ObjectDisplaySql로 가린다(390)");
 
     /** 사용자 응답에 객체 값을 내보내지 않는 곳(쓰기, 내부 작업, ID·유형·건수만 읽는 확인). */
     private static final Map<String, String> INTERNAL =
@@ -57,17 +59,10 @@ class ObjectInstanceReadBoundaryTests {
                     Map.entry("ontology/repository/RuleLinkRepository.java", "규칙 연결 재계산"));
 
     /**
-     * 공통 읽기 계층으로 옮겨야 하는 곳(384 작업 범위). 옮기면 목록에서 지운다. 지우지 않으면 "더는 읽지 않는 파일"로 실패한다.
-     *
-     * <ul>
-     *   <li>재배정 검증·완료 시각 계산이 범위 없이 객체를 읽는다(검증은 대상만 범위 검사).
-     *   <li>감사 조회의 대상 표시 이름이 가림 규칙 없이 원본 display_name이다.
-     * </ul>
+     * 공통 읽기 계층으로 옮겨야 하는 곳. 옮기면 목록에서 지운다. 지우지 않으면 "더는 읽지 않는 파일"로 실패한다. 390에서 재배정 객체 읽기와 감사 대상 표시 이름을
+     * 옮겨 지금은 비어 있다.
      */
-    private static final Map<String, String> TO_MIGRATE =
-            Map.of(
-                    "action/repository/ReassignmentObjectRepository.java", "재배정 검증이 범위 없이 읽음(김산이)",
-                    "audit/repository/AuditExecutionQueryRepository.java", "대상 표시 이름 원본(김산이)");
+    private static final Map<String, String> TO_MIGRATE = Map.of();
 
     @Test
     void onlyListedFilesReadObjectInstance() throws IOException {

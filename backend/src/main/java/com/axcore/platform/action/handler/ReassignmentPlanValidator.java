@@ -2,6 +2,7 @@ package com.axcore.platform.action.handler;
 
 import com.axcore.platform.action.repository.ReassignmentObjectRepository;
 import com.axcore.platform.action.repository.ReassignmentObjectRepository.ObjectRow;
+import com.axcore.platform.auth.service.DataAccess;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -27,6 +28,9 @@ import org.springframework.stereotype.Component;
  *   <li>대체 설비가 공정 표준의 설비 종류와 최소 능력(톤)을 만족하는가
  * </ol>
  *
+ * <p>객체는 실행자의 조회 범위로 읽는다(384·390). 볼 수 없는 유형의 객체는 "찾을 수 없음"으로, 볼 수 없는 민감 값은 "속성이 없음"으로 막힌다. 차단 문구에
+ * 나가는 값은 범위를 적용한 값이고, Agent가 실행하면 모델 용도로 읽어 민감 값은 늘 가린다.
+ *
  * <p>공정 표준은 관계가 아니라 작업지시의 제품 코드와 공정 순서 속성으로 찾는다. 정답 온톨로지에서 공정→공정 표준 관계는 작업지시를 거쳐 이어지는데, 관계
  * 규칙(link_mapping_condition)은 양 끝 속성을 직접 비교하는 조건만 담을 수 있어 그 관계가 만들어지지 않을 수 있다.
  */
@@ -37,7 +41,7 @@ class ReassignmentPlanValidator {
     private final ReassignmentObjectRepository objects;
     private final ReassignmentProperties properties;
 
-    Result validate(ReassignmentPlanInput input) {
+    Result validate(ReassignmentPlanInput input, DataAccess access) {
         ReassignmentProperties.Equipment equipment = properties.equipment();
         ReassignmentProperties.WorkOrder workOrder = properties.workOrder();
         ReassignmentProperties.Operation operation = properties.operation();
@@ -50,7 +54,7 @@ class ReassignmentPlanValidator {
                             ids.add(item.workOrderId());
                             ids.add(item.toEquipmentId());
                         });
-        Map<Long, ObjectRow> rows = objects.findByIds(ids);
+        Map<Long, ObjectRow> rows = objects.findByIds(access, ids);
 
         ObjectRow from = rows.get(input.fromEquipmentId());
         if (!isType(from, equipment.type())) {
@@ -115,7 +119,8 @@ class ReassignmentPlanValidator {
                                 orderNumbers.add(
                                         rows.get(item.workOrderId()).text(workOrder.number())));
         List<ObjectRow> operations =
-                objects.findActiveByProperty(operation.type(), operation.workOrder(), orderNumbers);
+                objects.findActiveByProperty(
+                        access, operation.type(), operation.workOrder(), orderNumbers);
 
         List<ValidatedItem> validated = new ArrayList<>();
         for (ReassignmentPlanInput.Item item : input.items()) {
@@ -167,7 +172,7 @@ class ReassignmentPlanValidator {
             validated.add(new ValidatedItem(item, order, rows.get(item.toEquipmentId()), targets));
         }
 
-        String capability = capabilityViolation(validated);
+        String capability = capabilityViolation(validated, access);
         if (capability != null) {
             return Result.blocked(capability);
         }
@@ -175,7 +180,7 @@ class ReassignmentPlanValidator {
     }
 
     /** 공정 표준이 요구하는 설비 종류와 최소 능력을 대체 설비가 만족하지 않으면 이유를 돌려준다. */
-    private String capabilityViolation(List<ValidatedItem> items) {
+    private String capabilityViolation(List<ValidatedItem> items, DataAccess access) {
         ReassignmentProperties.Equipment equipment = properties.equipment();
         ReassignmentProperties.WorkOrder workOrder = properties.workOrder();
         ReassignmentProperties.Operation operation = properties.operation();
@@ -184,7 +189,7 @@ class ReassignmentPlanValidator {
         Set<String> products = new LinkedHashSet<>();
         items.forEach(item -> products.add(item.workOrder().text(workOrder.product())));
         List<ObjectRow> routings =
-                objects.findActiveByProperty(routing.type(), routing.product(), products);
+                objects.findActiveByProperty(access, routing.type(), routing.product(), products);
 
         for (ValidatedItem item : items) {
             String orderNo = item.workOrder().text(workOrder.number());

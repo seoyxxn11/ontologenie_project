@@ -12,7 +12,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** 실행 기록 하나와 그 실행이 바꾼 행 (API 092). input·result·변경 내용은 기록할 때 이미 비밀값을 뺀 값이다. */
+/**
+ * 실행 기록 하나와 그 실행이 바꾼 행 (API 092). input·result·변경 내용은 기록할 때 이미 비밀값을 뺀 값이다. input과 변경 내용의 민감 속성 값은
+ * 보는 사람의 범위로 가리고, 가린 속성 코드는 restrictedPropertyCodes에 담는다(감사 097·098과 같은 규칙, 384·390). result는
+ * Handler가 만든 ID·건수라 객체 값이 없다.
+ */
 public record ActionExecutionDetailResponse(
         Long id,
         UUID requestId,
@@ -31,10 +35,15 @@ public record ActionExecutionDetailResponse(
         Map<String, Object> result,
         Instant requestedAt,
         Instant finishedAt,
-        List<EntityChangeResponse> entityChanges) {
+        List<EntityChangeResponse> entityChanges,
+        List<String> restrictedPropertyCodes) {
 
+    /** 가린 input과 변경 내용으로 만든다. */
     public static ActionExecutionDetailResponse of(
-            ActionExecution execution, List<EntityChange> changes) {
+            ActionExecution execution,
+            Map<String, Object> maskedInput,
+            List<EntityChangeResponse> maskedChanges,
+            List<String> restrictedPropertyCodes) {
         return new ActionExecutionDetailResponse(
                 execution.getId(),
                 execution.getRequestId(),
@@ -47,13 +56,14 @@ public record ActionExecutionDetailResponse(
                 execution.getEntryPoint(),
                 execution.getTargetType(),
                 execution.getTargetId(),
-                orEmpty(execution.getInput()),
+                orEmpty(maskedInput),
                 execution.getStatus(),
                 execution.getBlockedReason(),
                 orEmpty(execution.getResult()),
                 execution.getRequestedAt(),
                 execution.getFinishedAt(),
-                changes.stream().map(EntityChangeResponse::from).toList());
+                List.copyOf(maskedChanges),
+                List.copyOf(restrictedPropertyCodes));
     }
 
     private static Map<String, Object> orEmpty(Map<String, Object> value) {

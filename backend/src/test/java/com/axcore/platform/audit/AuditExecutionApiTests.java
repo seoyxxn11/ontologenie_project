@@ -514,6 +514,37 @@ class AuditExecutionApiTests {
                 .andExpect(jsonPath("$.error.details.id").doesNotExist());
     }
 
+    /** 대상 표시 이름도 객체 조회와 같은 규칙으로 가린다. 대표 속성이 민감 속성이면 민감 값을 볼 수 없는 사람에게 #id로 보인다(390). */
+    @Test
+    void objectHistoryLabelHidesRestrictedDisplayName() throws Exception {
+        jdbcClient
+                .sql(
+                        """
+                        insert into property_definition (object_type_id, code, name, data_type, sensitivity)
+                        select object_type_id, 'technician', 'technician', 'STRING', 'RESTRICTED'
+                        from object_instance where id = :id
+                        """)
+                .param("id", object)
+                .update();
+        jdbcClient
+                .sql(
+                        """
+                        update object_type t set display_property_id = p.id
+                        from property_definition p, object_instance o
+                        where o.id = :id and t.id = o.object_type_id
+                          and p.object_type_id = t.id and p.code = 'technician'
+                        """)
+                .param("id", object)
+                .update();
+
+        mockMvc.perform(
+                        withSession(
+                                get("/api/v1/objects/" + object + "/executions"),
+                                login(plannerA, true)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].targetLabel").value("#" + object));
+    }
+
     // ---------------------------------------------------------------- 도우미
 
     private void expectHidden(LoginSession session, long id) throws Exception {

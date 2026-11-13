@@ -46,7 +46,7 @@ class AgentQueryToolsTests {
         when(row.actionName()).thenReturn("재배정 계획 생성");
         when(row.status()).thenReturn(ExecutionStatus.SUCCEEDED);
         when(row.requestedAt()).thenReturn(Instant.parse("2026-11-01T00:00:00Z"));
-        when(executions.objectExecutions(eq(ASKER), eq(301L), any(), any()))
+        when(executions.objectExecutions(eq(ASKER), eq(DataPurpose.MODEL), eq(301L), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(row)));
 
         Map<String, Object> reply = tools.objectExecutions(301L, null, null);
@@ -65,14 +65,16 @@ class AgentQueryToolsTests {
 
     @Test
     void filtersExecutionsByPeriodIncludingBothDaysInUserZone() {
-        when(executions.objectExecutions(eq(ASKER), eq(301L), any(), any()))
+        when(executions.objectExecutions(eq(ASKER), eq(DataPurpose.MODEL), eq(301L), any(), any()))
                 .thenReturn(new PageImpl<>(List.of()));
 
         tools.objectExecutions(301L, "2026-10-01", "2026-10-31");
 
         ArgumentCaptor<ObjectExecutionSearchRequest> request =
                 ArgumentCaptor.forClass(ObjectExecutionSearchRequest.class);
-        verify(executions).objectExecutions(eq(ASKER), eq(301L), request.capture(), any());
+        verify(executions)
+                .objectExecutions(
+                        eq(ASKER), eq(DataPurpose.MODEL), eq(301L), request.capture(), any());
         // 080은 to를 포함하지 않으므로 종료일 다음 날 0시(한국 시간)까지 넘긴다
         assertThat(request.getValue().from()).isEqualTo(Instant.parse("2026-09-30T15:00:00Z"));
         assertThat(request.getValue().to()).isEqualTo(Instant.parse("2026-10-31T15:00:00Z"));
@@ -88,7 +90,7 @@ class AgentQueryToolsTests {
 
     @Test
     void treatsMissingObjectAsNoData() {
-        when(executions.objectExecutions(eq(ASKER), eq(999L), any(), any()))
+        when(executions.objectExecutions(eq(ASKER), eq(DataPurpose.MODEL), eq(999L), any(), any()))
                 .thenThrow(
                         new BusinessException(
                                 CommonErrorCode.RESOURCE_NOT_FOUND,
@@ -102,7 +104,7 @@ class AgentQueryToolsTests {
 
     @Test
     void reportsOtherErrorsAsFailed() {
-        when(executions.objectExecutions(eq(ASKER), eq(301L), any(), any()))
+        when(executions.objectExecutions(eq(ASKER), eq(DataPurpose.MODEL), eq(301L), any(), any()))
                 .thenThrow(new IllegalStateException("DB 연결 끊김"));
 
         assertThat(tools.objectExecutions(301L, null, null)).containsKey("error");

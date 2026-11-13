@@ -6,6 +6,8 @@ import com.axcore.platform.audit.domain.EventKind;
 import com.axcore.platform.audit.domain.ExecutionCategory;
 import com.axcore.platform.audit.domain.ExecutionStatus;
 import com.axcore.platform.audit.dto.AuditExecutionResponse;
+import com.axcore.platform.auth.service.DataAccess;
+import com.axcore.platform.ontology.repository.ObjectDisplaySql;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -20,6 +22,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.support.SqlArrayValue;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -56,7 +59,13 @@ public class AuditExecutionQueryRepository {
     private static final String TARGET_LABEL =
             """
             case e.target_type
-                when 'object_instance' then (select t.display_name from object_instance t where t.id = e.target_id)
+                when 'object_instance' then (
+                    select shown.display_name
+                    from object_instance oi
+                    """
+                    + ObjectDisplaySql.DISPLAY_JOINS
+                    + """
+                    where oi.id = e.target_id and oi.object_type_id = any(:visibleTypeIds))
                 when 'account' then (select t.display_name from account t where t.id = e.target_id)
                 when 'action_definition' then (select t.name from action_definition t where t.id = e.target_id)
                 when 'object_type' then (select t.name from object_type t where t.id = e.target_id)
@@ -95,10 +104,20 @@ public class AuditExecutionQueryRepository {
 
     private final JdbcClient jdbc;
 
-    /** 조건에 맞는 기록을 최근 요청순으로. viewerId가 있으면 그 사람의 본인 실행만 본다. */
-    public Page<AuditExecutionResponse> search(Filter filter, Long viewerId, Pageable pageable) {
+    /**
+     * 조건에 맞는 기록을 최근 요청순으로. viewerId가 있으면 그 사람의 본인 실행만 본다. 대상이 객체이면 표시 이름은 보는 사람의 범위(access)로 정한다: 볼
+     * 수 없는 유형이면 null이고, 민감 값을 가려야 하면 객체 조회와 같은 규칙으로 다시 만든다(384·390).
+     */
+    public Page<AuditExecutionResponse> search(
+            Filter filter, Long viewerId, DataAccess access, Pageable pageable) {
         StringBuilder where = new StringBuilder();
         Map<String, Object> params = new HashMap<>();
+        params.put(
+                "visibleTypeIds",
+                new SqlArrayValue("bigint", access.visibleObjectTypeIds().toArray()));
+        params.put(
+                "maskedTypeIds",
+                new SqlArrayValue("bigint", access.maskedObjectTypeIds().toArray()));
         if (viewerId != null) {
             where.append(MINE);
             params.put("viewerId", viewerId);

@@ -6,6 +6,7 @@ import com.axcore.platform.action.repository.ReassignmentPlanRepository;
 import com.axcore.platform.agent.repository.AgentMessageRepository;
 import com.axcore.platform.audit.domain.ChangeEntry;
 import com.axcore.platform.audit.service.RecordedPropertyPaths;
+import com.axcore.platform.auth.service.DataAccessPolicy;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -42,6 +43,7 @@ public class ReassignmentPlanHandler implements ActionHandler, RecordedPropertyP
     private static final String STATUS = "status";
 
     private final ReassignmentPlanValidator validator;
+    private final DataAccessPolicy dataAccessPolicy;
     private final ReassignmentPlanRepository plans;
     private final AgentMessageRepository agentMessages;
     private final ReassignmentProperties properties;
@@ -71,7 +73,10 @@ public class ReassignmentPlanHandler implements ActionHandler, RecordedPropertyP
     public ActionPreparation prepare(ActionContext context) {
         ReassignmentPlanInput input =
                 json.convertValue(context.input(), ReassignmentPlanInput.class);
-        ReassignmentPlanValidator.Result validated = validator.validate(input);
+        // 실행자의 조회 범위로 검사한다. Agent가 실행하면 문구가 모델로 가므로 모델 용도다(384·390).
+        ReassignmentPlanValidator.Result validated =
+                validator.validate(
+                        input, dataAccessPolicy.of(context.actor(), context.dataPurpose()));
         if (validated.blockedReason() != null) {
             return ActionPreparation.blocked(validated.blockedReason());
         }

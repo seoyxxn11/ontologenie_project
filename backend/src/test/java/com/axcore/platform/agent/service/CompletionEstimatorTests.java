@@ -69,10 +69,10 @@ class CompletionEstimatorTests {
                 .thenAnswer(call -> detail(call.getArgument(2), "1라인 1호 프레스"));
         workOrders.put(WO_B, workOrder(WO_B, "JB2610-0138", "BRK-210L"));
         workOrders.put(WO_A, workOrder(WO_A, "JB2610-0141", "BRK-210R"));
-        when(objects.findByIds(any()))
+        when(objects.findByIds(any(), any()))
                 .thenAnswer(
                         call -> {
-                            Collection<?> ids = call.getArgument(0);
+                            Collection<?> ids = call.getArgument(1);
                             return workOrders.entrySet().stream()
                                     .filter(entry -> ids.contains(entry.getKey()))
                                     .collect(
@@ -234,7 +234,7 @@ class CompletionEstimatorTests {
                         "작업지시(id=998)를 찾을 수 없습니다.",
                         "작업지시(id=404)를 찾을 수 없습니다.");
         assertThat(estimate.objectIds()).containsExactly(WO_A);
-        verify(objects, never()).findActiveByProperty(anyString(), anyString(), any());
+        verify(objects, never()).findActiveByProperty(any(), anyString(), anyString(), any());
     }
 
     /** 볼 수 없는 유형의 작업지시는 있다는 사실도 알리지 않는다(205). */
@@ -259,7 +259,7 @@ class CompletionEstimatorTests {
         assertThat(estimate.result().estimatedCompletionAt()).isNull();
         assertThat(estimate.result().missingInputs())
                 .containsExactly("계산에 필요한 Routing 정보를 볼 권한이 없습니다.");
-        verify(objects, never()).findActiveByProperty(anyString(), anyString(), any());
+        verify(objects, never()).findActiveByProperty(any(), anyString(), anyString(), any());
     }
 
     @Test
@@ -279,9 +279,10 @@ class CompletionEstimatorTests {
 
         verify(objects)
                 .findActiveByProperty(
-                        eq("WorkOrderOperation"), eq("wo_no"), eq(Set.of("JB2610-0141")));
+                        any(), eq("WorkOrderOperation"), eq("wo_no"), eq(Set.of("JB2610-0141")));
         verify(objects)
-                .findActiveByProperty(eq("Routing"), eq("product_code"), eq(Set.of("BRK-210R")));
+                .findActiveByProperty(
+                        any(), eq("Routing"), eq("product_code"), eq(Set.of("BRK-210R")));
     }
 
     /**
@@ -497,12 +498,12 @@ class CompletionEstimatorTests {
     }
 
     private void operations(ObjectRow... rows) {
-        when(objects.findActiveByProperty(eq("WorkOrderOperation"), eq("wo_no"), any()))
+        when(objects.findActiveByProperty(any(), eq("WorkOrderOperation"), eq("wo_no"), any()))
                 .thenReturn(List.of(rows));
     }
 
     private void routings(ObjectRow... rows) {
-        when(objects.findActiveByProperty(eq("Routing"), eq("product_code"), any()))
+        when(objects.findActiveByProperty(any(), eq("Routing"), eq("product_code"), any()))
                 .thenReturn(List.of(rows));
     }
 

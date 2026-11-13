@@ -8,8 +8,14 @@ import java.util.Optional;
  * 찾는다. 정의는 이 Bean이 배포되기 전에도 등록할 수 있고, 그동안 091은 BLOCKED를 남긴다(handlerReady=false, Jira 287). 여러 정의가
  * 같은 키를 가리킬 수 있으므로 정의별 차이는 {@link ActionContext#definition()}으로 본다.
  *
- * <p>권한·활성·확인·입력 형식은 공통 실행기({@code ActionExecutionService})가 먼저 검사한다. Handler는 그 Action만의 업무 조건을
- * 검사하고 저장할 내용을 준비한다. 공통 실행기가 실행 기록과 같은 트랜잭션에서 {@link #prepare}를 부르고, 실행 기록을 남긴 뒤 준비한 저장을 실행한다.
+ * <p>권한·활성·확인·입력 형식과 대상 객체 하나의 조회 범위는 공통 실행기({@code ActionExecutionService})가 먼저 검사한다. Handler는 그
+ * Action만의 업무 조건을 검사하고 저장할 내용을 준비한다. 공통 실행기가 실행 기록과 같은 트랜잭션에서 {@link #prepare}를 부르고, 실행 기록을 남긴 뒤
+ * 준비한 저장을 실행한다.
+ *
+ * <p>대상 밖의 객체를 더 읽는 Handler는 실행자의 조회 범위를 직접 적용해야 한다(S15P31C106-384·390). 객체는 공통 읽기 진입점({@code
+ * ScopedObjectReader})으로 읽고, 범위는 {@code DataAccessPolicy.of(context.actor(),
+ * context.dataPurpose())}로 만든다. Agent가 실행한 경우 차단 문구와 결과가 외부 모델로 가므로 {@link
+ * ActionContext#dataPurpose()}가 모델 용도를 준다.
  */
 public interface ActionHandler {
 
