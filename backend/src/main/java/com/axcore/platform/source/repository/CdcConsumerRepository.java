@@ -221,13 +221,19 @@ public class CdcConsumerRepository {
 
     /**
      * 원천 접속 정보(host·port·database)가 바뀌었다(API 012, 결정 문서 11.1-3). 커넥터를 새 DB에 맞출 때까지 그 원천의 CDC 반영을
-     * 멈춘다. {@code loaded_lsn}은 비우지 않는다(지금 읽으면 커넥터와 다른 DB를 읽는다). 소비 상태 행이 없으면(아직 소비 전) 아무것도 하지 않는다.
-     * JdbcClient: Entity가 없는 {@code cdc_offset}(기존 방식).
+     * 멈춘다. {@code loaded_lsn}은 비우지 않는다(지금 읽으면 커넥터와 다른 DB를 읽는다).
+     *
+     * <p>소비 상태 행이 없어도(아직 소비 전) 그 원천에 CDC 테이블이 있으면 행을 SOURCE_CHANGED로 만든다(385). 토픽에는 이미 옛 DB 이벤트가 쌓여
+     * 있을 수 있어, 표시하지 않으면 첫 적재는 새 DB를, 소비자는 토픽 처음부터 옛 DB 이벤트를 반영해 두 DB가 섞인다. 만든 행의 위치(0)는 쓰지 않는다.
+     * 소비자는 복구 중이면 기다리고, 재연결 뒤 다시 읽기가 끝나 풀리면 이어 받을 기준 시각({@code resume_after}) 뒤부터 읽는다. 소비자가 그 사이 행을
+     * 만들면 그 행을 표시한다. CDC 테이블이 없는 원천은 소비하지 않으므로 만들지 않는다. JdbcClient: Entity가 없는 {@code
+     * cdc_offset}(기존 방식).
      *
      * @return 표시했으면 true
      */
     public boolean markSourceChanged(long dataSourceId) {
-        return jdbc.sql(
+        int marked =
+                jdbc.sql(
                                 """
                                 update cdc_offset
                                 set recovery_reason = 'SOURCE_CHANGED', recovery_at = now(),
@@ -235,6 +241,25 @@ public class CdcConsumerRepository {
                                 where data_source_id = :source
                                 """)
                         .param("source", dataSourceId)
+                        .update();
+        if (marked > 0) {
+            return true;
+        }
+        return jdbc.sql(
+                                """
+                                insert into cdc_offset
+                                    (topic, partition_no, data_source_id, next_offset, recovery_reason, recovery_at)
+                                select d.code || '.all', :partition, d.id, 0, 'SOURCE_CHANGED', now()
+                                from data_source d
+                                where d.id = :source
+                                  and exists (select 1 from source_resource r
+                                              where r.data_source_id = d.id and r.sync_strategy = 'CDC')
+                                on conflict (topic, partition_no) do update
+                                set recovery_reason = 'SOURCE_CHANGED', recovery_at = now(),
+                                    healthy_since = null, resume_after = null, updated_at = now()
+                                """)
+                        .param("source", dataSourceId)
+                        .param("partition", PARTITION)
                         .update()
                 > 0;
     }
