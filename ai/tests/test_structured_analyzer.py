@@ -31,7 +31,7 @@ def _link(analysis, from_ref, to_ref):
     )
 
 
-def test_finds_40_gold_column_relations(data, analysis):
+def test_finds_38_gold_column_relations(data, analysis):
     # 고정 분석기 기준값 (docs/evaluation.md 평가 결과). 분석기를 바꾸면 이 숫자도 다시 기록한다.
     gold = json.loads((data / "gold-t3" / "ontology.json").read_text(encoding="utf-8"))
     found = {(l.from_ref, l.to_ref) for l in analysis.links}
@@ -43,7 +43,8 @@ def test_finds_40_gold_column_relations(data, analysis):
         and isinstance(lt["via"]["from"], str)
         and not lt["via"]["from"].endswith(".content")
     ]
-    assert sum(pair in found for pair in pairs) == 40
+    # 원천 정책의 금지 표 관계(근태 → 직원, 고정자산 → 설비)는 정답에서 빠져 40에서 38이 됐다
+    assert sum(pair in found for pair in pairs) == 38
 
 
 def test_order_reference_needs_number_extraction(analysis):

@@ -8,12 +8,32 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from app import source_policy
 from app.dataset import schema
 from app.dataset.checks import worker_to_employee
 from app.dataset.notes import Mention
 from app.validators.gold_check import check_gold
 
 SKIP = {"erp.change_log", "mes.change_log"}
+# 원천 정책의 금지 표를 쓰는 정합성 검사(K3: 고정자산 → 설비). 데이터 생성 점검에는 쓰지만 정답에는 넣지 않는다.
+FORBIDDEN_CHECKS = {"K3"}
+FORBIDDEN_CASES = {"K3_asset"}
+
+
+def _relation_columns(rel: schema.Relation) -> list[str]:
+    columns = [*rel.source, *rel.target]
+    if rel.condition:
+        columns.append(rel.condition[0])
+    return columns
+
+
+def allowed_relations() -> list[schema.Relation]:
+    """원천 정책의 금지 표·컬럼에 한쪽이라도 걸친 관계는 정답에서 뺀다."""
+    return [
+        rel
+        for rel in schema.RELATIONS
+        if not any(source_policy.is_forbidden(c) for c in _relation_columns(rel))
+    ]
 
 
 @dataclass
@@ -172,9 +192,18 @@ def _side(columns: tuple[str, ...]):
 
 
 def ontology() -> dict:
-    """원천 표 한 행 = 객체 하나. 모든 컬럼이 속성이고, 관계 조건은 속성끼리 비교한다."""
-    tables = [t for t in schema.TABLES if t.key not in SKIP]
-    reference_columns = {c for rel in schema.RELATIONS for c in rel.source}
+    """원천 표 한 행 = 객체 하나. 모든 컬럼이 속성이고, 관계 조건은 속성끼리 비교한다.
+
+    원천 정책(app.source_policy)의 금지 표·컬럼은 넣지 않는다. 제안하지 않아도 감점되지 않고, 제안하면 정답에 없는 후보로 센다.
+    개인정보 정답은 정책의 민감 컬럼이다.
+    """
+    tables = [
+        t
+        for t in schema.TABLES
+        if t.key not in SKIP and not source_policy.is_forbidden(t.key)
+    ]
+    relations = allowed_relations()
+    reference_columns = {c for rel in relations for c in rel.source}
     object_types, properties, links = [], [], []
     for t in tables:
         object_types.append(
@@ -190,6 +219,8 @@ def ontology() -> dict:
         )
         for name, sql_type, comment in t.columns:
             ref = f"{t.key}.{name}"
+            if source_policy.is_forbidden(ref):
+                continue
             properties.append(
                 {
                     "object_type": _code(t.key),
@@ -201,11 +232,11 @@ def ontology() -> dict:
                     "is_identifier": name in t.primary_key,
                     "is_required": True if name in t.primary_key else None,
                     "is_reference": ref in reference_columns,
-                    "is_personal": ref in schema.PERSONAL_COLUMNS,
+                    "is_personal": source_policy.is_restricted(ref),
                     "level": "must",
                 }
             )
-    for rel in schema.RELATIONS:
+    for rel in relations:
         s_table = rel.source[0].rsplit(".", 1)[0]
         d_table = rel.target[0].rsplit(".", 1)[0]
         via = {
@@ -277,16 +308,6 @@ def mapping_rules(full_example: str) -> list[dict]:
                 ],
                 "target_transforms": [],
             },
-        },
-        {
-            "rule_id": "R-ASSET",
-            "rule_type": "mapping_column",
-            "from": "erp.fixed_asset.equipment_code",
-            "to": "mes.equipment.code",
-            "description": "자산 표의 설비 코드 칸을 그대로 비교함",
-            "examples": [{"from": "P103", "to": "P103"}],
-            "notes": "설비가 아닌 자산은 빈 값이 정상. P201 자산은 오타 P2O1",
-            "reference_transforms": none,
         },
         {
             "rule_id": "R-ITEM",
@@ -377,43 +398,6 @@ def id_links(rec: Recorder, rows) -> None:
                 )
             )
     group_links(rec, "R-SO", entries)
-    codes = {r["code"] for r in rows["mes.equipment"]}
-    group_links(
-        rec,
-        "R-ASSET",
-        [
-            (
-                a["equipment_code"],
-                a["equipment_code"],
-                "matched",
-                a["asset_no"],
-                "",
-                (),
-                None,
-            )
-            if a["equipment_code"] in codes
-            else (
-                "",
-                None,
-                "unmatched_expected",
-                a["asset_no"],
-                "설비가 아닌 자산이라 비어 있는 것이 정상",
-                (),
-                None,
-            )
-            if not a["equipment_code"]
-            else (
-                a["equipment_code"],
-                None,
-                "unmatched_error",
-                a["asset_no"],
-                "숫자 0 대신 영문 O로 입력된 오타 (실제 P201)",
-                ("P201",),
-                "M-ASSET-TYPO",
-            )
-            for a in rows["erp.fixed_asset"]
-        ],
-    )
     items = {r["item_code"] for r in rows["erp.item"]}
     entries = sorted(
         {
@@ -519,16 +503,6 @@ def integrity_issues(rec: Recorder, rows, checks, cases) -> None:
                 f"ERP 수주에 {so_from_ref(wo['so_ref'])} 없음",
                 "S-MISSING",
             )
-    typo = next(a for a in rows["erp.fixed_asset"] if a["equipment_code"] == "P2O1")
-    rec.issue(
-        "unlinked",
-        "erp.fixed_asset.equipment_code",
-        typo["asset_no"],
-        "P2O1",
-        "R-ASSET",
-        "설비 코드에 P2O1이 없음 (오타)",
-        "M-ASSET-TYPO",
-    )
 
 
 def scenario_answers(builder, now: datetime) -> dict:
@@ -582,8 +556,6 @@ def scenario_answers(builder, now: datetime) -> dict:
         ),
         key=lambda r: r["measured_at"],
     )
-    asset = next(a for a in rows["erp.fixed_asset"] if a["equipment_code"] == "P103")
-    mo = next(m for m in rows["mes.maintenance_order"] if m["mo_no"] == MO_BREAKDOWN)
     refs = [w for w in rows["mes.work_order"] if w["so_ref"]]
     linked = [w for w in refs if so_from_ref(w["so_ref"]) in so]
     p103_downtimes = [d for d in rows["mes.downtime"] if d["equipment_code"] == "P103"]
@@ -630,11 +602,6 @@ def scenario_answers(builder, now: datetime) -> dict:
             "질문": "P103 진동이 언제부터 상한을 넘었어?",
             "답": f"{readings[0]['measured_at']} ({readings[0]['value']} > {readings[0]['threshold_high']})",
         },
-        "P2_P103_수리비": {
-            "질문": "P103 수리비가 장부가 대비 얼마야?",
-            "답": f"{MO_BREAKDOWN} 부품비 {float(mo['parts_cost']):,.0f}원 / 장부가({asset['asset_no']}) {float(asset['book_value']):,.0f}원 = "
-            f"{float(mo['parts_cost']) / float(asset['book_value']):.2%}",
-        },
         "P3_로트_검사": {
             "질문": f"{lot} 로트 검사 결과는?",
             "답": "최종 검사 기록 없음 — 연결된 검사 행 없음('데이터 없음'으로 안내)",
@@ -644,10 +611,10 @@ def scenario_answers(builder, now: datetime) -> dict:
             "답": f"{len(linked)} / {len(refs)} = {len(linked) / len(refs):.1%} (빈 값 {len(rows['mes.work_order']) - len(refs)}건 제외)",
         },
         "S3_P103_조회": {
-            "질문": "P103의 최근 비가동 이력과 ERP 장부가",
+            # ERP 장부가(고정자산)는 원천 정책의 금지 표라 정답에서 뺐다
+            "질문": "P103의 최근 비가동 이력",
             "비가동_건수": len(p103_downtimes),
             "최근": max(p103_downtimes, key=lambda d: d["started_at"])["downtime_id"],
-            "장부가": float(asset["book_value"]),
         },
         "S2_규칙_보류": {
             "규칙": "R-W 승인",
@@ -757,7 +724,12 @@ def write_gold(
     for doc in notes:
         for p in doc.patterns:
             patterns.setdefault(p, []).append(doc.doc_id)
-    planted = builder.planted + [
+    planted = [
+        p
+        for p in builder.planted
+        if not source_policy.is_forbidden(p["location"])
+        and p["location"] not in FORBIDDEN_CASES
+    ] + [
         {
             "case_id": p,
             "description": "메모 문장 패턴",
@@ -773,7 +745,9 @@ def write_gold(
         "id_links.json": rec.id_links,
         "integrity_issues.json": rec.issues,
         "note_annotations.json": annotations,
-        "integrity_checks.json": [c.__dict__ for c in checks],
+        "integrity_checks.json": [
+            c.__dict__ for c in checks if c.check_id not in FORBIDDEN_CHECKS
+        ],
         "scenario_answers.json": scenario_answers(builder, now),
         "planted_cases.json": planted,
         "manifest.json": {
@@ -781,7 +755,9 @@ def write_gold(
             "data_version": version,
             "purpose": "00프레스(가상) 데이터셋의 정답. 사람이 검토한 뒤 reviewed_by를 채운다.",
             "generator": {"tool": "app.dataset.build"},
-            "cases": builder.cases,
+            "cases": {
+                k: v for k, v in builder.cases.items() if k not in FORBIDDEN_CASES
+            },
             "created_by": "김서연",
             "reviewed_by": None,
             "revisions": [],
@@ -808,21 +784,15 @@ def write_gold(
 
 
 def write_s5_fix(builder, folder: Path) -> None:
-    """시나리오 5: 원천 담당자가 오류 2건(자산 설비 코드 오타, 시제품 품목 누락)을 고치고 변경 이력에 남긴다."""
-    typo = next(
-        a for a in builder.rows["erp.fixed_asset"] if a["equipment_code"] == "P2O1"
-    )
+    """시나리오 5: 원천 담당자가 오류(시제품 품목 누락)를 고치고 변경 이력에 남긴다.
+
+    자산 설비 코드 오타(P2O1)는 고정자산이 원천 정책의 금지 표라 수정분에서 뺐다.
+    """
     at = "2026-10-31 10:00:00"
     next_id = len(builder.rows["erp.change_log"]) + 1
     fix = {
         "description": "시나리오 5 원천 수정분. 시연 때 원천 DB에 반영한다(분석 입력 아님).",
         "changes": [
-            {
-                "table": "erp.fixed_asset",
-                "key": {"asset_no": typo["asset_no"]},
-                "set": {"equipment_code": "P201"},
-                "resolves": "M-ASSET-TYPO",
-            },
             {
                 "table": "erp.item",
                 "insert": {
@@ -842,13 +812,6 @@ def write_s5_fix(builder, folder: Path) -> None:
         "change_log": [
             {
                 "change_id": next_id,
-                "table_name": "fixed_asset",
-                "row_key": typo["asset_no"],
-                "operation": "UPDATE",
-                "changed_at": at,
-            },
-            {
-                "change_id": next_id + 1,
                 "table_name": "item",
                 "row_key": "BRK-990T",
                 "operation": "INSERT",
@@ -858,7 +821,6 @@ def write_s5_fix(builder, folder: Path) -> None:
     }
     sql = [
         f"-- {fix['description']}",
-        f"update erp.fixed_asset set equipment_code = 'P201' where asset_no = '{typo['asset_no']}';",
         "insert into erp.item values ('BRK-990T', '브래킷 시제품', '시제품', 'EA', 'FG', 0, 0, 'Y', '2026-10-31 10:00:00');",
     ]
     sql += [

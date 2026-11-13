@@ -41,8 +41,9 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.test.context.ActiveProfiles;
 
 /**
- * 대화 47의 사용자 제공 원문을 이전 답변으로 재생한다. 질문 해석과 핵심 요약 답변은 실제 GMS를 호출하고, 객체 ID와 조회 응답은 격리한 시험 값이다. 운영 대화나
- * 운영 DB에는 접근하지 않는다.
+ * 대화 47의 사용자 제공 원문을 이전 답변으로 재생한다. 첫 질문(고정자산 장부가·취득가 비교)은 고정자산이 원천 정책의 금지 표가 되어(406) 같은 모양의 여러 대상 비교
+ * 질문(설비 능력·설치일)으로 바꿨다. 질문 해석과 핵심 요약 답변은 실제 GMS를 호출하고, 객체 ID와 조회 응답은 격리한 시험 값이다. 운영 대화나 운영 DB에는 접근하지
+ * 않는다.
  */
 @Slf4j
 @SpringBootTest(properties = "test.context=gms-check")
@@ -64,9 +65,8 @@ class Conversation47GmsTests {
     private static final AgentReferenceObject P103 = new AgentReferenceObject(301L, "P103", "설비");
     private static final Map<String, AgentReferenceObject> OBJECTS =
             Map.of(
-                    "FA-0001", new AgentReferenceObject(101L, "FA-0001", "고정자산"),
-                    "FA-0002", new AgentReferenceObject(102L, "FA-0002", "고정자산"),
-                    "FA-0003", new AgentReferenceObject(103L, "FA-0003", "고정자산"),
+                    "P101", new AgentReferenceObject(302L, "P101", "설비"),
+                    "P201", new AgentReferenceObject(303L, "P201", "설비"),
                     "P103", P103,
                     "JB2610-0138", new AgentReferenceObject(601L, "JB2610-0138", "작업지시"),
                     "DT-0409", new AgentReferenceObject(409L, "DT-0409", "비가동"));
@@ -85,12 +85,12 @@ class Conversation47GmsTests {
     private static final List<ConversationTurn> ORIGINAL =
             List.of(
                     new ConversationTurn(
-                            "FA-0001, FA-0002, FA-0003 장부가와 취득가를 표로 비교해줘",
+                            "P101, P103, P201 프레스 능력과 설치일을 표로 비교해줘",
                             """
-                            자산 번호 장부가 취득가 장부가-취득가
-                            FA-0001 84,000,000원 540,000,000원 -456,000,000원
-                            FA-0002 128,000,000원 360,000,000원 -232,000,000원
-                            FA-0003 268,000,000원 790,000,000원 -522,000,000원
+                            설비 코드 이름 프레스 능력(톤) 설치일
+                            P101 1라인 1호 프레스 400 2017-04-10
+                            P103 1라인 3호 프레스 600 2022-02-21
+                            P201 2라인 1호 프레스 300 2015-09-07
                             모두 11-12 09:16 기준입니다.
                             """,
                             1),
@@ -161,7 +161,7 @@ class Conversation47GmsTests {
     void replaysOriginalQuestionsAndKeepsEquipmentForGuideWearSummary() {
         List<List<String>> expectedTargets =
                 List.of(
-                        List.of("FA-0001", "FA-0002", "FA-0003"),
+                        List.of("P101", "P103", "P201"),
                         List.of("P103"),
                         List.of(),
                         List.of("P103"),

@@ -23,6 +23,7 @@ from app.rules.transforms import (
     apply_steps,
     describe_steps,
 )
+from app.source_policy import FORBIDDEN_COLUMNS
 from app.sources.csv_reader import CsvSourceReader
 
 # 이 비율 이상 값이 이어지면 연결 후보로 낸다. 낮은 쪽(오타·결측)은 정합성 검사가 다룬다.
@@ -33,12 +34,15 @@ MIN_KEY_UNIQUE_RATIO = 0.95
 MIN_MATCHED = 3
 SKIP_TABLES = {"change_log"}  # 변경 이력은 원천 데이터가 아니라 동기화용 기록이다.
 EXAMPLE_COUNT = 3
-# 개인정보 컬럼. 값을 가리고 연결 비교에도 쓰지 않는다.
+# 개인정보 컬럼. 값을 가리고 연결 비교에도 쓰지 않는다. 주석이 없는 원천도 있어 이름으로도 본다.
+# 원천 정책의 금지 컬럼(app.source_policy)도 여기에 든다(2차 방어, 기준은 백엔드 정책).
+# 민감 컬럼은 정비 담당 → 부서처럼 연결에 쓰일 수 있어 여기서 빼고 속성 단계(objects.is_personal_column)에서 가린다.
 PERSONAL_COMMENT_HINTS = ("가명", "성명", "전화", "휴대", "주소", "이메일", "주민")
 PERSONAL_COLUMN_NAMES = {
     "emp_name",
     "worker_name",
     "person_name",
+    "contact_name",
     "phone",
     "mobile",
     "email",
@@ -170,7 +174,7 @@ def _analyze_table(key, schema, df) -> list[ColumnAnalysis]:
         unique_ratio = (
             prof.distinct_count / profile.row_count if profile.row_count else 0
         )
-        personal = is_personal(meta.name, meta.comment)
+        personal = is_personal(meta.name, meta.comment, f"{key}.{meta.name}")
         result.append(
             ColumnAnalysis(
                 ref=f"{key}.{meta.name}",
@@ -199,9 +203,12 @@ def _analyze_table(key, schema, df) -> list[ColumnAnalysis]:
     return result
 
 
-def is_personal(name: str, comment: str | None) -> bool:
-    return name.lower() in PERSONAL_COLUMN_NAMES or any(
-        hint in (comment or "") for hint in PERSONAL_COMMENT_HINTS
+def is_personal(name: str, comment: str | None, ref: str = "") -> bool:
+    """ref: '원천.표.컬럼'. 원천 정책의 금지 컬럼이면 이름·주석과 관계없이 개인정보로 본다."""
+    return (
+        name.lower() in PERSONAL_COLUMN_NAMES
+        or ref in FORBIDDEN_COLUMNS
+        or any(hint in (comment or "") for hint in PERSONAL_COMMENT_HINTS)
     )
 
 

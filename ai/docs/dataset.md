@@ -33,11 +33,11 @@
 | --- | --- |
 | 표기 차이 | 수주 `2610021`(MES) ↔ `OD-2610-021`(ERP), 작업자 `31` ↔ 직원 `GP0031` |
 | 수주 참조 | 이미 ERP 표기로 입력 12건, 빈 값 3건, ERP에 없는 번호 2건 |
-| 오타 | 자산의 설비 코드 `P2O1`(실제 P201) |
+| 오타 | 자산의 설비 코드 `P2O1`(실제 P201). 고정자산은 원천 정책의 금지 표라 원천 데이터에만 있고 정답에는 없음 |
 | 검사 없는 출하 | 출하 로트 `LT261025-2`에 검사 기록 없음 |
 | 담당 칸에 사람 이름 | 금형 정비 2건의 담당이 부서 이름 대신 보전팀 직원(GP0131) 이름으로 적힘 |
 
-정합성 검사 9건 (생성기가 매번 다시 계산하고, 기대와 다르면 멈춥니다)
+정합성 검사 9건 (생성기가 매번 다시 계산하고, 기대와 다르면 멈춥니다). K3는 금지 표(고정자산)를 써서 정답 `integrity_checks.json`에는 넣지 않습니다.
 
 | 검사 | 데이터 | 판정 |
 | --- | --- | --- |
@@ -79,11 +79,11 @@
 
 | 파일 | 내용 |
 | --- | --- |
-| `ontology.json` | 객체 유형 31(표마다 하나), 속성 235(모든 컬럼), 관계 60(컬럼 관계 56 + 메모 관계 4) |
-| `mapping_rules.json` | 연결 규칙 6개: R-SO 수주 참조, R-W 작업자 → 직원, R-ASSET 자산 → 설비, R-ITEM 품목, R-LOT 로트, R-ALIAS 메모 속 설비 이름 |
-| `id_links.json` | 값 단위 정답 304건: `matched` 연결, `unmatched_error` 오류로 안 이어짐, `unmatched_expected` 원래 안 이어짐, `missing` 빈 값, `ambiguous` 후보 여럿 |
-| `integrity_checks.json` | 정합성 검사 9건의 기대 판정 |
-| `integrity_issues.json` | 검사로 나와야 할 문제 11건(미연결 9, 조건 위반 2) |
+| `ontology.json` | 객체 유형 29(표마다 하나), 속성 214(모든 컬럼), 관계 58(컬럼 관계 54 + 메모 관계 4). 원천 정책의 금지 표·컬럼은 뺌(아래 "금지 데이터") |
+| `mapping_rules.json` | 연결 규칙 5개: R-SO 수주 참조, R-W 작업자 → 직원, R-ITEM 품목, R-LOT 로트, R-ALIAS 메모 속 설비 이름 |
+| `id_links.json` | 값 단위 정답 297건: `matched` 연결, `unmatched_error` 오류로 안 이어짐, `unmatched_expected` 원래 안 이어짐, `missing` 빈 값, `ambiguous` 후보 여럿 |
+| `integrity_checks.json` | 정합성 검사 8건의 기대 판정 (K3 제외) |
+| `integrity_issues.json` | 검사로 나와야 할 문제 10건(미연결 8, 조건 위반 2) |
 | `note_annotations.json` | 메모·정비 기록 75건의 추출 정답: 위치(`start`·`end`), 부정·추정(`assertion`), 연결(`resolution`), 시각(`normalized`) |
 | `scenario_answers.json` | 시나리오 질문의 기대 답 |
 | `planted_cases.json`, `manifest.json` | 일부러 넣은 사례 목록, 버전·건수 |
@@ -92,11 +92,12 @@
 - 연결 규칙의 변환은 `reference_transforms`에 출발(`source_transforms`)과 도착(`target_transforms`)을 따로 적습니다. AI 후보의 연결 규칙도 같은 형식이라 바로 비교할 수 있습니다. 예: R-W `[{"op": "PAD_ZEROS", "arg": 4}, {"op": "ADD_PREFIX", "arg": "GP"}]` → `[]`
 - 위치는 `원천.표.컬럼`(예: `mes.work_order.so_ref`)으로 적습니다. `level: must`는 반드시 찾아야 하는 정답이고, 채점은 이름이 아니라 원천 위치로 합니다.
 - 관계는 `via.from → via.to`이고, 두 컬럼 이상이면 목록입니다.
+- 금지 데이터: 백엔드 `axcore.source-data-policy`(사본 `app/source_policy.py`)의 금지 표(`erp.attendance`·`erp.fixed_asset`)와 금지 컬럼(`erp.employee`의 `emp_name`·`position`·`hire_date`·`employment_type`·`status`, `mes.worker.name`)은 객체·속성·관계·규칙·사례 어디에도 넣지 않습니다. 이를 제안하지 않아도 감점되지 않고, 제안하면 정답에 없는 후보로 셉니다. 원천 데이터(`data-v1.0`)에는 원천 계정 허용 목록을 시험하려고 그대로 둡니다.
 - `via.key`: 도착 컬럼이 기본키(`primary`), 다른 유일 키(`alternate`), 키 아님(`none`, 예: 라우팅 설비 종류 → 설비 종류)
 - `via.condition`: 그 값일 때만 성립 (예: 정비 대상 종류 = 설비 / 금형)
 - `via.through`: 다른 표를 거쳐 잇는 관계. 생산 실적·불량 기록·작업지시 공정별 배정의 작업지시 번호로 작업지시의 품목 코드를 찾고, 공정 순번과 함께 라우팅 한 줄을 가리킵니다.
 
-값 단위 정답 `id_links.json` (출발 값 하나에 한 줄, 304줄)
+값 단위 정답 `id_links.json` (출발 값 하나에 한 줄, 297줄)
 
 ```json
 {"rule_id": "R-W", "from_value": "57", "to_value": null, "status": "unmatched_error", "reason": "직원 표에 GP0057 없음", "row_keys": ["57"]}
@@ -104,9 +105,9 @@
 
 | status | 뜻 | 수 |
 | --- | --- | --- |
-| `matched` | 이어짐 | 293 |
-| `unmatched_error` | 오류로 안 이어짐 (57 → GP0057 없음, 오타 `P2O1`, 없는 수주 번호 등) | 7 |
-| `unmatched_expected` | 원래 안 이어지는 값 (설비가 아닌 자산, 아직 검사 전인 로트) | 2 |
+| `matched` | 이어짐 | 288 |
+| `unmatched_error` | 오류로 안 이어짐 (57 → GP0057 없음, 없는 수주 번호 등) | 6 |
+| `unmatched_expected` | 원래 안 이어지는 값 (아직 검사 전인 로트) | 1 |
 | `missing` | 출발 값 없음 | 1 |
 | `ambiguous` | 후보 여럿 (메모의 "1호기" → P101·P201) | 1 |
 
@@ -127,11 +128,11 @@ AI 입력에는 표 정의(표·컬럼·자료형·기본키), 컬럼 주석, �
 
 | 질문 | 기대 답 |
 | --- | --- |
-| S1 연결 규칙 후보 | R-SO, R-W, R-ASSET, R-ITEM, R-LOT, R-ALIAS |
+| S1 연결 규칙 후보 | R-SO, R-W, R-ITEM, R-LOT, R-ALIAS |
 | S2 규칙 승인·개별 보류 | R-W 승인, 57 → GP0057은 개별 보류 |
-| S3 P103 비가동 이력과 장부가 | 비가동 10건(최근 DT-0460), 장부가 830,000,000원 |
+| S3 P103 비가동 이력 | 비가동 10건(최근 DT-0460). ERP 장부가는 고정자산(금지 표)이라 뺌 |
 | S4 P103 고장으로 납기 위험한 수주 | JB2610-0141 → OD-2610-021(납기 11/4). P201 불가, P101 가능. P101 잔량 2,400 + 이관 3,200 → 교대 반영 완료 10/31 15:34(1.3배 느리면 11/2 11:56), 둘 다 납기 내. OD-2610-019는 작업지시 대기로 10/31 납기 위험 |
-| S5 정합성 문제 | `integrity_issues.json` 11건. 원천 수정분은 `scenario-v1.0/s5_fix.*` |
+| S5 정합성 문제 | `integrity_issues.json` 10건. 원천 수정분은 `scenario-v1.0/s5_fix.*`(시제품 품목 추가. 자산 코드 오타 수정은 금지 표라 뺌) |
 | CDC 변경 재현 (S15P31C106-172) | `scenario-v1.0/cdc_*.sql` 5단계, 새 작업지시 `JB2610-0901`만 바꿈. 1~3(추가·수정·삭제)은 후보 모두 유지, 4(`work_order.due_date` 추가)는 작업지시 객체 후보만 변경, 99(되돌리기) 뒤에는 처음과 같음. 적용한 동안에는 수주 참조 연결률(134/136 → 135/137)과 OD-2610-020의 작업지시 수가 바뀌므로 S1~S5 시연 전에는 되돌림 |
 | P103 진동이 언제부터 상한을 넘었나 | 2026-10-28 09:00 (4.90 > 4.50) |
 | 수주 참조 규칙 연결률 | 134 / 136 = 98.5% (빈 값 3건 제외) |
@@ -141,7 +142,7 @@ AI 입력에는 표 정의(표·컬럼·자료형·기본키), 컬럼 주석, �
 | 검사 | 결과 |
 | --- | --- |
 | 정답 형식 (`gold_check`) | 통과 |
-| 정답 관계 56개를 원천 값에 적용 (`gold_source_check`) | 오류 0, 설명 안 된 미연결 0 |
+| 정답 관계 54개를 원천 값에 적용 (`gold_source_check`) | 오류 0, 설명 안 된 미연결 0 |
 | 같은 설비 실적 겹침, 비가동 중 실적 | 0건 |
 | 작업지시 시작·종료 = 실적 처음·끝, 재고 = 흐름 계산, 근태 = 실적 | 모두 일치 |
 | 공정 배정 설비 종류·최소 톤수 | 불일치 0 |
@@ -161,8 +162,8 @@ AI 입력에는 표 정의(표·컬럼·자료형·기본키), 컬럼 주석, �
 | #134·135 정합성 검사·재검증 | `data/gold-v1.0/integrity_checks.json`·`integrity_issues.json`, `data/scenario-v1.0/s5_fix.sql` |
 | #223·123·124 분석 결과 저장·제안 목록 | `results/proposals-v1.0.api.json`, `docs/api-internal.md` |
 | #125 규칙 후보 직접 작성 | `app/rules/transforms.py` (허용 변환 10개) |
-| #224 개인정보 가림 | `data/gold-v1.0/ontology.json`의 `is_personal` (사람 이름 컬럼 4개) |
+| #224 개인정보 가림 | `data/gold-v1.0/ontology.json`의 `is_personal` (정책 민감 컬럼 3개) |
 
 - 허용 변환: `STRIP_PREFIX` · `ADD_PREFIX` · `PAD_ZEROS` · `UPPER` · `TRIM` · `EXTRACT_NUMBER` · `TO_INTEGER` · `TO_DECIMAL` · `TO_DATE` · `MAP_VALUE`
-- 개인정보 컬럼: `erp.employee.emp_name`, `mes.worker.name`, `erp.vendor.contact_name`(모두 가명), `mes.maintenance_order.technician`(대부분 부서 이름, 2건 직원 이름). 사업자번호는 뒷자리를 가린 값입니다.
-- `results/proposals-v1.0.api.json`은 `data-v1.0` 전체를 LLM 없이 분석한 105 요청 본문입니다. 화면 필드와의 대응은 `docs/api-internal.md`에 있습니다.
+- 개인정보 정답(`is_personal`)은 원천 정책의 민감 컬럼입니다: `erp.vendor.contact_name`(가명), `mes.worker.skill_level`, `mes.maintenance_order.technician`(대부분 부서 이름, 2건 직원 이름). 이름 컬럼 `erp.employee.emp_name`·`mes.worker.name`은 금지 컬럼이라 정답에 없습니다. 사업자번호는 뒷자리를 가린 값입니다.
+- `results/proposals-v1.0.api.json`은 `data-v1.0`에서 금지 표·컬럼을 뺀 입력을 LLM 없이 분석한 105 요청 본문입니다. 화면 필드와의 대응은 `docs/api-internal.md`에 있습니다.

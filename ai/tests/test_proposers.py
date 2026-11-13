@@ -254,7 +254,7 @@ def test_link_rules_cover_name_key_category_and_via(result):
 
 def test_link_evaluation_counts_pending_and_held_separately(data, result):
     links = evaluate(result["candidates"], data / "gold-t3")["links"]
-    assert links["gold"] == 56
+    assert links["gold"] == 54  # 원천 정책의 금지 표에 걸친 관계 2개는 정답에 없다
     assert links["found_pending"] + links["found_held"] <= links["gold"]
     assert links["proposed_pending"] + links["proposed_held"] == len(_rules(result))
 
@@ -270,7 +270,7 @@ def test_excluded_tables_leave_both_gold_and_candidates(data, result):
     scoped = evaluate(result["candidates"], data / "gold-t3", accounting)
 
     assert scoped["object_types"]["gold"] == full["object_types"]["gold"] - 4
-    assert scoped["links"]["gold"] == 52
+    assert scoped["links"]["gold"] == 50
     assert not any(t in accounting for t in scoped["object_types"]["false_positive"])
     assert not any(
         ".".join(c.split(".")[:2]) in accounting

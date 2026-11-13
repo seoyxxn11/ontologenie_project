@@ -35,7 +35,7 @@ def _links(data, code):
 def test_object_count_matches_source_rows_for_each_type(data):
     counts = Counter(o["objectType"] for o in data["objects"])
 
-    assert len(data["objectTypes"]) == 27
+    assert len(data["objectTypes"]) == 25  # 회계 4개와 금지 표 2개(근태·고정자산)를 뺌
     for object_type in data["objectTypes"]:
         assert counts[object_type["code"]] == len(_rows(object_type["sourceResource"]))
 
@@ -60,15 +60,12 @@ def test_scenario_links_are_present(data):
         link["source"]["sourceKey"]["wo_no"]: link["target"]["sourceKey"]["so_no"]
         for link in _links(data, "work_order_so_ref")
     }
-    assets = {
-        link["source"]["sourceKey"]["asset_no"]: link["target"]["sourceKey"]["code"]
-        for link in _links(data, "fixed_asset_equipment_code")
-    }
 
     assert len(p103_downtimes) == 10  # S3 비가동 10건
     assert so_links["JB2610-0141"] == "OD-2610-021"  # S4 R-SO 변환 연결
     assert so_links["JB2610-0145"] == "OD-2610-019"  # S4 납기 위험 수주
-    assert assets["FA-0006"] == "P103"  # S3 장부가
+    # S3의 ERP 장부가(고정자산)는 원천 정책의 금지 표라 데이터에 없다
+    assert not _links(data, "fixed_asset_equipment_code")
 
 
 def test_lot_without_inspection_is_unlinked_with_reason(data):
@@ -177,8 +174,7 @@ def test_personal_properties_are_restricted_and_never_display(data):
 
     assert restricted == {
         ("Vendor", "contact_name"),
-        ("Employee", "emp_name"),
-        ("Worker", "name"),
+        ("Worker", "skill_level"),
         ("MaintenanceOrder", "technician"),
     }
     for object_type in data["objectTypes"]:
@@ -190,7 +186,7 @@ def test_access_groups_follow_the_agreed_split(data):
 
     assert groups["Equipment"] == "PRODUCTION"
     assert groups["SalesOrder"] == "SALES_SUPPLY"
-    assert groups["FixedAsset"] == "FINANCE"
+    assert "FixedAsset" not in groups and "Attendance" not in groups  # 금지 표
     assert groups["Employee"] == "HR"
 
 

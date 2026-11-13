@@ -518,17 +518,11 @@ TABLE_KIND = {
     "snapshot": ["erp.stock"],
 }
 KIND_OF = {table: kind for kind, tables in TABLE_KIND.items() for table in tables}
-# 개인정보 컬럼 (정답 properties.is_personal)
 # 금형 정비 담당 칸에 팀 이름 대신 적힌 보전팀 직원(값은 시드로 정해진 직원 이름)
 TECHNICIAN_EMP_NO = "GP0131"
 TECHNICIAN_NAME = "홍보람"
-
-PERSONAL_COLUMNS = {
-    "mes.maintenance_order.technician",
-    "erp.employee.emp_name",
-    "mes.worker.name",
-    "erp.vendor.contact_name",
-}
+# 정답의 개인정보(properties.is_personal)와 정답에서 빼는 금지 표·컬럼은 app.source_policy를 따른다.
+# 원천 데이터(data-v1.0)에는 금지 표·컬럼도 그대로 둔다(원천 계정 허용 목록이 막는 대상을 시험하려고).
 
 
 @dataclass(frozen=True)

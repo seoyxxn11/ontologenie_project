@@ -10,7 +10,6 @@
     "K4_product": "BRK-990T",
     "K1_worker": "31",
     "K2_worker": "57",
-    "K3_asset": "FA-0003",
     "A2_po": "PO2609-003",
     "A4_entry": "JV-2609-0005",
     "A1_so": "OD-2609-014",
@@ -22,12 +21,12 @@
   "reviewed_by": null,
   "revisions": [],
   "counts": {
-    "object_types": 31,
-    "properties": 235,
-    "link_types": 60,
-    "mapping_rules": 6,
-    "id_links": 304,
-    "integrity_issues": 11,
+    "object_types": 29,
+    "properties": 214,
+    "link_types": 58,
+    "mapping_rules": 5,
+    "id_links": 297,
+    "integrity_issues": 10,
     "note_documents": 75,
     "note_entities": 173
   }

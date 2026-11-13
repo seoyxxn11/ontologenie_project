@@ -200,33 +200,6 @@
       "level": "must"
     },
     {
-      "code": "Attendance",
-      "name": "근태",
-      "synonyms": [],
-      "category": "history",
-      "source_tables": [
-        "erp.attendance"
-      ],
-      "key_columns": [
-        "erp.attendance.emp_no",
-        "erp.attendance.work_date"
-      ],
-      "level": "must"
-    },
-    {
-      "code": "FixedAsset",
-      "name": "고정자산",
-      "synonyms": [],
-      "category": "master",
-      "source_tables": [
-        "erp.fixed_asset"
-      ],
-      "key_columns": [
-        "erp.fixed_asset.asset_no"
-      ],
-      "level": "must"
-    },
-    {
       "code": "Equipment",
       "name": "설비",
       "synonyms": [],
@@ -1677,19 +1650,6 @@
     },
     {
       "object_type": "Employee",
-      "code": "emp_name",
-      "name": "이름",
-      "data_type": "STRING",
-      "source_column": "erp.employee.emp_name",
-      "value_map": null,
-      "is_identifier": false,
-      "is_required": null,
-      "is_reference": false,
-      "is_personal": true,
-      "level": "must"
-    },
-    {
-      "object_type": "Employee",
       "code": "dept_code",
       "name": "소속 부서 코드",
       "data_type": "STRING",
@@ -1698,58 +1658,6 @@
       "is_identifier": false,
       "is_required": null,
       "is_reference": true,
-      "is_personal": false,
-      "level": "must"
-    },
-    {
-      "object_type": "Employee",
-      "code": "position",
-      "name": "직급",
-      "data_type": "STRING",
-      "source_column": "erp.employee.position",
-      "value_map": null,
-      "is_identifier": false,
-      "is_required": null,
-      "is_reference": false,
-      "is_personal": false,
-      "level": "must"
-    },
-    {
-      "object_type": "Employee",
-      "code": "hire_date",
-      "name": "입사일",
-      "data_type": "DATE",
-      "source_column": "erp.employee.hire_date",
-      "value_map": null,
-      "is_identifier": false,
-      "is_required": null,
-      "is_reference": false,
-      "is_personal": false,
-      "level": "must"
-    },
-    {
-      "object_type": "Employee",
-      "code": "employment_type",
-      "name": "고용 형태",
-      "data_type": "STRING",
-      "source_column": "erp.employee.employment_type",
-      "value_map": null,
-      "is_identifier": false,
-      "is_required": null,
-      "is_reference": false,
-      "is_personal": false,
-      "level": "must"
-    },
-    {
-      "object_type": "Employee",
-      "code": "status",
-      "name": "재직 상태",
-      "data_type": "STRING",
-      "source_column": "erp.employee.status",
-      "value_map": null,
-      "is_identifier": false,
-      "is_required": null,
-      "is_reference": false,
       "is_personal": false,
       "level": "must"
     },
@@ -1798,201 +1706,6 @@
       "name": "부서장 사번",
       "data_type": "STRING",
       "source_column": "erp.department.manager_emp_no",
-      "value_map": null,
-      "is_identifier": false,
-      "is_required": null,
-      "is_reference": true,
-      "is_personal": false,
-      "level": "must"
-    },
-    {
-      "object_type": "Attendance",
-      "code": "emp_no",
-      "name": "사번",
-      "data_type": "STRING",
-      "source_column": "erp.attendance.emp_no",
-      "value_map": null,
-      "is_identifier": true,
-      "is_required": true,
-      "is_reference": true,
-      "is_personal": false,
-      "level": "must"
-    },
-    {
-      "object_type": "Attendance",
-      "code": "work_date",
-      "name": "근무일",
-      "data_type": "DATE",
-      "source_column": "erp.attendance.work_date",
-      "value_map": null,
-      "is_identifier": true,
-      "is_required": true,
-      "is_reference": false,
-      "is_personal": false,
-      "level": "must"
-    },
-    {
-      "object_type": "Attendance",
-      "code": "clock_in",
-      "name": "출근 시각",
-      "data_type": "TIME",
-      "source_column": "erp.attendance.clock_in",
-      "value_map": null,
-      "is_identifier": false,
-      "is_required": null,
-      "is_reference": false,
-      "is_personal": false,
-      "level": "must"
-    },
-    {
-      "object_type": "Attendance",
-      "code": "clock_out",
-      "name": "퇴근 시각",
-      "data_type": "TIME",
-      "source_column": "erp.attendance.clock_out",
-      "value_map": null,
-      "is_identifier": false,
-      "is_required": null,
-      "is_reference": false,
-      "is_personal": false,
-      "level": "must"
-    },
-    {
-      "object_type": "Attendance",
-      "code": "work_type",
-      "name": "근무 구분",
-      "data_type": "STRING",
-      "source_column": "erp.attendance.work_type",
-      "value_map": null,
-      "is_identifier": false,
-      "is_required": null,
-      "is_reference": false,
-      "is_personal": false,
-      "level": "must"
-    },
-    {
-      "object_type": "Attendance",
-      "code": "overtime_min",
-      "name": "연장 근무 시간",
-      "data_type": "INTEGER",
-      "source_column": "erp.attendance.overtime_min",
-      "value_map": null,
-      "is_identifier": false,
-      "is_required": null,
-      "is_reference": false,
-      "is_personal": false,
-      "level": "must"
-    },
-    {
-      "object_type": "Attendance",
-      "code": "late_yn",
-      "name": "지각 여부",
-      "data_type": "STRING",
-      "source_column": "erp.attendance.late_yn",
-      "value_map": null,
-      "is_identifier": false,
-      "is_required": null,
-      "is_reference": false,
-      "is_personal": false,
-      "level": "must"
-    },
-    {
-      "object_type": "FixedAsset",
-      "code": "asset_no",
-      "name": "자산 번호",
-      "data_type": "STRING",
-      "source_column": "erp.fixed_asset.asset_no",
-      "value_map": null,
-      "is_identifier": true,
-      "is_required": true,
-      "is_reference": false,
-      "is_personal": false,
-      "level": "must"
-    },
-    {
-      "object_type": "FixedAsset",
-      "code": "asset_name",
-      "name": "자산명",
-      "data_type": "STRING",
-      "source_column": "erp.fixed_asset.asset_name",
-      "value_map": null,
-      "is_identifier": false,
-      "is_required": null,
-      "is_reference": false,
-      "is_personal": false,
-      "level": "must"
-    },
-    {
-      "object_type": "FixedAsset",
-      "code": "asset_type",
-      "name": "자산 종류",
-      "data_type": "STRING",
-      "source_column": "erp.fixed_asset.asset_type",
-      "value_map": null,
-      "is_identifier": false,
-      "is_required": null,
-      "is_reference": false,
-      "is_personal": false,
-      "level": "must"
-    },
-    {
-      "object_type": "FixedAsset",
-      "code": "acquired_on",
-      "name": "취득일",
-      "data_type": "DATE",
-      "source_column": "erp.fixed_asset.acquired_on",
-      "value_map": null,
-      "is_identifier": false,
-      "is_required": null,
-      "is_reference": false,
-      "is_personal": false,
-      "level": "must"
-    },
-    {
-      "object_type": "FixedAsset",
-      "code": "acquisition_cost",
-      "name": "취득가",
-      "data_type": "DECIMAL",
-      "source_column": "erp.fixed_asset.acquisition_cost",
-      "value_map": null,
-      "is_identifier": false,
-      "is_required": null,
-      "is_reference": false,
-      "is_personal": false,
-      "level": "must"
-    },
-    {
-      "object_type": "FixedAsset",
-      "code": "book_value",
-      "name": "장부가",
-      "data_type": "DECIMAL",
-      "source_column": "erp.fixed_asset.book_value",
-      "value_map": null,
-      "is_identifier": false,
-      "is_required": null,
-      "is_reference": false,
-      "is_personal": false,
-      "level": "must"
-    },
-    {
-      "object_type": "FixedAsset",
-      "code": "location",
-      "name": "설치·보관 위치",
-      "data_type": "STRING",
-      "source_column": "erp.fixed_asset.location",
-      "value_map": null,
-      "is_identifier": false,
-      "is_required": null,
-      "is_reference": false,
-      "is_personal": false,
-      "level": "must"
-    },
-    {
-      "object_type": "FixedAsset",
-      "code": "equipment_code",
-      "name": "생산 설비이면 현장 시스템의 설비 코드",
-      "data_type": "STRING",
-      "source_column": "erp.fixed_asset.equipment_code",
       "value_map": null,
       "is_identifier": false,
       "is_required": null,
@@ -2119,19 +1832,6 @@
     },
     {
       "object_type": "Worker",
-      "code": "name",
-      "name": "이름",
-      "data_type": "STRING",
-      "source_column": "mes.worker.name",
-      "value_map": null,
-      "is_identifier": false,
-      "is_required": null,
-      "is_reference": false,
-      "is_personal": true,
-      "level": "must"
-    },
-    {
-      "object_type": "Worker",
       "code": "shift",
       "name": "근무 조",
       "data_type": "STRING",
@@ -2166,7 +1866,7 @@
       "is_identifier": false,
       "is_required": null,
       "is_reference": false,
-      "is_personal": false,
+      "is_personal": true,
       "level": "must"
     },
     {
@@ -3826,36 +3526,6 @@
         "key": "primary"
       },
       "mapping_rule": null,
-      "derived_from": "column",
-      "level": "must"
-    },
-    {
-      "code": "attendance_emp_no",
-      "name": "erp.attendance.emp_no → erp.employee.emp_no",
-      "source_type": "Attendance",
-      "target_type": "Employee",
-      "cardinality": "MANY_TO_ONE",
-      "via": {
-        "from": "erp.attendance.emp_no",
-        "to": "erp.employee.emp_no",
-        "key": "primary"
-      },
-      "mapping_rule": null,
-      "derived_from": "column",
-      "level": "must"
-    },
-    {
-      "code": "fixed_asset_equipment_code",
-      "name": "erp.fixed_asset.equipment_code → mes.equipment.code",
-      "source_type": "FixedAsset",
-      "target_type": "Equipment",
-      "cardinality": "ONE_TO_ONE",
-      "via": {
-        "from": "erp.fixed_asset.equipment_code",
-        "to": "mes.equipment.code",
-        "key": "primary"
-      },
-      "mapping_rule": "R-ASSET",
       "derived_from": "column",
       "level": "must"
     },

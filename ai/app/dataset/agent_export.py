@@ -6,6 +6,7 @@
 정답 규칙대로 원천 값에 적용해 이어지는 짝만 만든다. 백엔드 시험 DB(Testcontainers)에만 넣는 파일이다(데이터 담당 확인 11-11).
 
 - 회계 표 4개(매출·매입 전표, 회계 계정, 분개)는 11-04 원천 권한에서 빠져 서비스에 없으므로 뺀다.
+- 원천 정책의 금지 표(근태·고정자산)와 금지 컬럼(직원 이름·직급 등, 작업자 이름)은 정답 온톨로지에 없어 따라서 빠진다(S15P31C106-406).
 - 메모 글에서 뽑는 관계(derived_from=text)는 이번에 넣지 않는다.
 - 규칙 연결(R-SO 등)은 정답 값 목록(id_links.json)의 matched와 같아야 한다. 이어지지 않는 값은 expectedUnlinked로 따로 남긴다.
 - 속성 값은 백엔드 원천 변환(SourceRowConverter)과 같은 표기로 바꾼다.
@@ -66,8 +67,8 @@ ACCESS_GROUPS = {
         "SalesOrderLine",
         "Shipment",
     ],
-    "FINANCE": ["FixedAsset"],
-    "HR": ["Employee", "Department", "Attendance"],
+    # FINANCE 그룹의 유일한 유형이던 고정자산(FixedAsset)과 HR의 근태(Attendance)는 금지 표라 없다(406)
+    "HR": ["Employee", "Department"],
 }
 
 SOURCES = {

@@ -9,6 +9,7 @@ import pytest
 from app.dataset import schema
 from app.dataset.build import SO_MAIN, SO_RISK, WO_A, WO_C, generate
 from app.dataset.checks import EXPECTED
+from app.dataset.gold import FORBIDDEN_CHECKS
 from app.validators.gold_check import check_gold
 
 
@@ -49,11 +50,12 @@ def test_comments_do_not_name_other_tables():
             )
 
 
-def test_gold_format_and_nine_integrity_checks(out):
+def test_gold_format_and_integrity_checks_without_forbidden_tables(out):
+    # 생성기는 9건을 모두 점검하고, 정답에는 원천 정책의 금지 표를 쓰는 K3를 뺀다
     assert check_gold(out / "gold-t2") == []
     assert {
         c["check_id"]: c["verdict"] for c in _gold(out, "integrity_checks.json")
-    } == EXPECTED
+    } == {k: v for k, v in EXPECTED.items() if k not in FORBIDDEN_CHECKS}
 
 
 def test_primary_keys_are_unique(out):

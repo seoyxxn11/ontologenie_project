@@ -25,6 +25,7 @@ from app.proposers.links import (
     target_keys,
     to_candidates,
 )
+from app.source_policy import is_restricted
 
 MIN_COVERAGE = 0.8  # 서로 다른 값 기준으로 이만큼 이어져야 후보로 낸다
 MIN_MATCHED = 3
@@ -220,6 +221,8 @@ def unlinked_columns(
     for col in tables.all():
         if col.ref in linked or not is_identifier_like(col):
             continue
+        if is_restricted(col.ref):
+            continue  # 원천 정책의 민감 컬럼 값은 LLM에 보내지 않는다(2차 방어)
         if tables.pk.get(col.table) == [col.name]:
             continue  # 자기 표의 키
         if col.values.nunique() < MIN_DISTINCT:
