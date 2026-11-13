@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component;
 @Component
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class AgentResponder {
-    private static final String SYSTEM_PROMPT =
+    static final String SYSTEM_PROMPT =
             """
             너는 제조 설비·작업 데이터 조회 Agent다. 사용자의 질문에 한국어로 짧게 답한다.
             - 값은 도구로 조회한 결과에서만 쓴다. 도구 결과에 없는 값은 지어내지 않는다.
@@ -102,6 +102,85 @@ public class AgentResponder {
             - Action 도구가 BLOCKED나 NOT_RUN을 돌려주면 실행되지 않았다고 말하고 이유를 그대로 전한다.
             """;
 
+    /** 객체 집합 도구가 없을 때 여러 단계 관계를 따라가는 규칙. 객체 집합 도구를 주면 {@link #MULTI_HOP_RULES}로 바꾼다(382). */
+    static final String FOLLOW_LINKS_RULE =
+            "- 한 번의 관계로 닿지 않는 정보는 연결 상대 객체의 관계를 다시 조회해 따라간다(예: 설비 → 비가동 → 작업지시 → 수주).\n";
+
+    /**
+     * 여러 단계 떨어진 정보는 객체 집합으로 단계마다 한 번씩 건넌다(382). 연결 상대를 하나씩 상세 조회하다 도구 호출 한도를 넘기던 문제(360 GMS)를 막는다.
+     */
+    static final String MULTI_HOP_RULES =
+            """
+            - 참고 객체에서 관계를 두 번 이상 거쳐야 닿는 정보와, 연결된 기록 중 상태·기간 같은 조건에 맞는 것만 찾는 질문은(한 단계라도)
+              객체 집합 도구로 찾는다. 예: "P103에 배정된 작업지시"는 설비 ← 작업지시 공정 → 작업지시, "설비가 멈춰서 납기가 위험한 수주"는
+              설비 → 비가동 → 작업지시 → 수주다.
+              객체 집합을 objectIds로 시작할 때는 참고 객체 ID만 넣는다(관계 조회로 받은 일부 객체로 시작하지 않는다). 관계 따라가기를 단계마다 한 번씩 부른 뒤,
+              객체 집합 목록으로 마지막 객체를 본다.
+              관계 조회 결과의 연결 상대를 하나씩 상세 조회해 조건을 확인하거나 관계를 다시 조회하며 따라가지 않는다.
+            - 연결 상대의 유형이 찾는 정보의 유형과 다르면(예: 작업지시 공정은 작업지시가 아니다) 그 객체를 답으로 쓰지 않고 한 단계 더 건넌다.
+            - 다음 단계의 관계 유형은 객체 집합 결과의 linkTypes에서 찾는 정보 쪽 유형으로 가는 것을 골라 그 linkTypeId·direction으로 건넌다.
+            - 상태·기간 같은 조건은 질문이 묻는 객체(예: "진행 중인 작업지시"면 작업지시)가 나오는 단계의 관계 따라가기에만 넣는다. 중간 단계 객체에
+              같은 이름의 속성(status 등)이 있어도 거기에 넣지 않는다. 속성 코드와 값은 그 단계 결과의 properties·values에서 고른다. 모르면 조건 없이
+              건너 properties를 받은 뒤, 같은 출발 객체 집합에서 조건을 넣어 다시 건넌다.
+            - 관계 따라가기가 5000건을 넘는다고 하면 조건을 더해 다시 부른다.
+            - 조건 없이 건넌 결과가 0건(UNLINKED)이면 그 단계에서 연결된 정보가 없다는 뜻이다. 조건을 넣고 0건(NO_DATA)이면 없다고 답하기 전에,
+              조건을 건 단계가 질문이 묻는 객체의 유형인지와 넣은 값이 그 단계 결과의 values에 있는지 확인하고, 틀렸으면 고쳐 다시 건넌다.
+            - 객체 집합 목록의 total이 objects보다 많으면 "전체 N건 중 M건"처럼 일부만 보여 준다고 말한다.
+            - 관계 조회는 한 객체에 직접 연결된 기록(한 단계)을 조건 없이 볼 때 쓴다.
+            - 관계 조회의 groups나 객체 집합 결과의 linkTypes에 찾는 정보의 유형이 없으면 직접 연결이 없는 것이다. 연결된 유형을 거쳐 닿는지
+              linkTypes로 확인해 닿으면 객체 집합으로 건넌다(예: 설비의 linkTypes에 작업지시가 없으면 작업지시 공정을 거친다).
+              거쳐서도 닿지 않을 때만 연결된 정보가 없다고 말한다.
+            """;
+
+    /** 경로 후보 도구를 줄 때만 더한다(381·382). */
+    static final String PATHS_RULE =
+            "- 찾는 정보의 유형까지 어떤 관계로 가야 할지 모르면 경로 후보 조회로 참고 객체의 유형에서 찾는 정보의 유형까지 경로를 받아,"
+                    + " 고른 경로의 단계 순서대로 관계 따라가기를 부른다.\n";
+
+    /**
+     * 객체 집합 도구가 없을 때의 연결 정보 규칙. 예시가 두 단계 질문이라 객체 집합 도구를 주면 {@link #LINKED_INFO_RULE}로 바꾼다(382 GMS).
+     */
+    static final String LINKED_INFO_LINKS_RULE =
+            "- 객체에 연결된 정보(예: 설비에 배정된 작업지시)는 관계를 조회해 답한다. 관계 조회로 찾을 수 있으면 \"아직 조회할 수 없다\"고 말하지 않는다.\n";
+
+    static final String LINKED_INFO_RULE =
+            "- 객체에 연결된 정보는 관계로 찾는다. 직접 연결된 정보(한 단계)는 관계를 조회하고, 다른 객체를 거쳐야 닿거나 연결된 기록을 조건으로"
+                    + " 걸러야 하는 정보는 아래 객체 집합 규칙으로 찾는다. 관계로 찾을 수 있으면 \"아직 조회할 수 없다\"고 말하지 않는다.\n";
+
+    /** 객체 집합 도구가 없을 때 "연결 없음"을 말하는 조건. 객체 집합을 주면 거쳐서도 닿지 않을 때로 좁힌다(382 리뷰). */
+    static final String NO_GROUP_RULE = "또는 groups에 찾는 정보에 맞는 묶음(상대 객체\n  유형)이 없을 때다.";
+
+    static final String NO_GROUP_RULE_WITH_SETS =
+            "또는 groups에 찾는 정보에 맞는 묶음(상대 객체\n  유형)이 없고 객체 집합 결과의 linkTypes로 거쳐서도 닿지 않을 때다.";
+
+    /**
+     * 객체 집합 도구가 없을 때의 NO_DATA 규칙. 객체 집합을 주면 조건을 넣은 건너기의 0건은 멀티홉 규칙대로 다시 확인하게 좁힌다(382 리뷰 Minor 4).
+     * 그대로 두면 조건을 중간 단계에 걸어 받은 0건을 바로 "없다"로 답했다(382 GMS M1).
+     */
+    static final String NO_DATA_RULE = "- resultCategory가 NO_DATA면 해당 데이터가 없다고 말한다.\n";
+
+    static final String NO_DATA_RULE_WITH_SETS =
+            "- resultCategory가 NO_DATA면 해당 데이터가 없다고 말한다. 다만 객체 집합의 관계 따라가기에 조건을 넣고 받은 NO_DATA는 바로 없다고"
+                    + " 말하지 않고, 아래 객체 집합 규칙대로 조건을 건 단계와 값을 확인해 다시 건넌 뒤에 판단한다.\n";
+
+    /** 줄 도구에 맞춘 지시. 객체 집합 도구가 없으면 기존 지시 그대로다. */
+    static String systemPrompt(boolean objectSets, boolean paths) {
+        if (!objectSets) {
+            return SYSTEM_PROMPT;
+        }
+        if (!SYSTEM_PROMPT.contains(FOLLOW_LINKS_RULE)
+                || !SYSTEM_PROMPT.contains(LINKED_INFO_LINKS_RULE)
+                || !SYSTEM_PROMPT.contains(NO_GROUP_RULE)
+                || !SYSTEM_PROMPT.contains(NO_DATA_RULE)) {
+            throw new IllegalStateException("바꿀 관계 따라가기 지시를 찾지 못했습니다.");
+        }
+        return SYSTEM_PROMPT
+                .replace(LINKED_INFO_LINKS_RULE, LINKED_INFO_RULE)
+                .replace(NO_GROUP_RULE, NO_GROUP_RULE_WITH_SETS)
+                .replace(NO_DATA_RULE, NO_DATA_RULE_WITH_SETS)
+                .replace(FOLLOW_LINKS_RULE, MULTI_HOP_RULES + (paths ? PATHS_RULE : ""));
+    }
+
     /** "지금" 같은 표현은 사용자 기준 시각으로 계산한다. */
     private static final ZoneId USER_ZONE = ZoneId.of("Asia/Seoul");
 
@@ -127,8 +206,8 @@ public class AgentResponder {
     private final String reasoningEffort;
 
     /**
-     * Object Set 도구(380)를 AI에게 줄지. 멀티홉 답변 규칙과 GMS 비교(382) 전에는 기존 답변이 흔들리지 않게 기본은 끈다. 경로 후보 도구(381)와
-     * 같은 방식이다.
+     * Object Set 도구(380)를 AI에게 줄지. 382 GMS에서 2홉 질문 정답률이 아직 낮아(docs/agent-scenario-gms.md) 운영 답변이
+     * 바뀌지 않게 기본은 끈다. 경로 후보 도구(381)와 같은 방식이다.
      */
     private final boolean objectSetsEnabled;
 
@@ -180,7 +259,10 @@ public class AgentResponder {
         String content =
                 ChatClient.create(chatModels.getObject())
                         .prompt()
-                        .system(SYSTEM_PROMPT)
+                        .system(
+                                systemPrompt(
+                                        objectSetsEnabled && objectDetails.getIfAvailable() != null,
+                                        objectPaths.getIfAvailable() != null))
                         .user(userPrompt(question, interpretation, askedClarification))
                         .options(options)
                         .tools(tools(session))
