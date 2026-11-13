@@ -3,6 +3,7 @@ import DataTable from '../../components/DataTable'
 import Button from '../../components/Button'
 import { LoadingState, EmptyState, ErrorState } from '../../components/Feedback'
 import { formatSourceKey } from './format'
+import { linkContext } from './detailPresentation'
 import type { ObjectLink } from './types'
 import { useObjectLinks } from './useObjectLinks'
 
@@ -12,6 +13,9 @@ type LinkEvidenceProps = {
 
 function LinkSummary({ link }: LinkEvidenceProps) {
   const evidence = link.evidence
+
+  if (evidence.evidenceRestricted)
+    return <p>연결 근거는 권한으로 가려져 있습니다.</p>
 
   if (link.origin === 'RULE') {
     if (!evidence.comparisons?.length) return null
@@ -53,6 +57,7 @@ function ComparisonValue({
 
 function LinkDetail({ link }: LinkEvidenceProps) {
   const evidence = link.evidence
+  if (evidence.evidenceRestricted) return null
 
   if (link.origin === 'RULE') {
     const comparisons = evidence.comparisons ?? []
@@ -180,8 +185,14 @@ function ObjectLinks({ objectId }: ObjectLinksProps) {
               <td className="px-3 py-2 [overflow-wrap:anywhere]">
                 {link.relatedObject.displayName}
                 <p className="text-xs text-slate-500">
-                  {link.relatedObject.objectTypeName}
+                  {link.relatedObject.objectTypeName} · 객체 #
+                  {link.relatedObject.id}
                 </p>
+                {!link.evidence.evidenceRestricted && linkContext(link) && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    {linkContext(link)}
+                  </p>
+                )}
               </td>
               <td className="py-2 pr-3 [overflow-wrap:anywhere]">
                 {link.linkTypeName}

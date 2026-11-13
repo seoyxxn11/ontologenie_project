@@ -4,6 +4,7 @@ type ObjectCardProps = {
   typeLabel: string
   selected: boolean
   onSelect: () => void
+  context?: string | null
 }
 
 function ObjectCard({
@@ -12,6 +13,7 @@ function ObjectCard({
   typeLabel,
   selected,
   onSelect,
+  context,
 }: ObjectCardProps) {
   return (
     <button
@@ -25,6 +27,11 @@ function ObjectCard({
         <span>{typeLabel}</span>
       </span>
       <span className="explorer-object-name">{name}</span>
+      {context && (
+        <span className="block text-xs text-slate-500 [overflow-wrap:anywhere]">
+          {context}
+        </span>
+      )}
     </button>
   )
 }

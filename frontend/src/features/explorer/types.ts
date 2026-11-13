@@ -10,6 +10,8 @@ export type ObjectPropertyDefinition = {
   id: number
   code: string
   name: string
+  unit?: string | null
+  description?: string | null
   dataType:
     | 'STRING'
     | 'INTEGER'
@@ -59,6 +61,7 @@ export type LinkComparison = {
 
 // 078 연결 근거. RULE은 원천 키와 비교 조건, DOCUMENT는 원문 구간·사건·시간 표현을 제공한다.
 export type LinkEvidence = {
+  evidenceRestricted?: boolean
   sourceKey?: Record<string, unknown>
   rawValue?: unknown
   transformedValue?: unknown

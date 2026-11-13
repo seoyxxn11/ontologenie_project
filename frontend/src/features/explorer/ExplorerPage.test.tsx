@@ -156,7 +156,7 @@ test('객체를 고르면 상세 API로 받은 정보를 보여준다', async ()
   const evidence = screen.getByRole('button', {
     name: '원본·연결 근거',
   })
-  const properties = screen.getByRole('heading', { name: '속성' })
+  const properties = screen.getByRole('heading', { name: '업무 요약' })
   expect(
     properties.compareDocumentPosition(evidence) &
       Node.DOCUMENT_POSITION_FOLLOWING,
@@ -168,7 +168,7 @@ test('객체를 고르면 상세 API로 받은 정보를 보여준다', async ()
   ).not.toBeInTheDocument()
 })
 
-test('권한으로 가린 속성은 권한 없음, 값이 없는 속성은 -로 보여준다', async () => {
+test('권한으로 가린 속성은 권한 없음, 값이 없는 속성은 값 없음으로 구분한다', async () => {
   const user = userEvent.setup()
   renderExplorerPage()
 
@@ -177,7 +177,7 @@ test('권한으로 가린 속성은 권한 없음, 값이 없는 속성은 -로 
   const purchasePrice = await screen.findByText('구매 가격')
   expect(purchasePrice.nextElementSibling).toHaveTextContent('권한 없음')
   const maintenanceNote = screen.getByText('정비 메모')
-  expect(maintenanceNote.nextElementSibling).toHaveTextContent('—')
+  expect(maintenanceNote.nextElementSibling).toHaveTextContent('값 없음')
 })
 
 test('원천이 없는 플랫폼 객체에는 원천에 있음 배지를 붙이지 않는다', async () => {

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import { expect, test } from 'vitest'
@@ -118,8 +118,12 @@ test.each(['/api/v1/audit/actions', '/api/v1/objects/301/executions'])(
       screen.getByText('변경 내역 중 권한으로 가린 속성이 있습니다.'),
     ).toBeVisible()
     // 097에서 가린 inputSecret은 098에서는 일반 null이고, changeSecret만 가린다.
-    expect(screen.getAllByText('권한으로 가림')).toHaveLength(2)
-    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2)
+    const changesTable = within(
+      screen.getByRole('table', { name: '변경 전후 비교' }),
+    )
+    expect(changesTable.getAllByText('권한으로 가림')).toHaveLength(2)
+    expect(changesTable.getAllByText('—')).toHaveLength(2)
+    expect(screen.getAllByText('권한으로 가림')).toHaveLength(3)
     expect(calls).toEqual({ detail: 1, changes: 1 })
   },
 )
@@ -149,7 +153,8 @@ test('changeCount가 0이면 098을 호출하지 않고 null 내용을 안전하
   renderHistory('/api/v1/audit/actions', { ...summary, changeCount: 0 })
   await screen.findByText('1건')
   await user.click(screen.getByText('내용 보기'))
-  expect(await screen.findByText('기록된 입력값 없음')).toBeVisible()
+  expect(await screen.findByText('기록된 항목 없음')).toBeVisible()
+  expect(screen.getByText('기록된 입력값 없음')).not.toBeVisible()
   expect(screen.getByText('기록된 이유가 없습니다.')).toBeVisible()
   expect(screen.getByText('변경 전후: 기록된 변경 없음')).toBeVisible()
   expect(screen.queryByText(/^실행 전후 비교/)).not.toBeInTheDocument()
@@ -308,7 +313,7 @@ test('행을 닫고 다른 이력으로 바꾸면 이전 상세를 표시하지 
   renderHistory('/api/v1/audit/actions')
   await screen.findByText('1건')
   await user.click(screen.getByText('내용 보기'))
-  await screen.findByText(/기록 9100/)
+  expect(await screen.findByText('기록 9100', { exact: true })).toBeVisible()
   server.use(
     http.get('/api/v1/audit/actions', () =>
       HttpResponse.json({
@@ -322,5 +327,5 @@ test('행을 닫고 다른 이력으로 바꾸면 이전 상세를 표시하지 
     expect(screen.queryByText(/기록 9100/)).not.toBeInTheDocument(),
   )
   await user.click(screen.getByText('내용 보기'))
-  expect(await screen.findByText(/기록 9200/)).toBeVisible()
+  expect(await screen.findByText('기록 9200', { exact: true })).toBeVisible()
 })
