@@ -1,22 +1,20 @@
 package com.axcore.platform.ontology.service;
 
-import com.axcore.platform.check.domain.TransformOperation;
-import com.axcore.platform.check.domain.TransformStep;
-import com.axcore.platform.check.service.ValueTransformer;
+import com.axcore.platform.check.domain.CheckCondition;
+import com.axcore.platform.check.domain.CheckEvaluation.MatchedTarget;
+import com.axcore.platform.check.domain.CheckEvaluation.RowResult;
+import com.axcore.platform.check.domain.CheckOutcome;
+import com.axcore.platform.check.domain.CheckRow;
+import com.axcore.platform.check.domain.LinkMappingRule;
+import com.axcore.platform.check.service.LinkMappingRuleLoader;
+import com.axcore.platform.check.service.RuleObjectEvaluator;
 import com.axcore.platform.ontology.domain.LinkCardinality;
 import com.axcore.platform.ontology.domain.LinkMapping;
-import com.axcore.platform.ontology.domain.LinkMappingCondition;
 import com.axcore.platform.ontology.domain.LinkMappingStatus;
-import com.axcore.platform.ontology.domain.LinkMatchGroup;
 import com.axcore.platform.ontology.domain.LinkType;
-import com.axcore.platform.ontology.domain.ObjectType;
-import com.axcore.platform.ontology.domain.PropertyDefinition;
 import com.axcore.platform.ontology.dto.LinkRecomputeResult;
-import com.axcore.platform.ontology.repository.LinkMappingConditionRepository;
 import com.axcore.platform.ontology.repository.LinkMappingRepository;
 import com.axcore.platform.ontology.repository.LinkTypeRepository;
-import com.axcore.platform.ontology.repository.ObjectTypeRepository;
-import com.axcore.platform.ontology.repository.PropertyDefinitionRepository;
 import com.axcore.platform.ontology.repository.RuleLinkRepository;
 import com.axcore.platform.ontology.repository.RuleLinkRepository.LinkableObject;
 import com.axcore.platform.ontology.repository.RuleLinkRepository.StoredLink;
@@ -32,7 +30,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -49,21 +46,16 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>관계 유형 잠금을 잡는다(트랜잭션 끝까지, 관계 유형 ID 순서). ERP·MES 소비자와 규칙 승인이 같은 관계 유형을 동시에 계산하지 않게 한다.
  *   <li>잠근 <b>뒤에</b> 그 관계 유형의 ACTIVE 규칙과 객체를 읽는다. 기다리는 사이 커밋된 객체·새 개정본을 보고 계산한다. 그래서 부르는 쪽 트랜잭션은
  *       READ COMMITTED(기본값)여야 한다. 그보다 높으면 잠금 뒤에도 남의 커밋이 보이지 않는다.
- *   <li>규칙마다 출발·도착 유형의 활성 객체 전부로 비교값 묶음을 만들고 성립하는 쌍을 구해 합친다(같은 쌍이면 지금 그 연결의 근거인 규칙 코드가 여전히 원할 때 그
- *       코드, 아니면 규칙 ID가 작은 쪽이 근거). 합친 쌍에도 관계 수 제약을 다시 적용한다.
+ *   <li>규칙마다 검사와 <b>같은 계산</b>으로 지금 객체를 판정하고({@link RuleObjectEvaluator}, 388) 정상(MATCHED)인 쌍을
+ *       합친다(같은 쌍이면 지금 그 연결의 근거인 규칙 코드가 여전히 원할 때 그 코드, 아니면 규칙 ID가 작은 쪽이 근거). 합친 쌍에도 관계 수 제약을 다시
+ *       적용한다.
  *   <li>그 관계 유형의 기존 연결 전부와 맞춘다. 합친 쌍에 없는 RULE 연결은 INACTIVE, 있는 쌍은 만들거나 되살린다.
  * </ol>
  *
- * <p>쌍을 정하는 기준
- *
- * <ul>
- *   <li>객체마다 규칙의 비교 조건대로 속성 값을 변환해 비교값(조건 순서대로의 문자열 목록)을 만든다. 값이 비었거나 단일 값이 아니거나 변환에 실패하면 비교값이 없고,
- *       그 객체는 이 규칙으로 연결되지 않는다(분류와 issue는 SYNC 검사가 한다). 기준은 검사 엔진과 같다.
- *   <li>비교값이 같은 출발 묶음과 도착 묶음을 잇는다. 자기 자신을 잇는 쌍을 제외한 뒤 관계 수를 센다. 도착이 ONE인 관계에서 도착이 둘 이상이거나, 출발이 ONE인
- *       관계에서 같은 도착을 가리키는 출발이 둘 이상이면 어느 쌍인지 정할 수 없어 잇지 않는다.
- *   <li>묶음에는 연결 대상 객체만 넣는다({@link com.axcore.platform.ontology.repository.LinkableObjects}, 검사와 같은
- *       정의, 387). 원천에서 지운 객체(DELETED_AT_SOURCE)와 꺼진 매핑에서 온 객체는 빠지므로 그 객체의 규칙 연결은 INACTIVE가 된다.
- * </ul>
+ * <p>쌍을 정하는 기준은 정합성 검사와 같다. 읽는 객체(활성 매핑으로 수집한 연결 대상 객체), 행 조건 해석, 비교값 변환, 관계 수 판단이 모두 {@link
+ * RuleObjectEvaluator} 하나다. 그래서 검사가 정상으로 판정한 쌍이 곧 규칙 연결이다. 미연결·중복·조건 위반인 출발은 잇지 않는다(분류와 issue는 SYNC
+ * 검사가 한다). 원천에서 지운 객체와 꺼진 매핑에서 온 객체는 빠지므로 그 객체의 규칙 연결은 INACTIVE가 된다. 원천 매핑이 없는 플랫폼 객체는 규칙으로 잇지
+ * 않는다(검사도 판정하지 않는다).
  *
  * <p>주로 바꾸는 것은 RULE 연결이다. 조건을 읽지 못해 건너뛴 규칙이 근거인 연결은 양 끝 객체가 활성인 동안 그대로 둔다. 성립하지 않게 된 연결은 지우지 않고
  * INACTIVE로, 다시 성립하면 같은 행을 ACTIVE로 되살린다. 문서(DOCUMENT) 연결은 건드리지 않는다(결정 U6). 수동(MANUAL) 연결은 규칙이 잇지
@@ -85,12 +77,10 @@ public class LinkRecomputeService {
     public static final String SOURCE_VALUES = "sourceValues";
 
     private final LinkMappingRepository rules;
-    private final LinkMappingConditionRepository conditions;
     private final LinkTypeRepository linkTypes;
-    private final ObjectTypeRepository objectTypes;
-    private final PropertyDefinitionRepository properties;
     private final RuleLinkRepository ruleLinks;
-    private final ValueTransformer transformer;
+    private final LinkMappingRuleLoader ruleLoader;
+    private final RuleObjectEvaluator evaluator;
 
     /**
      * 바뀐 객체(추가·수정·원천 삭제)의 유형이 출발이나 도착인 관계 유형의 연결을 다시 계산한다. 198이 원천 트랜잭션 하나를 반영한 뒤 부른다. 없는 ID는 무시한다.
@@ -161,46 +151,9 @@ public class LinkRecomputeService {
         // 잠근 뒤에 규칙을 읽는다. 기다리는 동안 커밋된 새 개정본을 보고 계산하기 위해서다.
         List<LinkMapping> active =
                 rules.findByStatusAndLinkTypeIdInOrderById(LinkMappingStatus.ACTIVE, ordered);
-        Map<Long, List<LinkMappingCondition>> conditionsByRule =
-                active.isEmpty()
-                        ? Map.of()
-                        : conditions
-                                .findByLinkMappingIdInOrderByLinkMappingIdAscSequenceNoAsc(
-                                        active.stream().map(LinkMapping::getId).toList())
-                                .stream()
-                                .collect(
-                                        Collectors.groupingBy(
-                                                LinkMappingCondition::getLinkMappingId));
         Map<Long, LinkType> linkTypeById =
                 linkTypes.findAllById(ordered).stream()
                         .collect(Collectors.toMap(LinkType::getId, Function.identity()));
-        Map<Long, String> typeCodes =
-                objectTypes
-                        .findAllById(
-                                linkTypeById.values().stream()
-                                        .flatMap(
-                                                t ->
-                                                        Stream.of(
-                                                                t.getSourceTypeId(),
-                                                                t.getTargetTypeId()))
-                                        .collect(Collectors.toSet()))
-                        .stream()
-                        .collect(Collectors.toMap(ObjectType::getId, ObjectType::getCode));
-        Map<Long, String> propertyCodes =
-                properties
-                        .findAllById(
-                                conditionsByRule.values().stream()
-                                        .flatMap(List::stream)
-                                        .flatMap(
-                                                c ->
-                                                        Stream.of(
-                                                                c.getSourcePropertyId(),
-                                                                c.getTargetPropertyId()))
-                                        .collect(Collectors.toSet()))
-                        .stream()
-                        .collect(
-                                Collectors.toMap(
-                                        PropertyDefinition::getId, PropertyDefinition::getCode));
         Map<Long, List<LinkMapping>> activeByLinkType =
                 active.stream().collect(Collectors.groupingBy(LinkMapping::getLinkTypeId));
 
@@ -210,16 +163,10 @@ public class LinkRecomputeService {
             if (linkType == null) {
                 continue;
             }
-            List<RulePlan> plans = new ArrayList<>();
+            List<RuleMatches> plans = new ArrayList<>();
             Set<Long> skippedRuleIds = new LinkedHashSet<>();
             for (LinkMapping rule : activeByLinkType.getOrDefault(linkTypeId, List.of())) {
-                RulePlan plan =
-                        RulePlan.of(
-                                rule,
-                                linkType,
-                                conditionsByRule.getOrDefault(rule.getId(), List.of()),
-                                propertyCodes,
-                                typeCodes);
+                RuleMatches plan = evaluate(rule);
                 if (plan != null) {
                     plans.add(plan);
                     continue;
@@ -227,10 +174,6 @@ public class LinkRecomputeService {
                 if (strictRuleIds.contains(rule.getId())) {
                     throw new LinkRuleNotComputableException(rule.getId(), rule.getCode());
                 }
-                log.warn(
-                        "연결 규칙 {}(개정본 ID {})의 조건을 읽지 못해 연결을 계산하지 않았습니다.",
-                        rule.getCode(),
-                        rule.getId());
                 skippedRuleIds.add(rule.getId());
             }
             result.skipped.addAll(skippedRuleIds);
@@ -244,25 +187,41 @@ public class LinkRecomputeService {
         return result.toResult();
     }
 
+    /**
+     * 규칙 하나를 지금 객체에 적용한다. 검사와 같은 계산이다({@link RuleObjectEvaluator}, 388). 비교 조건·변환·행 조건을 읽지 못하면
+     * null.
+     */
+    private RuleMatches evaluate(LinkMapping rule) {
+        try {
+            LinkMappingRule input = ruleLoader.loadCurrent(rule.getId());
+            return new RuleMatches(rule, input, evaluator.evaluate(input).evaluation().rows());
+        } catch (RuleObjectEvaluator.RuleNotEvaluable
+                | IllegalArgumentException
+                | IllegalStateException e) {
+            log.warn(
+                    "연결 규칙 {}(개정본 ID {})을 적용하지 못해 연결을 계산하지 않았습니다: {}",
+                    rule.getCode(),
+                    rule.getId(),
+                    e.getMessage());
+            return null;
+        }
+    }
+
     private void recompute(
-            LinkType linkType, List<RulePlan> plans, Set<String> skippedCodes, Accumulator result) {
-        List<LinkableObject> sources = ruleLinks.activeObjects(linkType.getSourceTypeId());
-        List<LinkableObject> targets =
-                linkType.getTargetTypeId().equals(linkType.getSourceTypeId())
-                        ? sources
-                        : ruleLinks.activeObjects(linkType.getTargetTypeId());
+            LinkType linkType,
+            List<RuleMatches> plans,
+            Set<String> skippedCodes,
+            Accumulator result) {
+        // 수동 연결이 저장 당시 값과 같은지 보려고 출발 객체(연결 대상)의 지금 속성 값을 읽는다.
         Map<Long, LinkableObject> sourcesById =
-                sources.stream().collect(Collectors.toMap(LinkableObject::id, Function.identity()));
-        Map<Long, LinkableObject> targetsById =
-                targets.stream().collect(Collectors.toMap(LinkableObject::id, Function.identity()));
+                ruleLinks.activeObjects(linkType.getSourceTypeId()).stream()
+                        .collect(Collectors.toMap(LinkableObject::id, Function.identity()));
 
         Map<Pair, List<Desired>> wants = new LinkedHashMap<>();
-        for (RulePlan plan : plans) {
-            plan.pairs(sources, targets, transformer)
-                    .forEach(
-                            (pair, evidence) ->
-                                    wants.computeIfAbsent(pair, p -> new ArrayList<>())
-                                            .add(new Desired(plan, evidence)));
+        for (RuleMatches plan : plans) {
+            for (Desired want : plan.pairs()) {
+                wants.computeIfAbsent(want.pair(), p -> new ArrayList<>()).add(want);
+            }
         }
         dropAmbiguous(wants, linkType.getCardinality());
 
@@ -319,21 +278,19 @@ public class LinkRecomputeService {
             if (link != null && link.isDocument()) {
                 continue; // 문서 연결은 그대로 둔다.
             }
-            long ruleId = want.plan().ruleId();
+            long ruleId = want.plan().rule().getId();
             boolean sameActiveRule =
                     link != null && link.active() && Objects.equals(link.linkMappingId(), ruleId);
             // 변환 전 값을 추가하는 이유만으로 기존 활성 연결을 다시 저장하지 않는다.
             if (sameActiveRule && Objects.equals(link.evidence(), want.evidence())) {
                 continue;
             }
-            Map<String, Object> evidence =
-                    want.plan().withRawValues(want.evidence(), sourcesById.get(pair.source()));
+            Map<String, Object> evidence = new LinkedHashMap<>(want.evidence());
+            evidence.put("rawValues", want.sourceRawValues());
             if (sameActiveRule && Objects.equals(link.evidence(), evidence)) {
                 continue;
             }
-            evidence.put(
-                    "targetRawValues",
-                    want.plan().rawValues(targetsById.get(pair.target()), false));
+            evidence.put("targetRawValues", want.targetRawValues());
             if (link == null) {
                 result.activated.add(
                         ruleLinks.insertRuleLink(
@@ -460,7 +417,19 @@ public class LinkRecomputeService {
 
     private record Pair(long source, long target) {}
 
-    private record Desired(RulePlan plan, Map<String, Object> evidence) {}
+    /**
+     * 규칙 하나가 원하는 쌍과 근거.
+     *
+     * @param evidence 규칙 코드·개정 번호·변환 뒤 비교값({@code matchedValues})
+     * @param sourceRawValues 출발의 변환 전 값(조건 번호별)
+     * @param targetRawValues 도착의 변환 전 값(조건 번호별)
+     */
+    private record Desired(
+            Pair pair,
+            RuleMatches plan,
+            Map<String, Object> evidence,
+            Map<String, String> sourceRawValues,
+            Map<String, String> targetRawValues) {}
 
     /** 관계 유형마다 연결 하나를 한 번만 다루므로 같은 연결이 두 목록에 들어가지 않는다. */
     private static final class Accumulator {
@@ -478,160 +447,42 @@ public class LinkRecomputeService {
         }
     }
 
-    /** 규칙 하나를 계산하는 데 필요한 것. 조건을 읽지 못하면 만들지 않는다. */
-    private record RulePlan(
-            LinkMapping rule,
-            LinkType linkType,
-            List<Condition> conditions,
-            Filter sourceFilter,
-            Filter targetFilter) {
+    /**
+     * 규칙 하나를 지금 객체에 적용한 판정({@link RuleObjectEvaluator}, 검사와 같은 계산). 정상(MATCHED)인 출발과 그 도착만 잇는다.
+     * 미연결·중복·조건 위반은 잇지 않는다(분류와 issue는 SYNC 검사가 같은 판정으로 한다).
+     */
+    private record RuleMatches(LinkMapping rule, LinkMappingRule input, List<RowResult> rows) {
 
-        static RulePlan of(
-                LinkMapping rule,
-                LinkType linkType,
-                List<LinkMappingCondition> conditions,
-                Map<Long, String> propertyCodes,
-                Map<Long, String> typeCodes) {
-            if (conditions.isEmpty()) {
-                return null;
-            }
-            Filter source =
-                    Filter.parse(rule.getSourceFilter(), typeCodes.get(linkType.getSourceTypeId()));
-            Filter target =
-                    Filter.parse(rule.getTargetFilter(), typeCodes.get(linkType.getTargetTypeId()));
-            if (source == null || target == null) {
-                return null;
-            }
-            List<Condition> parsed = new ArrayList<>();
-            for (LinkMappingCondition condition : conditions) {
-                String sourceCode = propertyCodes.get(condition.getSourcePropertyId());
-                String targetCode = propertyCodes.get(condition.getTargetPropertyId());
-                List<TransformStep> sourceSteps = steps(condition.getSourceTransforms());
-                List<TransformStep> targetSteps = steps(condition.getTargetTransforms());
-                if (sourceCode == null
-                        || targetCode == null
-                        || sourceSteps == null
-                        || targetSteps == null) {
-                    return null;
-                }
-                parsed.add(
-                        new Condition(
-                                condition.getSequenceNo(),
-                                sourceCode,
-                                targetCode,
-                                sourceSteps,
-                                targetSteps));
-            }
-            return new RulePlan(rule, linkType, List.copyOf(parsed), source, target);
-        }
-
-        long ruleId() {
-            return rule.getId();
-        }
-
-        /** 이 규칙만으로 성립하는 쌍과 그 근거. */
-        Map<Pair, Map<String, Object>> pairs(
-                List<LinkableObject> sources,
-                List<LinkableObject> targets,
-                ValueTransformer transformer) {
-            Map<List<String>, Set<Long>> sourcesByKey = group(sources, transformer, true);
-            Map<List<String>, Set<Long>> targetsByKey = group(targets, transformer, false);
-            Map<Pair, Map<String, Object>> pairs = new LinkedHashMap<>();
-            for (Map.Entry<List<String>, Set<Long>> entry : sourcesByKey.entrySet()) {
-                Set<Long> targetIds = targetsByKey.get(entry.getKey());
-                if (targetIds == null) {
+        List<Desired> pairs() {
+            List<CheckCondition> conditions = input.input().conditions();
+            List<Desired> pairs = new ArrayList<>();
+            for (RowResult row : rows) {
+                if (row.outcome() != CheckOutcome.MATCHED) {
                     continue;
                 }
-                var matches = new LinkMatchGroup<>(entry.getValue(), targetIds, true);
-                Map<String, Object> evidence = evidence(entry.getKey());
-                for (Long source : entry.getValue()) {
-                    if (mismatchReason(source, matches) != null) {
-                        continue;
-                    }
-                    for (Long target : targetIds) {
-                        if (matches.includes(source, target)) {
-                            pairs.put(new Pair(source, target), evidence);
-                        }
-                    }
+                Map<String, Object> evidence = evidence(row, conditions);
+                Map<String, String> sourceRaw = rawValues(row.source(), conditions, true);
+                for (MatchedTarget target : row.targets()) {
+                    pairs.add(
+                            new Desired(
+                                    new Pair(
+                                            row.source().objectInstanceId(),
+                                            target.row().objectInstanceId()),
+                                    this,
+                                    evidence,
+                                    sourceRaw,
+                                    rawValues(target.row(), conditions, false)));
                 }
             }
             return pairs;
         }
 
-        private Map<List<String>, Set<Long>> group(
-                List<LinkableObject> objects, ValueTransformer transformer, boolean source) {
-            Filter filter = source ? sourceFilter : targetFilter;
-            Map<List<String>, Set<Long>> grouped = new LinkedHashMap<>();
-            for (LinkableObject object : objects) {
-                if (!filter.matches(object)) {
-                    continue;
-                }
-                List<String> key = key(object, transformer, source);
-                if (key != null) {
-                    grouped.computeIfAbsent(key, k -> new LinkedHashSet<>()).add(object.id());
-                }
-            }
-            return grouped;
-        }
-
-        private String mismatchReason(long source, LinkMatchGroup<Long> matches) {
-            int targetCount = matches.targetCount(source);
-            if (targetCount == 0) {
-                return "비교값이 같은 도착 객체가 없음";
-            }
-            LinkCardinality cardinality = linkType.getCardinality();
-            if (cardinality.destinationIsOne() && targetCount > 1) {
-                return "비교값이 같은 도착 객체가 둘 이상";
-            }
-            if (cardinality.sourceIsOne() && matches.hasCompetingSources(source)) {
-                return "같은 도착을 가리키는 출발 객체가 둘 이상";
-            }
-            return null;
-        }
-
-        private List<String> key(
-                LinkableObject object, ValueTransformer transformer, boolean source) {
-            return evaluate(object, transformer, source).key();
-        }
-
-        // 검사 엔진(RuleEvaluationEngine)과 같은 기준: 빈 값·단일 값이 아님·변환 실패면 비교값이 없다.
-        private KeyResult evaluate(
-                LinkableObject object, ValueTransformer transformer, boolean source) {
-            Map<String, Object> values =
-                    object.properties() == null ? Map.of() : object.properties();
-            List<String> raws = new ArrayList<>(conditions.size());
-            List<String> key = new ArrayList<>(conditions.size());
-            for (Condition condition : conditions) {
-                Object raw = values.get(source ? condition.sourceCode() : condition.targetCode());
-                if (raw == null || raw instanceof String text && text.isBlank()) {
-                    return KeyResult.missing();
-                }
-                if (!(raw instanceof String || raw instanceof Number || raw instanceof Boolean)) {
-                    raws.add(String.valueOf(raw));
-                    return KeyResult.failed(raws, "비교할 값이 단일 값이 아님");
-                }
-                raws.add(String.valueOf(raw));
-                String value;
-                try {
-                    value =
-                            transformer.transform(
-                                    String.valueOf(raw),
-                                    source ? condition.sourceSteps() : condition.targetSteps());
-                } catch (ValueTransformer.TransformException e) {
-                    return KeyResult.failed(raws, "조건 " + condition.sequenceNo() + " 변환 실패");
-                }
-                if (value == null || value.isBlank()) {
-                    return KeyResult.missing();
-                }
-                key.add(value);
-            }
-            return new KeyResult(List.copyOf(key), List.copyOf(raws), null);
-        }
-
-        private Map<String, Object> evidence(List<String> key) {
+        private Map<String, Object> evidence(RowResult row, List<CheckCondition> conditions) {
             Map<String, Object> values = new LinkedHashMap<>();
-            for (int i = 0; i < conditions.size(); i++) {
-                values.put(String.valueOf(conditions.get(i).sequenceNo()), key.get(i));
+            for (CheckCondition condition : conditions) {
+                values.put(
+                        String.valueOf(condition.sequenceNo()),
+                        row.transformedValues().get(condition.sequenceNo()));
             }
             Map<String, Object> evidence = new LinkedHashMap<>();
             evidence.put("ruleCode", rule.getCode());
@@ -640,106 +491,20 @@ public class LinkRecomputeService {
             return evidence;
         }
 
-        private Map<String, Object> withRawValues(
-                Map<String, Object> matchedEvidence, LinkableObject source) {
-            Map<String, Object> evidence = new LinkedHashMap<>(matchedEvidence);
-            evidence.put("rawValues", rawValues(source, true));
-            return evidence;
-        }
-
-        private Map<String, String> rawValues(LinkableObject object, boolean source) {
-            Map<String, String> rawValues = new LinkedHashMap<>();
-            for (Condition condition : conditions) {
-                rawValues.put(
+        private static Map<String, String> rawValues(
+                CheckRow row, List<CheckCondition> conditions, boolean source) {
+            Map<String, String> raw = new LinkedHashMap<>();
+            for (CheckCondition condition : conditions) {
+                raw.put(
                         String.valueOf(condition.sequenceNo()),
                         String.valueOf(
-                                object.properties()
+                                row.values()
                                         .get(
                                                 source
-                                                        ? condition.sourceCode()
-                                                        : condition.targetCode())));
+                                                        ? condition.sourceProperty()
+                                                        : condition.targetProperty())));
             }
-            return rawValues;
-        }
-
-        private static List<TransformStep> steps(List<Map<String, Object>> stored) {
-            if (stored == null) {
-                return List.of();
-            }
-            List<TransformStep> steps = new ArrayList<>();
-            try {
-                for (Map<String, Object> step : stored) {
-                    steps.add(
-                            new TransformStep(
-                                    TransformOperation.valueOf(String.valueOf(step.get("op"))),
-                                    step.get("arg")));
-                }
-            } catch (IllegalArgumentException | NullPointerException e) {
-                return null;
-            }
-            return List.copyOf(steps);
-        }
-    }
-
-    /** 객체 하나의 비교값 계산 결과. 값이 비었으면 key·failure 모두 없고, 실패면 failure에 이유가 있다. */
-    private record KeyResult(List<String> key, List<String> raws, String failure) {
-
-        static KeyResult missing() {
-            return new KeyResult(null, List.of(), null);
-        }
-
-        static KeyResult failed(List<String> raws, String failure) {
-            return new KeyResult(null, List.copyOf(raws), failure);
-        }
-
-        boolean isMissing() {
-            return key == null && failure == null;
-        }
-    }
-
-    private record Condition(
-            int sequenceNo,
-            String sourceCode,
-            String targetCode,
-            List<TransformStep> sourceSteps,
-            List<TransformStep> targetSteps) {}
-
-    /**
-     * 출발·도착 객체 조건. 형식이 아직 정해지지 않아 두 가지만 읽는다: 빈 조건 {@code {}}(모두), 그리고 AI 후보 형식 {@code {"property":
-     * "유형코드.속성코드" 또는 "속성코드", "equals": "값"}}(속성 값의 문자열이 같을 때만). 유형코드를 붙였다면 그 쪽(출발·도착) 유형의 코드와 같아야
-     * 한다. 그 밖이면 null이고, 그 규칙은 계산하지 않는다.
-     */
-    private record Filter(String propertyCode, String equals) {
-
-        static final Filter ALL = new Filter(null, null);
-
-        static Filter parse(Map<String, Object> stored, String sideTypeCode) {
-            if (stored == null || stored.isEmpty()) {
-                return ALL;
-            }
-            if (stored.size() != 2
-                    || !(stored.get("property") instanceof String property)
-                    || !(stored.get("equals") instanceof String equals)
-                    || property.isBlank()) {
-                return null;
-            }
-            int dot = property.lastIndexOf('.');
-            if (dot < 0) {
-                return new Filter(property, equals);
-            }
-            if (!property.substring(0, dot).equals(sideTypeCode) || dot == property.length() - 1) {
-                return null;
-            }
-            return new Filter(property.substring(dot + 1), equals);
-        }
-
-        boolean matches(LinkableObject object) {
-            if (propertyCode == null) {
-                return true;
-            }
-            Object value =
-                    object.properties() == null ? null : object.properties().get(propertyCode);
-            return value != null && equals.equals(String.valueOf(value));
+            return raw;
         }
     }
 }

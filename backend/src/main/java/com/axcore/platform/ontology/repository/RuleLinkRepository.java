@@ -59,8 +59,9 @@ public class RuleLinkRepository {
     }
 
     /**
-     * 유형의 연결 대상 객체({@link LinkableObjects}). 원천에서 지운 객체(DELETED_AT_SOURCE)와 꺼진 매핑에서 온 객체는 빠진다. 검사가
-     * 판정하는 범위와 같다(387).
+     * 유형의 연결 대상 객체({@link LinkableObjects}). 원천에서 지운 객체(DELETED_AT_SOURCE)와 꺼진 매핑에서 온 객체는 빠지고, 매핑이
+     * 없는 플랫폼 객체는 들어간다. 연결 재계산이 수동 연결의 출발 값을 확인할 때 쓴다. 규칙으로 이을 쌍은 이것이 아니라 검사와 같은 계산({@code
+     * RuleObjectEvaluator}, 388)으로 정한다.
      */
     public List<LinkableObject> activeObjects(long objectTypeId) {
         return jdbc.sql(

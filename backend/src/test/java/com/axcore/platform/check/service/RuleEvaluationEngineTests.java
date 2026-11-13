@@ -120,6 +120,32 @@ class RuleEvaluationEngineTests {
                         CheckOutcome.VIOLATION, CheckOutcome.VIOLATION, CheckOutcome.MATCHED);
     }
 
+    /** 388: 비교값으로 바꾸지 못한 도착은 대응 후보에서 빼고 수만 남긴다. 규칙 전체를 멈추지 않는다(연결 재계산과 같은 동작). */
+    @Test
+    void excludesTargetsThatCannotBeTransformedAndCountsThem() {
+        var conditions =
+                List.of(
+                        new CheckCondition(
+                                1,
+                                "SOURCE.code",
+                                "TARGET.code",
+                                "EQ",
+                                List.of(),
+                                List.of(new TransformStep(TransformOperation.TO_INTEGER, null))));
+        var result =
+                evaluate(
+                        LinkCardinality.MANY_TO_ONE,
+                        conditions,
+                        List.of(source(1, "1"), source(2, "2")),
+                        List.of(target(10, "01"), target(11, "invalid"), target(12, "x")));
+
+        assertThat(result.excludedTargetCount()).isEqualTo(2);
+        assertThat(result.rows())
+                .extracting(row -> row.outcome())
+                .containsExactly(CheckOutcome.MATCHED, CheckOutcome.UNMATCHED);
+        assertThat(result.totalCount()).isEqualTo(2);
+    }
+
     @Test
     void handlesEmptySourceAndTargetLists() {
         var empty =

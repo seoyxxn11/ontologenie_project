@@ -4,9 +4,9 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * 규칙의 출발·도착 행 조건({@code link_mapping.source_filter}·{@code target_filter})을 객체 속성에 적용한다. 형식이 아직
- * 정해지지 않아 연결 재계산(181 {@code LinkRecomputeService})과 같은 두 가지만 읽는다. 두 곳의 판단이 달라지면 연결과 검사가 서로 다른 객체를
- * 보게 되므로 형식을 늘릴 때는 같이 바꾼다.
+ * 규칙의 출발·도착 행 조건({@code link_mapping.source_filter}·{@code target_filter})을 객체 속성에 적용한다. 행 조건 해석기는
+ * 이것 하나다(388). 검사와 연결 재계산이 모두 {@code RuleObjectEvaluator}를 거쳐 이것을 쓰므로, 형식을 늘릴 때 여기만 바꾸면 된다. 형식이 아직
+ * 정해지지 않아 두 가지만 읽는다.
  *
  * <ul>
  *   <li>빈 조건 {@code {}}: 모든 객체

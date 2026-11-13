@@ -105,6 +105,22 @@ public class LinkMappingRuleLoader {
                 filter(linkMappingId, rule.targetFilter()));
     }
 
+    /**
+     * 지금의 객체에 적용할 규칙 입력(388). 연결 재계산이 쓴다. 검사 실행이 아니라 수집 실행 기준이 없으므로, 데이터 기준은 이 규칙이 읽는 원천 자원마다 수집 실행
+     * 없이(null) 둔다. 그 밖의 변환은 {@link #load}와 같다.
+     *
+     * @throws IllegalArgumentException 규칙이 없거나 비교 조건이 없을 때
+     * @throws IllegalStateException 저장된 비교 조건·변환·행 조건을 읽을 수 없을 때
+     */
+    public LinkMappingRule loadCurrent(long linkMappingId) {
+        return load(
+                linkMappingId,
+                new CheckDataBasis(
+                        resourceIds(linkMappingId).stream()
+                                .map(id -> new ResourceCheckpoint(id, null))
+                                .toList()));
+    }
+
     private RuleRow requireRule(long linkMappingId) {
         return repository
                 .findRule(linkMappingId)

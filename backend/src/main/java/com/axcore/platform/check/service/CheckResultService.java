@@ -78,6 +78,7 @@ public class CheckResultService {
                 result.getUnmatchedCount(),
                 result.getDuplicateCount(),
                 result.getViolationCount(),
+                result.getExcludedTargetCount(),
                 matchRate,
                 result.getSampleRows());
     }
