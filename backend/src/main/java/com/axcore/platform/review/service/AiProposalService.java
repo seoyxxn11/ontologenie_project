@@ -22,9 +22,12 @@ public class AiProposalService {
     private final AiProposalWriteRepository repository;
     private final CandidateCheckService checks;
     private final ProposalReferenceRepository references;
+    private final AiProposalSourcePolicy sourcePolicy;
 
     @Transactional
-    public List<Long> save(long analysisRunId, List<AiProposalRequest> proposals) {
+    public List<Long> save(long analysisRunId, List<AiProposalRequest> received) {
+        // 금지·민감 컬럼의 예시 값을 지우고 금지 컬럼을 매핑하는 후보를 표시한 뒤 저장한다(399).
+        List<AiProposalRequest> proposals = received.stream().map(sourcePolicy::apply).toList();
         for (int i = 0; i < proposals.size(); i++) {
             Set<Integer> numbers = new HashSet<>();
             for (var option : proposals.get(i).options()) {

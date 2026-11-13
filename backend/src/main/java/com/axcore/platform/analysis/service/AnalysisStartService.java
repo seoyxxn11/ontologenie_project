@@ -11,13 +11,17 @@ import com.axcore.platform.audit.domain.EntryPoint;
 import com.axcore.platform.audit.domain.EventKind;
 import com.axcore.platform.audit.domain.ExecutionStatus;
 import com.axcore.platform.audit.service.AuditRecorder;
+import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.source.domain.CredentialPurpose;
 import com.axcore.platform.source.domain.SourceAccount;
+import com.axcore.platform.source.domain.SourceColumn;
+import com.axcore.platform.source.repository.SourceColumnRepository;
 import com.axcore.platform.source.service.SourceCredentialException;
 import com.axcore.platform.source.service.SourceCredentialService;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,6 +46,8 @@ public class AnalysisStartService {
     private final SourceCredentialService credentials;
     private final AuditRecorder audits;
     private final Clock clock;
+    private final SourceColumnRepository sourceColumns;
+    private final AnalysisColumnScope columnScope;
 
     /**
      * QUEUED 실행의 시작 알림 본문. 이미 다른 상태면 빈 값이다. 원천 AI 계정은 여기서 복호화한다. POSTGRES의 sslmode는 늘
@@ -54,16 +60,22 @@ public class AnalysisStartService {
             return Optional.empty();
         }
         Map<String, List<String>> columns = columns(run.get().analysisRange());
+        List<AnalysisStartRepository.Target> found = repository.findTargets(runId);
+        Map<Long, Set<String>> catalog = catalog(found);
         List<Target> targets = new ArrayList<>();
         Map<String, List<AnalysisStartRepository.Target>> bySource = new TreeMap<>();
-        for (var target : repository.findTargets(runId)) {
+        for (var target : found) {
             targets.add(
                     new Target(
                             target.sourceResourceId(),
                             target.dataSourceCode(),
                             target.resourceKey(),
-                            columns.get(Long.toString(target.sourceResourceId())),
-                            target.sourceMetadata()));
+                            columnsForModel(
+                                    target,
+                                    columns.get(Long.toString(target.sourceResourceId())),
+                                    catalog),
+                            columnScope.metadataForModel(
+                                    target.resourceKey(), target.sourceMetadata())));
             bySource.computeIfAbsent(target.dataSourceCode(), ignored -> new ArrayList<>())
                     .add(target);
         }
@@ -99,6 +111,36 @@ public class AnalysisStartService {
                         .targetId(runId)
                         .result(Map.of("reason", reason))
                         .build());
+    }
+
+    /**
+     * 원천 데이터 정책을 018 접수 때와 같이 다시 적용한다. 접수 뒤 정책이 바뀌었거나 정책 이전에 접수된 실행도 금지 표·컬럼과 민감 컬럼을 AI에 넘기지 않는다.
+     */
+    private List<String> columnsForModel(
+            AnalysisStartRepository.Target target,
+            List<String> requested,
+            Map<Long, Set<String>> catalog) {
+        try {
+            return columnScope.columnsForModel(
+                    target.resourceKey(),
+                    requested,
+                    catalog.getOrDefault(target.sourceResourceId(), Set.of()));
+        } catch (BusinessException ex) {
+            throw new AnalysisStartException(ex.getMessage() + " (" + target.resourceKey() + ")");
+        }
+    }
+
+    private Map<Long, Set<String>> catalog(List<AnalysisStartRepository.Target> targets) {
+        Map<Long, Set<String>> catalog = new HashMap<>();
+        for (SourceColumn column :
+                sourceColumns.findBySourceResourceIdInAndIsPresentTrue(
+                        targets.stream()
+                                .map(AnalysisStartRepository.Target::sourceResourceId)
+                                .toList())) {
+            catalog.computeIfAbsent(column.getSourceResourceId(), ignored -> new HashSet<>())
+                    .add(column.getColumnName());
+        }
+        return catalog;
     }
 
     private Source source(List<AnalysisStartRepository.Target> group) {

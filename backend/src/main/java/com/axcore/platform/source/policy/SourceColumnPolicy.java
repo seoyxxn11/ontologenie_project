@@ -45,6 +45,13 @@ public class SourceColumnPolicy {
         return forbidden.contains(key(resourceKey, WHOLE_TABLE));
     }
 
+    /** 이 표에 금지·민감 항목(표 전체 포함)이 하나라도 있는가. 컬럼 목록 없이 표 전체를 넘겨도 되는지 판단할 때 쓴다. */
+    public boolean coversTable(String resourceKey) {
+        String prefix = (resourceKey + ".").toLowerCase(Locale.ROOT);
+        return forbidden.stream().anyMatch(entry -> entry.startsWith(prefix))
+                || restricted.stream().anyMatch(entry -> entry.startsWith(prefix));
+    }
+
     public SourceColumnGrade gradeOf(String resourceKey, String column) {
         if (forbidsTable(resourceKey) || forbidden.contains(key(resourceKey, column))) {
             return SourceColumnGrade.FORBIDDEN;

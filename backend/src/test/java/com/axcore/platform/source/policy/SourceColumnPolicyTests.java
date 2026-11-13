@@ -40,6 +40,16 @@ class SourceColumnPolicyTests {
     }
 
     @Test
+    void coversTablesThatHaveAnyListedEntry() {
+        assertThat(policy.coversTable("erp.attendance")).isTrue();
+        assertThat(policy.coversTable("ERP.Employee")).isTrue();
+        assertThat(policy.coversTable("erp.vendor")).isTrue();
+        assertThat(policy.coversTable("mes.worker")).isTrue();
+        assertThat(policy.coversTable("erp.emp")).isFalse();
+        assertThat(policy.coversTable("erp.item")).isFalse();
+    }
+
+    @Test
     void rejectsMappingToForbiddenTablesOrColumns() {
         policy.requireCollectable("erp.employee", List.of("emp_no"), "keyColumns");
 
