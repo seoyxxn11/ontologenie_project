@@ -615,6 +615,72 @@ public class ObjectQueryRepository {
                 .list();
     }
 
+    /**
+     * ids 중 볼 수 있는 유형의 활성 객체만 객체 ID → 유형 ID로 돌려준다. Search Around(379)가 기준 객체를 쿼리 한 번으로 확인할 때 쓴다.
+     */
+    public Map<Long, Long> findActiveObjectTypes(
+            Collection<Long> ids, Collection<Long> visibleTypeIds) {
+        Map<Long, Long> types = new LinkedHashMap<>();
+        jdbc.sql(
+                        """
+                        select oi.id, oi.object_type_id
+                        from object_instance oi
+                        where oi.id = any(:ids)
+                          and oi.status = 'ACTIVE'
+                          and oi.object_type_id in (:visibleTypeIds)
+                        """)
+                .param("ids", new SqlArrayValue("bigint", ids.toArray()))
+                .param("visibleTypeIds", visibleTypeIds)
+                .query(
+                        rs -> {
+                            types.put(rs.getLong("id"), rs.getLong("object_type_id"));
+                        });
+        return types;
+    }
+
+    /**
+     * 기준 객체에서 linkTypeId 활성 관계로 한 홉 건넌 relatedTypeId 유형의 활성 객체 ID를 중복 없이 id 순으로 limit건까지 돌려준다(379).
+     * 관계·상대 객체 상태는 078의 LINK_FILTERS와 같고, filters는 076과 같은 SQL로 상대 객체에 건다. 기준 객체의 상태·권한과 상대 유형의 권한은
+     * 호출자가 같은 트랜잭션에서 먼저 확인한다.
+     */
+    public List<Long> searchAround(
+            Collection<Long> baseIds,
+            long linkTypeId,
+            Direction direction,
+            long relatedTypeId,
+            SearchFilters filters,
+            int limit) {
+        SearchClause conditions = searchConditions(filters);
+        return jdbc.sql(
+                        """
+                        select oi.id
+                        from (
+                            select l.target_object_id as related_id
+                            from object_link l
+                            where :includeOut and l.link_type_id = :linkTypeId and l.status = 'ACTIVE'
+                              and l.source_object_id = any(:baseIds)
+                            union
+                            select l.source_object_id
+                            from object_link l
+                            where :includeIn and l.link_type_id = :linkTypeId and l.status = 'ACTIVE'
+                              and l.target_object_id = any(:baseIds)
+                        ) related
+                        join object_instance oi on oi.id = related.related_id
+                        where oi.status = 'ACTIVE' and oi.object_type_id = :relatedTypeId
+                        """
+                                + conditions.sql()
+                                + "order by oi.id limit :limit")
+                .param("baseIds", new SqlArrayValue("bigint", baseIds.toArray()))
+                .param("linkTypeId", linkTypeId)
+                .param("includeOut", direction != Direction.IN)
+                .param("includeIn", direction != Direction.OUT)
+                .param("relatedTypeId", relatedTypeId)
+                .params(conditions.parameters())
+                .param("limit", limit)
+                .query(Long.class)
+                .list();
+    }
+
     public Optional<ObjectLinkEvidenceResponse> findLinkEvidence(
             long objectId,
             long linkId,
