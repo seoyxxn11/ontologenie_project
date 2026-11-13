@@ -1879,6 +1879,31 @@ function CurrentSearch() {
   return <p>{`주소: ${location.search}`}</p>
 }
 
+test('새 화면에서도 URL의 연결 목록 페이지를 복원한다', async () => {
+  mockManyLinks(230)
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <MemoryRouter
+        initialEntries={[
+          '/explorer?object=301&anchor=301&relation=7:in&relatedPage=1',
+        ]}
+      >
+        <ExplorerPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+  const list = within(screen.getByRole('region', { name: '객체 목록' }))
+  expect(await list.findByText('불량 8')).toBeVisible()
+  expect(list.getByRole('button', { name: '2페이지로 이동' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  )
+})
+
 test('연결 목록에서 검색 결과로 돌아오면 기존 검색 페이지를 복원한다', async () => {
   mockManyObjects(41)
   mockManyLinks(230)
@@ -1911,7 +1936,7 @@ test('연결 목록에서 검색 결과로 돌아오면 기존 검색 페이지�
     'aria-current',
     'page',
   )
-  expect(screen.getByText('주소: ?object=301')).toBeVisible()
+  expect(screen.getByText('주소: ?object=301&page=1')).toBeVisible()
 })
 
 test('주소에서 연결 목록·기준 객체·선택 상세를 복원하고 새 검색은 연결 탐색을 해제한다', async () => {
@@ -1947,7 +1972,9 @@ test('주소에서 연결 목록·기준 객체·선택 상세를 복원하고 �
     await list.findByRole('button', { name: /프레스 1호기/ }),
   ).toBeVisible()
   expect(list.getByRole('heading', { name: '객체 목록' })).toBeVisible()
-  expect(screen.getByText('주소:')).toBeVisible()
+  expect(
+    screen.getByText(`주소: ?${new URLSearchParams({ q: '프레스 1호기' })}`),
+  ).toBeVisible()
 })
 
 test('확장한 관계도에서 묶음을 고르면 분할 보기로 돌아와 왼쪽 결과를 보여준다', async () => {

@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import Pagination from '../../components/Pagination'
 import Button from '../../components/Button'
@@ -24,16 +24,14 @@ import { toLinkGroups, type LinkGroup } from './graphLayout'
 import ObjectSearchBar from './ObjectSearchBar'
 import TypeRelations from './TypeRelations'
 import { formatCount, formatObjectKey, withAndParticle } from './format'
+import { positiveId, readSearchState, writeSearchState } from './searchState'
 import './explorer.css'
 
 // 유형 관계도는 그래프 라이브러리(React Flow)가 커서, 처음 화면에 그릴 때 따로 받아 온다.
 const ModelGraph = lazy(() => import('./ModelGraph'))
 
 // 주소의 ?object= 값이 1 이상의 정수일 때만 객체 번호로 본다.
-function parseObjectId(value: string | null) {
-  const id = Number(value)
-  return Number.isInteger(id) && id > 0 ? id : null
-}
+const parseObjectId = positiveId
 
 function ExplorerPage() {
   // 고른 객체는 주소의 ?object=에 둔다. Agent 답변의 [객체 열기], 새로고침, 뒤로 가기가 같은 객체를 연다(151).
@@ -45,56 +43,56 @@ function ExplorerPage() {
     anchorId: number
     group: LinkGroup
   } | null>(null)
-  const [filters, setFilters] = useState<ObjectFilters>({})
-  const [page, setPage] = useState(0)
+  const { filters, page } = readSearchState(searchParams)
+  const detailPanel = useRef<HTMLElement>(null)
   const [graphExpanded, setGraphExpanded] = useState(false)
   // 유형 관계도의 보기 방식. 객체를 골랐다가 전체 구조로 돌아와도 고른 보기를 유지한다.
   const [modelView, setModelView] = useState<ModelGraphView>('graph')
 
-  // 객체를 고르면 주소에 번호를 쓰고, 선택을 풀면 지운다. 기록을 쌓지 않아 뒤로 가기는 이전 화면으로 간다.
+  // 객체·관계 선택은 기록을 쌓아 뒤로 가기에서 이전 상세와 검색 문맥을 복원한다.
   function selectObject(id: number | null) {
-    setSearchParams(
-      (previous) => {
-        const next = new URLSearchParams(previous)
-        next.delete('anchor')
-        next.delete('relation')
-        if (id === null) {
-          next.delete('object')
-        } else {
-          next.set('object', String(id))
-        }
-        return next
-      },
-      { replace: true },
+    if (
+      id === selectedId &&
+      !searchParams.has('anchor') &&
+      !searchParams.has('relation')
     )
+      return
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous)
+      next.delete('anchor')
+      next.delete('relation')
+      next.delete('relatedPage')
+      if (id === null) {
+        next.delete('object')
+      } else {
+        next.set('object', String(id))
+      }
+      return next
+    })
   }
 
   function selectGroup(group: LinkGroup) {
     if (anchorId === null) return
-    setLastGroup({ anchorId, group })
-    setSearchParams(
-      (previous) => {
-        const next = new URLSearchParams(previous)
-        next.set('object', String(anchorId))
-        next.set('anchor', String(anchorId))
-        next.set('relation', group.key)
-        return next
-      },
-      { replace: true },
-    )
-    // 확장 상태에서도 선택 결과를 왼쪽에서 바로 확인한다.
     setGraphExpanded(false)
+    if (relationKey === group.key && selectedId === anchorId) return
+    setLastGroup({ anchorId, group })
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous)
+      next.set('object', String(anchorId))
+      next.set('anchor', String(anchorId))
+      next.set('relation', group.key)
+      next.delete('relatedPage')
+      return next
+    })
   }
 
   function inspectObject(id: number) {
-    setSearchParams(
-      (previous) => {
-        const next = new URLSearchParams(previous)
-        next.set('object', String(id))
-        return next
-      },
-      { replace: true },
-    )
+    if (id === selectedId) return
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous)
+      next.set('object', String(id))
+      return next
+    })
   }
 
   const groupsQuery = useQuery({
@@ -188,10 +186,15 @@ function ExplorerPage() {
       Object.entries(properties).every(
         ([key, value]) => nextProperties[key] === value,
       )
-    if (showRelated) selectObject(sameConditions ? anchorId : null)
-    else if (!sameConditions) selectObject(null)
-    setFilters(nextFilters)
-    setPage(0)
+    const next = writeSearchState(searchParams, nextFilters, 0)
+    if (!sameConditions) next.delete('object')
+    else if (showRelated && anchorId !== null)
+      next.set('object', String(anchorId))
+    next.delete('anchor')
+    next.delete('relation')
+    next.delete('relatedPage')
+    if (next.toString() === searchParams.toString()) void refetchObjects()
+    else setSearchParams(next)
   }
 
   // 유형 카드를 누르면 검색어는 그대로 두고 객체 유형만 바꾼다.
@@ -204,7 +207,10 @@ function ExplorerPage() {
     (type) => type.id === filters.objectTypeId,
   )?.name
   const appliedConditions = [
-    appliedTypeName ?? '전체 유형',
+    appliedTypeName ??
+      (filters.objectTypeId
+        ? `객체 유형 #${filters.objectTypeId}`
+        : '전체 유형'),
     filters.q ? `이름·ID: ${filters.q}` : null,
     ...Object.values(filters.propertyValues ?? {}).map(
       (value) => `속성 값: ${value}`,
@@ -213,14 +219,37 @@ function ExplorerPage() {
     .filter(Boolean)
     .join(' · ')
 
-  if (
-    !isFetching &&
-    !isPlaceholderData &&
-    !isError &&
-    totalCount !== undefined
-  ) {
+  useEffect(() => {
+    if (isFetching || isPlaceholderData || isError || totalCount === undefined)
+      return
     const lastPage = Math.max(0, Math.ceil(totalCount / OBJECT_PAGE_SIZE) - 1)
-    if (page > lastPage) setPage(lastPage)
+    if (page > lastPage)
+      setSearchParams(writeSearchState(searchParams, filters, lastPage), {
+        replace: true,
+      })
+  }, [
+    page,
+    totalCount,
+    isFetching,
+    isPlaceholderData,
+    isError,
+    searchParams,
+    setSearchParams,
+    filters,
+  ])
+
+  function showDetail() {
+    setGraphExpanded(false)
+    requestAnimationFrame(() => {
+      detailPanel.current?.scrollIntoView?.({
+        block: 'start',
+        behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)')
+          .matches
+          ? 'auto'
+          : 'smooth',
+      })
+      detailPanel.current?.focus({ preventScroll: true })
+    })
   }
 
   let listContent
@@ -281,6 +310,14 @@ function ExplorerPage() {
         <span>적용 조건</span> {appliedConditions}
       </p>
 
+      {selectedId !== null && (
+        <div className="explorer-detail-shortcut">
+          <Button variant="secondary" onClick={showDetail}>
+            선택 객체 상세 바로 보기
+          </Button>
+        </div>
+      )}
+
       <div
         className={`explorer-workbench${graphExpanded ? ' is-expanded' : ''}`}
       >
@@ -321,12 +358,20 @@ function ExplorerPage() {
 
               {objectPage && objectPage.data.length > 0 && (
                 <Pagination
-                  page={
-                    isPlaceholderData ? (objectPage.meta?.page ?? page) : page
-                  }
+                  page={Math.min(
+                    isPlaceholderData ? (objectPage.meta?.page ?? page) : page,
+                    Math.max(
+                      0,
+                      Math.ceil((totalCount ?? 0) / OBJECT_PAGE_SIZE) - 1,
+                    ),
+                  )}
                   size={OBJECT_PAGE_SIZE}
                   totalElements={totalCount ?? 0}
-                  onChange={setPage}
+                  onChange={(next) =>
+                    setSearchParams(
+                      writeSearchState(searchParams, filters, next),
+                    )
+                  }
                   pending={isFetching}
                   compact
                   showSummary={false}
@@ -425,6 +470,8 @@ function ExplorerPage() {
         </section>
 
         <section
+          ref={detailPanel}
+          tabIndex={-1}
           aria-label="상세 정보"
           className="explorer-panel explorer-detail"
           hidden={graphExpanded}

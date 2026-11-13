@@ -474,6 +474,9 @@
   color: var(--ui-brand-strong);
 }
 
+.explorer-detail-shortcut {
+  display: none;
+}
 @media (max-width: 1023px) {
   .explorer-search {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -502,6 +505,16 @@
   }
   .explorer-detail {
     grid-column: auto;
+    grid-row: 2;
+    scroll-margin-top: 72px;
+  }
+  .explorer-graph {
+    grid-row: 3;
+  }
+  .explorer-detail-shortcut {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
   }
   .explorer-list {
     grid-row: auto;
@@ -769,5 +782,15 @@
   }
   .explorer-detail {
     grid-column: auto;
+    grid-row: 2;
+    scroll-margin-top: 72px;
+  }
+  .explorer-graph {
+    grid-row: 3;
+  }
+  .explorer-detail-shortcut {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
   }
 }
