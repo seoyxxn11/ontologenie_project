@@ -307,7 +307,8 @@ class ModelComparisonGmsTests {
                                                 previous = used.conditions();
                                                 pending = null;
                                             }
-                                            // HELP/OUT_OF_SCOPE preserve the previous business
+                                            // HELP/OUT_OF_SCOPE/PERSON_EVALUATION preserve the
+                                            // previous business
                                             // state, like production.
                                         }
                                     }
@@ -456,9 +457,7 @@ class ModelComparisonGmsTests {
                             result.set(
                                     new Result(
                                             scope.name(),
-                                            scope == QuestionScope.HELP
-                                                    ? AgentAnswerService.HELP_CONTENT
-                                                    : AgentAnswerService.OUT_OF_SCOPE_CONTENT,
+                                            AgentAnswerService.outsideBusinessContent(scope),
                                             null,
                                             Map.of("scope", scope.name())));
                             return null;

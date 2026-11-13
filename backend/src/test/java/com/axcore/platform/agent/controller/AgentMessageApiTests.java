@@ -31,6 +31,7 @@ import com.axcore.platform.agent.service.AgentResponder;
 import com.axcore.platform.agent.service.AgentTargetResolver;
 import com.axcore.platform.agent.service.ConversationTurn;
 import com.axcore.platform.agent.service.PendingClarification;
+import com.axcore.platform.agent.service.PersonEvaluationExamples;
 import com.axcore.platform.agent.service.QuestionInterpretation;
 import com.axcore.platform.agent.service.QuestionInterpreter;
 import com.axcore.platform.agent.service.QuestionScope;
@@ -38,6 +39,7 @@ import com.axcore.platform.audit.service.AuditExecutionQueryService;
 import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.ontology.service.ObjectSearchQuery;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -466,7 +468,7 @@ class AgentMessageApiTests {
     @ParameterizedTest
     @EnumSource(
             value = QuestionScope.class,
-            names = {"HELP", "OUT_OF_SCOPE"})
+            names = {"HELP", "OUT_OF_SCOPE", "PERSON_EVALUATION"})
     void clarificationContinuesAfterOutOfScopeQuestion(QuestionScope scope) throws Exception {
         when(interpreter.isConfigured()).thenReturn(true);
         when(responder.answer(anyString(), any(), any(), any())).thenReturn("비가동 이력 답변");
@@ -481,8 +483,13 @@ class AgentMessageApiTests {
 
         ask(conversation, "비가동 이력 보여줘").andExpect(status().isAccepted());
         awaitAnswered(conversation);
-        ask(conversation, scope == QuestionScope.HELP ? "근데 너는 뭘 할 수 있어?" : "오늘 날씨 어때?")
-                .andExpect(status().isAccepted());
+        String aside =
+                switch (scope) {
+                    case HELP -> "근데 너는 뭘 할 수 있어?";
+                    case PERSON_EVALUATION -> "작업자별 근무 시간 보여줘";
+                    default -> "오늘 날씨 어때?";
+                };
+        ask(conversation, aside).andExpect(status().isAccepted());
         awaitAnswered(conversation);
         ask(conversation, "PR-03").andExpect(status().isAccepted());
         awaitAnswered(conversation);
@@ -502,6 +509,65 @@ class AgentMessageApiTests {
                 .andExpect(jsonPath("$.data[5].answerMeta.clarification").doesNotExist())
                 .andExpect(jsonPath("$.data[5].answerMeta.conditions.purpose").value("비가동 이력"))
                 .andExpect(jsonPath("$.data[5].answerMeta.conditions.targets[0]").value("PR-03"));
+    }
+
+    @Test
+    void personEvaluationQuestionsGetFixedSentenceWhileRecordLevelQuestionsAreAnswered()
+            throws Exception {
+        // 분류는 해석 AI가 한다(실제 분류는 PersonEvaluationScopeGmsTests). 여기서는 분류 뒤 서버가 막을 질문은 조회 없이 정해진 문장으로,
+        // 통과시킬 질문은 평소처럼 대상을 찾아 답하는지 같은 예시 질문으로 본다(384-④).
+        when(interpreter.isConfigured()).thenReturn(true);
+        when(responder.answer(anyString(), any(), any(), any())).thenReturn("담당자 답변");
+        when(interpreter.interpret(anyString(), anyMap(), any(), any(), any(), any()))
+                .thenAnswer(
+                        call ->
+                                PersonEvaluationExamples.BLOCKED.contains(call.getArgument(0))
+                                        ? outsideBusiness(QuestionScope.PERSON_EVALUATION)
+                                        : new QuestionInterpretation(
+                                                "담당자",
+                                                List.of("PR-03"),
+                                                null,
+                                                null,
+                                                List.of(),
+                                                null));
+        List<String> questions = new ArrayList<>();
+        questions.addAll(PersonEvaluationExamples.BLOCKED);
+        questions.addAll(PersonEvaluationExamples.ALLOWED);
+
+        for (String question : questions) {
+            ask(conversation, question).andExpect(status().isAccepted());
+            awaitAnswered(conversation);
+        }
+
+        ResultActions messages =
+                mvc.perform(get(MESSAGES, conversation).param("size", "50").with(loggedIn(owner)))
+                        .andExpect(jsonPath("$.data.length()").value(2 * questions.size()));
+        for (int i = 0; i < questions.size(); i++) {
+            String answer = "$.data[" + (2 * i + 1) + "]";
+            if (PersonEvaluationExamples.BLOCKED.contains(questions.get(i))) {
+                messages.andExpect(jsonPath(answer + ".status").value("SUCCEEDED"))
+                        .andExpect(
+                                jsonPath(answer + ".content")
+                                        .value(containsString("개인을 평가하거나 감시하는 질문에는 답하지 않아요")))
+                        .andExpect(
+                                jsonPath(answer + ".answerMeta.scope").value("PERSON_EVALUATION"))
+                        .andExpect(jsonPath(answer + ".answerMeta.results.length()").value(0))
+                        .andExpect(jsonPath(answer + ".answerMeta.conditions").doesNotExist());
+            } else {
+                messages.andExpect(jsonPath(answer + ".status").value("SUCCEEDED"))
+                        .andExpect(jsonPath(answer + ".content").value("담당자 답변"))
+                        .andExpect(jsonPath(answer + ".answerMeta.scope").doesNotExist())
+                        .andExpect(
+                                jsonPath(answer + ".answerMeta.conditions.purpose").value("담당자"));
+            }
+        }
+        // 막은 질문은 답변 AI(조회 도구)를 부르지 않는다. 통과한 질문만 부른다.
+        for (String blocked : PersonEvaluationExamples.BLOCKED) {
+            verify(responder, never()).answer(eq(blocked), any(), any(), any());
+        }
+        for (String allowed : PersonEvaluationExamples.ALLOWED) {
+            verify(responder).answer(eq(allowed), any(), any(), any());
+        }
     }
 
     @Test

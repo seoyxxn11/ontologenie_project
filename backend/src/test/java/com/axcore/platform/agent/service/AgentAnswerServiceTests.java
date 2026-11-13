@@ -56,6 +56,25 @@ class AgentAnswerServiceTests {
     }
 
     @Test
+    void answersPersonEvaluationQuestionWithFixedSentence() {
+        AgentMessage answer = runningAnswer();
+
+        answers.answerOutsideBusiness(900L, QuestionScope.PERSON_EVALUATION);
+
+        // 384-④: 개인 평가·감시 질문은 정해진 문장으로 끝내고, 기록 단위로는 물을 수 있다고 알린다.
+        assertThat(answer.getStatus()).isEqualTo(MessageStatus.SUCCEEDED);
+        assertThat(answer.getContent())
+                .isEqualTo(AgentAnswerService.PERSON_EVALUATION_CONTENT)
+                .contains("개인을 평가하거나 감시하는 질문에는 답하지 않아요", "기록마다 누가 했는지는 확인할 수 있어요");
+        assertThat(answer.getAnswerMeta())
+                .containsEntry("results", List.of())
+                .containsEntry("actions", List.of())
+                .containsEntry(QuestionScope.ANSWER_META_KEY, "PERSON_EVALUATION")
+                .doesNotContainKeys("conditions", "clarification", "stage");
+        assertThat(QuestionScope.answeredOutsideBusiness(answer.getAnswerMeta())).isTrue();
+    }
+
+    @Test
     void refusesFixedGuideForBusinessQuestion() {
         assertThatThrownBy(() -> answers.answerOutsideBusiness(900L, QuestionScope.BUSINESS))
                 .isInstanceOf(IllegalArgumentException.class);

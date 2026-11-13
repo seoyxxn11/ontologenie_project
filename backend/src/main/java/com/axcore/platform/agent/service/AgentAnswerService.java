@@ -54,20 +54,34 @@ public class AgentAnswerService {
 
             설비 코드나 이름을 함께 말하면 더 정확하게 찾아요.""";
 
+    /** 사람 단위 평가·감시 질문에 대한 답(384-④). 조회하지 않고, 기록 단위로 담당자를 찾는 질문은 된다는 것을 예시로 알린다. */
+    static final String PERSON_EVALUATION_CONTENT =
+            """
+            작업자별 실적·불량률·근무 시간이나 사람끼리의 순위·비교처럼 개인을 평가하거나 감시하는 질문에는 답하지 않아요. \
+            이 Agent는 설비와 작업 운영을 돕기 위한 것이에요.
+
+            설비·작업지시 단위로 물어봐 주세요. 기록마다 누가 했는지는 확인할 수 있어요. \
+            예: "P103 이번 달 불량 기록 보여줘", "JB2610-0138 작업은 누가 했어?\"""";
+
     private final AgentMessageRepository messages;
 
+    /** 업무가 아닌 범위에 답하는 정해진 문장. 업무 질문에는 정해진 문장이 없다. */
+    static String outsideBusinessContent(QuestionScope scope) {
+        return switch (scope) {
+            case HELP -> HELP_CONTENT;
+            case OUT_OF_SCOPE -> OUT_OF_SCOPE_CONTENT;
+            case PERSON_EVALUATION -> PERSON_EVALUATION_CONTENT;
+            case BUSINESS -> throw new IllegalArgumentException("업무 질문은 정해진 문장으로 답하지 않는다");
+        };
+    }
+
     /**
-     * 업무가 아닌 질문(사용 안내·업무 외)에 정해진 문장으로 답한다. 조회하지 않으므로 결과가 없고, 이번 답변의 조건(conditions)도 남기지 않는다.
-     * answerMeta.scope로 이 답변이 업무 외 안내임을 남겨, 다음 질문은 이 답변을 건너뛰고 그 전 대화(되묻기나 업무 답변)를 이어 간다.
+     * 업무가 아닌 질문(사용 안내·업무 외·개인 평가·감시)에 정해진 문장으로 답한다. 조회하지 않으므로 결과가 없고, 이번 답변의 조건(conditions)도 남기지
+     * 않는다. answerMeta.scope로 이 답변이 업무 외 안내임을 남겨, 다음 질문은 이 답변을 건너뛰고 그 전 대화(되묻기나 업무 답변)를 이어 간다.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void answerOutsideBusiness(long answerId, QuestionScope scope) {
-        String content =
-                switch (scope) {
-                    case HELP -> HELP_CONTENT;
-                    case OUT_OF_SCOPE -> OUT_OF_SCOPE_CONTENT;
-                    case BUSINESS -> throw new IllegalArgumentException("업무 질문은 정해진 문장으로 답하지 않는다");
-                };
+        String content = outsideBusinessContent(scope);
         running(answerId)
                 .ifPresent(
                         answer ->

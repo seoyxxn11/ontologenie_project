@@ -65,7 +65,11 @@ class AgentAnswerProcessorTests {
     @Test
     void answersOutsideBusinessWithoutLookingUpOrAskingBack() {
         when(interpreter.isConfigured()).thenReturn(true);
-        for (QuestionScope scope : List.of(QuestionScope.OUT_OF_SCOPE, QuestionScope.HELP)) {
+        for (QuestionScope scope :
+                List.of(
+                        QuestionScope.OUT_OF_SCOPE,
+                        QuestionScope.HELP,
+                        QuestionScope.PERSON_EVALUATION)) {
             // 업무 외 질문에서 AI가 대상 같은 값을 잘못 뽑아도 찾거나 되묻지 않는다.
             when(interpreter.interpret(any(), any(), any(), any(), any(), any()))
                     .thenReturn(
