@@ -20,7 +20,7 @@ function Candidates({ proposal }: { proposal: Proposal }) {
     retry: false,
   })
   if (query.isPending)
-    return <LoadingState message="후보 설비를 불러오는 중…" />
+    return <LoadingState message="연결 후보를 불러오는 중…" />
   if (query.isError)
     return (
       <ErrorState
@@ -67,7 +67,7 @@ function DocumentLinkView({ proposal }: { proposal: Proposal }) {
   return (
     <section
       aria-label="정보 추출 결과"
-      className="space-y-4 rounded-xl border border-slate-200 p-5 text-sm"
+      className="space-y-4 break-words rounded-xl border border-slate-200 p-5 text-sm"
     >
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="font-semibold">정보 추출 결과</h3>
@@ -115,7 +115,7 @@ function DocumentLinkView({ proposal }: { proposal: Proposal }) {
           )}
         </div>
 
-        <dl className="divide-y divide-slate-100">
+        <dl className="min-w-0 divide-y divide-slate-100">
           <div className="grid grid-cols-[96px_1fr] gap-2 py-2">
             <dt className="text-slate-600">언급</dt>
             <dd className="font-medium">{link.mentionText ?? '-'}</dd>
@@ -125,7 +125,15 @@ function DocumentLinkView({ proposal }: { proposal: Proposal }) {
             <dd className="font-medium">
               {undecided
                 ? '미확정'
-                : targetName(link.targetObjectRef, link.targetLabels)}
+                : link.targetObjectRef
+                  ? targetName(link.targetObjectRef, link.targetLabels)
+                  : '연결 대상이 제공되지 않았습니다.'}
+            </dd>
+          </div>
+          <div className="grid grid-cols-[96px_1fr] gap-2 py-2">
+            <dt className="text-slate-600">판단 근거</dt>
+            <dd className="whitespace-pre-wrap">
+              {link.reason ?? '판단 근거가 제공되지 않았습니다.'}
             </dd>
           </div>
           {link.observations.length > 0 && (

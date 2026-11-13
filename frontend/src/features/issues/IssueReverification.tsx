@@ -337,7 +337,7 @@ export default function IssueReverification({ issue }: { issue: Issue }) {
           <div className="mt-3 space-y-4">
             {filter && detectedCheckRunId > 0 ? (
               <RunResults
-                key={detectedCheckRunId}
+                key={`detected:${detectedCheckRunId}`}
                 title="발견 당시 검사 결과"
                 runId={detectedCheckRunId}
                 filter={filter}
@@ -350,7 +350,7 @@ export default function IssueReverification({ issue }: { issue: Issue }) {
             {resolvedCheckRunId != null &&
             resolvedCheckRunId !== detectedCheckRunId ? (
               <ResolvedRunResults
-                key={resolvedCheckRunId}
+                key={`resolved:${resolvedCheckRunId}`}
                 issueId={issue.id}
                 runId={resolvedCheckRunId}
               />
@@ -363,14 +363,14 @@ export default function IssueReverification({ issue }: { issue: Issue }) {
               run?.status === 'SUCCEEDED' &&
               run.id !== resolvedCheckRunId && (
                 <RunResults
-                  key={run.id}
+                  key={`current:${run.id}`}
                   title="이번 재검증 검사 결과"
                   runId={run.id}
                   filter={{ linkMappingId: run.scope.linkMappingIds[0]! }}
                 />
               )}
             <ReverificationHistory
-              key={runId}
+              key={`history:${runId ?? 'none'}`}
               issueId={issue.id}
               completedRunId={run?.status === 'SUCCEEDED' ? run.id : undefined}
               resolvedRunId={resolvedCheckRunId}

@@ -72,7 +72,11 @@ function open(overrides: Partial<Issue> = {}, search = '?view=issues&issue=1') {
   return { state, client, detail, list, history, ...view }
 }
 
-test('한 번 접수하고 대기·실행·완료를 조회하며 실제 개정본 결과와 이전 결과를 비교한다', async () => {
+test('한 번 접수하고 대기·실행·완료를 조회하며 실제 개정본 결과와 이전 결과를 비교한다', async ({
+  onTestFinished,
+}) => {
+  const errors = vi.spyOn(console, 'error')
+  onTestFinished(() => errors.mockRestore())
   const user = userEvent.setup()
   const post = vi.fn(async ({ request }: { request: Request }) => {
     expect(await request.json()).toEqual({
@@ -200,6 +204,11 @@ test('한 번 접수하고 대기·실행·완료를 조회하며 실제 개정�
   expect(change).not.toHaveBeenCalled()
   expect(verifications).toHaveBeenCalledTimes(1)
   expect(comparison).toHaveBeenCalledTimes(1)
+  expect(
+    errors.mock.calls.filter(([message]) =>
+      String(message).includes('Encountered two children with the same key'),
+    ),
+  ).toEqual([])
 })
 
 test.each([false, true])(
