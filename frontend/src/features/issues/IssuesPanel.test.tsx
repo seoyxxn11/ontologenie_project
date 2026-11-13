@@ -117,7 +117,11 @@ function HistoryControl() {
   )
 }
 
-test('재검증 결과와 상태 변경 이력을 함께 표시하고 해결 후 갱신한다', async () => {
+test('재검증 결과와 상태 변경 이력을 함께 표시하고 해결 후 갱신한다', async ({
+  onTestFinished,
+}) => {
+  const errors = vi.spyOn(console, 'error')
+  onTestFinished(() => errors.mockRestore())
   let requested = false
   let resolved = false
   const run = {
@@ -301,6 +305,11 @@ test('재검증 결과와 상태 변경 이력을 함께 표시하고 해결 후
   expect(
     verificationHistoryRegion.getByText('실행 #42 · 통과'),
   ).toBeInTheDocument()
+  expect(
+    errors.mock.calls.filter(([message]) =>
+      String(message).includes('Encountered two children with the same key'),
+    ),
+  ).toEqual([])
 })
 
 function open(

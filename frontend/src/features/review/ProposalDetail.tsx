@@ -33,7 +33,7 @@ import {
   reviewLabels,
 } from './labels'
 
-// 문서 연결은 위의 "정보 추출 결과"가 원문·언급 위치·관찰 표현을 보여 주므로 아래에서 다시 늘어놓지 않는다
+// 문서 연결은 기본 화면의 "정보 추출 결과"에서 보여 준 값을 다시 늘어놓지 않는다.
 const DOCUMENT_SHOWN_PAYLOAD = ['spanStart', 'spanEnd']
 const DOCUMENT_SHOWN_EVIDENCE = ['originalText', 'observations', 'times']
 
@@ -287,7 +287,10 @@ export default function ProposalDetail({
               aria-label="후보 상세 보기"
             >
               {[
-                ['rule', '규칙 내용'],
+                [
+                  'rule',
+                  item.itemKind === 'DOCUMENT_LINK' ? '문서 내용' : '규칙 내용',
+                ],
                 ['check', '검사 결과'],
                 ['evidence', '제안 이유·원본'],
               ].map(([key, label]) => (
@@ -307,7 +310,11 @@ export default function ProposalDetail({
           hidden={!!embeddedId && detailTab !== 'rule'}
           className="space-y-6"
         >
-          {embeddedId && <RuleContent proposal={item} />}
+          {item.itemKind === 'DOCUMENT_LINK' ? (
+            <DocumentLinkView proposal={item} />
+          ) : (
+            embeddedId && <RuleContent proposal={item} />
+          )}
           <details open={!embeddedId} className="candidate-definition">
             <summary>
               {embeddedId ? '후보 상세 정의·대안 보기' : '상세 정의'}
@@ -336,9 +343,6 @@ export default function ProposalDetail({
                   </p>
                 )}
               </section>
-            )}
-            {item.itemKind === 'DOCUMENT_LINK' && (
-              <DocumentLinkView proposal={item} />
             )}
             <ProposalBundleView proposal={item} />
             <section className="rounded-xl border border-slate-200 p-5">

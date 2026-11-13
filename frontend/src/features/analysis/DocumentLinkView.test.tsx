@@ -76,7 +76,7 @@ function serve(proposal: Proposal, options: ProposalOption[] = []) {
   )
 }
 
-function renderDetail() {
+function renderDetail(embedded = false) {
   render(
     <QueryClientProvider
       client={
@@ -85,12 +85,217 @@ function renderDetail() {
     >
       <MemoryRouter initialEntries={['/admin/rules/401']}>
         <Routes>
-          <Route path="/admin/rules/:id" element={<ProposalDetail />} />
+          <Route
+            path="/admin/rules/:id"
+            element={<ProposalDetail embeddedId={embedded ? 401 : undefined} />}
+          />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
   )
 }
+
+test('문서 후보의 기본 탭에서 펼치기 없이 내용·대상·판단 근거를 확인한다', async () => {
+  const proposal = documentLink({
+    evidence: {
+      ...documentLink().evidence,
+      documentLabel: '10/29 야간 인수인계',
+      targetLabels: { 'equipment:P103': '1라인 3호 프레스' },
+    },
+  })
+  serve(proposal)
+  renderDetail(true)
+
+  const result = await screen.findByRole('region', { name: '정보 추출 결과' })
+  expect(result).toBeVisible()
+  expect(result.closest('details')).toBeNull()
+  expect(within(result).getByLabelText('원문')).toHaveTextContent(note)
+  expect(within(result).getByText('1라인 3호 프레스 (P103)')).toBeVisible()
+  expect(within(result).getByText('판단 근거')).toBeVisible()
+  expect(
+    within(result).getByText(String(proposal.evidence.reason)),
+  ).toBeVisible()
+  expect(screen.getByRole('button', { name: '문서 내용' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  expect(
+    screen.queryByRole('heading', { name: '연결·변환 규칙' }),
+  ).not.toBeInTheDocument()
+  expect(
+    screen.getAllByRole('region', { name: '정보 추출 결과' }),
+  ).toHaveLength(1)
+})
+
+test('기본 상세는 마스킹된 응답을 그대로 표시하고 문서·원천을 별도 조회하지 않는다', async () => {
+  const requests: string[] = []
+  const trackRequest = ({ request }: { request: Request }) => {
+    requests.push(new URL(request.url).pathname)
+  }
+  serve(
+    documentLink({
+      evidence: {
+        originalText: '작업자 ***: 3호기 확인',
+        reason: '작업자 ***의 메모에서 설비를 확인했습니다.',
+        targetLabels: { 'equipment:P103': '***' },
+      },
+    }),
+  )
+  server.events.on('request:start', trackRequest)
+  try {
+    renderDetail(true)
+    const result = await screen.findByRole('region', { name: '정보 추출 결과' })
+    expect(within(result).getByLabelText('원문')).toHaveTextContent(
+      '작업자 ***: 3호기 확인',
+    )
+    expect(within(result).getByText('*** (P103)')).toBeVisible()
+    expect(
+      within(result).getByText('작업자 ***의 메모에서 설비를 확인했습니다.'),
+    ).toBeVisible()
+    await screen.findByRole('button', { name: '승인' })
+    expect(requests.length).toBeGreaterThan(0)
+    expect(
+      requests.every((path) =>
+        /^\/api\/v1\/proposals\/401(?:\/options)?$/.test(path),
+      ),
+    ).toBe(true)
+  } finally {
+    server.events.removeListener('request:start', trackRequest)
+  }
+})
+
+test('운영 응답 형태처럼 대상 이름·관찰·대안이 없어도 기본 상세에서 판단할 수 있다', async () => {
+  // 운영 원문을 복사하지 않고 #901에서 확인한 필드 형태만 합성한다.
+  const original = '새벽 3시쯤 JOB-TEST-1의 남은 작업을 주간조에 전달함.'
+  const mention = 'JOB-TEST-1'
+  const start = original.indexOf(mention)
+  serve(
+    documentLink({
+      checkRequired: false,
+      payload: {
+        name: '시험 인수인계 → 작업지시 JOB-TEST-1',
+        documentId: 'HN-TEST-1',
+        mentionText: mention,
+        spanStart: start,
+        spanEnd: start + mention.length,
+        linkTypeCode: 'ABOUT_WORK_ORDER',
+        targetObjectRef: 'mes.work_order:JOB-TEST-1',
+        expressionKind: 'OBSERVED',
+      },
+      evidence: {
+        documentLabel: '시험 인수인계',
+        originalText: original,
+        reason: '메모에 작업지시 번호가 직접 적혀 있습니다.',
+        observations: [],
+        times: [
+          {
+            text: '새벽 3시쯤',
+            basis: '글에 적힌 시각',
+            spanStart: 0,
+            spanEnd: 6,
+            normalized: '2026-10-30T03:00:00',
+          },
+        ],
+        holdRecommended: false,
+        holdReason: null,
+      },
+    }),
+    [],
+  )
+  renderDetail(true)
+
+  const result = await screen.findByRole('region', { name: '정보 추출 결과' })
+  expect(within(result).getByLabelText('원문')).toHaveTextContent(original)
+  expect(within(result).getByText('mes.work_order:JOB-TEST-1')).toBeVisible()
+  expect(
+    within(result).getByText('메모에 작업지시 번호가 직접 적혀 있습니다.'),
+  ).toBeVisible()
+  expect(within(result).getByTitle('연결한 언급')).toHaveTextContent(mention)
+  expect(within(result).getByText('확인된 언급')).toBeVisible()
+  expect(screen.getByText('검사 대상이 아닌 후보입니다.')).toBeVisible()
+  expect(within(result).queryByText('미확정')).not.toBeInTheDocument()
+  expect(
+    within(result).queryByRole('list', { name: '후보 대상' }),
+  ).not.toBeInTheDocument()
+})
+
+test.each([undefined, '', '   '])(
+  '기본 상세에서 비어 있는 문서·대상·근거(%s)의 미제공을 명확하게 알린다',
+  async (empty) => {
+    serve(
+      documentLink({
+        payload: { targetObjectRef: empty },
+        evidence: { originalText: empty, reason: empty },
+      }),
+    )
+    renderDetail(true)
+
+    const result = await screen.findByRole('region', { name: '정보 추출 결과' })
+    expect(
+      within(result).getByText('원문이 제공되지 않았습니다.'),
+    ).toBeVisible()
+    expect(
+      within(result).getByText('연결 대상이 제공되지 않았습니다.'),
+    ).toBeVisible()
+    expect(
+      within(result).getByText('판단 근거가 제공되지 않았습니다.'),
+    ).toBeVisible()
+  },
+)
+
+test('보류 후보도 기본 화면에서 미확정 이유와 복수 연결 대상을 확인한다', async () => {
+  serve(
+    documentLink({
+      reviewStatus: 'HELD',
+      evidence: {
+        ...documentLink().evidence,
+        holdRecommended: true,
+        holdReason: '같은 별칭을 쓰는 설비가 둘입니다.',
+        targetLabels: {
+          'equipment:P103': '1라인 3호 프레스',
+          'equipment:P203': '2라인 3호 프레스',
+        },
+      },
+    }),
+    [option(1, 'equipment:P103'), option(2, 'equipment:P203')],
+  )
+  renderDetail(true)
+
+  const result = await screen.findByRole('region', { name: '정보 추출 결과' })
+  expect(
+    within(result).getByText('같은 별칭을 쓰는 설비가 둘입니다.'),
+  ).toBeVisible()
+  expect(within(result).getAllByText('미확정')).toHaveLength(2)
+  const candidates = await within(result).findByRole('list', {
+    name: '후보 대상',
+  })
+  expect(candidates).toBeVisible()
+  expect(candidates).toHaveTextContent('1. 1라인 3호 프레스 (P103)')
+  expect(candidates).toHaveTextContent('2. 2라인 3호 프레스 (P203)')
+})
+
+test('상세 조회가 거부되면 문서 정보를 표시하거나 후보 대상을 조회하지 않는다', async () => {
+  let optionRequests = 0
+  server.use(
+    http.get('/api/v1/proposals/:id', () =>
+      HttpResponse.json(
+        { error: { code: 'FORBIDDEN', message: '조회 권한이 없습니다.' } },
+        { status: 403 },
+      ),
+    ),
+    http.get('/api/v1/proposals/:id/options', () => {
+      optionRequests += 1
+      return HttpResponse.json({ data: [] })
+    }),
+  )
+  renderDetail(true)
+
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    '조회 권한이 없습니다.',
+  )
+  expect(screen.queryByLabelText('원문')).not.toBeInTheDocument()
+  expect(optionRequests).toBe(0)
+})
 
 test('원문에서 연결한 언급과 추정·부정 표현을 나눠 보여준다', async () => {
   serve(documentLink())

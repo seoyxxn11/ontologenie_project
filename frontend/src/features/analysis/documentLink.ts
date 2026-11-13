@@ -104,7 +104,7 @@ export const expressionLabels = {
 } as const
 
 function text(value: unknown) {
-  return typeof value === 'string' && value ? value : undefined
+  return typeof value === 'string' && value.trim() ? value : undefined
 }
 
 function offset(value: unknown) {

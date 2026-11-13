@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import {
   createBrowserRouter,
   createRoutesFromElements,
@@ -9,26 +9,38 @@ import {
 } from 'react-router'
 import AppLayout from './components/AppLayout'
 import NotFoundPage from './components/NotFoundPage'
-import AgentPage from './features/agent/AgentPage'
-import AuditPage from './features/audit/AuditPage'
-import ExplorerPage from './features/explorer/ExplorerPage'
-import HistoryPage from './features/history/HistoryPage'
+import { LoadingState } from './components/Feedback'
 import AuthProvider from './features/auth/AuthProvider'
 import RequireAuth from './features/auth/RequireAuth'
 import LoginPage from './features/auth/LoginPage'
 import PasswordChangePage from './features/auth/PasswordChangePage'
-import SourcesPage from './features/sources/SourcesPage'
 import RequireAccess from './features/auth/RequireAccess'
-import ProposalsPage from './features/review/ProposalsPage'
-import ProposalDetail from './features/review/ProposalDetail'
-import ProposalHistoryPage from './features/review/ProposalHistoryPage'
-import RuleEditorPage from './features/review/RuleEditorPage'
-import AccountsPage from './features/accounts/AccountsPage'
-import AccountEditorPage from './features/accounts/AccountEditorPage'
-import ActionDefinitionsPage from './features/actions/ActionDefinitionsPage'
-import ActionDefinitionEditorPage from './features/actions/ActionDefinitionEditorPage'
-import ObjectTypesPage from './features/ontology/ObjectTypesPage'
-import CheckRunsPage from './features/checks/CheckRunsPage'
+
+const AgentPage = lazy(() => import('./features/agent/AgentPage'))
+const AuditPage = lazy(() => import('./features/audit/AuditPage'))
+const ExplorerPage = lazy(() => import('./features/explorer/ExplorerPage'))
+const HistoryPage = lazy(() => import('./features/history/HistoryPage'))
+const SourcesPage = lazy(() => import('./features/sources/SourcesPage'))
+const ProposalsPage = lazy(() => import('./features/review/ProposalsPage'))
+const ProposalDetail = lazy(() => import('./features/review/ProposalDetail'))
+const ProposalHistoryPage = lazy(
+  () => import('./features/review/ProposalHistoryPage'),
+)
+const RuleEditorPage = lazy(() => import('./features/review/RuleEditorPage'))
+const AccountsPage = lazy(() => import('./features/accounts/AccountsPage'))
+const AccountEditorPage = lazy(
+  () => import('./features/accounts/AccountEditorPage'),
+)
+const ActionDefinitionsPage = lazy(
+  () => import('./features/actions/ActionDefinitionsPage'),
+)
+const ActionDefinitionEditorPage = lazy(
+  () => import('./features/actions/ActionDefinitionEditorPage'),
+)
+const ObjectTypesPage = lazy(
+  () => import('./features/ontology/ObjectTypesPage'),
+)
+const CheckRunsPage = lazy(() => import('./features/checks/CheckRunsPage'))
 
 function App() {
   const [router] = useState(() =>
@@ -37,7 +49,11 @@ function App() {
         <Route
           element={
             <AuthProvider>
-              <Outlet />
+              <Suspense
+                fallback={<LoadingState message="화면을 불러오는 중…" />}
+              >
+                <Outlet />
+              </Suspense>
             </AuthProvider>
           }
         >
