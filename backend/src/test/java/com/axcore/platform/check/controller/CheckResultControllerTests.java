@@ -79,6 +79,7 @@ class CheckResultControllerTests {
                 .andExpect(jsonPath("$.data[0].unmatchedCount").value(1))
                 .andExpect(jsonPath("$.data[0].duplicateCount").value(1))
                 .andExpect(jsonPath("$.data[0].violationCount").value(1))
+                .andExpect(jsonPath("$.data[0].excludedTargetCount").value(2))
                 .andExpect(jsonPath("$.data[0].matchRate").value(0.7))
                 .andExpect(jsonPath("$.data[0].sampleRows[0].rawValue").value("W23"))
                 .andExpect(jsonPath("$.data[0].sampleRows[0].transformedValue").value("E023"))
@@ -133,7 +134,7 @@ class CheckResultControllerTests {
 
         CheckResultResponse response =
                 new CheckResultResponse(
-                        21L, 10L, null, 30L, 2, null, 0, 0, 0, 0, 0, null, List.of());
+                        21L, 10L, null, 30L, 2, null, 0, 0, 0, 0, 0, 0, null, List.of());
 
         given(checkResultService.search(eq(10L), eq(request), eq(pageable)))
                 .willReturn(new PageImpl<>(List.of(response), pageable, 1));
@@ -247,6 +248,7 @@ class CheckResultControllerTests {
                 1,
                 1,
                 1,
+                2,
                 new BigDecimal("0.7000"),
                 List.of(
                         Map.of(

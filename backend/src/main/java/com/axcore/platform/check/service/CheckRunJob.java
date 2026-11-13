@@ -9,17 +9,13 @@ import com.axcore.platform.check.domain.CheckDataBasis.ResourceCheckpoint;
 import com.axcore.platform.check.domain.CheckEvaluation;
 import com.axcore.platform.check.domain.CheckEvaluation.MatchedTarget;
 import com.axcore.platform.check.domain.CheckEvaluation.RowResult;
-import com.axcore.platform.check.domain.CheckInput;
 import com.axcore.platform.check.domain.CheckOutcome;
 import com.axcore.platform.check.domain.CheckResult;
 import com.axcore.platform.check.domain.CheckRow;
 import com.axcore.platform.check.domain.IssueReverification;
 import com.axcore.platform.check.domain.IssueReverification.Verdict;
 import com.axcore.platform.check.domain.LinkMappingRule;
-import com.axcore.platform.check.domain.LinkMappingRule.ObjectTypeRef;
-import com.axcore.platform.check.domain.ObjectRowFilter;
 import com.axcore.platform.check.repository.CheckObjectReader;
-import com.axcore.platform.check.repository.CheckObjectReader.CheckObject;
 import com.axcore.platform.check.repository.CheckResultRepository;
 import com.axcore.platform.check.repository.CheckRunRepository;
 import com.axcore.platform.check.repository.CheckRunRepository.ReverificationScope;
@@ -93,7 +89,7 @@ public class CheckRunJob implements QueuedJobHandler<CheckRunJob.Outcome> {
     private final LinkMappingRepository linkMappings;
     private final LinkMappingRuleLoader ruleLoader;
     private final CheckObjectReader objects;
-    private final RuleEvaluationEngine engine;
+    private final RuleObjectEvaluator evaluator;
     private final CheckIssueJudge judge;
     private final IssueRepository issues;
     private final ObjectProvider<IssueReverificationRecorder> reverificationRecorders;
@@ -107,7 +103,7 @@ public class CheckRunJob implements QueuedJobHandler<CheckRunJob.Outcome> {
             LinkMappingRepository linkMappings,
             LinkMappingRuleLoader ruleLoader,
             CheckObjectReader objects,
-            RuleEvaluationEngine engine,
+            RuleObjectEvaluator evaluator,
             CheckIssueJudge judge,
             IssueRepository issues,
             ObjectProvider<IssueReverificationRecorder> reverificationRecorders,
@@ -119,7 +115,7 @@ public class CheckRunJob implements QueuedJobHandler<CheckRunJob.Outcome> {
         this.linkMappings = linkMappings;
         this.ruleLoader = ruleLoader;
         this.objects = objects;
-        this.engine = engine;
+        this.evaluator = evaluator;
         this.judge = judge;
         this.issues = issues;
         this.reverificationRecorders = reverificationRecorders;
@@ -185,7 +181,9 @@ public class CheckRunJob implements QueuedJobHandler<CheckRunJob.Outcome> {
                     continue;
                 }
                 evaluated.add(evaluateRule(rule, active.get(linkMappingId).getLinkTypeId(), plan));
-            } catch (SkipRule | IllegalArgumentException | IllegalStateException e) {
+            } catch (RuleObjectEvaluator.RuleNotEvaluable
+                    | IllegalArgumentException
+                    | IllegalStateException e) {
                 // 규칙 하나의 입력·데이터 문제다. DB 오류(DataAccessException)는 여기서 잡지 않아 검사 전체가 실패한다.
                 String reason =
                         e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
@@ -324,14 +322,10 @@ public class CheckRunJob implements QueuedJobHandler<CheckRunJob.Outcome> {
     }
 
     private RuleEvaluated evaluateRule(LinkMappingRule rule, long linkTypeId, RulePlan plan) {
-        List<CheckRow> sourceRows =
-                rows(rule.sourceType(), rule.sourceResourceIds(), rule.sourceFilter(), "출발");
-        List<CheckRow> targetRows =
-                rows(rule.targetType(), rule.targetResourceIds(), rule.targetFilter(), "도착");
-        CheckEvaluation evaluation =
-                engine.evaluate(
-                        new CheckInput(rule.input(), sourceRows, targetRows),
-                        rule.sourceType().id() == rule.targetType().id());
+        // 연결 재계산과 같은 계산(388). 읽는 객체·행 조건·판정이 같다.
+        RuleObjectEvaluator.Evaluated evaluated = evaluator.evaluate(rule);
+        CheckEvaluation evaluation = evaluated.evaluation();
+        List<CheckRow> targetRows = evaluated.targetRows();
         Map<Long, List<Long>> manualLinks = objects.manualLinkTargets(linkTypeId);
         Map<Long, List<Long>> manualTargets = new LinkedHashMap<>();
         if (!manualLinks.isEmpty()) {
@@ -348,7 +342,8 @@ public class CheckRunJob implements QueuedJobHandler<CheckRunJob.Outcome> {
                 rows.add(manuallyMatched(row, targets, targetById));
                 manualTargets.put(source, targets);
             }
-            evaluation = new CheckEvaluation(evaluation.rule(), rows);
+            evaluation =
+                    new CheckEvaluation(evaluation.rule(), rows, evaluation.excludedTargetCount());
         }
         return new RuleEvaluated(evaluation, samples(evaluation), plan, Map.copyOf(manualTargets));
     }
@@ -368,26 +363,6 @@ public class CheckRunJob implements QueuedJobHandler<CheckRunJob.Outcome> {
         }
         return new RowResult(
                 row.source(), CheckOutcome.MATCHED, row.transformedValues(), targets, MANUAL_LINK);
-    }
-
-    private List<CheckRow> rows(
-            ObjectTypeRef type, List<Long> resourceIds, Map<String, Object> stored, String side) {
-        ObjectRowFilter filter =
-                ObjectRowFilter.parse(stored, type.code())
-                        .orElseThrow(() -> new SkipRule(side + " 행 조건을 읽을 수 없습니다."));
-        List<CheckRow> rows = new ArrayList<>();
-        for (CheckObject object : objects.activeObjects(type.id(), resourceIds)) {
-            if (!filter.matches(object.properties())) {
-                continue;
-            }
-            Map<String, Object> values = new LinkedHashMap<>();
-            object.properties()
-                    .forEach((code, value) -> values.put(type.code() + "." + code, value));
-            rows.add(
-                    new CheckRow(
-                            object.sourceResourceId(), object.sourceKey(), object.id(), values));
-        }
-        return rows;
     }
 
     /**
@@ -535,12 +510,4 @@ public class CheckRunJob implements QueuedJobHandler<CheckRunJob.Outcome> {
 
     /** 판정하지 않은 규칙과 이유. 이유에는 원천 값을 넣지 않는다. */
     public record SkippedRule(long linkMappingId, String reason) {}
-
-    /** 규칙 하나를 판정할 수 없을 때. 그 규칙만 건너뛴다. */
-    private static final class SkipRule extends RuntimeException {
-
-        SkipRule(String message) {
-            super(message);
-        }
-    }
 }

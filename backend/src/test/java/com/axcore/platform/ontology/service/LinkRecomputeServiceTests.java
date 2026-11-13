@@ -4,11 +4,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.axcore.platform.TestcontainersConfiguration;
+import com.axcore.platform.check.domain.CheckOutcome;
+import com.axcore.platform.check.service.LinkMappingRuleLoader;
+import com.axcore.platform.check.service.RuleObjectEvaluator;
 import com.axcore.platform.ontology.dto.LinkRecomputeResult;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -33,6 +38,8 @@ class LinkRecomputeServiceTests {
     @Autowired LinkRecomputeService service;
     @Autowired JdbcClient jdbc;
     @Autowired TransactionTemplate tx;
+    @Autowired LinkMappingRuleLoader ruleLoader;
+    @Autowired RuleObjectEvaluator evaluator;
 
     long resourceId;
     long workOrderType;
@@ -40,6 +47,7 @@ class LinkRecomputeServiceTests {
     String workOrderTypeCode;
     String equipmentTypeCode;
     long equipmentMapping;
+    long workOrderMapping;
     long woEquipmentCode;
     long eqCode;
     long eqKind;
@@ -79,6 +87,17 @@ class LinkRecomputeServiceTests {
                                 """)
                         .param("resource", resourceId)
                         .param("type", equipmentType)
+                        .query(Long.class)
+                        .single();
+        // 규칙 연결은 원천에서 수집한 객체만 잇는다(388, 검사와 같은 대상). 작업지시도 매핑으로 수집한 객체로 둔다.
+        workOrderMapping =
+                jdbc.sql(
+                                """
+                                insert into object_source_mapping (source_resource_id, object_type_id, key_columns)
+                                values (:resource, :type, '["id"]') returning id
+                                """)
+                        .param("resource", resourceId)
+                        .param("type", workOrderType)
                         .query(Long.class)
                         .single();
         woEquipmentCode = property(workOrderType, "equipment_code");
@@ -484,6 +503,46 @@ class LinkRecomputeServiceTests {
         assertThat(status(manual)).isEqualTo("INACTIVE");
     }
 
+    /**
+     * 388: 검사와 연결 재계산은 규칙 적용 계산 하나를 쓴다. 정상·중복(도착 둘)·미연결·빈 값이 섞여도, 검사가 정상(MATCHED)으로 판정한 쌍과 활성 규칙
+     * 연결이 정확히 같다.
+     */
+    @Test
+    void ruleLinksAreExactlyThePairsTheCheckJudgesMatched() {
+        long wo = workOrder("EQ-3");
+        long eq = equipment("EQ-3");
+        workOrder("EQ-5");
+        equipment("EQ-5");
+        equipment("EQ-5");
+        workOrder("EQ-9");
+        workOrder(" ");
+
+        inTx(() -> service.recomputeObjectTypes(List.of(workOrderType, equipmentType)));
+        Set<List<Long>> matched =
+                inTx(
+                        () ->
+                                evaluator
+                                        .evaluate(ruleLoader.loadCurrent(rule))
+                                        .evaluation()
+                                        .rows()
+                                        .stream()
+                                        .filter(row -> row.outcome() == CheckOutcome.MATCHED)
+                                        .flatMap(
+                                                row ->
+                                                        row.targets().stream()
+                                                                .map(
+                                                                        target ->
+                                                                                List.of(
+                                                                                        row.source()
+                                                                                                .objectInstanceId(),
+                                                                                        target.row()
+                                                                                                .objectInstanceId())))
+                                        .collect(Collectors.toSet()));
+
+        assertThat(matched).containsExactly(List.of(wo, eq));
+        assertThat(activeRuleLinks()).isEqualTo(matched);
+    }
+
     @Test
     void objectTypeRecomputeCoversFullLoadWithoutPassingEveryId() {
         long wo = workOrder("EQ-3");
@@ -528,6 +587,18 @@ class LinkRecomputeServiceTests {
 
     private <T> T inTx(Supplier<T> work) {
         return tx.execute(status -> work.get());
+    }
+
+    private Set<List<Long>> activeRuleLinks() {
+        return Set.copyOf(
+                jdbc.sql(
+                                """
+                                select source_object_id, target_object_id from object_link
+                                where link_type_id = :type and origin = 'RULE' and status = 'ACTIVE'
+                                """)
+                        .param("type", linkType)
+                        .query((rs, row) -> List.of(rs.getLong(1), rs.getLong(2)))
+                        .list());
     }
 
     private List<Long> activeTargets(long source) {
@@ -606,11 +677,14 @@ class LinkRecomputeServiceTests {
     private long workOrder(String equipmentCode) {
         return jdbc.sql(
                         """
-                        insert into object_instance (object_type_id, display_name, properties)
-                        values (:type, 'WO', jsonb_build_object('equipment_code', cast(:code as text)))
+                        insert into object_instance
+                            (object_type_id, source_mapping_id, source_key, display_name, properties)
+                        values (:type, :mapping, jsonb_build_object('id', gen_random_uuid()::text), 'WO',
+                                jsonb_build_object('equipment_code', cast(:code as text)))
                         returning id
                         """)
                 .param("type", workOrderType)
+                .param("mapping", workOrderMapping)
                 .param("code", equipmentCode)
                 .query(Long.class)
                 .single();

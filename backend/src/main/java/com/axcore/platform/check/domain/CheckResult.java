@@ -62,6 +62,10 @@ public class CheckResult {
     @Column(name = "violation_count", nullable = false)
     private int violationCount;
 
+    // 비교값으로 바꾸지 못해 대응 후보에서 뺀 도착 행 수(388). 출발 행 분류와 따로다.
+    @Column(name = "excluded_target_count", nullable = false)
+    private int excludedTargetCount;
+
     // 문제 행의 원본값·변환값·판정 근거 등을 담은 JSONB 배열이다.
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "sample_rows", nullable = false, columnDefinition = "jsonb")
@@ -104,6 +108,7 @@ public class CheckResult {
         result.unmatchedCount = evaluation.unmatchedCount();
         result.duplicateCount = evaluation.duplicateCount();
         result.violationCount = evaluation.violationCount();
+        result.excludedTargetCount = evaluation.excludedTargetCount();
         // 표본 값에 null이 있을 수 있어 Map.copyOf 대신 순서를 지키는 복사본을 쓴다
         List<Map<String, Object>> samples = new ArrayList<>(sampleRows.size());
         for (Map<String, Object> sample : sampleRows) {

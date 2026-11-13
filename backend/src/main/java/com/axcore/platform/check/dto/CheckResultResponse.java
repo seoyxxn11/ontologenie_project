@@ -19,6 +19,8 @@ public record CheckResultResponse(
         int unmatchedCount,
         int duplicateCount,
         int violationCount,
+        // 비교값으로 바꾸지 못해 대응 후보에서 뺀 도착 행 수(388). 위 분류 건수와 따로다.
+        int excludedTargetCount,
         // matchedCount / totalCount. 전체 검사 건수가 0이면 null이다.
         BigDecimal matchRate,
         List<Map<String, Object>> sampleRows) {

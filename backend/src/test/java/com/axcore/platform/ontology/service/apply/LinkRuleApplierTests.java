@@ -438,10 +438,13 @@ class LinkRuleApplierTests {
     private long workOrder(String equipmentCode) {
         return jdbc.sql(
                         """
-                        insert into object_instance (object_type_id, display_name, properties)
-                        values (:type, 'WO', jsonb_build_object('equipment_code', cast(:code as text))) returning id
+                        insert into object_instance
+                            (object_type_id, source_mapping_id, source_key, display_name, properties)
+                        values (:type, :mapping, jsonb_build_object('id', gen_random_uuid()::text), 'WO',
+                                jsonb_build_object('equipment_code', cast(:code as text))) returning id
                         """)
                 .param("type", workOrderTypeId)
+                .param("mapping", sourceMapping(workOrderTypeId))
                 .param("code", equipmentCode)
                 .query(Long.class)
                 .single();
@@ -450,15 +453,58 @@ class LinkRuleApplierTests {
     private long equipment(String code, String kind) {
         return jdbc.sql(
                         """
-                        insert into object_instance (object_type_id, display_name, properties)
-                        values (:type, 'EQ', jsonb_build_object('code', cast(:code as text), 'kind', cast(:kind as text)))
+                        insert into object_instance
+                            (object_type_id, source_mapping_id, source_key, display_name, properties)
+                        values (:type, :mapping, jsonb_build_object('id', gen_random_uuid()::text), 'EQ',
+                                jsonb_build_object('code', cast(:code as text), 'kind', cast(:kind as text)))
                         returning id
                         """)
                 .param("type", equipmentTypeId)
+                .param("mapping", sourceMapping(equipmentTypeId))
                 .param("code", code)
                 .param("kind", kind)
                 .query(Long.class)
                 .single();
+    }
+
+    /** 유형을 원천에서 수집하는 활성 매핑. 규칙 연결은 원천에서 수집한 객체만 잇는다(388, 검사와 같은 대상). 유형마다 하나만 만든다. */
+    private long sourceMapping(long objectTypeId) {
+        return jdbc.sql(
+                        """
+                        select id from object_source_mapping where object_type_id = :type and is_active
+                        """)
+                .param("type", objectTypeId)
+                .query(Long.class)
+                .optional()
+                .orElseGet(
+                        () -> {
+                            long source =
+                                    jdbc.sql(
+                                                    """
+                                                    insert into data_source (code, name, source_kind)
+                                                    values ('SRC-' || gen_random_uuid(), '원천', 'POSTGRES') returning id
+                                                    """)
+                                            .query(Long.class)
+                                            .single();
+                            long resource =
+                                    jdbc.sql(
+                                                    """
+                                                    insert into source_resource (data_source_id, resource_key, resource_kind)
+                                                    values (:source, 'public.test', 'TABLE') returning id
+                                                    """)
+                                            .param("source", source)
+                                            .query(Long.class)
+                                            .single();
+                            return jdbc.sql(
+                                            """
+                                            insert into object_source_mapping (source_resource_id, object_type_id, key_columns)
+                                            values (:resource, :type, '["id"]') returning id
+                                            """)
+                                    .param("resource", resource)
+                                    .param("type", objectTypeId)
+                                    .query(Long.class)
+                                    .single();
+                        });
     }
 
     private long objectType(String code) {

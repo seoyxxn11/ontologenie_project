@@ -24,6 +24,9 @@ import org.springframework.stereotype.Component;
  * 규칙 조건에 따라 출발 행마다 최종 판정 하나를 만든다.
  *
  * <p>비교는 변환 후 문자열의 EQ 기준이며, 원천 조회와 결과 저장은 호출 측에서 처리한다.
+ *
+ * <p>규칙을 객체에 적용하는 계산은 여기 하나다(388). 정합성 검사(191), 후보 시험(CANDIDATE), 연결 재계산(181 {@code
+ * LinkRecomputeService})이 모두 이 판정을 쓴다. 그래서 검사가 정상(MATCHED)으로 판정한 쌍과 규칙 연결은 정의상 같다.
  */
 @Component
 public class RuleEvaluationEngine {
@@ -38,11 +41,14 @@ public class RuleEvaluationEngine {
         return evaluate(input, false);
     }
 
-    CheckEvaluation evaluate(CheckInput input, boolean excludesSelf) {
+    /**
+     * @param excludesSelf 출발·도착 유형이 같은 관계면 true. 같은 객체(객체 ID, 없으면 원천 위치)끼리는 잇지 않는다
+     */
+    public CheckEvaluation evaluate(CheckInput input, boolean excludesSelf) {
         Objects.requireNonNull(input, "input");
 
         if (input.sourceRows().isEmpty()) {
-            return new CheckEvaluation(input.rule(), List.of());
+            return new CheckEvaluation(input.rule(), List.of(), 0);
         }
 
         var conditions = input.rule().conditions();
@@ -54,13 +60,15 @@ public class RuleEvaluationEngine {
         Map<List<String>, TargetGroup> targetIndex = new HashMap<>();
         // 미연결 사유를 나눌 때만 쓰는 조건별 색인(348). 미연결 행이 나올 때 한 번 만든다.
         PartialMatchIndex partialIndex = new PartialMatchIndex(excludesSelf);
+        int excludedTargets = 0;
 
         for (CheckRow target : input.targetRows()) {
             var prepared = prepare(target, conditions, false);
 
-            // 연동 가정: 도착 변환 실패는 숨기지 않고 실행 오류로 전달한다.
+            // 비교값으로 바꾸지 못한 도착은 대응 후보에서 빼고 수만 남긴다(388). 도착 하나 때문에 규칙 전체의 검사·연결이 멈추지 않게 한다.
             if (prepared.reason() != null) {
-                throw new IllegalArgumentException("도착 행을 비교값으로 변환할 수 없습니다. " + prepared.reason());
+                excludedTargets++;
+                continue;
             }
             partialIndex.collect(identity(target, excludesSelf), prepared.values());
 
@@ -141,7 +149,7 @@ public class RuleEvaluationEngine {
                             selfIndexes));
         }
 
-        return new CheckEvaluation(input.rule(), results);
+        return new CheckEvaluation(input.rule(), results, excludedTargets);
     }
 
     /**

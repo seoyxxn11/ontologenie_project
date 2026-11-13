@@ -8,12 +8,23 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.RandomAccess;
 
-/** 규칙 하나의 검사 결과. 모든 건수는 출발 원천 행을 기준으로 집계한다. */
-public record CheckEvaluation(CheckRuleInput rule, List<RowResult> rows) {
+/**
+ * 규칙 하나의 검사 결과. 모든 건수는 출발 원천 행을 기준으로 집계한다.
+ *
+ * @param excludedTargetCount 비교값으로 바꾸지 못해(단일 값이 아님·변환 실패) 대응 후보에서 뺀 도착 행 수(388). 출발 행 분류에는 들어가지 않는다
+ */
+public record CheckEvaluation(CheckRuleInput rule, List<RowResult> rows, int excludedTargetCount) {
 
     public CheckEvaluation {
         Objects.requireNonNull(rule, "rule");
         rows = List.copyOf(rows);
+        if (excludedTargetCount < 0) {
+            throw new IllegalArgumentException("뺀 도착 행 수는 0 이상이어야 합니다.");
+        }
+    }
+
+    public CheckEvaluation(CheckRuleInput rule, List<RowResult> rows) {
+        this(rule, rows, 0);
     }
 
     public int totalCount() {
