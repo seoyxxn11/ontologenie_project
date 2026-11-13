@@ -48,7 +48,7 @@
 - `ReassignmentObjectRepository`: 재배정 검증과 완료 시각 계산이 범위 없이 객체를 읽는다. 검증은 대상(정지 설비)만 범위 검사를 한다. Agent가 실행한 경우의 문구는 `MODEL` 용도로 만든다.
 - `AuditExecutionQueryRepository`: 실행 이력의 대상 표시 이름이 가림 규칙 없이 원본 `display_name`이다.
 
-## 역할별 범위 (V20)
+## 역할별 범위 (V21)
 
 역할 이름으로 나누지 않고 `role_data_scope` 허용 행으로만 정한다. ADMIN도 같다(정의·시스템 관리와 값 열람을 나눈다). 정의 조회 용도(`forDefinitions`)만 역할과 관계없이 모든 유형의 정의를 본다.
 
