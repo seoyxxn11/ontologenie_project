@@ -1,6 +1,5 @@
 package com.axcore.platform.auth.service;
 
-import com.axcore.platform.account.domain.RoleCode;
 import com.axcore.platform.auth.repository.DataScopeRepository;
 import com.axcore.platform.global.security.LoginAccount;
 import lombok.RequiredArgsConstructor;
@@ -40,12 +39,10 @@ public class DataAccessPolicy {
      */
     @Transactional(readOnly = true)
     public DataAccess forDefinitions() {
-        return new DataAccess(
-                dataScopeRepository.findAll(RoleCode.ADMIN.name(), true), DataPurpose.DEFINITIONS);
+        return new DataAccess(dataScopeRepository.findAllDefinitions(), DataPurpose.DEFINITIONS);
     }
 
     private DataAccess scope(LoginAccount actor, DataPurpose purpose) {
-        boolean admin = RoleCode.ADMIN.name().equals(actor.roleCode());
-        return new DataAccess(dataScopeRepository.findAll(actor.roleCode(), admin), purpose);
+        return new DataAccess(dataScopeRepository.findAll(actor.roleCode()), purpose);
     }
 }

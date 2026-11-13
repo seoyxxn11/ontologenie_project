@@ -136,12 +136,12 @@ class DatabaseMigrationTests {
                                 .query(String.class)
                                 .list())
                 .containsExactly(
-                        "MAINTENANCE:PRODUCTION:false",
-                        "MAINTENANCE:SALES_SUPPLY:false",
+                        "ADMIN:PRODUCTION:false",
+                        "ADMIN:SALES_SUPPLY:false",
                         "PLANNER:PRODUCTION:true",
-                        "PLANNER:SALES_SUPPLY:false",
+                        "PLANNER:SALES_SUPPLY:true",
                         "VIEWER:PRODUCTION:false",
-                        "VIEWER:SALES_SUPPLY:true");
+                        "VIEWER:SALES_SUPPLY:false");
     }
 
     @Test

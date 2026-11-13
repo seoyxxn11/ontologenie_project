@@ -23,8 +23,9 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
 
 /**
- * 객체·민감 속성 조회 범위(S15P31C106-205)를 실제 DB로 확인한다. 기준(2026-11-06 결정): ADMIN은 전부, 그 밖의 역할은 허용 그룹만, 그룹 없는
- * 유형은 ADMIN만, 민감 값은 허용 행의 can_view_restricted가 true일 때만, 볼 수 없는 객체는 404.
+ * 객체·민감 속성 조회 범위(S15P31C106-205)를 실제 DB로 확인한다. 기준(2026-11-06 결정, 384에서 수정): 모든 역할(ADMIN 포함)은 허용
+ * 그룹만, 그룹 없는 유형은 아무도 못 봄, 민감 값은 허용 행의 can_view_restricted가 true일 때만, 볼 수 없는 객체는 404. 정의 조회 용도만 모든
+ * 유형의 정의를 본다.
  */
 @SpringBootTest
 @ActiveProfiles("api")
@@ -64,14 +65,31 @@ class DataAccessPolicyTests {
         }
     }
 
+    /** ADMIN도 허용 행으로만 본다. 정의 관리 권한과 값 열람은 다르다(384). */
     @Test
-    void adminSeesEveryTypeAndRestrictedValues() {
+    void adminFollowsAllowedRowsLikeOtherRoles() {
         DataAccess access = policy.of(account("ADMIN"));
 
         assertThat(access.visibleObjectTypeIds())
+                .doesNotContain(openType, closedType, unlistedType, ungroupedType);
+        assertThat(access.mask(ungroupedType, values()).restrictedPropertyCodes())
+                .containsExactly("purchase_price");
+
+        allow("ADMIN", codeGroupOf(openType), false);
+
+        DataAccess allowed = policy.of(account("ADMIN"));
+        assertThat(allowed.canView(openType)).isTrue();
+        assertThat(allowed.canViewRestricted(openType)).isFalse();
+    }
+
+    /** 정의 조회 용도는 역할과 관계없이 모든 유형의 정의를 본다(내부 모델 요약). */
+    @Test
+    void definitionsSeeEveryTypeRegardlessOfRole() {
+        DataAccess access = policy.forDefinitions();
+
+        assertThat(access.visibleObjectTypeIds())
                 .contains(openType, closedType, unlistedType, ungroupedType);
-        assertThat(access.canViewRestricted(ungroupedType)).isTrue();
-        assertThat(access.mask(ungroupedType, values()).restrictedPropertyCodes()).isEmpty();
+        assertThat(access.hidesValue(codeOf(closedType), "purchase_price")).isFalse();
     }
 
     @Test
@@ -166,7 +184,7 @@ class DataAccessPolicyTests {
         assertThat(masked.restrictedPropertyCodes()).containsExactly("purchase_price");
     }
 
-    /** V13 초기값: 그룹 이름만 맞게 지정하면 행을 따로 넣지 않아도 역할별로 보인다. */
+    /** V13·V20 초기값: 그룹 이름만 맞게 지정하면 행을 따로 넣지 않아도 역할별로 보인다. */
     @Test
     void seededScopeFollowsDecidedGroups() {
         long production = objectType("PRODUCTION");
@@ -175,19 +193,24 @@ class DataAccessPolicyTests {
 
         DataAccess planner = policy.of(account("PLANNER"));
         assertThat(planner.canViewRestricted(production)).isTrue();
-        assertThat(planner.canView(salesSupply)).isTrue();
-        assertThat(planner.canViewRestricted(salesSupply)).isFalse();
+        assertThat(planner.canViewRestricted(salesSupply)).isTrue();
         assertThat(planner.canView(finance)).isFalse();
 
         DataAccess viewer = policy.of(account("VIEWER"));
+        assertThat(viewer.canView(production)).isTrue();
         assertThat(viewer.canViewRestricted(production)).isFalse();
-        assertThat(viewer.canViewRestricted(salesSupply)).isTrue();
+        assertThat(viewer.canViewRestricted(salesSupply)).isFalse();
         assertThat(viewer.canView(finance)).isFalse();
 
+        DataAccess admin = policy.of(account("ADMIN"));
+        assertThat(admin.canView(production)).isTrue();
+        assertThat(admin.canView(salesSupply)).isTrue();
+        assertThat(admin.canViewRestricted(production)).isFalse();
+        assertThat(admin.canView(finance)).isFalse();
+
         DataAccess maintenance = policy.of(account("MAINTENANCE"));
-        assertThat(maintenance.canView(production)).isTrue();
-        assertThat(maintenance.canViewRestricted(production)).isFalse();
-        assertThat(maintenance.canViewRestricted(salesSupply)).isFalse();
+        assertThat(maintenance.canView(production)).isFalse();
+        assertThat(maintenance.canView(salesSupply)).isFalse();
     }
 
     @Test
@@ -200,7 +223,7 @@ class DataAccessPolicyTests {
         assertThat(viewer.hidesValue(codeOf(ungroupedType), "purchase_price")).isTrue();
         assertThat(viewer.hidesValue("no_such_type", "purchase_price")).isFalse();
         assertThat(policy.of(account("ADMIN")).hidesValue(codeOf(closedType), "purchase_price"))
-                .isFalse();
+                .isTrue();
     }
 
     @Test
@@ -242,6 +265,14 @@ class DataAccessPolicyTests {
                 .param("code", code)
                 .param("group", accessGroup)
                 .query(Long.class)
+                .single();
+    }
+
+    private String codeGroupOf(long objectTypeId) {
+        return jdbcClient
+                .sql("select access_group from object_type where id = :id")
+                .param("id", objectTypeId)
+                .query(String.class)
                 .single();
     }
 

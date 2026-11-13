@@ -1,6 +1,7 @@
 package com.axcore.platform.auth.repository;
 
 import java.sql.Array;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Set;
@@ -27,15 +28,15 @@ public class DataScopeRepository {
             Set<String> restrictedPropertyCodes) {}
 
     /**
-     * 모든 객체 유형에 대해 역할의 범위를 돌려준다. admin이면 모두 보이고 민감 값도 본다. 아니면 유형의 access_group과 같은 그룹이
-     * role_data_scope에 있어야 보인다. 그래서 그룹이 없는 유형과 역할에 허용 행이 없는 유형은 보이지 않는다.
+     * 모든 객체 유형에 대해 역할의 범위를 돌려준다. 유형의 access_group과 같은 그룹이 role_data_scope에 있어야 보인다. 그래서 그룹이 없는(미분류)
+     * 유형과 역할에 허용 행이 없는 유형은 보이지 않는다. ADMIN도 다른 역할과 같이 허용 행으로만 정한다(384: 정의 관리와 값 열람을 나눈다).
      */
-    public List<ObjectTypeScope> findAll(String roleCode, boolean admin) {
+    public List<ObjectTypeScope> findAll(String roleCode) {
         return jdbc.sql(
                         """
                         select t.id as object_type_id, t.code as object_type_code,
-                               (:admin or s.access_group is not null) as visible,
-                               (:admin or coalesce(s.can_view_restricted, false)) as can_view_restricted,
+                               s.access_group is not null as visible,
+                               coalesce(s.can_view_restricted, false) as can_view_restricted,
                                coalesce(array_agg(p.code order by p.code)
                                             filter (where p.code is not null),
                                         array[]::varchar[]) as restricted_codes
@@ -47,17 +48,39 @@ public class DataScopeRepository {
                                on p.object_type_id = t.id and p.sensitivity = 'RESTRICTED'
                         group by t.id, s.access_group, s.can_view_restricted
                         """)
-                .param("admin", admin)
                 .param("roleCode", roleCode)
-                .query(
-                        (rs, row) ->
-                                new ObjectTypeScope(
-                                        rs.getLong("object_type_id"),
-                                        rs.getString("object_type_code"),
-                                        rs.getBoolean("visible"),
-                                        rs.getBoolean("can_view_restricted"),
-                                        codes(rs.getArray("restricted_codes"))))
+                .query((rs, row) -> scope(rs))
                 .list();
+    }
+
+    /**
+     * 모든 객체 유형의 정의 조회 범위. 모든 유형이 보이고 민감 속성 정의도 본다. 역할과 관계없는 내부 정의 조회(DataPurpose.DEFINITIONS)만 쓴다.
+     * 이 범위로는 객체 값을 읽지 않는다.
+     */
+    public List<ObjectTypeScope> findAllDefinitions() {
+        return jdbc.sql(
+                        """
+                        select t.id as object_type_id, t.code as object_type_code,
+                               true as visible, true as can_view_restricted,
+                               coalesce(array_agg(p.code order by p.code)
+                                            filter (where p.code is not null),
+                                        array[]::varchar[]) as restricted_codes
+                        from object_type t
+                        left join property_definition p
+                               on p.object_type_id = t.id and p.sensitivity = 'RESTRICTED'
+                        group by t.id
+                        """)
+                .query((rs, row) -> scope(rs))
+                .list();
+    }
+
+    private static ObjectTypeScope scope(ResultSet rs) throws SQLException {
+        return new ObjectTypeScope(
+                rs.getLong("object_type_id"),
+                rs.getString("object_type_code"),
+                rs.getBoolean("visible"),
+                rs.getBoolean("can_view_restricted"),
+                codes(rs.getArray("restricted_codes")));
     }
 
     private static Set<String> codes(Array array) throws SQLException {
