@@ -4,7 +4,7 @@ AI 분석(FastAPI)과 Agent가 같은 구조로 온톨로지 정의를 받는다
 
 | 쓰는 곳 | 부르는 방법 | 조회 범위 |
 |---|---|---|
-| AI 분석(FastAPI) | `GET /api/v1/internal/ontology/model-summary`, `X-Internal-Token` | 전체(ADMIN과 같음). 분석은 ADMIN만 요청할 수 있다 |
+| AI 분석(FastAPI) | `GET /api/v1/internal/ontology/model-summary`, `X-Internal-Token` | 전체 정의(`DataAccessPolicy.forDefinitions()`, 정의 조회 용도라 객체 값은 읽지 못함, `docs/data-access.md`). 분석은 ADMIN만 요청할 수 있다 |
 | Agent(같은 백엔드) | `ModelSummaryService.summarize(dataAccessPolicy.of(질문한 사용자))` | 질문한 사용자의 범위 |
 
 ## 응답

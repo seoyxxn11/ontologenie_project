@@ -25,6 +25,6 @@ public class ModelSummaryController {
     @Operation(summary = "043 AI·Agent용 모델 요약(내부)")
     @GetMapping("/api/v1/internal/ontology/model-summary")
     public ApiResponse<ModelSummaryResponse> summary() {
-        return ApiResponse.of(modelSummaryService.summarize(dataAccessPolicy.internalService()));
+        return ApiResponse.of(modelSummaryService.summarize(dataAccessPolicy.forDefinitions()));
     }
 }
