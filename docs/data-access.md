@@ -65,6 +65,8 @@
 | 전체 적재·CDC 반영(`FullLoadPlanner`) | 켜진 매핑이 금지 표·컬럼을 가리키면 그 표 작업이 실패한다. CDC도 같은 계획을 써서 Kafka에 남은 옛 이벤트도 들어오지 않는다 | 민감 컬럼을 일반 속성이 담거나 키로 쓰면 실패한다. 기본값 NORMAL을 분류가 끝난 것으로 보지 않고 적재 때 다시 본다(391 이전 매핑 등) |
 | 원천 표본(`SourceSampleJob`) | 금지 표는 실패, 금지 컬럼은 빼고 읽는다 | 빼고 읽는다(표본은 원천 값을 그대로 보여 준다) |
 | 매핑 미리보기(040·102, `MappingPreviewPlanner`) | 금지 표·키 컬럼·속성 컬럼이면 422(`details.forbiddenColumns`) | 민감 컬럼은 422(`details.restrictedColumns`), 민감 속성(사람이 지정한 것 포함)은 422(`details.reason` RESTRICTED_PROPERTY). 미리보기는 관리자만 쓰고 원천 값을 그대로 보여 주는데 관리자는 민감 값을 볼 수 없다. 요청 접수와 배치가 같은 확인을 거쳐 원천을 읽기 전에 막는다 |
+| 후보 시험(`CandidateCheckJob`, 400) | 시험할 매핑의 표·키·속성 컬럼 중 금지가 있으면 원천을 읽지 않고 `FAILED`. `error_message`에 금지 표·컬럼 이름만 남는다 | 출발·도착 조건에 민감 속성을 쓰면 읽지 않고 `FAILED`. 조건 키가 민감이면 시험은 하고 건수·분류는 저장하지만 민감 값과 원천 키는 표본(`sample_rows`)에 남기지 않는다. 자세한 규칙은 [check-run.md](check-run.md) "후보 시험과 원천 데이터 정책" |
+| 연결 규칙 후보 접수(049 수동 추가·수정, `ProposalPayloadValidator`, 400) | — | 이미 있는 속성 중 민감 속성을 조건 키나 출발·도착 조건에 쓰면 400(`details.field` = 그 조건의 `sourceProperty`·`targetProperty`, `sourceFilter.property`·`targetFilter.property`). 승인 때도 거절되지만 후보 시험 전에 알린다 |
 
 - 속성 민감도는 매핑된 원천 컬럼 등급보다 낮을 수 없다. 반대로 일반 컬럼만 담는 속성을 민감으로 올리는 것은 된다.
 - 식별·연결 키·대표 속성과 매핑 키 컬럼은 민감이 될 수 없다. 객체를 찾고 잇는 값이라 가리면 조회·연결이 끊기고, 가리지 않으면 민감 값이 연결 근거·원천 키·규칙 정의로 드러난다. 대표만은 비우고 원천 키로 대신할 수 있어 비운다.

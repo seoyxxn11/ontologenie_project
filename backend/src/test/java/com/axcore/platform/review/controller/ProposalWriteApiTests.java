@@ -298,6 +298,67 @@ class ProposalWriteApiTests {
     }
 
     @Test
+    void rejectsRestrictedConditionKeyAtIntakeBeforeAnyWrite() throws Exception {
+        // 민감 속성을 조건 키로 쓰는 후보는 승인 때도 거절되지만, 후보 시험이 원천을 읽기 전에 접수 단계에서 알린다(400).
+        jdbc.sql(
+                        """
+                update property_definition set sensitivity='RESTRICTED'
+                where code='code' and object_type_id=(select target_type_id from link_type where id=:id)
+                """)
+                .param("id", linkTypeId)
+                .update();
+
+        create().andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"))
+                .andExpect(
+                        jsonPath("$.error.details.field")
+                                .value("payload.conditions[0].targetProperty"));
+        assertThat(
+                        jdbc.sql("select count(*) from proposal_item where created_by=:id")
+                                .param("id", accountId)
+                                .query(Long.class)
+                                .single())
+                .isZero();
+    }
+
+    @Test
+    void rejectsRestrictedFilterPropertyAtIntake() throws Exception {
+        // 행 조건에 민감 속성을 쓰면 값은 저장하지 않아도 건수·원천 키로 그 값을 가진 행을 알아낼 수 있다(400).
+        jdbc.sql(
+                        """
+                insert into property_definition(object_type_id, code, name, data_type, sensitivity)
+                select source_type_id, 'grade', '등급', 'STRING', 'RESTRICTED' from link_type where id=:id
+                """)
+                .param("id", linkTypeId)
+                .update();
+        var payload = new java.util.LinkedHashMap<String, Object>(payload());
+        payload.put("sourceFilter", Map.of("property", "grade", "equals", "A"));
+
+        mvc.perform(
+                        post("/api/v1/proposals/manual")
+                                .with(admin())
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        json.writeValueAsString(
+                                                Map.of(
+                                                        "itemKind",
+                                                        "LINK_RULE",
+                                                        "payload",
+                                                        payload))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"))
+                .andExpect(
+                        jsonPath("$.error.details.field").value("payload.sourceFilter.property"));
+        assertThat(
+                        jdbc.sql("select count(*) from proposal_item where created_by=:id")
+                                .param("id", accountId)
+                                .query(Long.class)
+                                .single())
+                .isZero();
+    }
+
+    @Test
     void enforcesAuthenticationRoleAndCsrf() throws Exception {
         String body =
                 json.writeValueAsString(Map.of("itemKind", "LINK_RULE", "payload", payload()));
