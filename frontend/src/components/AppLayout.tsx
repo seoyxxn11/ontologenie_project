@@ -11,13 +11,13 @@ const userMenus = [
 
 const adminMenus = [
   { to: '/admin/sources', label: '데이터 연결' },
-  { to: '/admin/object-types', label: '객체 유형' },
   { to: '/admin/rules', label: '연결 규칙' },
   { to: '/admin/actions', label: 'Action 정의' },
 ]
 
 const headerLinks = [
   { to: '/audit', label: '실행 이력' },
+  { to: '/admin/object-types', label: '객체 유형' },
   { to: '/admin/checks', label: '정합성 검사' },
   { to: '/admin/history', label: '정의·규칙 이력' },
   { to: '/admin/accounts', label: '계정·권한' },
