@@ -1,10 +1,12 @@
 package com.axcore.platform.agent.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.mock;
 
 import com.axcore.platform.agent.service.ObjectPathPlanner.FanOut;
 import com.axcore.platform.agent.service.ObjectPathPlanner.PathCandidate;
+import com.axcore.platform.agent.service.ObjectPathPlanner.PathSearch;
 import com.axcore.platform.agent.service.ObjectPathPlanner.PathStep;
 import com.axcore.platform.auth.service.DataAccessPolicy;
 import com.axcore.platform.ontology.domain.LinkCardinality;
@@ -47,8 +49,7 @@ class ObjectPathPlannerTests {
 
     @Test
     void findsShortestPathsWithDirectionsAndFanOut() {
-        List<PathCandidate> candidates =
-                ObjectPathPlanner.candidates(s4Model(), EQUIPMENT, SALES_ORDER);
+        List<PathCandidate> candidates = candidates(s4Model(), EQUIPMENT, SALES_ORDER);
 
         assertThat(candidates)
                 .extracting(ObjectPathPlannerTests::linkIds)
@@ -81,7 +82,7 @@ class ObjectPathPlannerTests {
     @Test
     void returnsSameCandidatesForSameModelRegardlessOfOrder() {
         ModelSummaryResponse model = s4Model();
-        List<PathCandidate> first = ObjectPathPlanner.candidates(model, EQUIPMENT, SALES_ORDER);
+        List<PathCandidate> first = candidates(model, EQUIPMENT, SALES_ORDER);
 
         List<ObjectTypeSummary> types = new ArrayList<>(model.objectTypes());
         List<LinkTypeSummary> links = new ArrayList<>(model.linkTypes());
@@ -89,39 +90,89 @@ class ObjectPathPlannerTests {
         Collections.shuffle(links, new Random(7));
         Collections.reverse(links);
 
-        assertThat(ObjectPathPlanner.candidates(model, EQUIPMENT, SALES_ORDER)).isEqualTo(first);
-        assertThat(ObjectPathPlanner.candidates(model(types, links), EQUIPMENT, SALES_ORDER))
-                .isEqualTo(first);
+        assertThat(candidates(model, EQUIPMENT, SALES_ORDER)).isEqualTo(first);
+        assertThat(candidates(model(types, links), EQUIPMENT, SALES_ORDER)).isEqualTo(first);
     }
 
     @Test
-    void keepsAtMostFiveCandidatesShortestFirst() {
-        List<ObjectTypeSummary> types = new ArrayList<>();
-        List<LinkTypeSummary> links = new ArrayList<>();
-        types.add(type(1L, "A", "A"));
-        types.add(type(2L, "B", "B"));
-        links.add(link(100L, "A_B", 1L, 2L));
-        for (long i = 1; i <= 6; i++) {
-            types.add(type(10L + i, "C" + i, "C" + i));
-            links.add(link(300L + i, "C_B_" + i, 10L + i, 2L));
-            links.add(link(200L + i, "A_C_" + i, 1L, 10L + i));
-        }
+    void keepsAtMostFiveCandidatesShortestFirstAndMarksTruncation() {
+        PathSearch search = ObjectPathPlanner.search(fan(6), 1L, 2L);
 
-        List<PathCandidate> candidates = ObjectPathPlanner.candidates(model(types, links), 1L, 2L);
-
-        assertThat(candidates).extracting(PathCandidate::hops).containsExactly(1, 2, 2, 2, 2);
-        assertThat(candidates)
+        assertThat(search.candidates())
+                .extracting(PathCandidate::hops)
+                .containsExactly(1, 2, 2, 2, 2);
+        assertThat(search.candidates())
                 .extracting(candidate -> candidate.steps().getFirst().linkTypeId())
                 .containsExactly(100L, 201L, 202L, 203L, 204L);
+        assertThat(search.truncated()).isTrue();
+    }
+
+    @Test
+    void doesNotMarkTruncationWhenEveryPathFits() {
+        PathSearch search = ObjectPathPlanner.search(fan(4), 1L, 2L);
+
+        assertThat(search.candidates()).hasSize(5);
+        assertThat(search.truncated()).isFalse();
+        assertThat(ObjectPathPlanner.search(s4Model(), EQUIPMENT, SALES_ORDER).truncated())
+                .isFalse();
+    }
+
+    @Test
+    void marksTruncationWhenOnlyLongerPathsAreLeftOut() {
+        // 1·2단계 후보 5개로 상한이 찼고, 남은 경로는 3단계 하나뿐이다.
+        ModelSummaryResponse fan = fan(4);
+        List<ObjectTypeSummary> types = new ArrayList<>(fan.objectTypes());
+        List<LinkTypeSummary> links = new ArrayList<>(fan.linkTypes());
+        types.add(type(30L, "D", "D"));
+        types.add(type(31L, "E", "E"));
+        links.add(link(400L, "A_D", 1L, 30L));
+        links.add(link(401L, "D_E", 30L, 31L));
+        links.add(link(402L, "E_B", 31L, 2L));
+
+        PathSearch search = ObjectPathPlanner.search(model(types, links), 1L, 2L);
+
+        assertThat(search.candidates()).extracting(PathCandidate::hops).doesNotContain(3);
+        assertThat(search.truncated()).isTrue();
+    }
+
+    @Test
+    void readsFanOutFromCardinalityInBothDirections() {
+        ModelSummaryResponse model =
+                model(
+                        List.of(
+                                type(1L, "A", "A"),
+                                type(2L, "B", "B"),
+                                type(3L, "C", "C"),
+                                type(4L, "D", "D")),
+                        List.of(
+                                link(1L, "B_A", 2L, 1L, LinkCardinality.ONE_TO_MANY),
+                                link(2L, "C_B", 3L, 2L, LinkCardinality.ONE_TO_ONE),
+                                link(3L, "C_D", 3L, 4L, null)));
+
+        PathCandidate path = candidates(model, 1L, 4L).getFirst();
+
+        // IN은 출발 쪽 수를 본다. ONE_TO_MANY·ONE_TO_ONE은 거꾸로 가면 하나로 간다. 카디널리티가 없으면 MANY다.
+        assertThat(path.steps())
+                .extracting(PathStep::direction, PathStep::fanOut)
+                .containsExactly(
+                        tuple("IN", FanOut.ONE),
+                        tuple("IN", FanOut.ONE),
+                        tuple("OUT", FanOut.MANY));
+        assertThat(path.fanOut()).isEqualTo(FanOut.MANY);
+        assertThat(candidates(model, 4L, 3L).getFirst().steps())
+                .extracting(PathStep::fanOut)
+                .containsExactly(FanOut.MANY);
+        assertThat(candidates(model, 2L, 1L).getFirst().fanOut()).isEqualTo(FanOut.MANY);
+        assertThat(candidates(model, 2L, 3L).getFirst().fanOut()).isEqualTo(FanOut.ONE);
     }
 
     @Test
     void searchesUpToFourHops() {
-        assertThat(ObjectPathPlanner.candidates(chain(4), 1L, 5L))
+        assertThat(candidates(chain(4), 1L, 5L))
                 .singleElement()
                 .extracting(PathCandidate::hops)
                 .isEqualTo(4);
-        assertThat(ObjectPathPlanner.candidates(chain(5), 1L, 6L)).isEmpty();
+        assertThat(candidates(chain(5), 1L, 6L)).isEmpty();
     }
 
     @Test
@@ -135,7 +186,7 @@ class ObjectPathPlannerTests {
                                 link(3L, "B_C", 2L, 3L),
                                 link(4L, "B_SELF", 2L, 2L)));
 
-        List<PathCandidate> candidates = ObjectPathPlanner.candidates(model, 1L, 3L);
+        List<PathCandidate> candidates = candidates(model, 1L, 3L);
 
         assertThat(candidates)
                 .extracting(ObjectPathPlannerTests::linkIds)
@@ -158,7 +209,7 @@ class ObjectPathPlannerTests {
                                 .toList(),
                         model.linkTypes());
 
-        assertThat(ObjectPathPlanner.candidates(withoutOperation, EQUIPMENT, SALES_ORDER))
+        assertThat(candidates(withoutOperation, EQUIPMENT, SALES_ORDER))
                 .extracting(ObjectPathPlannerTests::linkIds)
                 .containsExactly(List.of(13L, 14L, 12L));
     }
@@ -176,6 +227,26 @@ class ObjectPathPlannerTests {
                 .run(context -> assertThat(context).doesNotHaveBean(ObjectPathPlanner.class));
         runner.withPropertyValues("axcore.agent.object-paths.enabled=true")
                 .run(context -> assertThat(context).hasSingleBean(ObjectPathPlanner.class));
+    }
+
+    private static List<PathCandidate> candidates(
+            ModelSummaryResponse model, long fromTypeId, long toTypeId) {
+        return ObjectPathPlanner.search(model, fromTypeId, toTypeId).candidates();
+    }
+
+    /** A에서 B로 바로 가는 관계 하나와 C1~Cn을 거치는 2단계 경로 n개. */
+    private static ModelSummaryResponse fan(int width) {
+        List<ObjectTypeSummary> types = new ArrayList<>();
+        List<LinkTypeSummary> links = new ArrayList<>();
+        types.add(type(1L, "A", "A"));
+        types.add(type(2L, "B", "B"));
+        links.add(link(100L, "A_B", 1L, 2L));
+        for (long i = 1; i <= width; i++) {
+            types.add(type(10L + i, "C" + i, "C" + i));
+            links.add(link(300L + i, "C_B_" + i, 10L + i, 2L));
+            links.add(link(200L + i, "A_C_" + i, 1L, 10L + i));
+        }
+        return model(types, links);
     }
 
     private static List<Long> linkIds(PathCandidate candidate) {
@@ -204,7 +275,11 @@ class ObjectPathPlannerTests {
     }
 
     static LinkTypeSummary link(long id, String code, long source, long target) {
-        return new LinkTypeSummary(
-                id, code, code + " 이름", source, target, LinkCardinality.MANY_TO_ONE, null);
+        return link(id, code, source, target, LinkCardinality.MANY_TO_ONE);
+    }
+
+    static LinkTypeSummary link(
+            long id, String code, long source, long target, LinkCardinality cardinality) {
+        return new LinkTypeSummary(id, code, code + " 이름", source, target, cardinality, null);
     }
 }

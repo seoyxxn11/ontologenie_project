@@ -20,9 +20,11 @@ import com.axcore.platform.auth.service.DataAccess;
 import com.axcore.platform.auth.service.DataAccessPolicy;
 import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.ontology.dto.ModelSummaryResponse;
+import com.axcore.platform.ontology.dto.ModelSummaryResponse.ObjectTypeSummary;
 import com.axcore.platform.ontology.service.ModelSummaryService;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -53,6 +55,7 @@ class AgentObjectPathToolsTests {
         assertThat(data.toTypeId()).isEqualTo(SALES_ORDER);
         assertThat(data.toTypeName()).isEqualTo("수주");
         assertThat(data.candidates()).hasSize(2);
+        assertThat(data.truncated()).isFalse();
         AgentQueryResult result = session.results().getFirst();
         assertThat(result.toolCode()).isEqualTo(AgentObjectPathTools.OBJECT_PATHS);
         assertThat(result.succeeded()).isTrue();
@@ -132,6 +135,32 @@ class AgentObjectPathToolsTests {
                 .contains("입력 오류")
                 .contains("볼 수 있는 객체 유형에 '작업지시 공정'가 없습니다");
         assertThat(session.results().getFirst().succeeded()).isFalse();
+    }
+
+    @Test
+    void asksForTypeIdWhenNameMatchesSeveralTypes() {
+        ModelSummaryResponse full = ObjectPathPlannerTests.s4Model();
+        List<ObjectTypeSummary> types = new ArrayList<>(full.objectTypes());
+        types.add(ObjectPathPlannerTests.type(9L, "설비", "설비 코드가 같은 유형"));
+        givenModel(ObjectPathPlannerTests.model(types, full.linkTypes()));
+
+        Map<String, Object> reply = tools.objectPaths("설비", "수주");
+
+        assertThat(reply.get("error"))
+                .asString()
+                .contains("입력 오류")
+                .contains("'설비'에 맞는 객체 유형이 여럿입니다");
+        assertThat(session.results().getFirst().succeeded()).isFalse();
+    }
+
+    @Test
+    void rejectsMissingType() {
+        givenModel(ObjectPathPlannerTests.s4Model());
+
+        assertThat(tools.objectPaths(null, "수주").get("error"))
+                .asString()
+                .contains("fromType가 없습니다");
+        assertThat(tools.objectPaths("설비", "  ").get("error")).asString().contains("toType가 없습니다");
     }
 
     @Test
