@@ -79,6 +79,19 @@ class AuditValueMaskerTests {
         assertThat(snapshotOf(change)).containsEntry("workOrderNo", "WO-1");
     }
 
+    /** 보는 사람이 볼 수 있어 가리지 않은 민감 자리에 값이 있으면 그 코드를 알린다(394 열람 기록). */
+    @Test
+    void reportsRestrictedPathsLeftVisible() {
+        when(access.revealsValue("WorkOrder", "wo_no")).thenReturn(true);
+
+        Masked<List<AuditEntityChangeResponse>> masked =
+                masker.maskChanges(List.of(itemChange()), access);
+
+        assertThat(masked.restrictedPropertyCodes()).isEmpty();
+        assertThat(masked.revealedPropertyCodes()).containsExactly("wo_no");
+        assertThat(snapshotOf(masked.value().getFirst())).containsEntry("workOrderNo", "WO-1");
+    }
+
     @Test
     void masksInputAndChangesSeparatelyForASingleExecution() {
         when(access.hidesValue("Operation", "op_seq")).thenReturn(true);
@@ -95,7 +108,7 @@ class AuditValueMaskerTests {
                 .containsEntry("workOrderNo", null);
         assertThat(changes.restrictedPropertyCodes()).containsExactly("wo_no");
         assertThat(masker.maskInput(null, null, access))
-                .isEqualTo(new Masked<Map<String, Object>>(null, List.of()));
+                .isEqualTo(new Masked<Map<String, Object>>(null, List.of(), List.of()));
     }
 
     @Test
@@ -121,9 +134,9 @@ class AuditValueMaskerTests {
         AuditEntityChangeResponse change = itemChange();
 
         assertThat(masker.maskChanges(List.of(change), access))
-                .isEqualTo(new Masked<>(List.of(change), List.of()));
+                .isEqualTo(new Masked<>(List.of(change), List.of(), List.of()));
         assertThat(masker.maskInput(PLAN_DEFINITION, input(), access))
-                .isEqualTo(new Masked<>(input(), List.of()));
+                .isEqualTo(new Masked<>(input(), List.of(), List.of()));
     }
 
     private static Map<String, Object> snapshotOf(AuditEntityChangeResponse change) {

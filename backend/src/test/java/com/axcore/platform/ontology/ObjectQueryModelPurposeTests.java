@@ -28,8 +28,6 @@ import org.springframework.test.context.ActiveProfiles;
 @Import(TestcontainersConfiguration.class)
 class ObjectQueryModelPurposeTests {
 
-    private static final LoginAccount VIEWER = new LoginAccount(1L, "tester", "VIEWER", false);
-
     @Autowired ObjectDetailQuery details;
 
     @Autowired ObjectSearchQuery search;
@@ -37,6 +35,27 @@ class ObjectQueryModelPurposeTests {
     @Autowired DataAccessPolicy policy;
 
     @Autowired JdbcClient jdbc;
+
+    /** 민감 값을 보여 준 응답은 열람 기록(394)을 남기고 그 기록은 실제 계정을 가리켜야 해서, 테스트 사용자를 계정 표에 둔다. */
+    private long testerId;
+
+    @BeforeEach
+    void createTester() {
+        testerId =
+                jdbc.sql(
+                                """
+                                insert into account (login_id, display_name, password_hash, role_id, must_change_password)
+                                values (:loginId, 'tester', 'not-used', (select id from role where code = 'VIEWER'), false)
+                                returning id
+                                """)
+                        .param("loginId", "tester-" + java.util.UUID.randomUUID())
+                        .query(Long.class)
+                        .single();
+    }
+
+    private LoginAccount viewer() {
+        return new LoginAccount(testerId, "tester", "VIEWER", false);
+    }
 
     long objectId;
     String technician;
@@ -89,8 +108,8 @@ class ObjectQueryModelPurposeTests {
 
     @Test
     void detailShowsRestrictedValueToPeopleButNotToModel() {
-        ObjectDetailResponse view = details.detail(VIEWER, DataPurpose.VIEW, objectId);
-        ObjectDetailResponse model = details.detail(VIEWER, DataPurpose.MODEL, objectId);
+        ObjectDetailResponse view = details.detail(viewer(), DataPurpose.VIEW, objectId);
+        ObjectDetailResponse model = details.detail(viewer(), DataPurpose.MODEL, objectId);
 
         assertThat(view.properties()).containsEntry("technician", technician);
         assertThat(model.properties()).containsEntry("technician", null);
@@ -100,15 +119,16 @@ class ObjectQueryModelPurposeTests {
 
     @Test
     void modelCannotFindObjectsByRestrictedValue() {
-        assertThat(search.findByPropertyValue(VIEWER, DataPurpose.VIEW, technician, 10))
+        assertThat(search.findByPropertyValue(viewer(), DataPurpose.VIEW, technician, 10))
                 .extracting(found -> found.id())
                 .containsExactly(objectId);
-        assertThat(search.findByPropertyValue(VIEWER, DataPurpose.MODEL, technician, 10)).isEmpty();
+        assertThat(search.findByPropertyValue(viewer(), DataPurpose.MODEL, technician, 10))
+                .isEmpty();
     }
 
     @Test
     void definitionsScopeIsNotForObjectQueries() {
-        assertThatThrownBy(() -> policy.of(VIEWER, DataPurpose.DEFINITIONS))
+        assertThatThrownBy(() -> policy.of(viewer(), DataPurpose.DEFINITIONS))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }

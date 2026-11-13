@@ -43,9 +43,15 @@ public class AuditValueMasker {
     public Masked<Map<String, Object>> maskInput(
             Long actionDefinitionId, Map<String, Object> input, DataAccess access) {
         Set<String> masked = new TreeSet<>();
+        Set<String> revealed = new TreeSet<>();
         Map<String, Object> value =
-                blank(input, inputPathsOf(handlerKeyOf(actionDefinitionId)), access, masked);
-        return new Masked<>(value, List.copyOf(masked));
+                blank(
+                        input,
+                        inputPathsOf(handlerKeyOf(actionDefinitionId)),
+                        access,
+                        masked,
+                        revealed);
+        return new Masked<>(value, List.copyOf(masked), List.copyOf(revealed));
     }
 
     /** 실행 하나의 변경 내역만 가린다(098). */
@@ -56,20 +62,26 @@ public class AuditValueMasker {
     public Masked<Map<String, Object>> maskRow(
             String tableName, Map<String, Object> row, DataAccess access) {
         Set<String> masked = new TreeSet<>();
-        Map<String, Object> value = blank(row, paths(changePaths, tableName), access, masked);
-        return new Masked<>(value, List.copyOf(masked));
+        Set<String> revealed = new TreeSet<>();
+        Map<String, Object> value =
+                blank(row, paths(changePaths, tableName), access, masked, revealed);
+        return new Masked<>(value, List.copyOf(masked), List.copyOf(revealed));
     }
 
     public Masked<List<AuditEntityChangeResponse>> maskChanges(
             List<AuditEntityChangeResponse> changes, DataAccess access) {
         Set<String> masked = new TreeSet<>();
+        Set<String> revealed = new TreeSet<>();
         List<AuditEntityChangeResponse> value =
-                changes.stream().map(change -> mask(change, access, masked)).toList();
-        return new Masked<>(value, List.copyOf(masked));
+                changes.stream().map(change -> mask(change, access, masked, revealed)).toList();
+        return new Masked<>(value, List.copyOf(masked), List.copyOf(revealed));
     }
 
     private AuditEntityChangeResponse mask(
-            AuditEntityChangeResponse change, DataAccess access, Set<String> masked) {
+            AuditEntityChangeResponse change,
+            DataAccess access,
+            Set<String> masked,
+            Set<String> revealed) {
         List<Path> paths = paths(changePaths, change.tableName());
         if (paths.isEmpty()) {
             return change;
@@ -78,14 +90,27 @@ public class AuditValueMasker {
                 change.tableName(),
                 change.rowKey(),
                 change.changeKind(),
-                blank(change.beforeData(), paths, access, masked),
-                blank(change.afterData(), paths, access, masked));
+                blank(change.beforeData(), paths, access, masked, revealed),
+                blank(change.afterData(), paths, access, masked, revealed));
     }
 
-    /** 원래 값은 바꾸지 않는다. 가릴 자리가 없으면 받은 값을 그대로 돌려준다. */
+    /**
+     * 원래 값은 바꾸지 않는다. 가릴 자리가 없으면 받은 값을 그대로 돌려준다. 보는 사람이 볼 수 있어 가리지 않은 민감 자리에 값이 있으면 그 코드를 revealed에
+     * 담는다(394 열람 기록).
+     */
     @SuppressWarnings("unchecked")
     private static Map<String, Object> blank(
-            Map<String, Object> data, List<Path> paths, DataAccess access, Set<String> masked) {
+            Map<String, Object> data,
+            List<Path> paths,
+            DataAccess access,
+            Set<String> masked,
+            Set<String> revealed) {
+        if (data != null) {
+            paths.stream()
+                    .filter(path -> access.revealsValue(path.objectTypeCode(), path.propertyCode()))
+                    .filter(path -> hasValue(data, path.keys(), 0))
+                    .forEach(path -> revealed.add(path.propertyCode()));
+        }
         List<Path> hidden =
                 paths.stream()
                         .filter(
@@ -103,6 +128,19 @@ public class AuditValueMasker {
             }
         }
         return copy;
+    }
+
+    /** 경로 끝에 null이 아닌 값이 하나라도 있는가. */
+    private static boolean hasValue(Object node, List<String> keys, int depth) {
+        String key = keys.get(depth);
+        if (EACH.equals(key)) {
+            return node instanceof List<?> items
+                    && items.stream().anyMatch(item -> hasValue(item, keys, depth + 1));
+        }
+        if (!(node instanceof Map<?, ?> map) || map.get(key) == null) {
+            return false;
+        }
+        return depth == keys.size() - 1 || hasValue(map.get(key), keys, depth + 1);
     }
 
     /** 경로 끝의 키가 있으면 그 값을 null로 바꾸고 true를 돌려준다. */
@@ -168,5 +206,6 @@ public class AuditValueMasker {
     }
 
     /** 가린 값과, 값을 가린 민감 속성 코드(이름순). */
-    public record Masked<T>(T value, List<String> restrictedPropertyCodes) {}
+    public record Masked<T>(
+            T value, List<String> restrictedPropertyCodes, List<String> revealedPropertyCodes) {}
 }

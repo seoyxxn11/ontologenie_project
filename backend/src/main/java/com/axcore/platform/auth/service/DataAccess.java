@@ -55,6 +55,16 @@ public final class DataAccess {
                 && scope.restrictedPropertyCodes().contains(propertyCode);
     }
 
+    /**
+     * 그 유형의 그 속성이 민감 속성이고 보는 사람이 그 값을 볼 수 있는가. 이 값을 응답에 담으면 민감 값 열람 기록(394)을 남긴다. 없는 유형이면 false다.
+     */
+    public boolean revealsValue(String objectTypeCode, String propertyCode) {
+        ObjectTypeScope scope = scopesByCode.get(objectTypeCode);
+        return scope != null
+                && canViewRestricted(scope.objectTypeId())
+                && scope.restrictedPropertyCodes().contains(propertyCode);
+    }
+
     /** 볼 수 있는 객체 유형 ID. 목록 검색은 이 값으로 SQL에서 거른다(건수에도 넣지 않는다). 비어 있으면 아무것도 보이지 않는다. */
     public Set<Long> visibleObjectTypeIds() {
         return scopes.values().stream()
@@ -129,7 +139,12 @@ public final class DataAccess {
         }
         Map<String, Object> copy = new LinkedHashMap<>(properties);
         if (canViewRestricted(objectTypeId)) {
-            return new MaskedProperties(Collections.unmodifiableMap(copy), List.of());
+            List<String> revealed =
+                    scope.restrictedPropertyCodes().stream()
+                            .filter(code -> copy.get(code) != null)
+                            .sorted()
+                            .toList();
+            return new MaskedProperties(Collections.unmodifiableMap(copy), List.of(), revealed);
         }
         List<String> masked = new ArrayList<>();
         for (String code : scope.restrictedPropertyCodes()) {
@@ -139,6 +154,7 @@ public final class DataAccess {
             }
         }
         masked.sort(null);
-        return new MaskedProperties(Collections.unmodifiableMap(copy), List.copyOf(masked));
+        return new MaskedProperties(
+                Collections.unmodifiableMap(copy), List.copyOf(masked), List.of());
     }
 }

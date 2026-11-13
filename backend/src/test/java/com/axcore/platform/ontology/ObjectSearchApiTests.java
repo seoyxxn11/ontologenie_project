@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +49,24 @@ class ObjectSearchApiTests {
 
     @Autowired MockMvc mvc;
     @Autowired JdbcClient jdbc;
+
+    /** 민감 값을 보여 준 응답은 열람 기록(394)을 남기고 그 기록은 실제 계정을 가리켜야 해서, 테스트 사용자를 계정 표에 둔다. */
+    private long testerId;
+
+    @BeforeEach
+    void createTester() {
+        testerId =
+                jdbc.sql(
+                                """
+                                insert into account (login_id, display_name, password_hash, role_id, must_change_password)
+                                values (:loginId, 'tester', 'not-used', (select id from role where code = 'VIEWER'), false)
+                                returning id
+                                """)
+                        .param("loginId", "tester-" + java.util.UUID.randomUUID())
+                        .query(Long.class)
+                        .single();
+    }
+
     @Autowired ObjectProvider<ObjectEvidenceQuery> evidenceQuery;
     @Autowired ObjectProvider<ObjectSearchQuery> searchQuery;
 
@@ -616,7 +635,7 @@ class ObjectSearchApiTests {
                         get(TYPES_PATH)
                                 .with(
                                         authentication(
-                                                new LoginAccount(1L, "tester", "ADMIN", true)
+                                                new LoginAccount(testerId, "tester", "ADMIN", true)
                                                         .toAuthentication())))
                 .andExpect(status().isForbidden());
     }
@@ -661,7 +680,7 @@ class ObjectSearchApiTests {
                         get(PATH)
                                 .with(
                                         authentication(
-                                                new LoginAccount(1L, "tester", "ADMIN", true)
+                                                new LoginAccount(testerId, "tester", "ADMIN", true)
                                                         .toAuthentication())))
                 .andExpect(status().isForbidden());
         mvc.perform(get(PATH).param("size", "101").with(actor("VIEWER")))
@@ -939,8 +958,8 @@ class ObjectSearchApiTests {
         assertThat(search.findByPropertyValue(admin, tag + "-key-only", 100)).isEmpty();
     }
 
-    private static LoginAccount account(String role) {
-        return new LoginAccount(1L, "tester", role, false);
+    private LoginAccount account(String role) {
+        return new LoginAccount(testerId, "tester", role, false);
     }
 
     @Test
@@ -1199,7 +1218,7 @@ class ObjectSearchApiTests {
                     .andExpect(jsonPath("$.meta.totalElements").value(1));
         }
 
-        LoginAccount admin = new LoginAccount(1L, "tester", "ADMIN", false);
+        LoginAccount admin = new LoginAccount(testerId, "tester", "ADMIN", false);
         var evidence = evidenceQuery.getObject().linkEvidence(admin, target, link);
         assertThat(evidence.evidenceRestricted()).isFalse();
         assertThat(evidence.sourceKey()).containsEntry("serial", "private-serial");
@@ -1277,7 +1296,7 @@ class ObjectSearchApiTests {
                 .andExpect(jsonPath("$.data[0].evidence.rawValue").doesNotHaveJsonPath())
                 .andExpect(jsonPath("$.data[0].evidence.transformedValue").doesNotHaveJsonPath())
                 .andExpect(jsonPath("$.data[0].evidence.comparisons").doesNotHaveJsonPath());
-        LoginAccount viewer = new LoginAccount(1L, "tester", "VIEWER", false);
+        LoginAccount viewer = new LoginAccount(testerId, "tester", "VIEWER", false);
         var hiddenEvidence = evidenceQuery.getObject().linkEvidence(viewer, source, link);
         assertThat(hiddenEvidence.evidenceRestricted()).isTrue();
         assertThat(hiddenEvidence.transformedValue()).isNull();
@@ -1428,8 +1447,8 @@ class ObjectSearchApiTests {
                 .update();
     }
 
-    private static RequestPostProcessor actor(String role) {
-        return authentication(new LoginAccount(1L, "tester", role, false).toAuthentication());
+    private RequestPostProcessor actor(String role) {
+        return authentication(new LoginAccount(testerId, "tester", role, false).toAuthentication());
     }
 
     /**
