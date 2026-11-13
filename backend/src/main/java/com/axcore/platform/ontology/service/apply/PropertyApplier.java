@@ -48,7 +48,6 @@ class PropertyApplier implements ProposalApplier {
                 "property_definition",
                 written.id(),
                 List.of(),
-                List.of(),
                 Map.of("objectTypeCode", type.getCode(), "propertyCode", code),
                 List.of(written.change()));
     }

@@ -272,7 +272,6 @@ public class CheckIssueJudge {
                         evaluation.rule().target().linkMappingId(),
                         null,
                         objectId,
-                        null,
                         CheckRowText.rawValue(row, evaluation.rule().conditions()),
                         CheckRowText.transformedValue(row, evaluation.rule().conditions()),
                         evidence));

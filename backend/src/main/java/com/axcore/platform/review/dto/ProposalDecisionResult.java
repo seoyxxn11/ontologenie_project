@@ -9,5 +9,4 @@ public record ProposalDecisionResult(
         String reviewStatus,
         String applyStatus,
         List<Long> appliedEntityIds,
-        List<Long> heldItemIds,
         long actionExecutionId) {}

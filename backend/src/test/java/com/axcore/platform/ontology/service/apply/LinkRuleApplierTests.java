@@ -118,15 +118,11 @@ class LinkRuleApplierTests {
                                         + result.targetId()))
                 .isEqualTo(1);
 
-        // 이어지지 않은 출발은 보류 건으로 남기지 않는다(366). 미연결은 SYNC 검사가 문제로 남긴다.
-        assertThat(result.heldItemIds()).isEmpty();
-        assertThat(count("held_item", "source_object_id in (" + unlinked + "," + empty + ")"))
-                .isZero();
+        // 이어지지 않은 출발은 승인 반영이 따로 기록하지 않는다(366). 미연결은 SYNC 검사가 문제로 남긴다.
         assertThat(result.summary())
                 .containsEntry("revision", 1)
                 .containsEntry("linksActivated", 1)
                 .doesNotContainKey("heldCount");
-        assertThat(result.changes()).extracting("tableName").doesNotContain("held_item");
 
         // 커밋 뒤 새 개정본을 포함한 SYNC 검사가 바로 들어간다.
         assertThat(
@@ -160,8 +156,6 @@ class LinkRuleApplierTests {
         assertThat(activeTargets(wo)).hasSize(1);
         assertThat(activeTargets(unlinked)).isEmpty();
         assertThat(second.summary()).containsEntry("retiredRevisionId", first.targetId());
-        assertThat(count("held_item", "source_object_id in (" + wo + "," + unlinked + ")"))
-                .isZero();
     }
 
     @Test

@@ -45,7 +45,6 @@ class ObjectMappingApplier implements ProposalApplier {
         return new ApplyResult(
                 "object_source_mapping",
                 written.id(),
-                List.of(),
                 List.of(written.sourceResourceId()),
                 Map.of(
                         "objectTypeCode",

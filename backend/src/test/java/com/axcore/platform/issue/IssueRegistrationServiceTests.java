@@ -144,7 +144,6 @@ class IssueRegistrationServiceTests {
                                         mappingId,
                                         null,
                                         null,
-                                        null,
                                         "W23",
                                         "E023",
                                         Map.of()))
@@ -161,7 +160,6 @@ class IssueRegistrationServiceTests {
                 checkRunId,
                 "변환 값 E023과 같은 직원이 없습니다.",
                 mappingId,
-                null,
                 null,
                 null,
                 "W23",

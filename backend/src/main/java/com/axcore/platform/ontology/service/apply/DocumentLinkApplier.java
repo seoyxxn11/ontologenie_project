@@ -99,7 +99,6 @@ class DocumentLinkApplier implements ProposalApplier {
                 "object_link",
                 saved.linkId(),
                 List.of(),
-                List.of(),
                 summary,
                 saved.change() == null ? List.of() : List.of(saved.change()));
     }

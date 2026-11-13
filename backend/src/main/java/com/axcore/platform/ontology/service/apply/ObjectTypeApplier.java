@@ -142,7 +142,6 @@ class ObjectTypeApplier implements ProposalApplier {
         summary.put("objectMappingId", objectMappingId);
         summary.put("propertyMappingCount", propertyMappings);
         summary.put("displayPropertyCode", displayCode);
-        return new ApplyResult(
-                "object_type", type.getId(), List.of(), List.copyOf(reload), summary, changes);
+        return new ApplyResult("object_type", type.getId(), List.copyOf(reload), summary, changes);
     }
 }

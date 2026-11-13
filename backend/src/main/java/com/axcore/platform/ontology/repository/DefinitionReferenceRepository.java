@@ -50,8 +50,7 @@ public class DefinitionReferenceRepository {
     private static final List<ReferenceSource> LINK_TYPE_REFERENCES =
             List.of(
                     new ReferenceSource("link_mapping", "link_type_id = :id"),
-                    new ReferenceSource("object_link", "link_type_id = :id"),
-                    new ReferenceSource("held_item", "link_type_id = :id"));
+                    new ReferenceSource("object_link", "link_type_id = :id"));
 
     private final JdbcClient jdbcClient;
 

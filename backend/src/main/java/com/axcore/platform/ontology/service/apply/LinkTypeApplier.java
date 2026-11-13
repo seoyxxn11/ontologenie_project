@@ -38,7 +38,6 @@ class LinkTypeApplier implements ProposalApplier {
                 "link_type",
                 written.id(),
                 List.of(),
-                List.of(),
                 Map.of("linkTypeCode", command.payload().get("code")),
                 List.of(written.change()));
     }

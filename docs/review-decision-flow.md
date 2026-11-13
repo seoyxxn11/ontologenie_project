@@ -1,6 +1,8 @@
 # 후보 결정·반영 연동 계약 (S15P31C106-131)
 
 > 현재 구현과 검증 범위는 [결정 실행 구현](review-decision-execution.md)을 따른다. 이 문서는 반영 서비스와 승인 흐름 사이의 연동 계약을 설명한다.
+>
+> 2026-11-13(377): 개별 보류 건(`held_item`)은 366에서 만들지 않게 되었고 377에서 표·API·`heldItemIds`를 지웠다. 아래 보류 건 언급은 그 전 계약이며, 규칙이 잇지 못한 출발은 SYNC 검사가 문제로 기록한다.
 
 기준: 2026-11-05 사용자가 전달한 주헌님의 정정 메시지와 서연님의 원천 식별 형식 확정 답변. 관계 재계산과 개별 보류 건 생성은 승인 트랜잭션 안에서 동기 실행한다. 이 문서는 종전의 승인 후 비동기 재계산·작업 예약 계약을 대체한다.
 
@@ -65,7 +67,7 @@
 
 ```text
 ApplyCommand(proposalItemId, itemKind, origin, payload, decidedBy)
-ApplyResult(targetTable, targetId, heldItemIds, reloadResourceIds, summary, changes)
+ApplyResult(targetTable, targetId, reloadResourceIds, summary, changes)
 ```
 
 실제 패키지·Java 타입·빈 값 표현은 팀원이 제공하는 인터페이스와 record를 따른다. 131은 기존 합의대로 반영 서비스가 호출자의 트랜잭션에 참여하는지(MANDATORY) 확인한다.
@@ -87,7 +89,6 @@ ApplyResult(targetTable, targetId, heldItemIds, reloadResourceIds, summary, chan
 | 필드 | 의미와 사용처 |
 | --- | --- |
 | `targetTable`, `targetId` | 실제 반영 대상. API 054의 `appliedEntityIds`는 현행 명세 형식에 맞춰 이 값에서 구성 |
-| `heldItemIds` | 관계 규칙 반영 중 이번 트랜잭션에서 생성한 개별 보류 건 ID. 승인 응답에 실제 결과를 전달 |
 | `reloadResourceIds` | 매핑 반영으로 다시 읽도록 표시한 원천 자원. 객체 생성·갱신은 이후 배치 수집이 수행 |
 | `summary` | 연결 유지·비활성·신규 수 등의 감사 요약. `AuditEntry.result`에 반영 |
 | `changes` | 감사용 `List<ChangeEntry>`. 변형·중복 기록 없이 131의 이력 INSERT·후보 UPDATE 변경 목록과 함께 `AuditEntry.changes`에 포함 |
@@ -140,7 +141,7 @@ ApplyResult(targetTable, targetId, heldItemIds, reloadResourceIds, summary, chan
 
 - `POST /api/v1/proposals/{id}/decisions`의 기존 세션·CSRF·임시 비밀번호 제한을 유지한다. `ProposalDecisionRequest`의 revision·decision·selectedOptionId·reason과 기존 입력 제한을 재사용한다.
 - API 055 이력 응답과 별도의 실행 결과 DTO를 둔다. 성공은 `ApiResponse.data`, 오류는 공통 오류 형식을 따른다.
-- 기존 성공 필드 `decisionId`, `decision`, `reviewStatus`, `applyStatus`, `appliedEntityIds`, `heldItemIds`, `actionExecutionId`를 명세와 대조한다. 관계 규칙의 `heldItemIds`를 비동기라는 이유로 항상 빈 목록으로 만들지 않는다.
+- 기존 성공 필드 `decisionId`, `decision`, `reviewStatus`, `applyStatus`, `appliedEntityIds`, `actionExecutionId`를 명세와 대조한다.
 - 보류 건·정의·객체 매핑·규칙은 `proposal_item_id`로 추적할 수 있다. `property_source_mapping`에는 이 컬럼이 없어 속성 매핑 결과는 감사 기록으로 추적한다.
 - 133에서 직접 조회용 컬럼이 꼭 필요하면 주헌님과 별도 협의한다. 이번 131 문서 갱신으로 컬럼·Migration을 추가하지 않는다. 131의 감사 연결을 139가 중복 저장하지 않도록 책임을 구분한다.
 

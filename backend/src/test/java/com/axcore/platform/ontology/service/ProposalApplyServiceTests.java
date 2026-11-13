@@ -18,15 +18,14 @@ class ProposalApplyServiceTests {
     @Test
     void passesTheCommandToTheApplierOfItsKind() {
         ApplyResult expected =
-                new ApplyResult("object_type", 10L, null, null, Map.of("created", 1), null);
+                new ApplyResult("object_type", 10L, null, Map.of("created", 1), null);
         ProposalApplyService service =
                 new ProposalApplyService(
                         List.of(
                                 applier(ProposalItemKind.OBJECT_TYPE, expected),
                                 applier(
                                         ProposalItemKind.LINK_TYPE,
-                                        new ApplyResult(
-                                                "link_type", 20L, null, null, null, null))));
+                                        new ApplyResult("link_type", 20L, null, null, null))));
 
         ApplyResult result = service.apply(command(ProposalItemKind.OBJECT_TYPE));
 
@@ -49,7 +48,7 @@ class ProposalApplyServiceTests {
 
     @Test
     void allowsOnlyOneApplierPerKind() {
-        ApplyResult result = new ApplyResult("object_type", 1L, null, null, null, null);
+        ApplyResult result = new ApplyResult("object_type", 1L, null, null, null);
 
         assertThatThrownBy(
                         () ->
@@ -79,11 +78,10 @@ class ProposalApplyServiceTests {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new ApplyCommand(1L, null, ProposalOrigin.AI, Map.of(), 1L))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new ApplyResult("object_type", 0L, null, null, null, null))
+        assertThatThrownBy(() -> new ApplyResult("object_type", 0L, null, null, null))
                 .isInstanceOf(IllegalArgumentException.class);
 
-        ApplyResult empty = new ApplyResult("object_type", 1L, null, null, null, null);
-        assertThat(empty.heldItemIds()).isEmpty();
+        ApplyResult empty = new ApplyResult("object_type", 1L, null, null, null);
         assertThat(empty.reloadResourceIds()).isEmpty();
         assertThat(empty.summary()).isEmpty();
         assertThat(empty.changes()).isEmpty();

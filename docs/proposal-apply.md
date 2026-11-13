@@ -28,7 +28,6 @@ code를 DB ID로 바꾸는 일은 이 서비스가 한다. 아직 승인되지 �
 | 필드 | 내용 |
 | --- | --- |
 | `targetTable`, `targetId` | 대표로 만든 행 |
-| `heldItemIds` | 보류 건 ID. 관계 규칙 반영이 보류 건을 만들지 않게 되어(366) 항상 빈 배열이다. 응답 형식은 유지한다 |
 | `reloadResourceIds` | 매핑을 반영해 전체 다시 읽기(`loaded_lsn = NULL`)를 요청한 원천 자원. 객체는 수집 배치가 만든다. 다시 읽는 동안에도 CDC 이벤트는 계속 반영된다(V11) |
 | `summary` | 감사 기록 `result`에 넣을 요약 |
 | `changes` | 바뀐 행의 전후 내용(`List<ChangeEntry>`). 감사 기록 `changes`에 그대로 넣는다 |
@@ -108,10 +107,10 @@ AI 제안기는 관리자가 판단하는 단위로 후보를 묶어 보낸다. 
    **관계 유형마다 반영 중인 규칙은 하나다(367).** 같은 관계 유형에 다른 코드의 규칙이 반영 중이면 `APPLY_PAYLOAD_INVALID`(`payload.code`)로 거절한다. 승인 반영을 거치지 않는 저장(직접 SQL 등)은 DB가 막는다(V17 `uq_link_mapping_active_link_type`, `link_type_id WHERE status = 'ACTIVE'`). 규칙이 둘이면 한 출발을 서로 다른 도착으로 이으려 할 때 관계 수 제약 때문에 어느 쪽인지 정할 수 없어 연결이 빠지고(규칙 충돌), 검사는 규칙마다 따로 봐서 이를 드러내지 못한다. 그래서 입구에서 막는다. 규칙을 바꾸려면 그 규칙 코드의 개정본으로 제안한다. 같은 관계 유형을 동시에 승인하는 두 요청이 모두 통과하지 않도록 연결 재계산과 같은 관계 유형 잠금을 먼저 잡고 본다.
 3. **연결 재계산:** `LinkRecomputeService.recomputeRules`로 그 관계 유형의 연결을 다시 계산한다. 옛 개정본이 근거인 연결도 새 개정본 기준으로 바뀐다(U6).
    같은 유형끼리 연결할 때는 자기 자신을 잇는 쌍을 제외한 뒤 관계 수를 센다. [후보 시험과 SYNC](check-run.md)에도 같은 기준을 적용한다.
-4. **미연결은 기록하지 않는다(366, 2026-11-12 보류 건을 문제로 일원화):** 새 규칙으로 이어지지 않은 출발 객체를 보류 건(`held_item`)으로 남기지 않는다. 미연결 판정·기록은 SYNC 검사 → 문제(issue) 한 곳에서만 한다([check-run.md](check-run.md)). 승인 반영에는 SYNC의 보호 장치(적재 전·복구 중 건너뛰기, 원천 사이 확인 대기, 도착 적재 실패 보류)가 없어 곧 이어질 출발까지 미연결로 남기기 때문이다.
+4. **미연결은 기록하지 않는다(366, 2026-11-12 보류 건을 문제로 일원화):** 새 규칙으로 이어지지 않은 출발 객체를 승인 반영에서 따로 기록하지 않는다. 미연결 판정·기록은 SYNC 검사 → 문제(issue) 한 곳에서만 한다([check-run.md](check-run.md)). 승인 반영에는 SYNC의 보호 장치(적재 전·복구 중 건너뛰기, 원천 사이 확인 대기, 도착 적재 실패 보류)가 없어 곧 이어질 출발까지 미연결로 남기기 때문이다.
    - 커밋 뒤 SYNC 검사를 바로 넣는다(`LinkRuleApproved` 이벤트 → `SyncCheckOnRuleApproval`). 새 개정본의 판정이 다음 주기(`axcore.check.sync.interval`)를 기다리지 않게 한다. 넣지 못해도 승인은 끝났으므로 경고 로그만 남기고 다음 주기가 넣는다. `axcore.check.sync.enabled=false`면 넣지 않는다.
    - 관리자는 문제에서 원천 수정·규칙 개정·수동 연결(058, [confirmed-link.md](confirmed-link.md))로 고친다. 수동 종결(DISMISS)은 두지 않는다.
-   - 전에 만들어진 HELD 보류 건은 그대로 남는다(056·057 조회는 유지). 정리는 238(정유림)에서 정한다.
+   - 예전 보류 건(`held_item`)과 조회 API 056·057, 결과의 `heldItemIds`는 377(V22)에서 지웠다.
 
 | payload | 내용 |
 | --- | --- |
@@ -121,7 +120,7 @@ AI 제안기는 관리자가 판단하는 단위로 후보를 묶어 보낸다. 
 | `sourceFilter`, `targetFilter` | `{}` 또는 `{property, equals}`(연결 재계산이 읽는 형식). 속성은 그 쪽 유형의 속성이어야 한다 |
 | `description` | 설명. `pattern`은 쓰지 않는다 |
 
-결과: `targetTable = link_mapping`, `heldItemIds`(항상 빈 배열, 응답 형식 유지), `summary` {ruleCode, revision, retiredRevisionId, linksActivated, linksUpdated, linksInactivated}, `changes`(관계 유형을 만들었으면 그 INSERT, 이전 개정본 UPDATE, 새 개정본 INSERT). 연결 행마다의 변경은 건수로만 남긴다.
+결과: `targetTable = link_mapping`, `summary` {ruleCode, revision, retiredRevisionId, linksActivated, linksUpdated, linksInactivated}, `changes`(관계 유형을 만들었으면 그 INSERT, 이전 개정본 UPDATE, 새 개정본 INSERT). 연결 행마다의 변경은 건수로만 남긴다.
 
 알려진 한계(후속에서 정함)
 

@@ -22,12 +22,12 @@ public class IssueWriteRepository {
                         """
                         insert into issue (
                             issue_kind, dedupe_key, link_mapping_id, proposal_item_id,
-                            object_instance_id, held_item_id, raw_value, transformed_value,
+                            object_instance_id, raw_value, transformed_value,
                             failure_reason, evidence, detected_check_run_id
                         )
                         values (
                             :kind, :dedupeKey, :linkMappingId, :proposalItemId,
-                            :objectInstanceId, :heldItemId, :rawValue, :transformedValue,
+                            :objectInstanceId, :rawValue, :transformedValue,
                             :failureReason, cast(:evidence as jsonb), :checkRunId
                         )
                         on conflict (dedupe_key) where status <> 'RESOLVED' do nothing
@@ -38,7 +38,6 @@ public class IssueWriteRepository {
                 .param("linkMappingId", issue.linkMappingId(), Types.BIGINT)
                 .param("proposalItemId", issue.proposalItemId(), Types.BIGINT)
                 .param("objectInstanceId", issue.objectInstanceId(), Types.BIGINT)
-                .param("heldItemId", issue.heldItemId(), Types.BIGINT)
                 .param("rawValue", issue.rawValue(), Types.VARCHAR)
                 .param("transformedValue", issue.transformedValue(), Types.VARCHAR)
                 .param("failureReason", issue.failureReason())

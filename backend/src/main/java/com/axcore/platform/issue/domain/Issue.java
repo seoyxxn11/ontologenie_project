@@ -57,9 +57,6 @@ public class Issue extends BaseTimeEntity {
     @Column(updatable = false)
     private Long objectInstanceId;
 
-    @Column(updatable = false)
-    private Long heldItemId;
-
     @Column(updatable = false, columnDefinition = "text")
     private String rawValue;
 

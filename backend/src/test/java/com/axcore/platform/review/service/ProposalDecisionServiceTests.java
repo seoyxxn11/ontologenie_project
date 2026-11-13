@@ -188,7 +188,6 @@ class ProposalDecisionServiceTests {
             return new ApplyResult(
                     "object_type",
                     id,
-                    List.of(71L),
                     List.of(91L),
                     Map.of("createdCount", 1),
                     List.of(
@@ -268,7 +267,6 @@ class ProposalDecisionServiceTests {
         assertThat(result.reviewStatus()).isEqualTo("APPROVED");
         assertThat(result.applyStatus()).isEqualTo("APPLIED");
         assertThat(result.appliedEntityIds()).containsExactly(targetId());
-        assertThat(result.heldItemIds()).containsExactly(71L);
         assertThat(data.count(proposal)).isEqualTo(1);
         assertThat(
                         jdbc.sql("select applied_at from proposal_item where id=:id")
@@ -500,13 +498,13 @@ class ProposalDecisionServiceTests {
                         .andExpect(status().isOk())
                         .andExpect(jsonPath("$.data.reviewStatus").value("APPROVED"))
                         .andExpect(jsonPath("$.data.applyStatus").value("APPLIED"))
-                        .andExpect(jsonPath("$.data.heldItemIds[0]").value(71))
+                        .andExpect(jsonPath("$.data.heldItemIds").doesNotExist())
                         .andExpect(jsonPath("$.data.reloadResourceIds").doesNotExist())
                         .andExpect(jsonPath("$.data.summary").doesNotExist())
                         .andExpect(jsonPath("$.data.itemKind").doesNotExist())
                         .andReturn();
         var result = json.readTree(response.getResponse().getContentAsString()).path("data");
-        assertThat(result.size()).isEqualTo(7);
+        assertThat(result.size()).isEqualTo(6);
         assertThat(result.at("/appliedEntityIds/0").asLong()).isEqualTo(targetId());
         assertThat(result.path("decisionId").asLong()).isPositive();
         assertThat(result.path("actionExecutionId").asLong()).isPositive();

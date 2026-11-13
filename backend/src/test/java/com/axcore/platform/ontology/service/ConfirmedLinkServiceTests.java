@@ -70,7 +70,7 @@ class ConfirmedLinkServiceTests {
         SavedLink saved =
                 manual(
                         new ConfirmedLinkRequest(
-                                linkType, wo, eq, account, proposal, Map.of("heldItemId", 7)));
+                                linkType, wo, eq, account, proposal, Map.of("note", "현장 확인")));
 
         assertThat(saved.outcome()).isEqualTo(Outcome.CREATED);
         assertThat(saved.previousOrigin()).isNull();
@@ -87,7 +87,7 @@ class ConfirmedLinkServiceTests {
                 .containsEntry("confirmed_by", account)
                 .containsEntry("proposal_item_id", proposal)
                 .containsEntry("link_mapping_id", null)
-                .containsEntry("evidence", "{\"heldItemId\": 7}");
+                .containsEntry("evidence", "{\"note\": \"현장 확인\"}");
     }
 
     @Test
