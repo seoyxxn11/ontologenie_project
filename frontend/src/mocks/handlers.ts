@@ -10,6 +10,10 @@ import { reassignmentHandlers } from './reassignmentHandlers'
 import { issueHandlers } from './issueHandlers'
 import { mappingHandlers } from './mappingHandlers'
 import { sourceHandlers } from './sourceHandlers'
+import {
+  createDenseExplorerDemo,
+  denseDemoProperties,
+} from './denseExplorerDemo'
 import type {
   EntityChange,
   Execution,
@@ -27,7 +31,12 @@ import type {
   ObjectLinkGroup,
 } from '../features/explorer/types'
 
-const objects: ObjectInstance[] = [
+const denseDemo =
+  import.meta.env.DEV && import.meta.env.MODE === 'graph-demo'
+    ? createDenseExplorerDemo()
+    : null
+
+const baseObjects: ObjectInstance[] = [
   {
     id: 301,
     objectTypeId: 3,
@@ -143,6 +152,8 @@ const objects: ObjectInstance[] = [
   },
 ]
 
+const objects = denseDemo?.objects ?? baseObjects
+
 type SourceLocation = {
   systemName: string
   resourceKey: string
@@ -184,7 +195,7 @@ const propertyNamesByType: Record<number, Record<string, string>> = {
 }
 
 // 078 응답의 연결 (relatedObject는 조회한 객체에 따라 달라서 응답할 때 채운다)
-const links: Omit<ObjectLink, 'relatedObject'>[] = [
+const baseLinks: Omit<ObjectLink, 'relatedObject'>[] = [
   {
     id: 22,
     linkTypeId: 2,
@@ -270,6 +281,8 @@ const links: Omit<ObjectLink, 'relatedObject'>[] = [
     confirmedBy: 1,
   },
 ]
+
+const links = denseDemo?.links ?? baseLinks
 
 // 객체 번호 → 078 relatedObject 모양의 요약
 function objectSummary(id: number) {
@@ -567,7 +580,7 @@ function executionPage(items: MockExecution[], searchParams: URLSearchParams) {
 
 // 042 객체 유형 관계도 응답 (노드는 객체 유형, 선은 관계 유형)
 // 관계 유형 번호·이름과 연결 수는 078 목의 연결(objectLinks)과 맞춘다.
-const modelGraph: ModelGraph = {
+const baseModelGraph: ModelGraph = {
   nodes: [
     { id: 3, code: 'EQUIPMENT', name: '설비' },
     { id: 4, code: 'WORK_ORDER', name: '작업지시' },
@@ -629,6 +642,8 @@ const modelGraph: ModelGraph = {
     },
   ],
 }
+
+const modelGraph = denseDemo?.graph ?? baseModelGraph
 
 // 044 정의 변경 이력 응답 (최근 변경이 앞에 오도록 적어 둔다)
 // 객체 유형 이름 변경은 096 목의 관리자 실행(9004)과 같은 기록이다.
@@ -786,6 +801,13 @@ function ruleSummaries(): RuleSummary[] {
 }
 
 export const handlers = [
+  ...(denseDemo
+    ? [
+        http.get('/api/v1/ontology/object-types/:typeId/properties', () =>
+          HttpResponse.json({ data: denseDemoProperties }),
+        ),
+      ]
+    : []),
   ...accountHandlers,
   ...actionHandlers,
   ...checkHandlers,
@@ -944,7 +966,14 @@ export const handlers = [
     return HttpResponse.json({
       data: {
         ...object,
-        propertyNames: propertyNamesByType[object.objectTypeId] ?? {},
+        propertyNames: denseDemo
+          ? Object.fromEntries(
+              denseDemoProperties.map((property) => [
+                property.code,
+                property.name,
+              ]),
+            )
+          : (propertyNamesByType[object.objectTypeId] ?? {}),
         sourceSystemName: source?.systemName ?? null,
         sourceResourceKey: source?.resourceKey ?? null,
       },

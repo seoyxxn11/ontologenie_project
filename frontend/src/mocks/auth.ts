@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import type { Account } from '../features/auth/types'
+import { createMockAuthSession } from './mockAuthSession'
 
 export const demoAccount: Account = {
   id: 7,
@@ -10,15 +11,24 @@ export const demoAccount: Account = {
   mustChangePassword: false,
   rowVersion: 0,
 }
-let currentAccount: Account | null = null
+let session = createMockAuthSession()
+
+// browser.ts에서만 켠다. 자동 테스트와 운영의 서버 인증에는 브라우저 저장소를 사용하지 않는다.
+export function restoreBrowserMockSession() {
+  try {
+    session = createMockAuthSession(window.sessionStorage)
+  } catch {
+    // 저장소 접근이 제한된 경우 메모리 세션을 유지한다.
+  }
+}
 
 // 개발·자동 테스트 전용이다. 실제 세션·쿠키 검증에는 서버를 사용한다.
 export function setMockAccount(account: Account | null) {
-  currentAccount = account
+  session.set(account)
 }
 
 export function getMockAccount() {
-  return currentAccount
+  return session.get()
 }
 
 function denied(message = '로그인이 필요합니다.') {
@@ -36,9 +46,10 @@ function denied(message = '로그인이 필요합니다.') {
 }
 
 export const authHandlers = [
-  http.get('/api/v1/auth/me', () =>
-    currentAccount ? HttpResponse.json({ data: currentAccount }) : denied(),
-  ),
+  http.get('/api/v1/auth/me', () => {
+    const account = getMockAccount()
+    return account ? HttpResponse.json({ data: account }) : denied()
+  }),
   http.post('/api/v1/auth/login', async ({ request }) => {
     const body = (await request.json()) as {
       loginId?: string
@@ -56,16 +67,18 @@ export const authHandlers = [
         : undefined
     if (!roleCode || body.password !== 'demo-only')
       return denied('로그인 ID 또는 비밀번호가 올바르지 않습니다.')
-    currentAccount = { ...demoAccount, loginId: body.loginId!, roleCode }
-    return HttpResponse.json({ data: currentAccount })
+    const account = { ...demoAccount, loginId: body.loginId!, roleCode }
+    setMockAccount(account)
+    return HttpResponse.json({ data: account })
   }),
   http.post('/api/v1/auth/logout', () => {
-    currentAccount = null
+    setMockAccount(null)
     return new HttpResponse(null, { status: 204 })
   }),
   http.patch('/api/v1/auth/password', () => {
-    if (!currentAccount) return denied()
-    currentAccount = { ...currentAccount, mustChangePassword: false }
+    const account = getMockAccount()
+    if (!account) return denied()
+    setMockAccount({ ...account, mustChangePassword: false })
     return new HttpResponse(null, { status: 204 })
   }),
 ]
