@@ -9,6 +9,8 @@ import com.axcore.platform.audit.repository.ActionExecutionRepository;
 import com.axcore.platform.audit.repository.EntityChangeRepository;
 import com.axcore.platform.audit.service.AuditValueMasker;
 import com.axcore.platform.audit.service.AuditValueMasker.Masked;
+import com.axcore.platform.audit.service.RestrictedViewRecorder;
+import com.axcore.platform.audit.service.RestrictedViewRecorder.Seen;
 import com.axcore.platform.auth.service.DataAccess;
 import com.axcore.platform.auth.service.DataAccessPolicy;
 import com.axcore.platform.global.error.BusinessException;
@@ -40,12 +42,15 @@ public class ActionExecutionQueryService {
     private final EntityChangeRepository changes;
     private final AuditValueMasker masker;
     private final DataAccessPolicy dataAccessPolicy;
+    private final RestrictedViewRecorder restrictedViews;
 
     public ActionExecutionDetailResponse get(LoginAccount viewer, long id) {
         ActionExecution execution =
                 executions
                         .findById(id)
                         .filter(found -> found.getEventKind() != EventKind.AGENT_QUERY)
+                        // 민감 값 열람 기록(394)은 Action 결과가 아니다. 096에서 ADMIN만 본다.
+                        .filter(found -> found.getEventKind() != EventKind.RESTRICTED_VIEW)
                         .orElseThrow(
                                 () ->
                                         new BusinessException(
@@ -67,6 +72,12 @@ public class ActionExecutionQueryService {
                         access);
         TreeSet<String> restricted = new TreeSet<>(input.restrictedPropertyCodes());
         restricted.addAll(changed.restrictedPropertyCodes());
+        TreeSet<String> revealed = new TreeSet<>(input.revealedPropertyCodes());
+        revealed.addAll(changed.revealedPropertyCodes());
+        restrictedViews.record(
+                viewer,
+                "ACTION_RESULT",
+                List.of(new Seen("action_execution", id, List.copyOf(revealed))));
         return ActionExecutionDetailResponse.of(
                 execution,
                 input.value(),

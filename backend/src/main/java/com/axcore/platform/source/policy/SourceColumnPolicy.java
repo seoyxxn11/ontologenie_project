@@ -2,11 +2,16 @@ package com.axcore.platform.source.policy;
 
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Collection;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -100,6 +105,23 @@ public class SourceColumnPolicy {
         return columns.stream()
                 .filter(column -> gradeOf(resourceKey, column) == SourceColumnGrade.RESTRICTED)
                 .toList();
+    }
+
+    /** 정책 목록의 지문(SHA-256 앞 12자리). 민감 값 열람 기록(394)에 정책 버전으로 남긴다. 같은 목록이면 순서·대소문자와 관계없이 같다. */
+    public String fingerprint() {
+        String text =
+                "forbidden="
+                        + String.join(",", new TreeSet<>(forbidden))
+                        + ";restricted="
+                        + String.join(",", new TreeSet<>(restricted));
+        try {
+            byte[] hash =
+                    MessageDigest.getInstance("SHA-256")
+                            .digest(text.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash).substring(0, 12);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256을 쓸 수 없습니다.", e);
+        }
     }
 
     private static BusinessException forbiddenError(

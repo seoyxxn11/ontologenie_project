@@ -10,6 +10,8 @@ import com.axcore.platform.action.repository.ReassignmentPlanQueryRepository;
 import com.axcore.platform.action.repository.ReassignmentPlanSpecifications;
 import com.axcore.platform.audit.service.AuditValueMasker;
 import com.axcore.platform.audit.service.AuditValueMasker.Masked;
+import com.axcore.platform.audit.service.RestrictedViewRecorder;
+import com.axcore.platform.audit.service.RestrictedViewRecorder.Seen;
 import com.axcore.platform.auth.service.DataAccess;
 import com.axcore.platform.auth.service.DataAccessPolicy;
 import com.axcore.platform.global.error.BusinessException;
@@ -20,6 +22,9 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -60,6 +65,7 @@ public class ReassignmentPlanQueryService {
     private final ReassignmentProperties properties;
     private final DataAccessPolicy dataAccessPolicy;
     private final AuditValueMasker masker;
+    private final RestrictedViewRecorder restrictedViews;
 
     /** 조건이 null이면 거르지 않는다. 계획 한 페이지를 고른 뒤 그 계획들의 항목은 한 번에 붙인다. */
     public Page<ReassignmentPlanResponse> search(
@@ -74,7 +80,7 @@ public class ReassignmentPlanQueryService {
                         PageRequest.of(
                                 pageable.getPageNumber(), pageable.getPageSize(), NEWEST_FIRST));
         return new PageImpl<>(
-                withItems(page.getContent(), access), pageable, page.getTotalElements());
+                withItems(page.getContent(), access, viewer), pageable, page.getTotalElements());
     }
 
     public ReassignmentPlanResponse get(LoginAccount viewer, long id) {
@@ -87,7 +93,7 @@ public class ReassignmentPlanQueryService {
                                         new BusinessException(
                                                 CommonErrorCode.RESOURCE_NOT_FOUND,
                                                 Map.of("resource", "reassignment_plan")));
-        return withItems(List.of(plan), access).getFirst();
+        return withItems(List.of(plan), access, viewer).getFirst();
     }
 
     public List<ReassignmentPlanItemResponse> items(LoginAccount viewer, long id) {
@@ -101,12 +107,14 @@ public class ReassignmentPlanQueryService {
                 && access.canView(properties.operation().type());
     }
 
+    /** 계획마다 항목을 붙인다. 가리지 않고 보여 준 민감 자리가 있으면 계획별로 열람 기록을 남긴다(394). */
     private List<ReassignmentPlanResponse> withItems(
-            List<ReassignmentPlan> found, DataAccess access) {
+            List<ReassignmentPlan> found, DataAccess access, LoginAccount viewer) {
         if (found.isEmpty()) {
             return List.of();
         }
         Map<Long, List<ReassignmentPlanItemResponse>> itemsByPlan = new HashMap<>();
+        Map<Long, Set<String>> revealedByPlan = new TreeMap<>();
         planItems
                 .findByPlanIdInOrderById(found.stream().map(ReassignmentPlan::getId).toList())
                 .forEach(
@@ -114,7 +122,18 @@ public class ReassignmentPlanQueryService {
                                 itemsByPlan
                                         .computeIfAbsent(
                                                 item.getPlanId(), planId -> new ArrayList<>())
-                                        .add(masked(item, access)));
+                                        .add(masked(item, access, revealedByPlan)));
+        restrictedViews.record(
+                viewer,
+                "REASSIGNMENT_PLAN",
+                revealedByPlan.entrySet().stream()
+                        .map(
+                                entry ->
+                                        new Seen(
+                                                "reassignment_plan",
+                                                entry.getKey(),
+                                                List.copyOf(entry.getValue())))
+                        .toList());
         return found.stream()
                 .map(
                         plan ->
@@ -125,11 +144,17 @@ public class ReassignmentPlanQueryService {
 
     /** 공정 코드와 스냅샷을 저장된 행 모양으로 묶어 Handler가 알린 자리로 가린다. */
     @SuppressWarnings("unchecked")
-    private ReassignmentPlanItemResponse masked(ReassignmentPlanItem item, DataAccess access) {
+    private ReassignmentPlanItemResponse masked(
+            ReassignmentPlanItem item, DataAccess access, Map<Long, Set<String>> revealedByPlan) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put(OPERATION_CODE, item.getOperationCode());
         row.put(SNAPSHOT, item.getSourceSnapshot() == null ? Map.of() : item.getSourceSnapshot());
         Masked<Map<String, Object>> masked = masker.maskRow(ITEM_TABLE, row, access);
+        if (!masked.revealedPropertyCodes().isEmpty()) {
+            revealedByPlan
+                    .computeIfAbsent(item.getPlanId(), planId -> new TreeSet<>())
+                    .addAll(masked.revealedPropertyCodes());
+        }
         return ReassignmentPlanItemResponse.of(
                 item,
                 (String) masked.value().get(OPERATION_CODE),

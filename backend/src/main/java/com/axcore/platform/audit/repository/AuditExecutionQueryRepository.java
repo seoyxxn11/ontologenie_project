@@ -102,6 +102,9 @@ public class AuditExecutionQueryRepository {
              where e.event_kind <> 'AGENT_QUERY'
             """;
 
+    // 민감 값 열람 기록(394)은 eventKind로 골라 볼 때만 목록에 넣는다(080·기본 목록에는 넣지 않는다). 골라 보는 권한은 서비스가 ADMIN으로 막는다.
+    private static final String WITHOUT_RESTRICTED_VIEWS = " and e.event_kind <> 'RESTRICTED_VIEW'";
+
     private final JdbcClient jdbc;
 
     /**
@@ -121,6 +124,9 @@ public class AuditExecutionQueryRepository {
         if (viewerId != null) {
             where.append(MINE);
             params.put("viewerId", viewerId);
+        }
+        if (filter.eventKind() != EventKind.RESTRICTED_VIEW) {
+            where.append(WITHOUT_RESTRICTED_VIEWS);
         }
         add(where, params, " and e.actor_id = :actorId", "actorId", filter.actorId());
         add(where, params, " and d.code = :actionCode", "actionCode", filter.actionCode());
@@ -173,14 +179,16 @@ public class AuditExecutionQueryRepository {
     }
 
     /**
-     * 097·098에서 열 수 있는 기록인지. Agent 조회 기록은 늘 아니다. viewerId가 있으면 096과 같은 본인 실행 범위만 본다. 없는 기록도 false다.
+     * 097·098에서 열 수 있는 기록인지. Agent 조회 기록은 늘 아니고, 민감 값 열람 기록은 ADMIN만 연다. viewerId가 있으면 096과 같은 본인 실행
+     * 범위만 본다. 없는 기록도 false다.
      */
     public boolean isVisible(long executionId, Long viewerId) {
         Map<String, Object> params = new HashMap<>();
         params.put("id", executionId);
         String mine = "";
         if (viewerId != null) {
-            mine = MINE;
+            // ADMIN이 아니면 민감 값 열람 기록(394)은 열지 않는다.
+            mine = MINE + WITHOUT_RESTRICTED_VIEWS;
             params.put("viewerId", viewerId);
         }
         return jdbc.sql(

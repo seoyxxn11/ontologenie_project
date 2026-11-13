@@ -1,6 +1,8 @@
 package com.axcore.platform.ontology.service;
 
 import com.axcore.platform.account.domain.RoleCode;
+import com.axcore.platform.audit.service.RestrictedViewRecorder;
+import com.axcore.platform.audit.service.RestrictedViewRecorder.Seen;
 import com.axcore.platform.auth.service.DataAccess;
 import com.axcore.platform.auth.service.DataAccessPolicy;
 import com.axcore.platform.auth.service.DataPurpose;
@@ -61,6 +63,7 @@ public class ObjectQueryService
     private final ObjectQueryRepository objects;
     private final LinkTypeRepository linkTypes;
     private final ObjectSearchFilterValidator filterValidator;
+    private final RestrictedViewRecorder restrictedViews;
 
     // 권한, 목록, 전체 건수를 같은 스냅샷에서 읽는다.
     @Override
@@ -83,14 +86,18 @@ public class ObjectQueryService
         }
         String q = request.q();
         String exactPattern = q == null || q.isBlank() ? null : SearchPattern.exact(q);
-        return objects.search(
-                        scope.visibleTypeIds(),
-                        maskedTypes(scope.access(), scope.visibleTypeIds()),
-                        scope.status(),
-                        exactPattern,
-                        scope.filters(),
-                        page)
-                .map(row -> toResponse(row, scope.access()));
+        List<Seen> seen = new ArrayList<>();
+        Page<ObjectSearchResponse> found =
+                objects.search(
+                                scope.visibleTypeIds(),
+                                maskedTypes(scope.access(), scope.visibleTypeIds()),
+                                scope.status(),
+                                exactPattern,
+                                scope.filters(),
+                                page)
+                        .map(row -> toResponse(row, scope.access(), seen));
+        restrictedViews.record(actor, "OBJECT_SEARCH", seen);
+        return found;
     }
 
     // 건수와 ID를 같은 스냅샷에서 읽는다.
@@ -197,12 +204,16 @@ public class ObjectQueryService
         if (visibleTypeIds.isEmpty()) {
             return List.of();
         }
-        return objects
-                .findByPropertyValue(
-                        visibleTypeIds, maskedTypes(access, visibleTypeIds), exact, limit)
-                .stream()
-                .map(row -> toResponse(row, access))
-                .toList();
+        List<Seen> seen = new ArrayList<>();
+        List<ObjectSearchResponse> found =
+                objects
+                        .findByPropertyValue(
+                                visibleTypeIds, maskedTypes(access, visibleTypeIds), exact, limit)
+                        .stream()
+                        .map(row -> toResponse(row, access, seen))
+                        .toList();
+        restrictedViews.record(actor, "OBJECT_VALUE_SEARCH", seen);
+        return found;
     }
 
     @Override
@@ -223,9 +234,13 @@ public class ObjectQueryService
         if (ids.isEmpty() || visibleTypeIds.isEmpty()) {
             return List.of();
         }
-        return objects.findByIds(ids, visibleTypeIds, maskedTypes(access, visibleTypeIds)).stream()
-                .map(row -> toResponse(row, access))
-                .toList();
+        List<Seen> seen = new ArrayList<>();
+        List<ObjectSearchResponse> found =
+                objects.findByIds(ids, visibleTypeIds, maskedTypes(access, visibleTypeIds)).stream()
+                        .map(row -> toResponse(row, access, seen))
+                        .toList();
+        restrictedViews.record(actor, "OBJECT_BY_IDS", seen);
+        return found;
     }
 
     @Override
@@ -262,6 +277,10 @@ public class ObjectQueryService
                         .orElseThrow(() -> notFound(objectId));
         ObjectRow row = detail.object();
         MaskedProperties masked = access.mask(row.objectTypeId(), row.properties());
+        restrictedViews.record(
+                actor,
+                "OBJECT_DETAIL",
+                List.of(Seen.object(row.id(), masked.revealedPropertyCodes())));
         return new ObjectDetailResponse(
                 row.id(),
                 row.objectTypeId(),
@@ -542,8 +561,11 @@ public class ObjectQueryService
                 Map.of("resource", "object_instance", "id", objectId));
     }
 
-    private static ObjectSearchResponse toResponse(ObjectRow row, DataAccess access) {
+    /** 응답 한 줄을 만들고, 가리지 않고 보여 준 민감 속성이 있으면 seen에 담는다(394 열람 기록). */
+    private static ObjectSearchResponse toResponse(
+            ObjectRow row, DataAccess access, List<Seen> seen) {
         MaskedProperties masked = access.mask(row.objectTypeId(), row.properties());
+        seen.add(Seen.object(row.id(), masked.revealedPropertyCodes()));
         return new ObjectSearchResponse(
                 row.id(),
                 row.objectTypeId(),

@@ -54,6 +54,27 @@ class DataAccessTests {
     }
 
     /** 정의 조회 용도로는 객체 값을 읽지 못한다. */
+    /** 볼 수 있어 가리지 않은 민감 값은 열람 기록(394)에 쓰도록 코드를 알린다. 값이 비었거나 가렸으면 알리지 않는다. */
+    @Test
+    void reportsRestrictedValuesLeftVisible() {
+        DataAccess view = new DataAccess(SCOPES, DataPurpose.VIEW);
+        Map<String, Object> properties = new java.util.HashMap<>();
+        properties.put("technician", "T-KIM");
+        properties.put("order_no", "MO-1");
+
+        assertThat(view.mask(1L, properties).revealedPropertyCodes()).containsExactly("technician");
+        properties.put("technician", null);
+        assertThat(view.mask(1L, properties).revealedPropertyCodes()).isEmpty();
+        assertThat(
+                        new DataAccess(SCOPES, DataPurpose.MODEL)
+                                .mask(1L, Map.of("technician", "T-KIM"))
+                                .revealedPropertyCodes())
+                .isEmpty();
+        assertThat(view.mask(2L, Map.of("contact_name", "홍길동")).revealedPropertyCodes()).isEmpty();
+        assertThat(view.revealsValue("WorkOrder", "technician")).isTrue();
+        assertThat(view.revealsValue("Vendor", "contact_name")).isFalse();
+    }
+
     @Test
     void definitionsCannotReadObjectValues() {
         DataAccess access = new DataAccess(SCOPES, DataPurpose.DEFINITIONS);

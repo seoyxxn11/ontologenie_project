@@ -13,6 +13,7 @@ import com.axcore.platform.audit.repository.AuditExecutionQueryRepository;
 import com.axcore.platform.audit.repository.AuditExecutionQueryRepository.Filter;
 import com.axcore.platform.audit.repository.EntityChangeRepository;
 import com.axcore.platform.audit.service.AuditValueMasker.Masked;
+import com.axcore.platform.audit.service.RestrictedViewRecorder.Seen;
 import com.axcore.platform.auth.service.DataAccess;
 import com.axcore.platform.auth.service.DataAccessPolicy;
 import com.axcore.platform.auth.service.DataPurpose;
@@ -48,12 +49,17 @@ public class AuditExecutionQueryService {
     private final EntityChangeRepository changes;
     private final DataAccessPolicy dataAccessPolicy;
     private final AuditValueMasker masker;
+    private final RestrictedViewRecorder restrictedViews;
 
     /** 096. ADMIN은 전체, 그 밖의 역할은 본인 실행(본인이 요청한 작업의 결과 줄 포함)만 본다. */
     public Page<AuditExecutionResponse> search(
             LoginAccount viewer, AuditExecutionSearchRequest request, Pageable pageable) {
         if (request.eventKind() == EventKind.AGENT_QUERY) {
             throw BusinessException.invalidField("eventKind", "Agent 조회 기록은 조회할 수 없습니다.");
+        }
+        // 민감 값 열람 기록(394)은 ADMIN이 골라 볼 때만 연다.
+        if (request.eventKind() == EventKind.RESTRICTED_VIEW && !isAdmin(viewer)) {
+            throw forbidden();
         }
         if (request.targetId() != null && request.targetType() == null) {
             throw BusinessException.invalidField("targetId", "targetId는 targetType과 함께 보내야 합니다.");
@@ -94,6 +100,10 @@ public class AuditExecutionQueryService {
                         execution.getActionDefinitionId(),
                         execution.getInput(),
                         dataAccessPolicy.of(viewer));
+        restrictedViews.record(
+                viewer,
+                "AUDIT_DETAIL",
+                List.of(new Seen("action_execution", id, input.revealedPropertyCodes())));
         return AuditExecutionDetailResponse.of(
                 execution, input.value(), input.restrictedPropertyCodes());
     }
@@ -107,6 +117,10 @@ public class AuditExecutionQueryService {
                         .toList();
         Masked<List<AuditEntityChangeResponse>> masked =
                 masker.maskChanges(found, dataAccessPolicy.of(viewer));
+        restrictedViews.record(
+                viewer,
+                "AUDIT_CHANGES",
+                List.of(new Seen("action_execution", id, masked.revealedPropertyCodes())));
         return new AuditExecutionChangesResponse(masked.value(), masked.restrictedPropertyCodes());
     }
 
