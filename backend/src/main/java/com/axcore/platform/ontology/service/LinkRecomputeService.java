@@ -61,7 +61,8 @@ import org.springframework.transaction.annotation.Transactional;
  *       그 객체는 이 규칙으로 연결되지 않는다(분류와 issue는 SYNC 검사가 한다). 기준은 검사 엔진과 같다.
  *   <li>비교값이 같은 출발 묶음과 도착 묶음을 잇는다. 자기 자신을 잇는 쌍을 제외한 뒤 관계 수를 센다. 도착이 ONE인 관계에서 도착이 둘 이상이거나, 출발이 ONE인
  *       관계에서 같은 도착을 가리키는 출발이 둘 이상이면 어느 쌍인지 정할 수 없어 잇지 않는다.
- *   <li>원천에서 지운 객체(DELETED_AT_SOURCE)는 묶음에 넣지 않는다. 그래서 그 객체의 규칙 연결은 INACTIVE가 된다.
+ *   <li>묶음에는 연결 대상 객체만 넣는다({@link com.axcore.platform.ontology.repository.LinkableObjects}, 검사와 같은
+ *       정의, 387). 원천에서 지운 객체(DELETED_AT_SOURCE)와 꺼진 매핑에서 온 객체는 빠지므로 그 객체의 규칙 연결은 INACTIVE가 된다.
  * </ul>
  *
  * <p>주로 바꾸는 것은 RULE 연결이다. 조건을 읽지 못해 건너뛴 규칙이 근거인 연결은 양 끝 객체가 활성인 동안 그대로 둔다. 성립하지 않게 된 연결은 지우지 않고

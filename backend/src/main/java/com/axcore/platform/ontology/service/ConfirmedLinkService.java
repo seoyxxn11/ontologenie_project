@@ -45,10 +45,11 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>순서:
  *
  * <ol>
- *   <li>양 끝 객체를 ID 순서로 공유 잠금하고 존재·유형·활성을 본다. 관계 유형 잠금보다 <b>먼저</b> 잡는다. 수집(197·198)은 객체를 고친 뒤 마지막에
- *       관계 유형을 잠그므로, 순서를 맞춰야 서로 기다리다 교착하지 않는다.
+ *   <li>양 끝 객체를 ID 순서로 공유 잠금하고 존재·유형·연결 대상인지({@link
+ *       com.axcore.platform.ontology.repository.LinkableObjects}: ACTIVE이고 꺼진 매핑에서 오지 않음, 387)를 본다.
+ *       관계 유형 잠금보다 <b>먼저</b> 잡는다. 수집(197·198)은 객체를 고친 뒤 마지막에 관계 유형을 잠그므로, 순서를 맞춰야 서로 기다리다 교착하지 않는다.
  *   <li>규칙 재계산과 같은 관계 유형 잠금({@link RuleLinkRepository#lockLinkType})을 잡는다. 그래서 같은 쌍을 동시에 넣다가 {@code
- *       uq_object_link}에 걸리지 않고, 먼저 커밋한 쪽의 연결을 보고 판단한다.
+ *       uq_object_link}에 걸리지 않고, 먼저 커밋한 쪽의 연결을 보고 판단한다. 잠근 뒤 양 끝을 다시 읽어, 기다리는 사이 끝난 매핑 끄기를 본다.
  *   <li>쌍의 기존 행을 본다. 활성 행이 있으면 거절한다(같은 쌍의 문서 연결만 그대로 성공). 비활성 행은 규칙 연결이었어도 확정 연결로 되살린다(관리자 확정이 우선).
  *   <li>관계 수 제약을 모든 출처의 활성 연결로 검사한다.
  * </ol>
@@ -117,6 +118,14 @@ public class ConfirmedLinkService {
         requireEnd(ends.get(sourceId), sourceId, linkType.getSourceTypeId(), "source");
         requireEnd(ends.get(targetId), targetId, linkType.getTargetTypeId(), "target");
         ruleLinks.lockLinkType(linkType.getId());
+        // 매핑 끄기(387)는 매핑을 바꾼 뒤 이 관계 유형 잠금을 잡고 재계산한다. 잠금을 기다리는 사이 끝난 매핑 끄기를 보도록 다시 읽는다.
+        // 반대로 이쪽이 먼저 잠그면 매핑 끄기의 재계산이 이 연결을 보고 끈다.
+        Map<Long, LinkEnd> current = new LinkedHashMap<>();
+        for (LinkEnd end : links.lockObjects(sourceId, targetId)) {
+            current.put(end.id(), end);
+        }
+        requireEnd(current.get(sourceId), sourceId, linkType.getSourceTypeId(), "source");
+        requireEnd(current.get(targetId), targetId, linkType.getTargetTypeId(), "target");
 
         // 3. 쌍의 기존 행
         PairLink existing = links.findPair(linkType.getId(), sourceId, targetId).orElse(null);

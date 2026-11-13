@@ -278,6 +278,14 @@ class ConfirmedLinkServiceTests {
                 () -> manual(new ConfirmedLinkRequest(linkType, wo, eq, account, null, null)),
                 ObjectLinkErrorCode.LINK_END_NOT_ACTIVE);
         assertThat(count(wo)).isZero();
+
+        // 387: 꺼진 매핑의 객체도 연결 대상이 아니다(검사·연결 재계산과 같은 정의).
+        long paused = object(equipmentType);
+        fromSource(paused, equipmentType, "ACTIVE", false);
+        assertError(
+                () -> manual(new ConfirmedLinkRequest(linkType, wo, paused, account, null, null)),
+                ObjectLinkErrorCode.LINK_END_NOT_ACTIVE);
+        assertThat(count(wo)).isZero();
     }
 
     @Test
@@ -464,6 +472,11 @@ class ConfirmedLinkServiceTests {
 
     /** 원천 삭제는 원천 객체만 될 수 있다(ck_object_instance_platform). 원천 매핑을 붙인 뒤 삭제로 표시한다. */
     private void deleteAtSource(long objectId, long type) {
+        fromSource(objectId, type, "DELETED_AT_SOURCE", true);
+    }
+
+    /** 객체를 원천 매핑에서 수집한 것으로 바꾼다. */
+    private void fromSource(long objectId, long type, String status, boolean mappingActive) {
         long dataSource =
                 jdbc.sql(
                                 "insert into data_source(code, name, source_kind) values (:code, '원천', 'POSTGRES') returning id")
@@ -482,21 +495,23 @@ class ConfirmedLinkServiceTests {
         long mapping =
                 jdbc.sql(
                                 """
-                                insert into object_source_mapping(source_resource_id, object_type_id, key_columns)
-                                values (:resource, :type, '["id"]'::jsonb) returning id
+                                insert into object_source_mapping(source_resource_id, object_type_id, key_columns, is_active)
+                                values (:resource, :type, '["id"]'::jsonb, :active) returning id
                                 """)
                         .param("resource", resource)
                         .param("type", type)
+                        .param("active", mappingActive)
                         .query(Long.class)
                         .single();
         jdbc.sql(
                         """
                         update object_instance
                         set source_mapping_id = :mapping, source_key = jsonb_build_object('id', id::text),
-                            status = 'DELETED_AT_SOURCE'
+                            status = :status
                         where id = :id
                         """)
                 .param("mapping", mapping)
+                .param("status", status)
                 .param("id", objectId)
                 .update();
     }

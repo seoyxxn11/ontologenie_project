@@ -27,16 +27,18 @@ public class ConfirmedLinkRepository {
 
     /**
      * 객체들을 ID 순서로 공유 잠금하며 읽는다. 잠금을 잡는 동안 수집이 그 객체를 원천 삭제로 바꾸지 못하고, 이미 바꾸는 중이면 그 커밋을 기다린 뒤 바뀐 상태를
-     * 읽는다. 없는 ID는 빠진다.
+     * 읽는다. 없는 ID는 빠진다. 연결 대상인지는 검사·연결 재계산과 같은 정의다({@link LinkableObjects}, 387). 매핑을 끄는 쪽과는 관계 유형
+     * 잠금으로 줄 선다(부르는 쪽이 먼저 잡는다).
      */
     public List<LinkEnd> lockObjects(long firstId, long secondId) {
         return jdbc.sql(
                         """
-                        select id, object_type_id, status from object_instance
-                        where id in (:first, :second)
-                        order by id
-                        for share
-                        """)
+                        select o.id, o.object_type_id, %s as linkable from object_instance o
+                        where o.id in (:first, :second)
+                        order by o.id
+                        for share of o
+                        """
+                                .formatted(LinkableObjects.condition("o")))
                 .param("first", firstId)
                 .param("second", secondId)
                 .query(
@@ -44,7 +46,7 @@ public class ConfirmedLinkRepository {
                                 new LinkEnd(
                                         rs.getLong("id"),
                                         rs.getLong("object_type_id"),
-                                        "ACTIVE".equals(rs.getString("status"))))
+                                        rs.getBoolean("linkable")))
                 .list();
     }
 
@@ -206,7 +208,11 @@ public class ConfirmedLinkRepository {
                 .list();
     }
 
-    /** 연결의 한쪽 끝 객체. */
+    /**
+     * 연결의 한쪽 끝 객체.
+     *
+     * @param active 연결 대상인지({@link LinkableObjects}: ACTIVE이고 꺼진 매핑에서 오지 않음)
+     */
     public record LinkEnd(long id, long objectTypeId, boolean active) {}
 
     /**

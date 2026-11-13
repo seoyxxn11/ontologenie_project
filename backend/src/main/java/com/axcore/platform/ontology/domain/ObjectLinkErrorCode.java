@@ -7,7 +7,7 @@ import org.springframework.http.HttpStatus;
 public enum ObjectLinkErrorCode implements ErrorCode {
     LINK_SELF_REFERENCE(HttpStatus.UNPROCESSABLE_CONTENT, "같은 객체끼리는 연결할 수 없습니다."),
     LINK_END_TYPE_MISMATCH(HttpStatus.UNPROCESSABLE_CONTENT, "객체 유형이 관계 유형의 출발·도착 객체 유형과 맞지 않습니다."),
-    LINK_END_NOT_ACTIVE(HttpStatus.UNPROCESSABLE_CONTENT, "원천에서 삭제된 객체는 연결할 수 없습니다."),
+    LINK_END_NOT_ACTIVE(HttpStatus.UNPROCESSABLE_CONTENT, "원천에서 삭제됐거나 수집을 멈춘 매핑의 객체는 연결할 수 없습니다."),
     LINK_CARDINALITY_EXCEEDED(
             HttpStatus.UNPROCESSABLE_CONTENT, "관계 수 제약을 넘습니다. 이미 다른 객체와 연결되어 있습니다."),
     LINK_EVIDENCE_INVALID(

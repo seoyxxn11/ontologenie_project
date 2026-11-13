@@ -31,6 +31,8 @@
 
 매핑이 바뀌면 같은 트랜잭션에서 그 원천 자원의 `loaded_lsn`을 비워 다시 읽기를 요청한다(`SourceCatalogService.requireFullReload`). 다음 수집이 테이블을 처음부터 읽어 저장된 객체와 비교한다. 그동안에도 CDC 이벤트는 계속 반영하고, 겹치는 객체는 전체 읽기의 스냅샷으로 판단한다(V11, [개발 가이드](development-guide.md) 원천 연동). 소속 객체 매핑이 멈춰 있으면 비우지 않는다. 다시 켤 때 비운다.
 
+매핑을 끄면(036 `isActive=false`) 그 매핑의 객체는 ACTIVE로 남지만 연결 대상에서 빠진다(387, `LinkableObjects`). 같은 트랜잭션에서 그 객체 유형의 관계 유형 연결을 다시 계산해, 그 객체에 걸린 규칙·수동 연결을 끈다([연결 재계산](link-recompute.md)). 다시 켜면 다시 읽기가 끝난 뒤 수집의 재계산이 연결을 되살린다.
+
 036·038·039·101 응답의 `reloadRequired`가 true면 `reloadReason`에 아래 값 중 하나가 온다. false면 `null`이다. Java 타입은 `mapping.domain.ReloadReason` enum이고, JSON에는 이름 문자열로 나간다. 035 응답에는 두 필드가 없다(켜진 매핑 등록은 항상 다시 읽는다).
 
 | 값 | API | 경우 |
