@@ -88,6 +88,7 @@ function SourceFormDialog({ source, onClose, onSaved }: Props) {
     }
   }, [])
   const usesDatabase = kind === 'POSTGRES'
+  const unsupportedCreation = !editing && !usesDatabase
   const hasUnsavedChanges =
     name !== opened.name ||
     code !== (source?.code ?? '') ||
@@ -115,6 +116,8 @@ function SourceFormDialog({ source, onClose, onSaved }: Props) {
     },
     retry: false,
     mutationFn: async () => {
+      if (unsupportedCreation)
+        throw new Error('이 화면에서는 PostgreSQL 연결만 등록할 수 있습니다.')
       const config = usesDatabase ? parseEndpoint(endpoint) : {}
       const credentials: CredentialInput[] = []
       for (const purpose of usesDatabase ? purposes : []) {
@@ -218,6 +221,7 @@ function SourceFormDialog({ source, onClose, onSaved }: Props) {
 
   function submit(event: FormEvent) {
     event.preventDefault()
+    if (unsupportedCreation) return
     if (
       queryClient.isMutating({
         mutationKey: ['form-save', 'source', source?.id ?? 'new'],
@@ -353,6 +357,7 @@ function SourceFormDialog({ source, onClose, onSaved }: Props) {
             <select
               value={kind}
               onChange={(event) => {
+                if (!editing && event.target.value !== 'POSTGRES') return
                 setKind(event.target.value as SourceKind)
                 setFieldErrors({})
                 setFormError('')
@@ -360,11 +365,13 @@ function SourceFormDialog({ source, onClose, onSaved }: Props) {
               disabled={editing || saving}
               className={`${inputClass} disabled:bg-slate-50`}
             >
-              {kindOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
+              {kindOptions
+                .filter((option) => editing || option.value === 'POSTGRES')
+                .map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
             </select>
           </label>
           {usesDatabase && (
@@ -457,7 +464,11 @@ function SourceFormDialog({ source, onClose, onSaved }: Props) {
             <Button variant="secondary" onClick={requestClose}>
               취소
             </Button>
-            <Button type="submit" pending={saving}>
+            <Button
+              type="submit"
+              pending={saving}
+              disabled={unsupportedCreation}
+            >
               {editing ? '저장' : '등록'}
             </Button>
           </div>

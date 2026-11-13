@@ -9,7 +9,7 @@ import type { ApiResponse, PageMeta } from './types'
 export { ApiError } from './errors'
 
 const API_BASE = '/api/v1'
-type ApiMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE'
+type ApiMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
 export type ApiRequestOptions = {
   signal?: AbortSignal
@@ -156,6 +156,14 @@ export function apiPatch<T = unknown, M = PageMeta>(
   options: ApiRequestOptions = {},
 ): Promise<ApiResponse<T, M> | undefined> {
   return request<T, M>('PATCH', path, body, options)
+}
+
+export function apiPut<T = unknown, M = PageMeta>(
+  path: string,
+  body?: unknown,
+  options: ApiRequestOptions = {},
+): Promise<ApiResponse<T, M> | undefined> {
+  return request<T, M>('PUT', path, body, options)
 }
 
 export function apiDelete<T = unknown, M = PageMeta>(

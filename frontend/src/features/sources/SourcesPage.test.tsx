@@ -125,14 +125,25 @@ test('브라우저 이탈 경고는 미저장 입력이 있을 때만 요청한�
   ).toBe(true)
 })
 
-test('원천 표본 탭은 API·정책 확정 전 준비 중으로 표시한다', async () => {
+test('원천 표본 탭은 실제 016·102 어댑터를 사용하고 서버가 준 표본만 표시한다', async () => {
+  const user = userEvent.setup()
   renderSourcesPage('/admin/sources?tab=samples')
   await screen.findByRole('region', { name: '원천 표본 조회' })
   expect(screen.getByRole('button', { name: '원천 표본' })).toHaveAttribute(
     'aria-pressed',
     'true',
   )
-  expect(screen.getByText(/표본 조회는 준비 중/)).toBeInTheDocument()
+  expect(screen.queryByText(/표본 조회는 준비 중/)).not.toBeInTheDocument()
+  const select = await screen.findByRole('combobox', { name: '표본 조회 대상' })
+  const table = Array.from((select as HTMLSelectElement).options).find(
+    (option) => option.value && !option.disabled,
+  )!
+  await user.selectOptions(select, table.value)
+  await user.click(screen.getByRole('button', { name: '표본 조회 요청' }))
+  expect(
+    await screen.findByRole('table', { name: '원천 행 표본' }),
+  ).toHaveTextContent('SAMPLE-001')
+  expect(screen.getByText(/금지·민감 컬럼은 제외/)).toBeVisible()
 })
 
 test('수집 이력 탭에서 실제 어댑터로 073 요청·074 이력·075 결과를 연결한다', async () => {
@@ -256,7 +267,7 @@ test.each(['CDC', 'FULL_COMPARE'] as const)(
       }),
     )
     const user = userEvent.setup()
-    renderSourcesPage('/admin/sources?tab=scope')
+    const router = renderSourcesPage('/admin/sources?tab=scope')
     await screen.findByText('target_view')
     if (strategy === 'CDC') {
       expect(
@@ -265,22 +276,67 @@ test.each(['CDC', 'FULL_COMPARE'] as const)(
       return
     }
     const schedule = within(
-      screen.getByRole('region', { name: '자동 수집 주기' }),
+      await screen.findByRole('region', { name: '자동 수집 주기' }),
     )
     const enabled = schedule.getByRole('checkbox', {
       name: '자동 수집 사용',
     }) as HTMLInputElement
-    if (!enabled.checked) await user.click(enabled)
+    if (!enabled.checked)
+      await act(async () => {
+        await user.click(enabled)
+      })
     const interval = schedule.getByRole('spinbutton', { name: '수집 주기(분)' })
-    await user.clear(interval)
-    await user.type(interval, '0')
+    await act(async () => {
+      await user.clear(interval)
+      await user.type(interval, '0')
+    })
     expect(interval).toHaveAttribute('aria-invalid', 'true')
-    await user.clear(interval)
-    await user.type(interval, '15')
+    await act(async () => {
+      await user.clear(interval)
+      await user.type(interval, '15')
+    })
     expect(interval).toHaveAttribute('aria-invalid', 'false')
     expect(
       schedule.getByRole('button', { name: '수집 주기 저장' }),
-    ).toBeDisabled()
+    ).toBeEnabled()
+    // 브라우저 뒤로 가기 조작 전에 입력의 blur/change를 마친다.
+    // Dialog의 포커스 이동 중 user-event가 change를 재전송하지 않게 한다.
+    await user.tab()
+    await act(async () => {
+      await router.navigate(-1)
+    })
+    expect(
+      screen.getByRole('dialog', { name: '변경사항을 버릴까요?' }),
+    ).toBeVisible()
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: '계속 편집' }))
+    })
+    expect(interval).toHaveValue(15)
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: '+ 원천 등록' }))
+    })
+    expect(
+      screen.queryByRole('dialog', { name: '원천 등록' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('dialog', { name: '변경사항을 버릴까요?' }),
+    ).toBeVisible()
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: '계속 편집' }))
+    })
+    expect(interval).toHaveValue(15)
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: '+ 원천 등록' }))
+    })
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: '변경사항 버리기' }))
+    })
+    expect(
+      await screen.findByRole('dialog', { name: '원천 등록' }),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('region', { name: '자동 수집 주기' }),
+    ).not.toBeInTheDocument()
   },
 )
 
@@ -1085,7 +1141,6 @@ test('주소에 register=1이 있으면 원천 등록 창을 바로 연다', asy
 })
 
 test('원천 등록의 필수 표시와 입력 의미를 유형·편집 조건에 맞게 제공한다', async () => {
-  const user = userEvent.setup()
   renderSourcesPage('/admin/sources?register=1')
   const dialog = within(screen.getByRole('dialog', { name: '원천 등록' }))
   expect(dialog.getByRole('textbox', { name: '원천 이름' })).toBeRequired()
@@ -1093,14 +1148,42 @@ test('원천 등록의 필수 표시와 입력 의미를 유형·편집 조건�
   expect(dialog.getByRole('textbox', { name: '접속 대상' })).toBeRequired()
   expect(dialog.getByLabelText('수집 계정 비밀번호')).toBeRequired()
   expect(dialog.getByText('원천 이름 (필수)')).toBeVisible()
-  await user.selectOptions(
-    dialog.getByRole('combobox', { name: '유형' }),
-    'CSV',
-  )
+  expect(dialog.getAllByRole('option')).toHaveLength(1)
+  expect(dialog.getByRole('option', { name: 'PostgreSQL' })).toBeVisible()
   expect(
-    dialog.queryByRole('textbox', { name: '접속 대상' }),
+    dialog.queryByText(/파일 업로드와 수집은 현재 지원하지 않습니다/),
   ).not.toBeInTheDocument()
 })
+
+test.each(['CSV', 'DOCUMENT'])(
+  '신규 등록에서 미지원 %s 선택지를 제공하지 않고 조작된 유형 변경도 무시한다',
+  async (kind) => {
+    const post = vi.fn(() => HttpResponse.json({ data: { id: 99 } }))
+    server.use(http.post('/api/v1/sources', post))
+    const user = userEvent.setup()
+    renderSourcesPage('/admin/sources?register=1')
+    const dialog = within(screen.getByRole('dialog', { name: '원천 등록' }))
+    await user.type(
+      dialog.getByRole('textbox', { name: '원천 이름' }),
+      '합성 원천',
+    )
+    await user.type(
+      dialog.getByRole('textbox', { name: '원천 코드' }),
+      'TEST_SOURCE',
+    )
+    const select = dialog.getByRole('combobox', { name: '유형' })
+    expect(
+      dialog.queryByRole('option', {
+        name: kind === 'CSV' ? 'CSV' : '문서·기록',
+      }),
+    ).not.toBeInTheDocument()
+    fireEvent.change(select, { target: { value: kind } })
+    expect(select).toHaveValue('POSTGRES')
+    const button = dialog.getByRole('button', { name: '등록' })
+    fireEvent.submit(button.closest('form')!)
+    expect(post).not.toHaveBeenCalled()
+  },
+)
 
 test('원천 저장 중 닫아도 요청은 유지되고 응답 후에는 완료 상태와 대상 경로를 제공한다', async () => {
   let release!: () => void
@@ -1129,9 +1212,25 @@ test('원천 저장 중 닫아도 요청은 유지되고 응답 후에는 완료
   const user = userEvent.setup()
   const router = renderSourcesPage('/admin/sources?register=1')
   let dialog = screen.getByRole('dialog', { name: '원천 등록' })
-  await user.selectOptions(
-    within(dialog).getByRole('combobox', { name: '유형' }),
-    'CSV',
+  await user.type(
+    within(dialog).getByRole('textbox', { name: '접속 대상' }),
+    'test.invalid:5432/test',
+  )
+  await user.type(
+    within(dialog).getByLabelText('수집 계정 이름'),
+    'synthetic-sync',
+  )
+  await user.type(
+    within(dialog).getByLabelText('수집 계정 비밀번호'),
+    'test-only',
+  )
+  await user.type(
+    within(dialog).getByLabelText('AI 분석 계정 이름'),
+    'synthetic-ai',
+  )
+  await user.type(
+    within(dialog).getByLabelText('AI 분석 계정 비밀번호'),
+    'test-only',
   )
   await user.type(
     within(dialog).getByRole('textbox', { name: '원천 이름' }),

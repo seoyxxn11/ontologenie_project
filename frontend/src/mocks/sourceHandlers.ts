@@ -18,7 +18,7 @@ const initialSources: Source[] = [
     sourceKind: 'POSTGRES',
     connectionStatus: 'CONNECTED',
     lastCheckedAt: '2026-11-03T09:00:00+09:00',
-    syncEnabled: true,
+    syncEnabled: false,
     syncIntervalMinutes: null,
     rowVersion: 1,
     connectionConfig: { host: 'erp-db.internal', port: 5432, database: 'erp' },
@@ -30,7 +30,7 @@ const initialSources: Source[] = [
     sourceKind: 'POSTGRES',
     connectionStatus: 'UNVERIFIED',
     lastCheckedAt: null,
-    syncEnabled: true,
+    syncEnabled: false,
     syncIntervalMinutes: null,
     rowVersion: 1,
     connectionConfig: { host: 'mes-db.internal', port: 5432, database: 'mes' },
@@ -46,6 +46,8 @@ const defaultCredentials: SourceDetail['credentials'] = [
 // 등록·수정으로 바뀌는 가짜 상태. 테스트마다 resetSourceMocks로 되돌린다.
 let sources: Source[] = []
 let credentials: Record<number, SourceDetail['credentials']> = {}
+let samplePreviews = new Map<number, Record<string, unknown>>()
+let nextSampleId = 9000
 
 export function resetSourceMocks() {
   sources = initialSources.map((source) => ({
@@ -53,6 +55,8 @@ export function resetSourceMocks() {
     connectionConfig: { ...source.connectionConfig },
   }))
   credentials = { 1: defaultCredentials, 2: defaultCredentials }
+  samplePreviews = new Map()
+  nextSampleId = 9000
 }
 resetSourceMocks()
 
@@ -101,6 +105,97 @@ function notFound(message: string) {
 }
 
 export const sourceHandlers = [
+  http.get('/api/v1/sources/:id/sync-schedule', ({ params }) => {
+    const source = sources.find((item) => item.id === Number(params.id))
+    return source
+      ? HttpResponse.json({
+          data: {
+            syncEnabled: source.syncEnabled,
+            syncIntervalMinutes: source.syncIntervalMinutes ?? null,
+            rowVersion: source.rowVersion,
+          },
+        })
+      : notFound('원천이 없습니다.')
+  }),
+  http.put('/api/v1/sources/:id/sync-schedule', async ({ params, request }) => {
+    const source = sources.find((item) => item.id === Number(params.id))
+    if (!source) return notFound('원천이 없습니다.')
+    const input = (await request.json()) as {
+      syncEnabled: boolean
+      syncIntervalMinutes: number | null
+      rowVersion: number
+    }
+    if (source.rowVersion !== input.rowVersion)
+      return errorResponse(409, 'VERSION_CONFLICT', '다른 변경이 있습니다.')
+    if (
+      input.syncEnabled &&
+      (!Number.isInteger(input.syncIntervalMinutes) ||
+        input.syncIntervalMinutes! < 1)
+    )
+      return errorResponse(400, 'INVALID_REQUEST', '수집 주기를 확인해 주세요.')
+    Object.assign(source, { ...input, rowVersion: source.rowVersion + 1 })
+    return HttpResponse.json({
+      data: {
+        syncEnabled: source.syncEnabled,
+        syncIntervalMinutes: source.syncIntervalMinutes,
+        rowVersion: source.rowVersion,
+      },
+    })
+  }),
+  http.post(
+    '/api/v1/sources/:id/resources/:resourceId/samples',
+    async ({ params, request }) => {
+      const resource = sourceResources.find(
+        (item) =>
+          item.id === Number(params.resourceId) &&
+          item.dataSourceId === Number(params.id),
+      )
+      if (
+        !resource ||
+        !resource.isReadable ||
+        resource.resourceKind !== 'TABLE'
+      )
+        return notFound('표본 조회 대상이 없습니다.')
+      const input = (await request.json()) as { rowLimit: number }
+      if (
+        !Number.isInteger(input.rowLimit) ||
+        input.rowLimit < 1 ||
+        input.rowLimit > 20
+      )
+        return errorResponse(400, 'INVALID_REQUEST', '행 수를 확인해 주세요.')
+      const id = ++nextSampleId
+      const requestedAt = new Date().toISOString()
+      const expiresAt = new Date(Date.now() + 3600000).toISOString()
+      samplePreviews.set(id, {
+        id,
+        previewKind: 'SAMPLE',
+        sourceResourceId: resource.id,
+        status: 'SUCCEEDED',
+        requestedAt,
+        startedAt: requestedAt,
+        finishedAt: requestedAt,
+        expiresAt,
+        result: { columns: ['code', 'value'], rows: [['SAMPLE-001', null]] },
+        errorMessage: null,
+      })
+      return HttpResponse.json(
+        {
+          data: {
+            previewId: id,
+            status: 'QUEUED',
+            joined: false,
+            requestedAt,
+            expiresAt,
+          },
+        },
+        { status: 202 },
+      )
+    },
+  ),
+  http.get('/api/v1/ontology/source-previews/:id', ({ params }) => {
+    const preview = samplePreviews.get(Number(params.id))
+    if (preview) return HttpResponse.json({ data: preview })
+  }),
   // 074 원천 수집 이력. 기본 목에는 수집 기록이 없다.
   http.get('/api/v1/sources/:id/sync-runs', ({ request }) => {
     const params = new URL(request.url).searchParams

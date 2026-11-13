@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { ApiError, apiDelete, apiGet, apiPatch, apiPost } from './client'
+import {
+  ApiError,
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+  apiPut,
+} from './client'
 
 const fetchMock = vi.fn<typeof fetch>()
 
@@ -40,7 +47,7 @@ test('기존 GET 호출은 data·페이지 정보를 유지하고 세션 쿠키�
   expect(headers.has('Authorization')).toBe(false)
 })
 
-test.each(['POST', 'PATCH', 'DELETE'] as const)(
+test.each(['POST', 'PUT', 'PATCH', 'DELETE'] as const)(
   '%s는 현재 CSRF 쿠키를 디코딩해 헤더에 보낸다',
   async (method) => {
     document.cookie = 'OTHER-XSRF-TOKEN=wrong; Path=/'
@@ -48,6 +55,8 @@ test.each(['POST', 'PATCH', 'DELETE'] as const)(
     fetchMock.mockResolvedValue(Response.json({ data: { id: 1 } }))
 
     if (method === 'POST') await apiPost('/objects', { name: '설비' })
+    if (method === 'PUT')
+      await apiPut('/sources/1/sync-schedule', { name: '설비' })
     if (method === 'PATCH') await apiPatch('/objects/1', { name: '설비' })
     if (method === 'DELETE') await apiDelete('/objects/1')
 

@@ -74,7 +74,7 @@ function SampleRequest({
     )
     async function read() {
       try {
-        const next = await api.read(previewId)
+        const next = await api.read(previewId, resourceId)
         if (cancelled) return
         setPreview(next)
         setError(undefined)
@@ -98,7 +98,7 @@ function SampleRequest({
       clearTimeout(poll)
       clearTimeout(expiry)
     }
-  }, [access, receipt, expired, attempt])
+  }, [access, receipt, expired, attempt, resourceId])
 
   async function request() {
     if (!access || !enabled || !validLimit || locked.current) return
