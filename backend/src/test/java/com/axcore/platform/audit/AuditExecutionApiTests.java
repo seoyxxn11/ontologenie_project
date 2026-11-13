@@ -127,6 +127,8 @@ class AuditExecutionApiTests {
         plannerB = createAccount("PLANNER");
         String plannerGroup = "AUDIT_" + UUID.randomUUID().toString().substring(0, 8);
         allowGroup("PLANNER", plannerGroup);
+        // 384부터 ADMIN도 허용 행으로만 본다.
+        allowGroup("ADMIN", plannerGroup);
         object = createObject("프레스 3호기", plannerGroup);
         long planDefinition = definitionId("CREATE_REASSIGNMENT_PLAN");
 
@@ -488,7 +490,9 @@ class AuditExecutionApiTests {
 
     @Test
     void objectHistoryHidesObjectsOutsideRoleScope() throws Exception {
-        long hidden = createObject("금형 보관대", null);
+        String adminOnly = "AUDIT_ADMIN_" + UUID.randomUUID().toString().substring(0, 8);
+        allowGroup("ADMIN", adminOnly);
+        long hidden = createObject("금형 보관대", adminOnly);
         long run =
                 record(
                         action(

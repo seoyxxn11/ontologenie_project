@@ -47,7 +47,7 @@ class DatabaseMigrationTests {
         assertThat(Arrays.stream(applied).map(info -> info.getVersion().getVersion()))
                 .containsExactly(
                         "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14",
-                        "15", "16", "17", "18", "19");
+                        "15", "16", "17", "18", "19", "20");
         assertThat(applied).allMatch(info -> info.getState() == MigrationState.SUCCESS);
         assertThat(flyway.info().pending()).isEmpty();
     }
@@ -136,12 +136,12 @@ class DatabaseMigrationTests {
                                 .query(String.class)
                                 .list())
                 .containsExactly(
-                        "MAINTENANCE:PRODUCTION:false",
-                        "MAINTENANCE:SALES_SUPPLY:false",
+                        "ADMIN:PRODUCTION:false",
+                        "ADMIN:SALES_SUPPLY:false",
                         "PLANNER:PRODUCTION:true",
-                        "PLANNER:SALES_SUPPLY:false",
+                        "PLANNER:SALES_SUPPLY:true",
                         "VIEWER:PRODUCTION:false",
-                        "VIEWER:SALES_SUPPLY:true");
+                        "VIEWER:SALES_SUPPLY:false");
     }
 
     @Test

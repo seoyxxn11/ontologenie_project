@@ -82,6 +82,7 @@ class ActionExecutionApiTests {
     void createS4Objects() {
         s4 = new S4(UUID.randomUUID().toString().substring(0, 8).toUpperCase());
         // 실행 대상 객체는 실행자가 볼 수 있어야 한다(S15P31C106-205 결정 D4). 계획자는 생산 쪽 유형을 모두 본다(D1).
+        // 384부터 ADMIN도 허용 행으로만 보므로 같은 그룹을 연다.
         for (String type : List.of("EQUIPMENT", "WORK_ORDER", "WORK_ORDER_OPERATION", "ROUTING")) {
             allowPlannerToSeeType(type);
         }
@@ -686,7 +687,7 @@ class ActionExecutionApiTests {
             assertThat(plansFrom(target)).isEqualTo(before);
         }
 
-        // ADMIN은 모든 유형을 보므로 범위 검사를 지나 Handler의 업무 조건에서 막힌다.
+        // ADMIN은 이 그룹을 허용받아 범위 검사를 지나 Handler의 업무 조건에서 막힌다.
         execute(
                         PLAN,
                         login(createAccount("ADMIN")),
@@ -1308,15 +1309,24 @@ class ActionExecutionApiTests {
                 .single();
     }
 
-    /** 접근 그룹이 없어 ADMIN만 보는 유형의 객체. */
+    /** ADMIN에게만 허용한 그룹의 유형 객체. 계획자에게는 보이지 않는다. */
     private long ungroupedObject() {
+        String code = "HIDDEN_" + UUID.randomUUID().toString().substring(0, 8);
         long typeId =
                 jdbcClient
                         .sql(
-                                "insert into object_type (code, name) values (:code, '숨은 유형') returning id")
-                        .param("code", "HIDDEN_" + UUID.randomUUID().toString().substring(0, 8))
+                                "insert into object_type (code, name, access_group) values (:code, '숨은 유형', :code) returning id")
+                        .param("code", code)
                         .query(Long.class)
                         .single();
+        jdbcClient
+                .sql(
+                        """
+                        insert into role_data_scope (role_id, access_group)
+                        select id, :group from role where code = 'ADMIN'
+                        """)
+                .param("group", code)
+                .update();
         return jdbcClient
                 .sql(
                         "insert into object_instance (object_type_id, display_name) values (:type, '숨은 설비') returning id")
@@ -1408,7 +1418,7 @@ class ActionExecutionApiTests {
                         """
                         insert into role_data_scope (role_id, access_group)
                         select r.id, t.access_group from role r, object_type t
-                        where r.code = 'PLANNER' and t.code = :code
+                        where r.code in ('PLANNER', 'ADMIN') and t.code = :code
                         on conflict do nothing
                         """)
                 .param("code", typeCode)

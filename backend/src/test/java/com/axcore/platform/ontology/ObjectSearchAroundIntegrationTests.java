@@ -509,16 +509,31 @@ class ObjectSearchAroundIntegrationTests {
             long operationEquipment,
             long operationOrder) {}
 
+    /**
+     * 시험용 유형. ADMIN에게 그 그룹을 민감 값까지 열어 준다. 384부터 ADMIN도 허용 행으로만 보고 그룹 없는 유형은 아무도 못 보므로, 이 시험의 ADMIN을
+     * "전부 보는 역할"로 쓰려고 행을 넣는다. accessGroup이 null이면 ADMIN만 허용한 그룹을 따로 만든다(예전 "그룹 없어 ADMIN만 봄").
+     */
     private long type(String code, String accessGroup) {
-        return jdbc.sql(
+        String group = accessGroup == null ? "admin-only-" + code : accessGroup;
+        long id =
+                jdbc.sql(
+                                """
+                                insert into object_type (code, name, access_group)
+                                values (:code, :code, :group) returning id
+                                """)
+                        .param("code", code)
+                        .param("group", group)
+                        .query(Long.class)
+                        .single();
+        jdbc.sql(
                         """
-                        insert into object_type (code, name, access_group)
-                        values (:code, :code, :group) returning id
+                        insert into role_data_scope (role_id, access_group, can_view_restricted)
+                        select id, :group, true from role where code = 'ADMIN'
+                        on conflict (role_id, access_group) do nothing
                         """)
-                .param("code", code)
-                .param("group", accessGroup)
-                .query(Long.class)
-                .single();
+                .param("group", group)
+                .update();
+        return id;
     }
 
     private void allowViewer(String accessGroup) {

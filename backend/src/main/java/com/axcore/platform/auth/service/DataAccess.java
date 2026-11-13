@@ -17,9 +17,8 @@ import java.util.stream.Collectors;
  * API(076·077·078)와 Agent 조회 Tool이 데이터를 돌려주기 전에 같은 기준으로 확인한다.
  *
  * <ul>
- *   <li>ADMIN은 모든 유형을 보고 민감 값도 본다.
- *   <li>그 밖의 역할은 유형의 접근 그룹(object_type.access_group)이 역할의 허용 그룹(role_data_scope)에 있어야 본다. 그룹이 없는
- *       유형과 허용 행이 없는 그룹은 보이지 않는다.
+ *   <li>모든 역할(ADMIN 포함)은 유형의 접근 그룹(object_type.access_group)이 역할의 허용 그룹(role_data_scope)에 있어야 본다.
+ *       그룹이 없는(미분류) 유형과 허용 행이 없는 그룹은 보이지 않는다. 역할 이름으로 나누지 않으므로 역할을 늘려도 허용 행만 넣으면 된다(384).
  *   <li>민감(RESTRICTED) 값은 그 허용 행의 can_view_restricted가 true일 때만 본다.
  *   <li>읽는 용도({@link DataPurpose})가 모델이면 민감 값은 역할과 관계없이 가린다(S15P31C106-384). 정의 조회 용도로는 객체 값을 읽지
  *       않는다.
