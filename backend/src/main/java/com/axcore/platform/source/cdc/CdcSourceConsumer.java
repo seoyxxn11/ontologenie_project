@@ -11,6 +11,7 @@ import com.axcore.platform.source.cdc.SourceTransactionAssembler.TooLargeTransac
 import com.axcore.platform.source.domain.RecoveryReason;
 import com.axcore.platform.source.repository.CdcConsumerRepository;
 import com.axcore.platform.source.repository.CdcConsumerRepository.OffsetState;
+import java.sql.SQLTransientException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -24,6 +25,10 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.TransientDataAccessException;
+import org.springframework.transaction.CannotCreateTransactionException;
+import org.springframework.transaction.TransactionTimedOutException;
 
 /**
  * 원천 토픽 하나({@code {data_source.code}.all}, 파티션 0)를 읽는 소비 루프(Jira 198-6, 결정 문서 10.2·11장 7). 전용 스레드
@@ -36,9 +41,9 @@ import org.apache.kafka.common.errors.WakeupException;
  *   <li>트랜잭션 밖 heartbeat는 마지막 메시지 시각을 남기고 위치를 그 다음으로 옮긴다. 트랜잭션 중간 heartbeat는 위치를 옮기지 않는다.
  *   <li>수집 정상 여부: 메시지 시각(heartbeat 시각·변경 처리 시각)보다 {@code maxLag} 넘게 늦게 처리하거나, {@code staleAfter} 동안
  *       메시지가 없으면 비정상({@code healthy_since = NULL})이다. 확인 대기의 대기 시간은 정상 구간만 센다.
- *   <li>처리 장애(DB 예외 등): 위치를 옮기지 않고 {@code retryDelay} 뒤 저장된 위치부터 다시 읽는다(9.3). 같은 위치에서 {@code
- *       maxApplyFailures}번 연속 실패하면 다시 시도해도 같은 오류로 보고 복구(APPLY_FAILED)로 돌린다(364). 플랫폼 DB에 닿지 못한 장애는
- *       세지 않는다.
+ *   <li>처리 장애: 위치를 옮기지 않고 {@code retryDelay} 뒤 저장된 위치부터 다시 읽는다(9.3). 원천 트랜잭션 반영이 같은 위치에서 {@code
+ *       maxApplyFailures}번 연속 실패하면 다시 시도해도 같은 오류로 보고 복구(APPLY_FAILED)로 돌린다(364). Kafka·원천 DB·플랫폼
+ *       DB의 일시 장애와 반영 중 교착 같은 일시 오류는 세지 않는다(383).
  *   <li>원천 트랜잭션이 상한을 넘거나 메시지 순서·모양이 어긋나면 복구로 돌리고 멈춘다. 복구가 필요한 원천은 반영하지 않고 {@code refreshInterval}마다
  *       표시가 풀렸는지 본다.
  *   <li>복구가 풀리면(199, 전체 읽기 저장 트랜잭션이 푼다) {@code cdc_offset.resume_after}가 있다. 저장된 위치가 아니라 그 시각 뒤에
@@ -118,15 +123,24 @@ final class CdcSourceConsumer implements Runnable {
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     return;
-                } catch (RuntimeException e) {
-                    // 처리 장애: 위치를 옮기지 않았으므로 저장된 위치부터 다시 읽는다
+                } catch (ApplyFailure e) {
+                    // 원천 트랜잭션 반영이 실패했다(다시 해도 같은 오류일 수 있음). 저장된 위치부터 다시 읽고 같은 위치의 실패를 센다
                     log.warn(
                             "CDC 반영 실패, {}초 뒤 저장된 위치부터 다시 시도 topic={} error={}",
                             properties.retryDelay().toSeconds(),
                             source.topic(),
+                            e.getCause().toString());
+                    positioned = false;
+                    countFailure(e.getCause());
+                    sleep(properties.retryDelay());
+                } catch (RuntimeException e) {
+                    // 일시 장애(Kafka·원천 DB·플랫폼 DB 연결, 반영 중 교착 등): 세지 않고 저장된 위치부터 다시 읽는다(383)
+                    log.warn(
+                            "CDC 처리 장애, {}초 뒤 저장된 위치부터 다시 시도 topic={} error={}",
+                            properties.retryDelay().toSeconds(),
+                            source.topic(),
                             e.toString());
                     positioned = false;
-                    countFailure(e);
                     sleep(properties.retryDelay());
                 }
             }
@@ -138,18 +152,17 @@ final class CdcSourceConsumer implements Runnable {
     }
 
     /**
-     * 같은 위치에서 반영이 연속으로 실패한 횟수를 센다(364). 저장된 위치를 다시 읽지 못하면(플랫폼 DB에 닿지 못함) 일시 장애로 보고 세지 않는다. 같은 위치에서
-     * {@code maxApplyFailures}번이 되면 다시 시도해도 같은 오류로 보고 복구(APPLY_FAILED)로 돌린다. 위치를 옮기지 않으므로, 복구가 풀릴 때
-     * 다시 읽은 스냅샷 뒤(resume_after)부터 이어 받아 이 트랜잭션을 건너뛴다.
+     * 같은 위치에서 반영이 연속으로 실패한 횟수를 센다(364). 반영의 결정적 실패({@link ApplyFailure})만 들어온다. 일시 장애는 루프가 세지 않고,
+     * 사이에 끼어도 횟수를 초기화하지 않는다(383). 저장된 위치를 다시 읽지 못하면(플랫폼 DB에 닿지 못함) 이번 실패도 세지 않는다. 같은 위치에서 {@code
+     * maxApplyFailures}번이 되면 다시 시도해도 같은 오류로 보고 복구(APPLY_FAILED)로 돌린다. 위치를 옮기지 않으므로, 복구가 풀릴 때 다시 읽은
+     * 스냅샷 뒤(resume_after)부터 이어 받아 이 트랜잭션을 건너뛴다.
      */
-    private void countFailure(RuntimeException cause) {
+    private void countFailure(Throwable cause) {
         Long position;
         try {
             position =
                     repository.findState(source.topic()).map(OffsetState::nextOffset).orElse(null);
         } catch (RuntimeException e) {
-            failedAt = null;
-            failures = 0;
             return;
         }
         if (position == null) {
@@ -304,7 +317,13 @@ final class CdcSourceConsumer implements Runnable {
             return;
         }
         SourceTransaction tx = completed.get();
-        Result result = applier.apply(source, tx, reference, receivedAt);
+        Result result;
+        try {
+            result = applier.apply(source, tx, reference, receivedAt);
+        } catch (RuntimeException e) {
+            // 반영 중 일시 장애는 그대로 던져 세지 않고, 그 밖의 실패만 같은 위치 실패로 센다(383)
+            throw transientFailure(e) ? e : new ApplyFailure(e);
+        }
         if (result.status() == Status.RECOVERY_NEEDED
                 || result.status() == Status.RECOVERY_PENDING) {
             log.warn(
@@ -320,6 +339,31 @@ final class CdcSourceConsumer implements Runnable {
                 tx.events().stream().mapToLong(ChangeEvent::processedTimeMs).max().orElse(-1);
         repository.recordMessage(
                 source.topic(), receivedAt, null, processed < 0 || healthy(receivedAt, processed));
+    }
+
+    /**
+     * 다시 하면 풀릴 수 있는 장애인지(383). 플랫폼 DB에 닿지 못함, 트랜잭션을 열지 못함, 교착·잠금 대기·질의 시간 초과처럼 Spring이 일시 오류로 분류한
+     * 것과 JDBC의 일시 오류다. 원인 사슬을 따라가며 본다.
+     */
+    static boolean transientFailure(Throwable failure) {
+        for (Throwable t = failure; t != null; t = t.getCause()) {
+            if (t instanceof TransientDataAccessException
+                    || t instanceof DataAccessResourceFailureException
+                    || t instanceof CannotCreateTransactionException
+                    || t instanceof TransactionTimedOutException
+                    || t instanceof SQLTransientException) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 원천 트랜잭션 반영의 결정적 실패. 이것만 같은 위치 실패로 센다(383). */
+    private static final class ApplyFailure extends RuntimeException {
+
+        ApplyFailure(RuntimeException cause) {
+            super(cause);
+        }
     }
 
     private void recover(RecoveryReason reason, long offset, RuntimeException cause) {

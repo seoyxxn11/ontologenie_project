@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -217,6 +219,56 @@ class CdcConsumerLoopTests {
         // 위치는 첫 트랜잭션 앞에 그대로다. 복구가 풀리면 다시 읽은 스냅샷 뒤부터 이어 받는다
         assertThat(nextOffset(f.topic)).isLessThan(14L);
         assertThat(f.property(f.workOrderMapping, "7", "wo_no")).isNull();
+    }
+
+    /** 383: 반영 중 일시 장애(교착)는 같은 위치에서 상한보다 많이 나도 세지 않는다. 풀리면 이어서 반영하고 복구로 가지 않는다. */
+    @Test
+    void transientApplyFailuresAreRetriedWithoutRecovery() {
+        when(startReference.read(anyLong())).thenReturn(750L);
+        Fixture f = new Fixture();
+        CannotAcquireLockException deadlock = new CannotAcquireLockException("교착 시험");
+        doThrow(deadlock)
+                .doThrow(deadlock)
+                .doThrow(deadlock)
+                .doThrow(deadlock)
+                .doThrow(deadlock)
+                .doCallRealMethod()
+                .when(applier)
+                .apply(argThat(s -> s != null && s.topic().equals(f.topic)), any(), any(), any());
+        produce(f.topic, lines);
+        f.register();
+
+        await().atMost(WAIT).until(() -> nextOffset(f.topic) == 37L);
+        assertThat(offset(f.topic).get("recovery_reason")).isNull();
+        assertThat(f.property(f.workOrderMapping, "7", "wo_no")).isEqualTo("WO-7b");
+    }
+
+    /** 383: 위치를 잡다가(처음 소비할 때 원천에서 시작 기준을 읽음) 계속 실패해도 반영 실패가 아니라 세지 않는다. 원천에 닿으면 이어서 반영한다. */
+    @Test
+    void positioningFailuresAreRetriedWithoutRecovery() {
+        Fixture f = new Fixture();
+        AtomicInteger failed = new AtomicInteger();
+        when(startReference.read(anyLong()))
+                .thenAnswer(
+                        invocation -> {
+                            long sourceId = invocation.getArgument(0);
+                            String code =
+                                    jdbc.sql("select code from data_source where id = :id")
+                                            .param("id", sourceId)
+                                            .query(String.class)
+                                            .optional()
+                                            .orElse("");
+                            if (code.equals(f.code) && failed.getAndIncrement() < 5) {
+                                throw new IllegalStateException("원천 DB 접속 실패 시험");
+                            }
+                            return 750L;
+                        });
+        produce(f.topic, lines);
+        f.register();
+
+        await().atMost(WAIT).until(() -> nextOffset(f.topic) == 37L);
+        assertThat(failed.get()).isGreaterThan(3);
+        assertThat(offset(f.topic).get("recovery_reason")).isNull();
     }
 
     private Map<String, Object> offsetOrEmpty(String topic) {

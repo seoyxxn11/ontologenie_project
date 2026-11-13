@@ -134,7 +134,7 @@ Debezium이 원천마다 토픽 하나(`{data_source.code}.all`)에 보낸 변�
 | 변경·경계 | 198-2 조립 → END가 오면 198-5 반영(198-7 연결 재계산 포함) |
 | heartbeat | `last_message_at` 갱신. 트랜잭션 밖이면 위치를 그 다음으로 옮긴다(앞으로만). 트랜잭션 중간이면 옮기지 않는다 |
 | 수집 정상 여부 | 메시지 시각(heartbeat 시각·변경 처리 시각)보다 `max-lag`(2분) 넘게 늦거나, `stale-after`(3분) 동안 메시지가 없으면 `healthy_since = NULL`. 다시 기준 안이면 그때 시각으로 |
-| 처리 장애 | 위치를 옮기지 않고 `retry-delay`(5초) 뒤 저장된 위치부터 다시 읽는다. 같은 위치에서 `max-apply-failures`(5번) 연속 실패하면 다시 시도해도 같은 오류(DB 제약 위반·버그)로 보고 복구(`APPLY_FAILED`, V16)로 돌린다(364). 실패 뒤 저장된 위치를 다시 읽지 못하면(플랫폼 DB에 닿지 못함) 일시 장애로 보고 세지 않는다. 복구가 풀리면 `resume_after` 뒤부터 이어 받으므로 그 트랜잭션은 건너뛰고, 그 값은 다시 읽은 스냅샷으로 맞춘다 |
+| 처리 장애 | 위치를 옮기지 않고 `retry-delay`(5초) 뒤 저장된 위치부터 다시 읽는다. **원천 트랜잭션 반영(`applier.apply`)**이 같은 위치에서 `max-apply-failures`(5번) 연속 실패하면 다시 시도해도 같은 오류(DB 제약 위반·버그)로 보고 복구(`APPLY_FAILED`, V16)로 돌린다(364). 일시 장애는 세지 않는다(383): 위치 잡기·받기 중 Kafka 오류, 원천 시작 기준 읽기 실패, 플랫폼 DB 연결 실패, 반영 중 교착·잠금 대기·질의 시간 초과(Spring `TransientDataAccessException`·`DataAccessResourceFailureException`·`CannotCreateTransactionException`·`TransactionTimedOutException`, JDBC `SQLTransientException` 계열, 원인 사슬 포함). 일시 장애가 사이에 끼어도 횟수는 그대로 둔다. 실패 뒤 저장된 위치를 다시 읽지 못하면(플랫폼 DB에 닿지 못함) 그 실패도 세지 않는다. 복구가 풀리면 `resume_after` 뒤부터 이어 받으므로 그 트랜잭션은 건너뛰고, 그 값은 다시 읽은 스냅샷으로 맞춘다 |
 | 트랜잭션 크기 초과·메시지 오류 | 복구(`TRANSACTION_TOO_LARGE`·`PROTOCOL_ERROR`)로 돌리고 멈춘다 |
 | 복구 중 | 읽지 않는다. `refresh-interval`(30초)마다 표시가 풀렸는지 보고, 풀리면 `resume_after` 기준으로 이어 받는다(199, 아래) |
 
