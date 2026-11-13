@@ -251,6 +251,44 @@ class AnalysisCreateApiTests {
         assertThat(count("analysis_run", "requested_by=" + accountId)).isZero();
     }
 
+    /** 원천 데이터 정책(399): 금지 표와, 금지·민감 컬럼을 빼면 남는 컬럼이 없는 대상은 접수하지 않는다. */
+    @Test
+    void rejectsForbiddenTableAndTargetsWithoutAnalyzableColumns() throws Exception {
+        long source =
+                jdbc.sql(
+                                "insert into data_source(code, name, source_kind) values (:code, '원천', 'POSTGRES') returning id")
+                        .param("code", "policy-source-" + UUID.randomUUID())
+                        .query(Long.class)
+                        .single();
+        long attendance = resource(source, "erp.attendance");
+        long worker = resource(source, "mes.worker");
+        jdbc.sql(
+                        """
+                insert into source_column(source_resource_id, column_name, source_data_type, is_nullable, ordinal_position)
+                values (:worker, 'name', 'text', true, 1), (:worker, 'skill_level', 'text', true, 2),
+                       (:worker, 'worker_code', 'text', false, 3)
+                """)
+                .param("worker", worker)
+                .update();
+
+        send("{\"runKind\":\"INITIAL\",\"targets\":[{\"sourceResourceId\":%d},{\"sourceResourceId\":%d}]}"
+                        .formatted(first, attendance))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.error.code").value("BUSINESS_RULE_VIOLATION"))
+                .andExpect(jsonPath("$.error.details.resourceKey").value("erp.attendance"))
+                .andExpect(jsonPath("$.error.details.forbiddenColumns[0]").value("*"));
+        send("{\"runKind\":\"INITIAL\",\"targets\":[{\"sourceResourceId\":%d,\"columns\":[\"name\",\"skill_level\"]}]}"
+                        .formatted(worker))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.error.details.reason").value("NO_ANALYZABLE_COLUMNS"));
+        assertThat(count("analysis_run", "requested_by=" + accountId)).isZero();
+
+        // 민감 컬럼을 골라도 일반 컬럼이 남으면 접수한다. 빼는 일은 AI 시작 알림이 한다.
+        send("{\"runKind\":\"INITIAL\",\"targets\":[{\"sourceResourceId\":%d,\"columns\":[\"skill_level\",\"worker_code\"]}]}"
+                        .formatted(worker))
+                .andExpect(status().isAccepted());
+    }
+
     @Test
     void rejectsMissingResourceAndSyncReference() throws Exception {
         send("{\"runKind\":\"INITIAL\",\"targets\":[{\"sourceResourceId\":9223372036854775807}]}")

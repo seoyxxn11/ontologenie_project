@@ -51,6 +51,7 @@ public class AnalysisCreateService {
     private final Clock clock;
     private final JsonMapper json;
     private final ApplicationEventPublisher events;
+    private final AnalysisColumnScope columnScope;
 
     @Transactional
     public AnalysisRunResponse create(AnalysisCreateRequest request, LoginAccount account) {
@@ -127,11 +128,12 @@ public class AnalysisCreateService {
 
     private void validateReferences(
             AnalysisCreateRequest request, List<Target> targets, List<Long> ids) {
-        Set<Long> existingResources =
+        Map<Long, String> resourceKeys =
                 sourceResources.findAllById(ids).stream()
-                        .map(SourceResource::getId)
-                        .collect(Collectors.toSet());
-        if (!existingResources.containsAll(ids)) {
+                        .collect(
+                                Collectors.toMap(
+                                        SourceResource::getId, SourceResource::getResourceKey));
+        if (!resourceKeys.keySet().containsAll(ids)) {
             throw new BusinessException(
                     CommonErrorCode.RESOURCE_NOT_FOUND, Map.of("resource", "source_resource"));
         }
@@ -152,6 +154,11 @@ public class AnalysisCreateService {
                 throw BusinessException.invalidField(
                         "targets", "선택한 컬럼이 해당 원천 자원의 현재 컬럼 목록에 없습니다.");
             }
+            // 금지 표와 정책상 남는 컬럼이 없는 대상은 접수 때 막는다. 컬럼을 빼는 일은 시작 알림(AnalysisStartService)이 한다.
+            columnScope.columnsForModel(
+                    resourceKeys.get(target.sourceResourceId()),
+                    target.columns(),
+                    existing.getOrDefault(target.sourceResourceId(), Set.of()));
         }
     }
 

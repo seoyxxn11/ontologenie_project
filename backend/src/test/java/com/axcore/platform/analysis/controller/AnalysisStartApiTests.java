@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.axcore.platform.TestcontainersConfiguration;
+import com.axcore.platform.analysis.domain.AnalysisRunCreated;
+import com.axcore.platform.analysis.service.AnalysisStartNotifier;
 import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.source.domain.CredentialPurpose;
 import com.axcore.platform.source.domain.EncryptedSecret;
@@ -62,6 +64,7 @@ class AnalysisStartApiTests {
     @Autowired JdbcClient jdbc;
     @Autowired JsonMapper json;
     @Autowired SourceCredentialCipher cipher;
+    @Autowired AnalysisStartNotifier notifier;
     long accountId;
     String code;
     long source;
@@ -140,6 +143,69 @@ class AnalysisStartApiTests {
         send(item, customer).andExpect(jsonPath("$.data.joined").value(true));
         assertThat(AI.requests).hasSize(1);
         assertThat(output).doesNotContain(PASSWORD).doesNotContain(TOKEN);
+    }
+
+    /**
+     * 원천 데이터 정책(399): 금지·민감 컬럼은 고른 컬럼에서도, 컬럼을 고르지 않은 표에서도 빠진다. 등록 메타데이터의 컬럼 설명도 빠진다. AI는 받은 컬럼만
+     * 읽으므로 프롬프트와 근거에도 들어가지 않는다.
+     */
+    @Test
+    void sendsOnlyNormalColumnsOfPolicyTablesToAi() throws Exception {
+        credential(source, CredentialPurpose.AI, "mes_ai", PASSWORD);
+        long worker =
+                resource(
+                        source,
+                        "mes.worker",
+                        """
+                        {"description":"작업자","columns":{
+                          "name":{"description":"작업자 성명"},
+                          "skill_level":{"description":"숙련 등급"},
+                          "code":{"description":"작업자 코드"}}}
+                        """);
+        column(worker, "skill_level", 3);
+        long order = resource(source, "mes.maintenance_order", "{}");
+        column(order, "technician", 3);
+
+        runId(send(worker, order));
+
+        JsonNode body = json.readTree(AI.requests.peek().body());
+        JsonNode first = body.path("targets").get(0);
+        assertThat(first.path("resourceKey").asString()).isEqualTo("mes.worker");
+        assertThat(first.path("columns").toString()).isEqualTo("[\"code\"]");
+        assertThat(first.path("sourceMetadata").path("columns").toString())
+                .isEqualTo("{\"code\":{\"description\":\"작업자 코드\"}}");
+        JsonNode second = body.path("targets").get(1);
+        assertThat(second.path("resourceKey").asString()).isEqualTo("mes.maintenance_order");
+        assertThat(second.path("columns").toString()).isEqualTo("[\"code\",\"name\"]");
+        assertThat(AI.requests.peek().body())
+                .doesNotContain("skill_level", "technician", "작업자 성명", "숙련 등급");
+    }
+
+    /** 정책 이전에 접수돼 QUEUED로 남은 실행도 시작 알림 때 정책을 다시 본다. 금지 표가 있으면 AI에 보내지 않고 FAILED다. */
+    @Test
+    void failsQueuedRunThatTargetsForbiddenTableWithoutCallingAi() throws Exception {
+        credential(source, CredentialPurpose.AI, "erp_ai", PASSWORD);
+        long attendance = resource(source, "erp.attendance", "{}");
+        long id =
+                jdbc.sql(
+                                """
+                insert into analysis_run(run_kind, work_key, status, requested_by)
+                values ('INITIAL', :key, 'QUEUED', :account) returning id
+                """)
+                        .param("key", "policy-" + UUID.randomUUID())
+                        .param("account", accountId)
+                        .query(Long.class)
+                        .single();
+        jdbc.sql(
+                        "insert into analysis_run_target(analysis_run_id, source_resource_id) values (:run, :target)")
+                .param("run", id)
+                .param("target", attendance)
+                .update();
+
+        notifier.onCreated(new AnalysisRunCreated(id));
+
+        assertThat(AI.requests).isEmpty();
+        assertFailed(id, "원천 데이터 정책상 들이지 않는 표라 분석할 수 없습니다. (erp.attendance)");
     }
 
     @Test
@@ -555,6 +621,18 @@ class AnalysisStartApiTests {
                 .param("id", id)
                 .update();
         return id;
+    }
+
+    private void column(long resource, String name, int position) {
+        jdbc.sql(
+                        """
+                insert into source_column(source_resource_id, column_name, source_data_type, is_nullable, ordinal_position)
+                values (:id, :name, 'text', true, :position)
+                """)
+                .param("id", resource)
+                .param("name", name)
+                .param("position", position)
+                .update();
     }
 
     private void credential(

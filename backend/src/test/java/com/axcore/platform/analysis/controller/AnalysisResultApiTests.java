@@ -186,6 +186,80 @@ class AnalysisResultApiTests {
                 .isEqualTo(1);
     }
 
+    /**
+     * 원천 데이터 정책(399): 금지·민감 컬럼의 예시 값은 후보·개정본·선택지 어디에도 저장하지 않는다. 금지 컬럼을 매핑하는 후보는 보류 권고와 {@code
+     * sourcePolicy}로 표시해 저장한다.
+     */
+    @Test
+    void withholdsPolicyColumnValuesAndMarksForbiddenMappings() throws Exception {
+        long id = run("RUNNING");
+        String body =
+                """
+                {"status":"SUCCEEDED","proposals":[
+                  {"itemKind":"PROPERTY_MAPPING",
+                   "payload":{"objectTypeCode":"EMPLOYEE","propertyCode":"name",
+                     "sourceColumn":{"sourceId":"ERP","resourceKey":"erp.employee","column":"emp_name"}},
+                   "evidence":{"reason":"이름","items":[{"sourceId":"ERP","locator":"erp.employee.emp_name",
+                     "snippet":"값 3/3, 예 ['홍길동']","values":["홍길동"],"verified":true}]},
+                   "options":[{"optionNo":1,
+                     "payload":{"objectTypeCode":"ORDER","propertyCode":"technician",
+                       "sourceColumn":{"sourceId":"MES","resourceKey":"mes.maintenance_order","column":"technician"}},
+                     "evidence":{"items":[{"locator":"mes.maintenance_order.technician",
+                       "snippet":"예 ['김정비']","values":["김정비"]}]}}]},
+                  {"itemKind":"PROPERTY_MAPPING",
+                   "payload":{"objectTypeCode":"VENDOR","propertyCode":"vendor_name",
+                     "sourceColumn":{"sourceId":"ERP","resourceKey":"erp.vendor","column":"vendor_name"}},
+                   "evidence":{"items":[{"locator":"erp.vendor.vendor_name","snippet":"예 ['대성정밀']","values":["대성정밀"]}]}}
+                ]}
+                """;
+        var response = send(id, body).andExpect(status().isOk()).andReturn();
+        var ids =
+                json.readTree(response.getResponse().getContentAsString())
+                        .path("data")
+                        .path("proposalItemIds");
+        long forbidden = ids.get(0).asLong();
+        long normal = ids.get(1).asLong();
+
+        String stored =
+                jdbc.sql(
+                                """
+                select string_agg(evidence::text, ' ') from (
+                    select evidence from proposal_item where id=:id
+                    union all select evidence from proposal_revision where proposal_item_id=:id
+                    union all select evidence from proposal_option where proposal_item_id=:id) e
+                """)
+                        .param("id", forbidden)
+                        .query(String.class)
+                        .single();
+        assertThat(stored).doesNotContain("홍길동", "김정비");
+        var evidence =
+                json.readTree(
+                        jdbc.sql("select evidence::text from proposal_item where id=:id")
+                                .param("id", forbidden)
+                                .query(String.class)
+                                .single());
+        assertThat(evidence.path("holdRecommended").asBoolean()).isTrue();
+        assertThat(evidence.path("sourcePolicy").path("forbiddenColumns").toString())
+                .isEqualTo("[\"erp.employee.emp_name\"]");
+        assertThat(evidence.path("items").get(0).path("locator").asString())
+                .isEqualTo("erp.employee.emp_name");
+        assertThat(
+                        count(
+                                "proposal_revision",
+                                "proposal_item_id="
+                                        + forbidden
+                                        + " and evidence->'sourcePolicy' is not null"))
+                .isEqualTo(1);
+        assertThat(
+                        count(
+                                "proposal_item",
+                                "id="
+                                        + normal
+                                        + " and evidence->'items'->0->'values' = '[\"대성정밀\"]'::jsonb"
+                                        + " and evidence->'sourcePolicy' is null"))
+                .isEqualTo(1);
+    }
+
     @Test
     void acceptsEmptySuccessAndPreservesSuppliedSummary() throws Exception {
         long id = run("RUNNING");
