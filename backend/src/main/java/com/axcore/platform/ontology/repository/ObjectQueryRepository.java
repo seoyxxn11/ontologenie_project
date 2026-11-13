@@ -338,6 +338,36 @@ public class ObjectQueryRepository {
         return new PageImpl<>(rows, page, total);
     }
 
+    /** search와 같은 조건(검색어 제외)에 맞는 객체 수(380). */
+    public long count(Collection<Long> visibleTypeIds, Status status, SearchFilters filters) {
+        SearchClause conditions = searchConditions(filters);
+        return scopedQuery(
+                        "select count(*) " + OBJECTS + FILTERS + conditions.sql(),
+                        visibleTypeIds,
+                        status)
+                .params(conditions.parameters())
+                .query(Long.class)
+                .single();
+    }
+
+    /** search와 같은 조건(검색어 제외)에 맞는 객체 ID를 id 순으로 limit건까지 돌려준다(380). */
+    public List<Long> searchIds(
+            Collection<Long> visibleTypeIds, Status status, SearchFilters filters, int limit) {
+        SearchClause conditions = searchConditions(filters);
+        return scopedQuery(
+                        "select oi.id "
+                                + OBJECTS
+                                + FILTERS
+                                + conditions.sql()
+                                + "order by oi.id limit :limit",
+                        visibleTypeIds,
+                        status)
+                .params(conditions.parameters())
+                .param("limit", limit)
+                .query(Long.class)
+                .list();
+    }
+
     // JSON의 속성 키와 값은 바인딩한다. SQL에 더하는 자료형은 검증된 enum에서만 고른다.
     private static SearchClause searchConditions(SearchFilters filters) {
         StringBuilder sql = new StringBuilder();
@@ -452,6 +482,27 @@ public class ObjectQueryRepository {
                     .query((rs, rowNum) -> row(rs))
                     .list();
         }
+    }
+
+    /** ids 중 볼 수 있는 유형의 활성 객체를 076 검색 결과와 같은 형태로 id 순으로 돌려준다(380). */
+    public List<ObjectRow> findByIds(
+            Collection<Long> ids, Collection<Long> visibleTypeIds, Collection<Long> maskedTypeIds) {
+        return withDisplayScope(
+                        jdbc.sql(
+                                SELECT
+                                        + OBJECTS
+                                        + DISPLAY_JOINS
+                                        + """
+                                        where oi.id = any(:ids)
+                                          and oi.object_type_id in (:visibleTypeIds)
+                                          and oi.status = 'ACTIVE'
+                                        order by oi.id
+                                        """),
+                        maskedTypeIds)
+                .param("ids", new SqlArrayValue("bigint", ids.toArray()))
+                .param("visibleTypeIds", visibleTypeIds)
+                .query((rs, rowNum) -> row(rs))
+                .list();
     }
 
     /**

@@ -30,6 +30,8 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -63,6 +65,48 @@ public class ObjectQueryService
     @Override
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public Page<ObjectSearchResponse> search(LoginAccount actor, ObjectSearchRequest request) {
+        PageRequest page =
+                PageRequest.of(
+                        request.page() == null ? 0 : request.page(),
+                        request.size() == null ? DEFAULT_PAGE_SIZE : request.size());
+        SearchScope scope = searchScope(actor, request);
+        if (scope == null) {
+            return Page.empty(page);
+        }
+        String q = request.q();
+        String exactPattern = q == null || q.isBlank() ? null : SearchPattern.exact(q);
+        return objects.search(
+                        scope.visibleTypeIds(),
+                        maskedTypes(scope.access(), scope.visibleTypeIds()),
+                        scope.status(),
+                        exactPattern,
+                        scope.filters(),
+                        page)
+                .map(row -> toResponse(row, scope.access()));
+    }
+
+    // 건수와 ID를 같은 스냅샷에서 읽는다.
+    @Override
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public IdSearch searchIds(LoginAccount actor, ObjectSearchRequest request, int limit) {
+        if (request.q() != null && !request.q().isBlank()) {
+            throw new IllegalArgumentException("검색어 조건은 ID 조회에서 지원하지 않습니다.");
+        }
+        SearchScope scope = searchScope(actor, request);
+        if (scope == null) {
+            return new IdSearch(0, List.of());
+        }
+        long total = objects.count(scope.visibleTypeIds(), scope.status(), scope.filters());
+        List<Long> ids =
+                total == 0 || total > limit
+                        ? List.of()
+                        : objects.searchIds(
+                                scope.visibleTypeIds(), scope.status(), scope.filters(), limit);
+        return new IdSearch(total, ids);
+    }
+
+    /** 076의 권한·조건 검사. 볼 수 있는 유형이 없으면 조건을 검증하지 않고 null이다(숨긴 유형의 속성을 드러내지 않는다). */
+    private SearchScope searchScope(LoginAccount actor, ObjectSearchRequest request) {
         if (request.hasFilters() && request.objectTypeId() == null) {
             throw BusinessException.invalidField("objectTypeId", "속성 또는 기간 조건에는 객체 유형을 지정해 주세요.");
         }
@@ -73,11 +117,6 @@ public class ObjectQueryService
                     "원천에서 삭제된 객체는 관리자만 조회할 수 있습니다.",
                     Map.of("field", "status", "requiredPermission", RoleCode.ADMIN.name()));
         }
-
-        PageRequest page =
-                PageRequest.of(
-                        request.page() == null ? 0 : request.page(),
-                        request.size() == null ? DEFAULT_PAGE_SIZE : request.size());
         DataAccess access = dataAccessPolicy.of(actor);
         Set<Long> visibleTypeIds = access.visibleObjectTypeIds();
         if (request.objectTypeId() != null) {
@@ -87,24 +126,17 @@ public class ObjectQueryService
                             : Set.of();
         }
         if (visibleTypeIds.isEmpty()) {
-            return Page.empty(page);
+            return null;
         }
-
-        String q = request.q();
-        String exactPattern = q == null || q.isBlank() ? null : SearchPattern.exact(q);
         SearchFilters filters = filterValidator.validate(request, access);
         if (!filters.values().isEmpty()) {
             filters = matchStoredSpacing(filters, request.objectTypeId(), status);
         }
-        return objects.search(
-                        visibleTypeIds,
-                        maskedTypes(access, visibleTypeIds),
-                        status,
-                        exactPattern,
-                        filters,
-                        page)
-                .map(row -> toResponse(row, access));
+        return new SearchScope(access, visibleTypeIds, status, filters);
     }
+
+    private record SearchScope(
+            DataAccess access, Set<Long> visibleTypeIds, Status status, SearchFilters filters) {}
 
     /**
      * 문자 조건 값과 똑같은 저장 값이 없고 공백만 다른 저장 값이 하나뿐이면 그 값으로 거른다(378). "정비 중"으로 물으면 저장 값 "정비중"을 찾는다. 같은 값이
@@ -148,6 +180,33 @@ public class ObjectQueryService
                 .stream()
                 .map(row -> toResponse(row, access))
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public List<ObjectSearchResponse> findByIds(LoginAccount actor, Collection<Long> ids) {
+        if (ids.size() > MAX_IDS) {
+            throw new IllegalArgumentException("객체 ID는 한 번에 " + MAX_IDS + "개까지 읽을 수 있습니다.");
+        }
+        DataAccess access = dataAccessPolicy.of(actor);
+        Set<Long> visibleTypeIds = access.visibleObjectTypeIds();
+        if (ids.isEmpty() || visibleTypeIds.isEmpty()) {
+            return List.of();
+        }
+        return objects.findByIds(ids, visibleTypeIds, maskedTypes(access, visibleTypeIds)).stream()
+                .map(row -> toResponse(row, access))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Long> findAvailableIds(LoginAccount actor, Collection<Long> ids) {
+        Set<Long> visibleTypeIds = dataAccessPolicy.of(actor).visibleObjectTypeIds();
+        if (ids.isEmpty() || visibleTypeIds.isEmpty()) {
+            return List.of();
+        }
+        Set<Long> available = objects.findActiveObjectTypes(ids, visibleTypeIds).keySet();
+        return ids.stream().distinct().filter(available::contains).toList();
     }
 
     @Override
@@ -257,20 +316,23 @@ public class ObjectQueryService
                 throw notFound(id);
             }
         }
+        Map<Long, Long> exampleByType = new LinkedHashMap<>();
+        baseIds.forEach(id -> exampleByType.putIfAbsent(baseTypes.get(id), id));
+        if (exampleByType.size() > 1) {
+            throw mixedBaseTypes(linkType, exampleByType);
+        }
         long firstId = baseIds.getFirst();
-        boolean inferred = request.direction() == null;
+        long givenTypeId = baseTypes.get(firstId);
         Direction direction =
-                inferred
-                        ? inferDirection(linkType, sameEnds, firstId, baseTypes.get(firstId))
+                request.direction() == null
+                        ? inferDirection(linkType, sameEnds, firstId, givenTypeId)
                         : request.direction();
         long baseTypeId =
                 direction == Direction.IN ? linkType.getTargetTypeId() : linkType.getSourceTypeId();
         long relatedTypeId =
                 direction == Direction.IN ? linkType.getSourceTypeId() : linkType.getTargetTypeId();
-        for (long id : baseIds) {
-            if (baseTypes.get(id) != baseTypeId) {
-                throw baseTypeMismatch(linkType, direction, inferred, firstId, id);
-            }
+        if (givenTypeId != baseTypeId) {
+            throw baseTypeMismatch(linkType, direction, firstId);
         }
 
         SearchFilters filters =
@@ -325,20 +387,26 @@ public class ObjectQueryService
     }
 
     /**
-     * Agent가 오류만 보고 무엇을 고칠지 알 수 있게 원인별로 문구를 나눈다. 방향을 추론했다면 방향이 아니라 기준 객체 유형이 섞인 것이 원인이다. 관계 유형의 양
-     * 끝은 이미 볼 수 있는 유형으로 확인했으므로 유형 ID를 알려도 된다.
+     * Agent가 오류만 보고 무엇을 고칠지 알 수 있게 원인별로 문구를 나눈다. 기준 객체 유형이 섞였으면 방향·관계 유형이 아니라 그것이 원인이므로, 객체 순서나 방향
+     * 지정과 관계없이 먼저 알린다. 유형별로 예시 객체를 하나씩 든다. 기준 객체와 관계 유형의 양 끝은 이미 볼 수 있다고 확인했으므로 유형 ID를 알려도 된다.
      */
+    private static BusinessException mixedBaseTypes(
+            LinkType linkType, Map<Long, Long> exampleByType) {
+        List<String> examples = new ArrayList<>();
+        exampleByType.forEach(
+                (typeId, objectId) -> examples.add("유형 #" + typeId + ": 객체 #" + objectId));
+        return BusinessException.invalidField(
+                "objectIds",
+                "기준 객체의 유형이 섞여 있습니다("
+                        + String.join(", ", examples)
+                        + "). 한 유형의 객체만 지정해 주세요. "
+                        + linkEnds(linkType));
+    }
+
     private static BusinessException baseTypeMismatch(
-            LinkType linkType, Direction direction, boolean inferred, long firstId, long id) {
+            LinkType linkType, Direction direction, long id) {
         String reason;
-        if (inferred && id != firstId) {
-            reason =
-                    "기준 객체의 유형이 섞여 있습니다. 기준 객체 #"
-                            + firstId
-                            + "와 #"
-                            + id
-                            + "의 유형이 다릅니다. 한 유형의 객체만 지정해 주세요.";
-        } else if (direction == Direction.BOTH) {
+        if (direction == Direction.BOTH) {
             reason = "기준 객체 #" + id + "의 유형이 관계 유형의 끝 유형과 다릅니다. 관계 유형을 확인해 주세요.";
         } else {
             reason =

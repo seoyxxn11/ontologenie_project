@@ -203,7 +203,8 @@ class AgentResponderGmsTests {
                 completionEstimator,
                 propertyValues,
                 Clock.systemUTC(),
-                reasoningEffort);
+                reasoningEffort,
+                false);
     }
 
     /** 유형으로 좁혀야 하는 질문이면 모델 요약으로 유형 ID를 얻은 뒤 그 유형으로 검색한다(345). 같은 코드를 쓰는 다른 유형의 객체가 섞이지 않아야 한다. */

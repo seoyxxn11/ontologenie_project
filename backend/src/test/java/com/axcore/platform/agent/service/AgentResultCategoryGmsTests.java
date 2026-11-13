@@ -233,7 +233,8 @@ class AgentResultCategoryGmsTests {
                 completionEstimator,
                 propertyValues,
                 Clock.systemUTC(),
-                reasoningEffort);
+                reasoningEffort,
+                false);
     }
 
     /** 실제 077처럼 가린 속성은 키를 남기고 값만 비운다. */

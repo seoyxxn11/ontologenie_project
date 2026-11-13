@@ -48,6 +48,9 @@ axcore:
     # 객체 유형 사이 경로 후보 도구(OBJECT_PATHS, 381). true일 때만 AI에게 준다. 멀티홉 답변 규칙·GMS 비교(382) 전이라 기본은 끈다.
     object-paths:
       enabled: ${AXCORE_AGENT_OBJECT_PATHS_ENABLED:false}
+    # Object Set 도구(OBJECT_SET_START·SEARCH_AROUND·LIST, 380). true일 때만 AI에게 준다. 멀티홉 답변 규칙·GMS 비교(382) 전이라 기본은 끈다.
+    object-sets:
+      enabled: ${AXCORE_AGENT_OBJECT_SETS_ENABLED:false}
   # 내부 API(/api/v1/internal/**)를 부르는 FastAPI와 나눠 가진 공유 비밀(X-Internal-Token). 값은 환경변수로만 넣는다.
   # 비어 있으면 내부 API를 모두 막는다. AI 쪽 AI_ONTOLOGY_INTERNAL_TOKEN과 같은 값이어야 한다.
   internal-api:
