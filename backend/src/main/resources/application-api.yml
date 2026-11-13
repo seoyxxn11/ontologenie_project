@@ -45,10 +45,10 @@ axcore:
       max-tokens: ${AXCORE_AGENT_HISTORY_MAX_TOKENS:2000}
       # 원문 범위 밖 오래된 대화 요약의 글자 수 상한(333). 원문 상한과 따로 세어 합계는 최대 2500이다. 0이면 요약을 만들지도 넘기지도 않는다.
       summary-max-tokens: ${AXCORE_AGENT_HISTORY_SUMMARY_MAX_TOKENS:500}
-    # 객체 유형 사이 경로 후보 도구(OBJECT_PATHS, 381). true일 때만 AI에게 준다. 멀티홉 답변 규칙·GMS 비교(382) 전이라 기본은 끈다.
+    # 객체 유형 사이 경로 후보 도구(OBJECT_PATHS, 381). true일 때만 AI에게 준다. 382 GMS에서 뚜렷한 효과가 없어 기본은 끈다.
     object-paths:
       enabled: ${AXCORE_AGENT_OBJECT_PATHS_ENABLED:false}
-    # Object Set 도구(OBJECT_SET_START·SEARCH_AROUND·LIST, 380). true일 때만 AI에게 준다. 멀티홉 답변 규칙·GMS 비교(382) 전이라 기본은 끈다.
+    # Object Set 도구(OBJECT_SET_START·SEARCH_AROUND·LIST, 380). true일 때만 AI에게 준다. 382 GMS에서 2홉 질문 정답률이 아직 낮아(docs/agent-scenario-gms.md) 기본은 끈다.
     object-sets:
       enabled: ${AXCORE_AGENT_OBJECT_SETS_ENABLED:false}
   # 내부 API(/api/v1/internal/**)를 부르는 FastAPI와 나눠 가진 공유 비밀(X-Internal-Token). 값은 환경변수로만 넣는다.

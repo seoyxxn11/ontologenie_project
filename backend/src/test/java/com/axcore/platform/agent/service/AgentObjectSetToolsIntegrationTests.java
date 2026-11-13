@@ -1,6 +1,7 @@
 package com.axcore.platform.agent.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -115,6 +116,13 @@ class AgentObjectSetToolsIntegrationTests {
                 .containsEntry("objectTypeId", equipment)
                 .containsEntry("count", 1)
                 .containsEntry("sample", List.of("P103"));
+        assertThat((List<AgentObjectSetTools.NextLinkType>) started.get("linkTypes"))
+                .as("시작 유형에서 갈 수 있는 관계 유형을 준다(382)")
+                .extracting(
+                        AgentObjectSetTools.NextLinkType::linkTypeId,
+                        AgentObjectSetTools.NextLinkType::direction,
+                        AgentObjectSetTools.NextLinkType::objectTypeId)
+                .containsExactly(tuple(operationEquipment, "IN", operation));
         assertThat(start.get("dataAsOf")).isNotNull();
 
         Map<String, Object> hop1 =
@@ -128,6 +136,12 @@ class AgentObjectSetToolsIntegrationTests {
                 .containsEntry("remainingSearchArounds", 4)
                 .doesNotContainKey("unavailableBaseObjects");
         assertThat(session.objectsAllowed(List.of(o1))).as("관계 따라가기 결과는 허용 객체가 되지 않는다").isFalse();
+        assertThat((List<AgentObjectSetTools.NextLinkType>) operations.get("linkTypes"))
+                .extracting(
+                        AgentObjectSetTools.NextLinkType::linkTypeId,
+                        AgentObjectSetTools.NextLinkType::direction)
+                .containsExactlyInAnyOrder(
+                        tuple(operationEquipment, "OUT"), tuple(operationOrder, "OUT"));
 
         Map<String, Object> hop2 =
                 tools.objectSetSearchAround(

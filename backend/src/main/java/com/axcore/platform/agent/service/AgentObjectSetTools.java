@@ -93,14 +93,14 @@ public class AgentObjectSetTools {
     @Tool(
             name = OBJECT_SET_START,
             description =
-                    "여러 단계 떨어진 정보를 찾을 때 출발점이 될 객체 집합(Object Set)을 서버에 만든다. objectIds(참고 객체나 조회 결과에 나온"
-                            + " 객체) 또는 objectTypeId와 조건(OBJECT_LIST와 같은 조건) 중 하나로 만든다. 결과의 objectSetId로"
+                    "여러 단계 떨어진 정보를 찾을 때 출발점이 될 객체 집합(Object Set)을 서버에 만든다. objectIds(참고 객체) 또는 objectTypeId와 조건(OBJECT_LIST와 같은 조건) 중 하나로 만든다. 결과의 objectSetId로"
                             + " OBJECT_SET_SEARCH_AROUND를 불러 관계를 따라가고, 마지막에 OBJECT_SET_LIST로 객체를 본다. 결과에는 건수와"
-                            + " 이름 몇 개만 온다.")
+                            + " 이름 몇 개, 이 유형에서 갈 수 있는 관계 유형(linkTypes: linkTypeId·direction·도착 유형)이 온다. 그사이"
+                            + " 삭제되거나 볼 수 없게 된 시작 객체는 빼고 그 수를 unavailableObjects로 알린다.")
     public Map<String, Object> objectSetStart(
             @ToolParam(
                             description =
-                                    "시작 객체 ID 목록(최대 20개, 같은 유형). '참고 객체 ID'나 이번 조회 결과에 나온 ID만 쓴다. 조건으로"
+                                    "시작 객체 ID 목록(최대 20개, 같은 유형). '참고 객체 ID'를 쓴다. 관계 조회로 받은 일부 연결 상대로 시작하지 않는다. 조건으로"
                                             + " 시작하면 비운다",
                             required = false)
                     List<Long> objectIds,
@@ -154,12 +154,14 @@ public class AgentObjectSetTools {
             description =
                     "Object Set의 객체들에서 관계 유형 하나를 따라 연결된 객체를 중복 없이 모아 새 Object Set을 만든다. 한 단계를 한 번에"
                             + " 건넌다. 연결된 객체의 속성·기간 조건을 함께 걸 수 있다(OBJECT_LIST와 같은 조건). 방향은 비우면 서버가 정한다."
-                            + " 결과에는 새 objectSetId, 건수, 이름 몇 개, 연결된 유형의 속성(properties)이 온다. 출발 객체 중 그사이"
+                            + " 결과에는 새 objectSetId, 건수, 이름 몇 개, 연결된 유형의 속성(properties)과 그 유형에서 다음으로 갈 수 있는"
+                            + " 관계 유형(linkTypes)이 온다. 출발 객체 중 그사이"
                             + " 삭제되거나 볼 수 없게 된 객체는 빼고 건너며 그 수를 unavailableBaseObjects로 알린다. 결과가 5000건을 넘으면"
                             + " 조건을 더해 다시 부른다. 한 질문에서 5번까지 건널 수 있다(실패한 호출은 세지 않는다).")
     public Map<String, Object> objectSetSearchAround(
             @ToolParam(description = "출발 Object Set ID(이번 답변에서 받은 objectSetId)") String objectSetId,
-            @ToolParam(description = "따라갈 관계 유형 ID(모델 요약·경로 후보·관계 묶음에 나온 id)") Long linkTypeId,
+            @ToolParam(description = "따라갈 관계 유형 ID(객체 집합 결과의 linkTypes·경로 후보·모델 요약에 나온 id)")
+                    Long linkTypeId,
             @ToolParam(
                             description =
                                     "OUT(관계의 출발 → 도착), IN(도착 → 출발), BOTH(양 끝 유형이 같은 관계만). 비우면 서버가 정한다",
@@ -282,6 +284,7 @@ public class AgentObjectSetTools {
         ObjectSearchResponse first = found.getFirst();
         ObjectSet set = session.saveObjectSet(first.objectTypeId(), ids);
         Map<String, Object> data = setSummary(set, first.objectTypeName(), names(found));
+        data.put("linkTypes", nextLinkTypes(summary(), set.objectTypeId()));
         if (unavailable > 0) {
             data.put("unavailableObjects", unavailable);
         }
@@ -353,6 +356,7 @@ public class AgentObjectSetTools {
                         names(sample));
         data.put("properties", properties);
         data.put("unmatchedValues", unmatched);
+        data.put("linkTypes", nextLinkTypes(summary(), typeId));
         return new Outcome(
                 data,
                 AgentResultCategory.FOUND,
@@ -377,7 +381,8 @@ public class AgentObjectSetTools {
                     null);
         }
         if (linkTypeId == null) {
-            throw new InvalidInput("linkTypeId가 없습니다. 모델 요약이나 경로 후보의 관계 유형 id를 넣어 주세요.", null);
+            throw new InvalidInput(
+                    "linkTypeId가 없습니다. 객체 집합 결과의 linkTypes나 경로 후보에 나온 관계 유형 id를 넣어 주세요.", null);
         }
         Direction requested = directionOf(direction);
         ModelSummaryResponse summary = models.summarize(dataAccess.forModel(session.asker()));
@@ -457,6 +462,7 @@ public class AgentObjectSetTools {
         data.put("count", result.count());
         data.put("sample", sample);
         data.put("properties", properties);
+        data.put("linkTypes", nextLinkTypes(summary, relatedType));
         data.put(
                 "unmatchedValues",
                 AgentObjectListTools.unmatchedValues(properties, propertyValues));
@@ -492,7 +498,9 @@ public class AgentObjectSetTools {
         if (code == CommonErrorCode.RESOURCE_NOT_FOUND
                 && "link_type".equals(ex.getDetails().get("resource"))) {
             throw new InvalidInput(
-                    "관계 유형 #" + linkTypeId + "를 찾을 수 없습니다. 모델 요약이나 경로 후보에 나온 관계 유형 id를 넣어 주세요.",
+                    "관계 유형 #"
+                            + linkTypeId
+                            + "를 찾을 수 없습니다. 객체 집합 결과의 linkTypes나 경로 후보에 나온 관계 유형 id를 넣어 주세요.",
                     ex);
         }
         // 출발 객체를 확인한 뒤 건너기 전에 또 사라진 경우다. "데이터 없음"이 아니라 확인하지 못한 것으로 답하게 실패로 둔다.
@@ -536,6 +544,51 @@ public class AgentObjectSetTools {
                     null);
         }
         return set;
+    }
+
+    /**
+     * 그 유형에서 다음 단계로 갈 수 있는 관계 유형(382). 모델 요약과 같은 조회 범위라 볼 수 없는 유형으로 가는 관계는 빠진다. AI가 다음 건너기의
+     * linkTypeId·direction을 모델 요약을 따로 부르지 않고 고를 수 있게 한다.
+     */
+    public record NextLinkType(
+            long linkTypeId,
+            String name,
+            String direction,
+            long objectTypeId,
+            String objectTypeName) {}
+
+    static List<NextLinkType> nextLinkTypes(ModelSummaryResponse summary, long typeId) {
+        List<NextLinkType> next = new ArrayList<>();
+        for (LinkTypeSummary link : summary.linkTypes()) {
+            boolean fromHere = Objects.equals(link.sourceTypeId(), typeId);
+            boolean toHere = Objects.equals(link.targetTypeId(), typeId);
+            if (fromHere && toHere) {
+                next.add(
+                        new NextLinkType(
+                                link.id(), link.name(), "BOTH", typeId, typeName(summary, typeId)));
+            } else if (fromHere) {
+                next.add(
+                        new NextLinkType(
+                                link.id(),
+                                link.name(),
+                                "OUT",
+                                link.targetTypeId(),
+                                typeName(summary, link.targetTypeId())));
+            } else if (toHere) {
+                next.add(
+                        new NextLinkType(
+                                link.id(),
+                                link.name(),
+                                "IN",
+                                link.sourceTypeId(),
+                                typeName(summary, link.sourceTypeId())));
+            }
+        }
+        return next;
+    }
+
+    private ModelSummaryResponse summary() {
+        return models.summarize(dataAccess.of(session.asker()));
     }
 
     private List<PropertyItem> properties(long typeId) {

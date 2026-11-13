@@ -172,12 +172,34 @@ class AgentScenarioGmsTests {
     void s4FollowsP103ToWorkOrderAndSalesOrderAtRisk() {
         Run run = ask("P103이 멈춰서 납기가 위험한 수주는?", PRESS_REPLY);
 
-        run.expectRead(press(), Set.of(AgentObjectDetailTools.OBJECT_LINKS));
-        run.expectRead(data.object("WorkOrder", Map.of("wo_no", "JB2610-0141")), READ_TOOLS);
+        // 관계 조회로 따라가도, 객체 집합(382)으로 건너도 된다.
+        run.expectStartedFrom(press());
+        // 객체 집합으로 건너면 중간 작업지시는 목록으로 보지 않아도 된다. 작업지시 유형을 거쳐 정답 수주에 닿았으면 된다.
+        run.expectReadOrPassedThrough(
+                data.object("WorkOrder", Map.of("wo_no", "JB2610-0141")), typeId("WorkOrder"));
         run.expectReached(data.object("SalesOrder", Map.of("so_no", "OD-2610-021")));
         run.log(
                 "멈춘 작업지시 JB2610-0141(성형·트리밍 잔량 3,200) → 수주 OD-2610-021(납기 2026-11-04). "
                         + "납기 위험 수주는 OD-2610-019(연결 작업지시 JB2610-0145 대기, 납기 2026-10-31)");
+        run.verify();
+    }
+
+    /**
+     * M1(382): 작업지시에는 설비 코드가 없어 설비 ← 작업지시 공정 → 작업지시 두 단계를 건너야 한다. P103에 공정이 배정된 작업지시 61건 중 진행 중은
+     * JB2610-0141 하나다. 360 GMS에서 공정 122건을 하나씩 상세 조회하다 도구 호출 한도(40회)를 넘겼다. 한도 안에서 답하고 그 작업지시를 조회 결과로
+     * 받아야 한다.
+     */
+    @Test
+    void m1FindsWorkOrdersInProgressAssignedToP103() {
+        Run run = ask("P103에 배정된 진행 중인 작업지시 보여줘", PRESS_REPLY);
+
+        run.expectStartedFrom(press());
+        // 건넌 결과가 1건이면 목록 없이 결과의 이름으로 답할 수 있다. 그때는 작업지시 유형으로 건너고 답에 그 번호를 말했으면 된다.
+        run.expectReadOrAnswered(
+                data.object("WorkOrder", Map.of("wo_no", "JB2610-0141")),
+                typeId("WorkOrder"),
+                "JB2610-0141");
+        run.log("진행 중 작업지시 1건: JB2610-0141 (P103에 공정이 배정된 작업지시 61건 중)");
         run.verify();
     }
 
@@ -489,6 +511,92 @@ class AgentScenarioGmsTests {
             }
         }
 
+        /** 그 객체에서 관계를 따라가기 시작했어야 한다. 관계 조회의 기준 객체이거나 객체 집합 시작 객체(382)다. */
+        void expectStartedFrom(long objectId) {
+            boolean started =
+                    calls.stream()
+                            .anyMatch(
+                                    call ->
+                                            (AgentObjectDetailTools.OBJECT_LINKS.equals(call.tool())
+                                                            && Long.valueOf(objectId)
+                                                                    .equals(call.targetId()))
+                                                    || (AgentObjectSetTools.OBJECT_SET_START.equals(
+                                                                    call.tool())
+                                                            && hasSource(call, objectId)));
+            if (!started) {
+                failures.add("객체 " + objectId + "에서 관계 조회나 객체 집합을 시작하지 않음");
+            }
+        }
+
+        /** 그 객체를 직접 조회·목록으로 받았거나, 객체 집합으로 그 유형을 거쳐 건넜어야 한다(382). */
+        void expectReadOrPassedThrough(long objectId, long objectTypeId) {
+            if (!readOrListed(objectId) && !hoppedTo(objectTypeId, false)) {
+                failures.add("객체 " + objectId + "를 조회하지 않았고 유형 " + objectTypeId + "로 건너지도 않음");
+            }
+        }
+
+        /**
+         * 그 객체를 상세·관계로 직접 조회했거나, 객체 집합으로 그 유형으로 조건을 넣어 건너고 그 객체를 목록으로 받았거나 답에 그 번호를 말했어야 한다(382).
+         * 조건 없이 전부 건너 목록 첫 쪽이나 답에 우연히 들어간 경우를 통과시키지 않으려고 조건을 넣은 건너기를 요구한다.
+         */
+        void expectReadOrAnswered(long objectId, long objectTypeId, String code) {
+            boolean read =
+                    calls.stream()
+                            .anyMatch(
+                                    call ->
+                                            READ_TOOLS.contains(call.tool())
+                                                    && Long.valueOf(objectId)
+                                                            .equals(call.targetId()));
+            boolean found =
+                    calls.stream()
+                                    .anyMatch(
+                                            call ->
+                                                    AgentObjectSetTools.OBJECT_SET_LIST.equals(
+                                                                    call.tool())
+                                                            && hasSource(call, objectId))
+                            || (answer != null && answer.contains(code));
+            if (!read && !(hoppedTo(objectTypeId, true) && found)) {
+                failures.add("객체 " + objectId + "를 조회하지 않았고, 조건을 넣어 건넌 결과·답에 " + code + "도 없음");
+            }
+        }
+
+        private boolean readOrListed(long objectId) {
+            return calls.stream()
+                    .anyMatch(
+                            call ->
+                                    (READ_TOOLS.contains(call.tool())
+                                                    && Long.valueOf(objectId)
+                                                            .equals(call.targetId()))
+                                            || (AgentObjectSetTools.OBJECT_SET_LIST.equals(
+                                                            call.tool())
+                                                    && hasSource(call, objectId)));
+        }
+
+        private boolean hoppedTo(long objectTypeId, boolean filtered) {
+            return calls.stream()
+                    .filter(
+                            call ->
+                                    AgentObjectSetTools.OBJECT_SET_SEARCH_AROUND.equals(
+                                            call.tool()))
+                    .filter(
+                            call ->
+                                    !filtered
+                                            || call.input().get("propertyValues")
+                                                            instanceof Map<?, ?> values
+                                                    && !values.isEmpty())
+                    .flatMap(call -> call.sources().stream())
+                    .anyMatch(
+                            source ->
+                                    Long.valueOf(objectTypeId).equals(source.get("objectTypeId"))
+                                            && source.get("count") instanceof Number count
+                                            && count.longValue() > 0);
+        }
+
+        private static boolean hasSource(Call call, long objectId) {
+            return call.sources().stream()
+                    .anyMatch(source -> Long.valueOf(objectId).equals(source.get("objectId")));
+        }
+
         /** 그 도구를 그 입력 값으로 불렀어야 한다. 숫자는 Long·Integer를 구분하지 않고 비교한다. */
         void expectInput(String tool, String key, Object value) {
             boolean called =
@@ -534,6 +642,7 @@ class AgentScenarioGmsTests {
             Map<String, Object> summary = new LinkedHashMap<>();
             summary.put("question", question);
             summary.put("clarified", clarified());
+            summary.put("toolCalls", calls.size());
             summary.put("tools", calls.stream().map(Call::tool).toList());
             summary.put("failures", failures);
             log.info("GMS 시나리오 판정: {}", summary);

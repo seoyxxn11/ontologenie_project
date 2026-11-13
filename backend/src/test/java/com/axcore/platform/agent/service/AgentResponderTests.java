@@ -217,11 +217,44 @@ class AgentResponderTests {
         objectSetsEnabled = true;
         beans.addBean("objectDetailQuery", mock(ObjectDetailQuery.class));
 
-        assertThat(toolNames(askAboutPr03()))
+        Prompt prompt = askAboutPr03();
+
+        assertThat(toolNames(prompt))
                 .contains(
                         AgentObjectSetTools.OBJECT_SET_START,
                         AgentObjectSetTools.OBJECT_SET_SEARCH_AROUND,
                         AgentObjectSetTools.OBJECT_SET_LIST);
+        // 여러 단계 관계는 객체 집합으로 건너게 지시를 바꾼다(382). 경로 후보 도구가 없으면 그 규칙은 넣지 않는다.
+        assertThat(prompt.getSystemMessage().getText())
+                .contains(AgentResponder.MULTI_HOP_RULES, AgentResponder.LINKED_INFO_RULE)
+                .doesNotContain(AgentResponder.FOLLOW_LINKS_RULE)
+                .doesNotContain(AgentResponder.LINKED_INFO_LINKS_RULE)
+                .contains(AgentResponder.NO_GROUP_RULE_WITH_SETS)
+                .contains(AgentResponder.NO_DATA_RULE_WITH_SETS)
+                .doesNotContain(AgentResponder.NO_DATA_RULE)
+                .doesNotContain(AgentResponder.PATHS_RULE);
+    }
+
+    @Test
+    void addsThePathRuleOnlyWhenObjectSetsAndPathsAreBothGiven() {
+        objectSetsEnabled = true;
+        beans.addBean("objectDetailQuery", mock(ObjectDetailQuery.class));
+        beans.addBean(
+                "objectPathPlanner",
+                new ObjectPathPlanner(
+                        mock(ModelSummaryService.class), mock(DataAccessPolicy.class)));
+
+        assertThat(askAboutPr03().getSystemMessage().getText())
+                .contains(AgentResponder.MULTI_HOP_RULES, AgentResponder.PATHS_RULE);
+    }
+
+    @Test
+    void keepsTheLinkFollowingRuleWhenObjectSetsAreOff() {
+        beans.addBean("objectDetailQuery", mock(ObjectDetailQuery.class));
+
+        assertThat(askAboutPr03().getSystemMessage().getText())
+                .isEqualTo(AgentResponder.SYSTEM_PROMPT)
+                .contains(AgentResponder.FOLLOW_LINKS_RULE, AgentResponder.NO_GROUP_RULE);
     }
 
     @Test
@@ -242,6 +275,7 @@ class AgentResponderTests {
         Prompt prompt = askAboutPr03();
 
         assertThat(toolNames(prompt)).contains(AgentObjectPathTools.OBJECT_PATHS);
+        assertThat(prompt.getSystemMessage().getText()).isEqualTo(AgentResponder.SYSTEM_PROMPT);
     }
 
     private static List<String> toolNames(Prompt prompt) {
