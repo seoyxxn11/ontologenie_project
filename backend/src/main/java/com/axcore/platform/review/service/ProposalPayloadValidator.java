@@ -4,6 +4,7 @@ import com.axcore.platform.check.domain.CheckCondition;
 import com.axcore.platform.check.domain.TransformOperation;
 import com.axcore.platform.check.domain.TransformStep;
 import com.axcore.platform.global.error.BusinessException;
+import com.axcore.platform.ontology.domain.PropertySensitivity;
 import com.axcore.platform.ontology.repository.PropertyDefinitionRepository;
 import com.axcore.platform.review.repository.ProposalReferenceRepository;
 import com.axcore.platform.review.repository.ProposalReferenceRepository.ObjectType;
@@ -63,7 +64,34 @@ public class ProposalPayloadValidator {
             validateProperty(relation.source(), source, analysisRunId, path + ".sourceProperty");
             validateProperty(relation.target(), target, analysisRunId, path + ".targetProperty");
         }
+        rejectRestrictedFilter(
+                relation.source(), payload.get("sourceFilter"), field + ".sourceFilter");
+        rejectRestrictedFilter(
+                relation.target(), payload.get("targetFilter"), field + ".targetFilter");
         return types;
+    }
+
+    /**
+     * 출발·도착 조건({@code {property, equals}})에 이미 있는 민감 속성을 쓰면 접수 단계에서 알린다(384·400). 형식 검사는 승인
+     * 반영(LinkRuleApplier)이 한다.
+     */
+    private void rejectRestrictedFilter(ObjectType type, Object filter, String field) {
+        if (type.id() == null
+                || !(filter instanceof Map<?, ?> condition)
+                || !(condition.get("property") instanceof String reference)) {
+            return;
+        }
+        int dot = reference.lastIndexOf('.');
+        if (dot >= 0 && !reference.substring(0, dot).equals(type.code())) {
+            return;
+        }
+        String code = reference.substring(dot + 1);
+        var existing = properties.findByObjectTypeIdAndCode(type.id(), code);
+        if (existing.isPresent()
+                && existing.get().getSensitivity() == PropertySensitivity.RESTRICTED) {
+            throw BusinessException.invalidField(
+                    field + ".property", "민감 속성은 연결 규칙의 출발·도착 조건에 쓸 수 없습니다.");
+        }
     }
 
     private Relation resolveRelation(
@@ -176,8 +204,16 @@ public class ProposalPayloadValidator {
             property = reference.substring(dot + 1);
         }
         // 아직 승인 전인 객체 유형 후보(id 없음)는 확정 속성이 없으므로 후보 데이터만 본다.
-        if (type.id() != null && properties.existsByObjectTypeIdAndCode(type.id(), property))
-            return;
+        if (type.id() != null) {
+            var existing = properties.findByObjectTypeIdAndCode(type.id(), property);
+            if (existing.isPresent()) {
+                // 승인 반영(LinkRuleApplier)도 거절하지만, 후보 시험 전에 접수 단계에서 알린다(384·400).
+                if (existing.get().getSensitivity() == PropertySensitivity.RESTRICTED) {
+                    throw BusinessException.invalidField(field, "민감 속성은 연결 규칙의 조건에 쓸 수 없습니다.");
+                }
+                return;
+            }
+        }
         if (analysisRunId != null
                 && references.pendingDefinitions(analysisRunId, "PROPERTY", property).stream()
                         .anyMatch(candidate -> type.code().equals(candidate.get("objectTypeCode"))))

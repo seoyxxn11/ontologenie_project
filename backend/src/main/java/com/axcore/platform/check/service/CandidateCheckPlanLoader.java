@@ -16,6 +16,7 @@ import com.axcore.platform.mapping.dto.TransformStepPayload;
 import com.axcore.platform.mapping.service.TransformStepsValidator;
 import com.axcore.platform.ontology.domain.LinkCardinality;
 import com.axcore.platform.ontology.domain.PropertyDataType;
+import com.axcore.platform.ontology.domain.PropertySensitivity;
 import com.axcore.platform.ontology.repository.LinkTypeRepository;
 import com.axcore.platform.ontology.repository.ObjectTypeRepository;
 import com.axcore.platform.ontology.repository.PropertyDefinitionRepository;
@@ -140,6 +141,7 @@ class CandidateCheckPlanLoader {
                 new Side(
                         relation.source(),
                         sourceFilter,
+                        restrictedProperties(relation.source(), sourceProperties, pending),
                         mappings(
                                 relation.source(),
                                 sourceProperties,
@@ -150,6 +152,7 @@ class CandidateCheckPlanLoader {
                 new Side(
                         relation.target(),
                         targetFilter,
+                        restrictedProperties(relation.target(), targetProperties, pending),
                         mappings(
                                 relation.target(),
                                 targetProperties,
@@ -220,12 +223,17 @@ class CandidateCheckPlanLoader {
                 throw new QueuedJobFailure("원천 객체 매핑의 행 조건은 아직 시험할 수 없습니다.");
             }
             Map<String, ColumnMapping> properties = new LinkedHashMap<>();
+            Set<String> restrictedColumns = new LinkedHashSet<>();
             for (JsonNode property : mapping.properties()) {
                 String code = text(property, "code");
                 if (required.contains(code)) {
                     properties.put(
                             code,
                             column(property, text(property, "dataType"), text(property, "column")));
+                }
+                JsonNode column = property.path("column");
+                if (column.isString() && isRestricted(type, code, pending)) {
+                    restrictedColumns.add(column.asString());
                 }
             }
             addPendingProperties(
@@ -235,9 +243,20 @@ class CandidateCheckPlanLoader {
                     resource.getResourceKey(),
                     pending,
                     properties);
+            addPendingRestrictedColumns(
+                    type,
+                    mapping.sourceCode(),
+                    resource.getResourceKey(),
+                    pending,
+                    restrictedColumns);
             selected.put(
                     resource.getId(),
-                    rowMapping(resource, mapping.keyColumns(), properties, presentColumns));
+                    rowMapping(
+                            resource,
+                            mapping.keyColumns(),
+                            properties,
+                            restrictedColumns,
+                            presentColumns));
         }
 
         Set<Long> activeIds = Set.copyOf(selected.keySet());
@@ -271,10 +290,14 @@ class CandidateCheckPlanLoader {
                 throw new QueuedJobFailure("같은 유형과 원천 자원에 여러 매핑 후보가 있어 시험할 수 없습니다.");
             }
             Map<String, ColumnMapping> properties = new LinkedHashMap<>();
+            Set<String> restrictedColumns = new LinkedHashSet<>();
             for (JsonNode property : payload.path("properties")) {
                 String code = text(property, "code");
                 JsonNode reference = property.path("sourceColumn");
-                if (required.contains(code) && sameResource(reference, source, key)) {
+                if (!sameResource(reference, source, key)) {
+                    continue;
+                }
+                if (required.contains(code)) {
                     properties.put(
                             code,
                             column(
@@ -282,11 +305,21 @@ class CandidateCheckPlanLoader {
                                     text(property, "dataType"),
                                     text(reference, "column")));
                 }
+                if (reference.path("column").isString()
+                        && (isRestricted(property) || isRestricted(type, code, pending))) {
+                    restrictedColumns.add(reference.path("column").asString());
+                }
             }
             addPendingProperties(type, required, source, key, pending, properties);
+            addPendingRestrictedColumns(type, source, key, pending, restrictedColumns);
             selected.put(
                     resource.getId(),
-                    rowMapping(resource, mapping.path("keyColumns"), properties, presentColumns));
+                    rowMapping(
+                            resource,
+                            mapping.path("keyColumns"),
+                            properties,
+                            restrictedColumns,
+                            presentColumns));
         }
 
         Set<String> mapped = new LinkedHashSet<>();
@@ -348,6 +381,80 @@ class CandidateCheckPlanLoader {
                 .orElseThrow(IllegalArgumentException::new);
     }
 
+    /** 시험에 쓰는 속성(조건 키·행 조건) 중 민감(RESTRICTED) 속성 코드(400). */
+    private Set<String> restrictedProperties(
+            String type, Set<String> required, List<MappingProposal> pending) {
+        return required.stream()
+                .filter(code -> isRestricted(type, code, pending))
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    /**
+     * 같은 분석의 속성 매핑 후보가 이 원천 자원에 담는 민감 속성의 컬럼을 더한다(400). 조건에 쓰지 않는 속성이어도 키 컬럼에 매핑돼 있으면 원천 키로 값이
+     * 드러나므로 모두 본다.
+     */
+    private void addPendingRestrictedColumns(
+            String type,
+            String source,
+            String key,
+            List<MappingProposal> pending,
+            Set<String> restrictedColumns) {
+        for (MappingProposal proposal : pending) {
+            JsonNode property = proposal.payload();
+            JsonNode reference = property.path("sourceColumn");
+            if ("PROPERTY_MAPPING".equals(proposal.kind())
+                    && type.equals(property.path("objectTypeCode").asString(""))
+                    && sameResource(reference, source, key)
+                    && reference.path("column").isString()
+                    && isRestricted(type, property.path("propertyCode").asString(""), pending)) {
+                restrictedColumns.add(reference.path("column").asString());
+            }
+        }
+    }
+
+    /**
+     * 민감(RESTRICTED) 속성인가. 확정 속성은 정의의 민감도를, 같은 분석의 속성 후보와 객체 유형 후보에 묶인 속성은 payload의 sensitivity를
+     * 본다. 원천 컬럼 등급 때문에 민감해질 속성은 원천 데이터 정책을 쓰는 {@link CandidateCheckJob}이 더 본다.
+     */
+    private boolean isRestricted(String type, String code, List<MappingProposal> pending) {
+        boolean defined =
+                objectTypes
+                        .findByCode(type)
+                        .flatMap(t -> definitions.findByObjectTypeIdAndCode(t.getId(), code))
+                        .filter(
+                                definition ->
+                                        definition.getSensitivity()
+                                                == PropertySensitivity.RESTRICTED)
+                        .isPresent();
+        if (defined) {
+            return true;
+        }
+        for (MappingProposal proposal : pending) {
+            JsonNode payload = proposal.payload();
+            if ("PROPERTY".equals(proposal.kind())
+                    && type.equals(payload.path("objectTypeCode").asString(""))
+                    && code.equals(payload.path("code").asString(""))
+                    && isRestricted(payload)) {
+                return true;
+            }
+            if ("OBJECT_TYPE".equals(proposal.kind())
+                    && type.equals(payload.path("code").asString(""))) {
+                for (JsonNode property : payload.path("properties")) {
+                    if (code.equals(property.path("code").asString("")) && isRestricted(property)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean isRestricted(JsonNode property) {
+        return PropertySensitivity.RESTRICTED
+                .name()
+                .equals(property.path("sensitivity").asString(""));
+    }
+
     private static boolean sameResource(JsonNode reference, String source, String key) {
         return source.equals(reference.path("sourceId").asString())
                 && key.equals(reference.path("resourceKey").asString());
@@ -357,6 +464,7 @@ class CandidateCheckPlanLoader {
             SourceResource resource,
             JsonNode keys,
             Map<String, ColumnMapping> properties,
+            Set<String> restrictedColumns,
             Map<Long, Set<String>> presentColumns) {
         List<String> keyColumns = new ArrayList<>();
         keys.forEach(key -> keyColumns.add(key.asString()));
@@ -372,7 +480,8 @@ class CandidateCheckPlanLoader {
                 resource.getId(),
                 resource.getResourceKey(),
                 List.copyOf(keyColumns),
-                Map.copyOf(properties));
+                Map.copyOf(properties),
+                Set.copyOf(restrictedColumns));
     }
 
     private ColumnMapping column(JsonNode property, String dataType, String column) {
@@ -432,14 +541,21 @@ class CandidateCheckPlanLoader {
 
     record Plan(CheckRuleInput input, Side source, Side target) {}
 
-    record Side(String typeCode, ObjectRowFilter filter, List<RowMapping> mappings) {}
+    /** restrictedProperties: 이 쪽 속성 중 정의나 후보가 민감(RESTRICTED)인 속성 코드. */
+    record Side(
+            String typeCode,
+            ObjectRowFilter filter,
+            Set<String> restrictedProperties,
+            List<RowMapping> mappings) {}
 
+    /** restrictedColumns: 이 매핑에서 민감 속성(정의·후보 기준)을 담는 원천 컬럼. 정책상 민감 컬럼은 따로 본다. */
     record RowMapping(
             long dataSourceId,
             long resourceId,
             String resourceKey,
             List<String> keyColumns,
-            Map<String, ColumnMapping> properties) {}
+            Map<String, ColumnMapping> properties,
+            Set<String> restrictedColumns) {}
 
     record ColumnMapping(String column, PropertyDataType dataType, List<TransformStep> steps) {}
 }
