@@ -81,6 +81,7 @@ class RuleRevisionApiTests {
                 .andExpect(jsonPath("$.data[*].status", contains("RETIRED", "ACTIVE")))
                 .andExpect(jsonPath("$.data[0].code").value(code))
                 .andExpect(jsonPath("$.data[0].linkTypeId").value((int) linkType))
+                .andExpect(jsonPath("$.data[0].linkTypeName").value("검사 테스트 관계"))
                 .andExpect(jsonPath("$.data[0].retiredAt").isNotEmpty())
                 .andExpect(jsonPath("$.data[0].origin").value("SEED"))
                 .andExpect(jsonPath("$.data[0].proposalItemId").value(nullValue()))
@@ -88,7 +89,9 @@ class RuleRevisionApiTests {
                 .andExpect(jsonPath("$.data[0].conditions[0].sequenceNo").value(1))
                 .andExpect(
                         jsonPath("$.data[0].conditions[0].sourcePropertyId").value((int) woEqCode))
+                .andExpect(jsonPath("$.data[0].conditions[0].sourcePropertyName").value("eq_code"))
                 .andExpect(jsonPath("$.data[0].conditions[0].targetPropertyId").value((int) eqCode))
+                .andExpect(jsonPath("$.data[0].conditions[0].targetPropertyName").value("code"))
                 .andExpect(jsonPath("$.data[0].conditions[0].operator").value("EQ"))
                 .andExpect(jsonPath("$.data[0].conditions[0].sourceTransforms.length()").value(0))
                 .andExpect(
@@ -101,6 +104,7 @@ class RuleRevisionApiTests {
                 .andExpect(jsonPath("$.data[1].createdBy").value((int) accountId))
                 .andExpect(jsonPath("$.data[1].conditions[*].sequenceNo", contains(1, 2)))
                 .andExpect(jsonPath("$.data[1].conditions[1].sourcePropertyId").value((int) woLine))
+                .andExpect(jsonPath("$.data[1].conditions[1].sourcePropertyName").value("line"))
                 .andExpect(jsonPath("$.meta.totalElements").value(2))
                 .andExpect(jsonPath("$.meta.hasNext").value(false));
 
@@ -111,11 +115,18 @@ class RuleRevisionApiTests {
                 .andExpect(jsonPath("$.meta.totalElements").value(2));
     }
 
+    /** 386: 속성·관계 유형 이름은 개정 당시가 아니라 지금 이름을 보여 준다. */
     @Test
     void showsOneRevision() throws Exception {
         long first = revision(1, "SEED", null, "{}");
         retire(first);
         revision(2, "MANUAL", "둘째", "{}");
+        jdbc.sql("update property_definition set name = '설비 코드' where id = :id")
+                .param("id", eqCode)
+                .update();
+        jdbc.sql("update link_type set name = '작업지시 설비' where id = :id")
+                .param("id", linkType)
+                .update();
 
         mvc.perform(get(PATH + "/{revision}", code, 1).with(actor("ADMIN")))
                 .andExpect(status().isOk())
@@ -123,6 +134,9 @@ class RuleRevisionApiTests {
                 .andExpect(jsonPath("$.data.revision").value(1))
                 .andExpect(jsonPath("$.data.status").value("RETIRED"))
                 .andExpect(jsonPath("$.data.description").value(nullValue()))
+                .andExpect(jsonPath("$.data.linkTypeName").value("작업지시 설비"))
+                .andExpect(jsonPath("$.data.conditions[0].sourcePropertyName").value("eq_code"))
+                .andExpect(jsonPath("$.data.conditions[0].targetPropertyName").value("설비 코드"))
                 .andExpect(jsonPath("$.data.conditions.length()").value(1));
         mvc.perform(get(PATH + "/{revision}", code, 2).with(actor("ADMIN")))
                 .andExpect(status().isOk())

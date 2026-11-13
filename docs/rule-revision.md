@@ -18,9 +18,10 @@ FN-RUL-01. 승인된 연결 규칙(`link_mapping`)이 시간에 따라 어떻게
 
 ## 응답 (RuleRevision)
 
-`id`, `code`, `revision`, `linkTypeId`, `status`(ACTIVE·RETIRED), `conditions[]`, `sourceFilter`, `targetFilter`, `retiredAt`, `description`, `createdAt`, `createdBy`, `origin`(AI_PROPOSAL·MANUAL·SEED), `proposalItemId`.
+`id`, `code`, `revision`, `linkTypeId`, `linkTypeName`, `status`(ACTIVE·RETIRED), `conditions[]`, `sourceFilter`, `targetFilter`, `retiredAt`, `description`, `createdAt`, `createdBy`, `origin`(AI_PROPOSAL·MANUAL·SEED), `proposalItemId`.
 
-- `conditions[]`: `sequenceNo` 순. `sourcePropertyId`, `targetPropertyId`, `operator`(EQ), `sourceTransforms`·`targetTransforms`(041 형식, 없으면 빈 배열). 항목끼리는 AND.
+- `conditions[]`: `sequenceNo` 순. `sourcePropertyId`, `sourcePropertyName`, `targetPropertyId`, `targetPropertyName`, `operator`(EQ), `sourceTransforms`·`targetTransforms`(041 형식, 없으면 빈 배열). 항목끼리는 AND.
+- `linkTypeName`·`sourcePropertyName`·`targetPropertyName`은 개정 당시가 아니라 지금 이름이다(386). 화면이 번호 대신 이름을 보여 주는 데 쓴다. 개정본이 가리키는 ID는 그대로라 이력은 바뀌지 않는다. 명세 046·047에는 아직 없는 칸이다.
 - 비어 있을 수 있는 칸(`retiredAt`, `description`, `createdBy`, `proposalItemId`)도 `null`로 내보낸다(명세 예시와 같음).
 
 ## 규칙 목록
@@ -41,14 +42,14 @@ FN-RUL-01. 승인된 연결 규칙(`link_mapping`)이 시간에 따라 어떻게
 
 ## 조회 방식
 
-`LinkMapping`·`LinkMappingCondition` Entity와 Spring Data JPA로 읽는다(`RuleRevisionService`). 046은 쪽의 개정본들의 비교 항목을 한 번에 읽어 개정본마다 나눈다.
+`LinkMapping`·`LinkMappingCondition` Entity와 Spring Data JPA로 읽는다(`RuleRevisionService`). 046은 쪽의 개정본들의 비교 항목을 한 번에 읽어 개정본마다 나눈다. 관계 유형·속성 이름도 쪽마다 한 번씩 모아 읽는다(`findAllById`).
 
 ## 시험
 
 `RuleRevisionApiTests`(실제 보안 설정과 PostgreSQL):
 
-- 개정본 두 개(1판 RETIRED, 2판 ACTIVE) → 번호 순, 상태·퇴역 시각·출처·필터·설명·생성자, 비교 항목 순서와 변환 단계, 쪽 나누기
-- 047: 1판·2판 각각, 비교 항목 수
+- 개정본 두 개(1판 RETIRED, 2판 ACTIVE) → 번호 순, 상태·퇴역 시각·출처·필터·설명·생성자, 비교 항목 순서와 변환 단계, 관계 유형·속성 이름, 쪽 나누기
+- 047: 1판·2판 각각, 비교 항목 수, 이름을 바꾼 뒤 지금 이름이 나옴
 - 없는 코드·없는 번호·integer보다 큰 번호 404, `revision` 0·`size` 101·`page` -1은 400
 - 401, 403
 - 규칙 목록: 같은 관계 유형에 "개정한 규칙(1판 RETIRED·2판 ACTIVE)"과 "대체 없이 폐기된 규칙" → 코드 순 두 줄, 최신 개정·상태·설명·관계 유형 이름, `status` 조건, `linkTypeId` 0·잘못된 `status` 400, 401, 403
