@@ -226,6 +226,7 @@ class AgentResultCategoryGmsTests {
                 objectSearch,
                 beans.getBeanProvider(ObjectDetailQuery.class),
                 beans.getBeanProvider(ObjectEvidenceQuery.class),
+                beans.getBeanProvider(ObjectPathPlanner.class),
                 modelSummary,
                 dataAccess,
                 actionTools,

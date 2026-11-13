@@ -77,6 +77,7 @@ class ModelComparisonGmsTests {
     @Autowired ObjectSearchQuery objects;
     @Autowired ObjectProvider<ObjectDetailQuery> details;
     @Autowired ObjectProvider<ObjectEvidenceQuery> evidence;
+    @Autowired ObjectProvider<ObjectPathPlanner> objectPaths;
     @Autowired AuditExecutionQueryService executions;
     @Autowired ModelSummaryService modelSummary;
     @Autowired DataAccessPolicy dataAccess;
@@ -161,6 +162,7 @@ class ModelComparisonGmsTests {
                                                             objects,
                                                             details,
                                                             evidence,
+                                                            objectPaths,
                                                             modelSummary,
                                                             dataAccess,
                                                             actions,
