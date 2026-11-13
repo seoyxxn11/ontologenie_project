@@ -120,6 +120,20 @@ test('객체를 고르면 상세 API로 받은 정보를 보여준다', async ()
     screen.getByText('MES · mes.equipment · 원천 레코드'),
   ).toBeInTheDocument()
   expect(screen.getByText('설비 코드')).toBeInTheDocument()
+
+  const evidence = screen.getByRole('button', {
+    name: '원본·연결 근거 보기 ↗',
+  })
+  const properties = screen.getByRole('heading', { name: '속성' })
+  expect(
+    evidence.compareDocumentPosition(properties) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy()
+  expect(screen.getByText('원천에 있음')).toBeInTheDocument()
+  expect(screen.queryByText('정상')).not.toBeInTheDocument()
+  expect(
+    screen.queryByRole('heading', { name: '원천 근거' }),
+  ).not.toBeInTheDocument()
 })
 
 test('권한으로 가린 속성은 권한 없음, 값이 없는 속성은 -로 보여준다', async () => {
@@ -132,6 +146,35 @@ test('권한으로 가린 속성은 권한 없음, 값이 없는 속성은 -로 
   expect(purchasePrice.nextElementSibling).toHaveTextContent('권한 없음')
   const maintenanceNote = screen.getByText('정비 메모')
   expect(maintenanceNote.nextElementSibling).toHaveTextContent('-')
+})
+
+test('원천이 없는 플랫폼 객체에는 원천에 있음 배지를 붙이지 않는다', async () => {
+  server.use(
+    http.get('/api/v1/objects/301', () =>
+      HttpResponse.json({
+        data: {
+          id: 301,
+          objectTypeId: 3,
+          objectTypeName: '설비',
+          displayName: '프레스 3호기',
+          properties: {},
+          propertyNames: {},
+          restrictedPropertyCodes: [],
+          status: 'ACTIVE',
+          sourceSystemName: null,
+          sourceResourceKey: null,
+          firstCollectedAt: '2026-10-26T09:00:00+09:00',
+        },
+      }),
+    ),
+  )
+  const user = userEvent.setup()
+  renderExplorerPage()
+
+  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
+
+  expect(await screen.findByText('플랫폼 객체')).toBeInTheDocument()
+  expect(screen.queryByText('원천에 있음')).not.toBeInTheDocument()
 })
 
 test('속성 표시 이름이 없으면 속성 코드를 보여준다', async () => {
@@ -220,11 +263,40 @@ test('초기화하면 검색 조건을 비우고 전체 목록을 보여준다',
   expect(screen.getByLabelText('ID · 이름 검색')).toHaveValue('')
 })
 
-test('객체 유형을 선택하기 전에는 속성 조건을 비활성화한다', () => {
+test('객체 유형을 선택하기 전에는 속성 조건을 막고 칸 안에서 이유를 알린다', () => {
   renderExplorerPage()
 
-  expect(screen.getByLabelText('속성 조건')).toBeDisabled()
-  expect(screen.getByLabelText('속성 값 · 정확 일치')).toBeDisabled()
+  const property = screen.getByLabelText('속성 조건')
+  const value = screen.getByLabelText('속성 값 · 정확 일치')
+  expect(property).toBeDisabled()
+  expect(property).toHaveDisplayValue('-')
+  expect(value).toBeDisabled()
+  expect(value).toHaveAttribute('placeholder', '객체 유형을 먼저 선택하세요')
+  expect(property).toHaveAccessibleDescription('객체 유형을 먼저 선택하세요')
+  expect(value).toHaveAccessibleDescription('객체 유형을 먼저 선택하세요')
+  expect(
+    screen.queryByText(
+      '객체 유형을 먼저 선택하면 속성 조건을 사용할 수 있습니다.',
+    ),
+  ).not.toBeInTheDocument()
+})
+
+test('유형을 고르면 속성 선택 전과 후의 안내를 바꾼다', async () => {
+  const user = userEvent.setup()
+  renderExplorerPage()
+  await screen.findByText('6건')
+  await user.selectOptions(screen.getByLabelText('객체 유형'), '설비')
+  await screen.findByRole('option', { name: '상태' })
+
+  const value = screen.getByLabelText('속성 값 · 정확 일치')
+  expect(screen.getByLabelText('속성 조건')).toHaveDisplayValue('전체 속성')
+  expect(value).toHaveAttribute('placeholder', '속성 조건을 먼저 선택하세요')
+
+  await user.selectOptions(screen.getByLabelText('속성 조건'), '상태')
+  expect(value).toHaveAttribute('placeholder', '일치하는 값을 입력하세요')
+
+  await user.click(screen.getByRole('button', { name: '초기화' }))
+  expect(value).toHaveAttribute('placeholder', '객체 유형을 먼저 선택하세요')
 })
 
 test('유형의 속성 값으로 정확 일치 검색하고 초기화한다', async () => {
@@ -302,6 +374,11 @@ test('속성 조회 권한이 없어도 유형과 검색어 검색은 사용할 
     await screen.findByText('이 계정은 속성 목록 조회 권한이 없습니다.'),
   ).toBeInTheDocument()
   expect(screen.getByLabelText('속성 조건')).toBeDisabled()
+  expect(screen.getByLabelText('속성 조건')).toHaveDisplayValue('-')
+  expect(screen.getByLabelText('속성 값 · 정확 일치')).toHaveAttribute(
+    'placeholder',
+    '-',
+  )
   await user.type(screen.getByLabelText('ID · 이름 검색'), '3호기')
   await user.click(screen.getByRole('button', { name: '검색' }))
   expect(await screen.findByText('1건')).toBeInTheDocument()
@@ -609,18 +686,110 @@ test('객체를 고르기 전에는 객체 유형 관계도를 보여준다', as
     await graph.findByRole('heading', { name: '객체 유형 간 관계' }),
   ).toBeInTheDocument()
   expect(graph.getByRole('button', { name: /작업지시/ })).toBeInTheDocument()
-  expect(graph.getByText('생산 대상 수주 · 1건')).toBeInTheDocument()
+  // 이름표는 유형을 고른 뒤 그 유형의 선에만 보인다.
+  expect(graph.queryByText('생산 대상 수주 · 1건')).not.toBeInTheDocument()
   expect(graph.getByText('객체 유형 6개 · 관계 유형 5개')).toBeInTheDocument()
+  expect(
+    graph.queryByText(/각 카드는 개별 객체가 아닌/),
+  ).not.toBeInTheDocument()
+  const heading = graph.getByRole('heading', { name: '객체 유형 간 관계' })
+  const viewGroup = graph.getByRole('group', { name: '보기 방식' })
+  expect(heading.parentElement).toContainElement(viewGroup)
+  expect(
+    within(viewGroup).getByRole('button', { name: '개요' }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  expect(graph.queryByText('객체 유형')).not.toBeInTheDocument()
+  expect(
+    graph.getByRole('button', { name: '객체 유형 설비' }),
+  ).toBeInTheDocument()
+  expect(
+    graph.getByText('점선: 현재 연결 0건 · 화살표: 관계 방향'),
+  ).toBeInTheDocument()
+})
+
+test('목록 건수는 천 단위 쉼표로 표시한다', async () => {
+  server.use(
+    http.get('/api/v1/objects', () =>
+      HttpResponse.json({
+        data: [],
+        meta: { page: 0, size: 20, totalElements: 5064, hasNext: true },
+      }),
+    ),
+  )
+  renderExplorerPage()
+  expect(await screen.findByText('5,064건')).toBeInTheDocument()
+})
+
+test('유형 목록으로 바꾼 보기는 객체를 골랐다 돌아와도 유지한다', async () => {
+  const user = userEvent.setup()
+  renderExplorerPage()
+  const graph = within(screen.getByRole('region', { name: '관계도' }))
+  await user.click(await graph.findByRole('button', { name: '유형 목록' }))
+  expect(graph.getByLabelText('객체 유형 목록')).toBeInTheDocument()
+
+  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
+  expect(
+    await graph.findByRole('heading', { name: '프레스 3호기와 연결된 정보' }),
+  ).toBeInTheDocument()
+  expect(
+    graph.queryByRole('group', { name: '보기 방식' }),
+  ).not.toBeInTheDocument()
+
+  await user.click(graph.getByRole('button', { name: '← 전체 구조로' }))
+  expect(await graph.findByLabelText('객체 유형 목록')).toBeInTheDocument()
 })
 
 test('같은 두 유형 사이의 관계는 선 하나에 이름을 모아 보여준다', async () => {
+  const user = userEvent.setup()
   renderExplorerPage()
 
   const graph = within(screen.getByRole('region', { name: '관계도' }))
+  await user.click(await graph.findByRole('button', { name: '객체 유형 설비' }))
   const assigned = await graph.findByText('현재 배정 설비 · 1건')
   const alternative = graph.getByText('대체 가능 설비 · 1건')
 
   expect(assigned.parentElement).toBe(alternative.parentElement)
+})
+
+test('고른 유형의 선은 카드 아래에 두고 다른 선보다 위에 그린다', async () => {
+  const user = userEvent.setup()
+  renderExplorerPage()
+
+  const graph = within(screen.getByRole('region', { name: '관계도' }))
+  await user.click(await graph.findByRole('button', { name: '객체 유형 설비' }))
+  await graph.findByText('현재 배정 설비 · 1건')
+
+  const edges = [...document.querySelectorAll('.react-flow__edge')]
+  for (const edge of edges) {
+    expect(Number(edge.closest('svg')?.style.zIndex || 0)).toBeLessThan(1)
+  }
+  const lastPath = edges.at(-1)?.querySelector('.react-flow__edge-path')
+  expect(lastPath?.getAttribute('style')).toMatch(/6f5adf|111, 90, 223/i)
+})
+
+test('유형을 고르면 그 유형의 관계 이름표만 보여준다', async () => {
+  const user = userEvent.setup()
+  renderExplorerPage()
+
+  const graph = within(screen.getByRole('region', { name: '관계도' }))
+  await user.click(await graph.findByRole('button', { name: '객체 유형 설비' }))
+
+  expect(await graph.findByText('현재 배정 설비 · 1건')).toBeInTheDocument()
+  expect(graph.queryByText('생산 대상 수주 · 1건')).not.toBeInTheDocument()
+})
+
+test('키보드로 관계도를 지날 때는 유형 카드에만 멈춘다', async () => {
+  renderExplorerPage()
+
+  const graph = within(screen.getByRole('region', { name: '관계도' }))
+  await graph.findByRole('button', { name: '객체 유형 설비' })
+
+  // 카드를 감싼 칸과 선은 고를 수 없으므로 Tab 순서에 넣지 않는다.
+  expect(
+    document.querySelectorAll(
+      '.react-flow__node[tabindex], .react-flow__edge[tabindex]',
+    ),
+  ).toHaveLength(0)
 })
 
 test('유형 카드를 누르면 그 유형의 객체 목록과 관계를 보여준다', async () => {
@@ -825,11 +994,13 @@ test('자기 유형 관계도 관계선과 유형 상세에 표시한다', async
   const user = userEvent.setup()
   renderExplorerPage()
   const graph = within(screen.getByRole('region', { name: '관계도' }))
-  expect(await graph.findByText('연관 작업 · 0건')).toBeInTheDocument()
+  await graph.findByRole('button', { name: /작업지시/ })
   const edge = document.querySelector('.react-flow__edge path')
   expect(edge?.getAttribute('d')).not.toMatch(/NaN/)
   expect(edge?.getAttribute('d')).toContain('C')
   await user.click(graph.getByRole('button', { name: /작업지시/ }))
+  // 이름표는 유형을 고른 뒤에 보인다.
+  expect(await graph.findByText('연관 작업 · 0건')).toBeInTheDocument()
   expect(
     await screen.findByText('작업지시 → 작업지시 · N:M'),
   ).toBeInTheDocument()
@@ -844,6 +1015,7 @@ test('관계도에서 연결된 객체 카드를 누르면 그 객체로 이동�
   const graph = within(screen.getByRole('region', { name: '관계도' }))
 
   expect(await graph.findByText('연결된 정보 · 2건')).toBeInTheDocument()
+  expect(graph.getByText('화살표: 관계 방향')).toBeInTheDocument()
   expect(
     graph.getByRole('heading', { name: '프레스 3호기와 연결된 정보' }),
   ).toBeInTheDocument()

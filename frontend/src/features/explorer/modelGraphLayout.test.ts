@@ -2,6 +2,7 @@ import { expect, test } from 'vitest'
 import {
   groupRelationLines,
   layoutTypeGraph,
+  routeRelationLines,
   TYPE_NODE_HEIGHT,
   TYPE_NODE_WIDTH,
   selfRelationHeight,
@@ -77,4 +78,45 @@ test('따로 떨어진 묶음과 관계 없는 유형도 카드끼리 겹치지 
   // 관계 방향대로 출발 유형이 도착 유형보다 왼쪽에 온다.
   expect(points.get(1)!.x).toBeLessThan(points.get(2)!.x)
   expect(points.get(3)!.x).toBeLessThan(points.get(4)!.x)
+})
+
+test('관계 선 경로는 다른 유형 카드를 지나가지 않고 자기 유형 관계는 계산에서 뺀다', () => {
+  const lines = groupRelationLines([
+    edge(1, 1, 2),
+    edge(2, 2, 3),
+    edge(3, 1, 3),
+    edge(4, 3, 4),
+    edge(5, 1, 4),
+    edge(6, 5, 3),
+    edge(7, 3, 3),
+  ])
+  const points = layoutTypeGraph(nodes, lines)
+  const routes = routeRelationLines(nodes, lines, points)
+
+  expect(routes.has('3-3')).toBe(false)
+  expect(routes.size).toBe(lines.length - 1)
+
+  for (const line of lines) {
+    const route = routes.get(line.key)
+    if (!route) continue
+    expect(route.fallback).toBe(false)
+    for (const node of nodes) {
+      if (node.id === line.sourceTypeId || node.id === line.targetTypeId) {
+        continue
+      }
+      const point = points.get(node.id)!
+      const top = point.y + selfRelationHeight(lines, node.id)
+      for (let i = 0; i < route.points.length - 1; i++) {
+        const a = route.points[i]
+        const b = route.points[i + 1]
+        const outsideX =
+          Math.max(a.x, b.x) <= point.x ||
+          Math.min(a.x, b.x) >= point.x + TYPE_NODE_WIDTH
+        const outsideY =
+          Math.max(a.y, b.y) <= top ||
+          Math.min(a.y, b.y) >= top + TYPE_NODE_HEIGHT
+        expect(outsideX || outsideY).toBe(true)
+      }
+    }
+  }
 })

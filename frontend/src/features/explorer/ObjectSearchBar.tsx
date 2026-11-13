@@ -15,6 +15,23 @@ type ObjectSearchBarProps = {
 const labelClass = 'explorer-field-label'
 const fieldClass = 'explorer-field'
 
+// 속성 값 칸이 막힌 이유와 입력할 값을 칸 안에서 단계별로 알린다
+function getPropertyValuePlaceholder({
+  hasType,
+  propertySelectDisabled,
+  selectedDataType,
+}: {
+  hasType: boolean
+  propertySelectDisabled: boolean
+  selectedDataType: string | undefined
+}): string {
+  if (!hasType) return '객체 유형을 먼저 선택하세요'
+  if (propertySelectDisabled) return '-'
+  if (!selectedDataType) return '속성 조건을 먼저 선택하세요'
+  if (selectedDataType === 'BOOLEAN') return 'true 또는 false'
+  return '일치하는 값을 입력하세요'
+}
+
 function ObjectSearchBar({
   filters,
   objectTypes,
@@ -45,8 +62,16 @@ function ObjectSearchBar({
     (property) => property.code === propertyCode,
   )
   const isForbidden = error instanceof ApiError && error.status === 403
-  const showPropertyHelp =
+  const propertySelectDisabled =
     !typeId || isPending || Boolean(error) || searchableProperties.length === 0
+  // 유형을 고르기 전의 이유는 속성 값 칸 안에서 알리므로 아래 안내는 그 뒤에만 보인다
+  const showPropertyHelp = Boolean(typeId) && propertySelectDisabled
+  // 화면 낭독기도 막힌 이유를 듣도록 두 칸을 이유 문장에 연결한다
+  const propertyDescribedBy = !typeId
+    ? 'property-filter-reason'
+    : showPropertyHelp
+      ? 'property-filter-help'
+      : undefined
   const propertyUnavailable =
     Boolean(propertyCode) && (!selectedProperty || Boolean(error))
 
@@ -118,22 +143,15 @@ function ObjectSearchBar({
         <select
           id="property-filter"
           value={selectedProperty ? propertyCode : ''}
-          disabled={
-            !typeId ||
-            isPending ||
-            Boolean(error) ||
-            searchableProperties.length === 0
-          }
+          disabled={propertySelectDisabled}
           onChange={(event) => {
             setPropertyCode(event.target.value)
             setPropertyValue('')
           }}
-          aria-describedby={
-            showPropertyHelp ? 'property-filter-help' : undefined
-          }
+          aria-describedby={propertyDescribedBy}
           className={fieldClass}
         >
-          <option value="">전체 속성</option>
+          <option value="">{propertySelectDisabled ? '-' : '전체 속성'}</option>
           {searchableProperties.map((property) => (
             <option key={property.id} value={property.code}>
               {property.name}
@@ -151,17 +169,21 @@ function ObjectSearchBar({
           disabled={!selectedProperty || Boolean(error)}
           value={propertyValue}
           onChange={(event) => setPropertyValue(event.target.value)}
-          placeholder={
-            selectedProperty?.dataType === 'BOOLEAN'
-              ? 'true 또는 false'
-              : '일치하는 값을 입력하세요'
-          }
-          aria-describedby={
-            showPropertyHelp ? 'property-filter-help' : undefined
-          }
+          placeholder={getPropertyValuePlaceholder({
+            hasType: Boolean(typeId),
+            propertySelectDisabled,
+            selectedDataType: selectedProperty?.dataType,
+          })}
+          aria-describedby={propertyDescribedBy}
           className={fieldClass}
         />
       </div>
+
+      {!typeId && (
+        <span id="property-filter-reason" className="sr-only">
+          객체 유형을 먼저 선택하세요
+        </span>
+      )}
 
       <div className="explorer-search-actions">
         <Button type="submit" disabled={propertyUnavailable} pending={pending}>
@@ -174,9 +196,7 @@ function ObjectSearchBar({
 
       {showPropertyHelp && (
         <div id="property-filter-help" className="explorer-search-help">
-          {!typeId ? (
-            '객체 유형을 먼저 선택하면 속성 조건을 사용할 수 있습니다.'
-          ) : isPending ? (
+          {isPending ? (
             '속성 목록을 불러오는 중…'
           ) : isForbidden ? (
             '이 계정은 속성 목록 조회 권한이 없습니다.'

@@ -19,6 +19,13 @@ export function formatSourceKey(
     .join(', ')
 }
 
+const countFormat = new Intl.NumberFormat('ko-KR')
+
+// 건수를 천 단위 쉼표로 보여 준다. 예: 5064 → 5,064
+export function formatCount(value: number): string {
+  return countFormat.format(value)
+}
+
 // 076·077·078에 업무 ID 필드가 생기기 전까지 내부 번호로 대신 보여 준다.
 export function formatObjectCode(id: number) {
   return `#${id}`

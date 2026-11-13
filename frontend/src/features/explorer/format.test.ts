@@ -1,5 +1,16 @@
 import { expect, test } from 'vitest'
-import { formatObjectKey, formatPropertyValue, withAndParticle } from './format'
+import {
+  formatCount,
+  formatObjectKey,
+  formatPropertyValue,
+  withAndParticle,
+} from './format'
+
+test('건수는 천 단위 쉼표로 표시한다', () => {
+  expect(formatCount(0)).toBe('0')
+  expect(formatCount(1284)).toBe('1,284')
+  expect(formatCount(5064)).toBe('5,064')
+})
 
 test('받침이 있으면 과를 붙인다', () => {
   expect(withAndParticle('프레스 작업')).toBe('프레스 작업과')

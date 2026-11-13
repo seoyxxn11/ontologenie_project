@@ -1,4 +1,5 @@
 import { cardinalityLabels } from './labels'
+import { formatCount } from './format'
 import type { ModelEdge, ModelGraph } from './types'
 
 type RelationListProps = {
@@ -11,7 +12,7 @@ function RelationList({ title, edges, typeName }: RelationListProps) {
   return (
     <section className="mt-4">
       <h3 className="text-sm font-semibold text-slate-700">
-        {`${title} ${edges.length}건`}
+        {`${title} ${formatCount(edges.length)}건`}
       </h3>
       {edges.length === 0 ? (
         <p className="mt-1 text-xs text-slate-500">없음</p>
@@ -24,7 +25,7 @@ function RelationList({ title, edges, typeName }: RelationListProps) {
                 {`${typeName(edge.sourceTypeId)} → ${typeName(edge.targetTypeId)} · ${cardinalityLabels[edge.cardinality]}`}
               </p>
               <p className="text-xs text-slate-500">
-                {`활성 연결 ${edge.activeLinkCount}건 · 전체 ${edge.relationCount}건`}
+                {`활성 연결 ${formatCount(edge.activeLinkCount)}건 · 전체 ${formatCount(edge.relationCount)}건`}
               </p>
             </li>
           ))}

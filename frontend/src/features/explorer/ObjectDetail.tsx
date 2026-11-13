@@ -87,12 +87,18 @@ function ObjectDetailContent({ objectId }: ObjectDetailContentProps) {
 
   return (
     <div className="explorer-object-detail">
-      <div className="explorer-detail-actions">
-        <p className="explorer-object-meta">
-          {[object.objectTypeName, formatObjectKey(object)]
-            .filter(Boolean)
-            .join(' / ')}
-        </p>
+      <p className="explorer-object-meta">
+        {[object.objectTypeName, formatObjectKey(object)]
+          .filter(Boolean)
+          .join(' / ')}
+      </p>
+      <h2 className="explorer-detail-title">{object.displayName}</h2>
+      <p className="explorer-source-caption">{source}</p>
+      {/* 근거는 이 화면의 핵심이라 스크롤 없이 보이도록 출처 바로 아래에 둔다. */}
+      <div className="explorer-detail-buttons">
+        <Button variant="secondary" onClick={() => setEvidenceOpen(true)}>
+          원본·연결 근거 보기 ↗
+        </Button>
         <Button
           variant="secondary"
           disabled={askMutation.isPending}
@@ -102,13 +108,14 @@ function ObjectDetailContent({ objectId }: ObjectDetailContentProps) {
         </Button>
       </div>
       {askMutation.isError && (
-        <p className="mt-1 text-sm text-red-600">대화를 만들지 못했어요.</p>
+        <p className="mb-3 text-sm text-red-600">대화를 만들지 못했어요.</p>
       )}
-      <h2 className="explorer-detail-title">{object.displayName}</h2>
-      <p className="explorer-source-caption">{source}</p>
-      <StatusBadge tone={object.status === 'ACTIVE' ? 'success' : 'warning'}>
-        {statusLabels[object.status]}
-      </StatusBadge>
+      {/* 원천 상태 배지라서, 원천이 없는 플랫폼 객체에는 붙이지 않는다. */}
+      {object.sourceSystemName && (
+        <StatusBadge tone={object.status === 'ACTIVE' ? 'success' : 'warning'}>
+          {statusLabels[object.status]}
+        </StatusBadge>
+      )}
 
       <dl className="explorer-detail-times">
         <dt className="text-slate-500">기준 시점</dt>
@@ -132,13 +139,6 @@ function ObjectDetailContent({ objectId }: ObjectDetailContentProps) {
           </div>
         ))}
       </dl>
-
-      <section className="explorer-detail-section">
-        <h3 className="explorer-detail-section-title">원천 근거</h3>
-        <Button variant="text" onClick={() => setEvidenceOpen(true)}>
-          원본·연결 근거 보기 ↗
-        </Button>
-      </section>
 
       <div className="mt-6">
         <Link

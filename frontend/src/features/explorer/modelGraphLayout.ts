@@ -1,8 +1,12 @@
 import { Graph, layout } from '@dagrejs/dagre'
+import { routeEdges, type Box, type Route } from './edgeRoute'
 import type { ModelEdge, ModelNode } from './types'
 
 export const TYPE_NODE_WIDTH = 156
-export const TYPE_NODE_HEIGHT = 76
+export const TYPE_NODE_HEIGHT = 52
+
+// 선 경로 계산이 (0, 0)에서 시작하므로, 가장자리 카드 바깥으로도 선이 지나갈 여백을 둔다.
+const GRAPH_MARGIN = 32
 
 export type Point = {
   x: number
@@ -42,16 +46,6 @@ export function selfRelationHeight(lines: RelationLine[], typeId: number) {
   return line ? Math.max(80, line.edges.length * 16 + 24) : 0
 }
 
-// 관계 이름 칸의 대략적인 크기. 자동 배치가 이 자리를 비워 두어 이름이 카드와 겹치지 않게 한다.
-function labelSize(line: RelationLine) {
-  const longest = Math.max(
-    ...line.edges.map(
-      (edge) => `${edge.name} · ${edge.activeLinkCount}건`.length,
-    ),
-  )
-  return { width: longest * 12 + 8, height: line.edges.length * 16 + 4 }
-}
-
 // 유형 카드의 왼쪽 위 자리(px)를 자동 배치(dagre)로 정한다. 관계 방향대로 왼쪽에서 오른쪽으로 놓고,
 // 서로 연결되지 않은 묶음이나 관계가 없는 유형도 겹치지 않게 따로 자리를 잡는다.
 export function layoutTypeGraph(
@@ -59,7 +53,15 @@ export function layoutTypeGraph(
   lines: RelationLine[],
 ): Map<number, Point> {
   const graph = new Graph()
-  graph.setGraph({ rankdir: 'LR', nodesep: 40, ranksep: 80 })
+  // 이름표는 고른 유형의 선에만 보이므로 이름표 자리를 비워 두지 않는다. 기록 유형이 한 열에 많이
+  // 몰리는 구조라 카드 세로 간격을 좁히고, 그 대신 열 간격을 넓혀 선이 지나갈 통로를 확보한다.
+  graph.setGraph({
+    rankdir: 'LR',
+    nodesep: 16,
+    ranksep: 120,
+    marginx: GRAPH_MARGIN,
+    marginy: GRAPH_MARGIN,
+  })
   graph.setDefaultEdgeLabel(() => ({}))
 
   for (const node of nodes) {
@@ -70,10 +72,7 @@ export function layoutTypeGraph(
   }
   for (const line of lines) {
     if (line.sourceTypeId === line.targetTypeId) continue
-    graph.setEdge(String(line.sourceTypeId), String(line.targetTypeId), {
-      ...labelSize(line),
-      labelpos: 'c',
-    })
+    graph.setEdge(String(line.sourceTypeId), String(line.targetTypeId))
   }
 
   layout(graph)
@@ -87,4 +86,50 @@ export function layoutTypeGraph(
     })
   }
   return points
+}
+
+// 관계 선이 다른 유형 카드를 지나가지 않게, 카드 사이 빈 길로 꺾이는 경로를 계산한다.
+// 자기 유형 관계는 카드 위에 따로 그리므로 계산에서 빼고, 그 자리는 다른 선이 지나가지 못하게 막는다.
+// 길을 찾지 못한 선은 route.fallback이 true로 온다. 그 선은 화면에서 원래 곡선으로 그린다.
+export function routeRelationLines(
+  nodes: ModelNode[],
+  lines: RelationLine[],
+  points: Map<number, Point>,
+): Map<string, Route> {
+  const boxes = new Map<string, Box>()
+  let width = 0
+  let height = 0
+  for (const node of nodes) {
+    const point = points.get(node.id)
+    if (!point) continue
+    const loopHeight = selfRelationHeight(lines, node.id)
+    boxes.set(String(node.id), {
+      x: point.x,
+      y: point.y + loopHeight,
+      w: TYPE_NODE_WIDTH,
+      h: TYPE_NODE_HEIGHT,
+    })
+    if (loopHeight > 0) {
+      boxes.set(`loop-${node.id}`, {
+        x: point.x,
+        y: point.y,
+        w: TYPE_NODE_WIDTH,
+        h: loopHeight,
+      })
+    }
+    width = Math.max(width, point.x + TYPE_NODE_WIDTH)
+    height = Math.max(height, point.y + loopHeight + TYPE_NODE_HEIGHT)
+  }
+
+  return routeEdges(
+    lines
+      .filter((line) => line.sourceTypeId !== line.targetTypeId)
+      .map((line) => ({
+        key: line.key,
+        from: String(line.sourceTypeId),
+        to: String(line.targetTypeId),
+      })),
+    boxes,
+    { width: width + GRAPH_MARGIN * 2, height: height + GRAPH_MARGIN * 2 },
+  )
 }

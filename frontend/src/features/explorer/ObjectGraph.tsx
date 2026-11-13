@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { formatObjectCode, withAndParticle } from './format'
+import { formatCount, formatObjectCode } from './format'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import Button from '../../components/Button'
 import { fetchObject, fetchObjectLinkGroups } from './api'
@@ -77,12 +77,8 @@ function ObjectGraphContent({ objectId, onSelect }: ObjectGraphContentProps) {
 
   return (
     <div>
-      <h2 className="mb-3 text-lg font-semibold text-slate-900">
-        {withAndParticle(object.displayName)} 연결된 정보
-      </h2>
-
       <div className="explorer-graph-canvas">
-        <div className="object-graph-canvas relative h-[440px] overflow-hidden bg-[radial-gradient(#d8dce1_1px,transparent_1px)] bg-[length:16px_16px]">
+        <div className="object-graph-canvas relative h-full overflow-hidden bg-[radial-gradient(#d8dce1_1px,transparent_1px)] bg-[length:16px_16px]">
           <svg className="absolute inset-0 h-full w-full" aria-hidden="true">
             <defs>
               <marker
@@ -117,7 +113,7 @@ function ObjectGraphContent({ objectId, onSelect }: ObjectGraphContentProps) {
           {nodes.map((node) => (
             <span
               key={`label-${node.group.key}`}
-              className="absolute max-w-32 truncate rounded bg-white/80 px-1 text-xs text-slate-600"
+              className="object-graph-label absolute rounded bg-white/80 px-1 text-xs text-slate-600"
               style={labelStyle(node)}
               title={node.group.linkTypeName}
             >
@@ -129,7 +125,13 @@ function ObjectGraphContent({ objectId, onSelect }: ObjectGraphContentProps) {
             <span className="block text-slate-300">
               {formatObjectCode(object.id)}
             </span>
-            <strong className="block text-white">{object.displayName}</strong>
+            {/* 긴 이름은 2줄까지만 보여 준다. 전체 이름은 칸 제목과 상세에 있다. */}
+            <strong
+              className="object-graph-center-name text-white"
+              title={object.displayName}
+            >
+              {object.displayName}
+            </strong>
             <span className="text-slate-300">{object.objectTypeName}</span>
           </div>
 
@@ -148,7 +150,7 @@ function ObjectGraphContent({ objectId, onSelect }: ObjectGraphContentProps) {
                   {node.group.relatedTypeName}
                 </strong>
                 <span className="text-slate-500">
-                  {`${node.group.linkCount}건`}
+                  {`${formatCount(node.group.linkCount)}건`}
                 </span>
               </button>
             )
@@ -157,11 +159,11 @@ function ObjectGraphContent({ objectId, onSelect }: ObjectGraphContentProps) {
       </div>
 
       <p className="mt-2 text-sm text-slate-700">
-        {`연결된 정보 · ${totalCount}건`}
+        {`연결된 정보 · ${formatCount(totalCount)}건`}
       </p>
       <p className="text-sm text-slate-500">
         {groups.length > 0
-          ? '화살표는 저장된 관계 방향입니다. 유형 카드를 고르면 아래에 그 유형의 객체를 보여 줍니다.'
+          ? '화살표: 관계 방향'
           : '이 객체에는 연결된 관계가 없습니다.'}
       </p>
 
@@ -218,7 +220,7 @@ function GroupObjectList({ objectId, group, onSelect }: GroupObjectListProps) {
   return (
     <section aria-label={`${group.relatedTypeName} 연결 목록`} className="mt-4">
       <h3 className="text-sm font-semibold text-slate-900">
-        {`${group.linkTypeName} · ${group.relatedTypeName} ${group.linkCount}건`}
+        {`${group.linkTypeName} · ${group.relatedTypeName} ${formatCount(group.linkCount)}건`}
       </h3>
       {linksQuery.isPending && (
         <p className="mt-2 text-sm text-slate-500">연결을 불러오는 중…</p>
@@ -232,7 +234,7 @@ function GroupObjectList({ objectId, group, onSelect }: GroupObjectListProps) {
         </p>
       )}
       {links.length > 0 && (
-        <ul className="mt-2 max-h-64 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200">
+        <ul className="mt-2 max-h-64 divide-y divide-slate-100 overflow-y-auto">
           {links.map((link) => (
             <li key={link.id}>
               <button
@@ -253,7 +255,7 @@ function GroupObjectList({ objectId, group, onSelect }: GroupObjectListProps) {
       )}
       {linksQuery.hasNextPage && (
         <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
-          <span>{`전체 ${linksQuery.totalCount}건 중 ${links.length}건`}</span>
+          <span>{`전체 ${formatCount(linksQuery.totalCount)}건 중 ${formatCount(links.length)}건`}</span>
           <Button
             variant="secondary"
             className="px-2 py-1 text-xs"

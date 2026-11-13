@@ -8,17 +8,19 @@ import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
 import { ApiError } from '../../api/client'
 import {
   fetchModelGraph,
+  fetchObject,
   fetchObjects,
   fetchObjectTypes,
   OBJECT_PAGE_SIZE,
   type ObjectFilters,
 } from './api'
+import type { ModelGraphView } from './ModelGraph'
 import ObjectCard from './ObjectCard'
 import ObjectDetail from './ObjectDetail'
 import ObjectGraph from './ObjectGraph'
 import ObjectSearchBar from './ObjectSearchBar'
 import TypeRelations from './TypeRelations'
-import { formatObjectKey } from './format'
+import { formatCount, formatObjectKey, withAndParticle } from './format'
 import './explorer.css'
 
 // 유형 관계도는 그래프 라이브러리(React Flow)가 커서, 처음 화면에 그릴 때 따로 받아 온다.
@@ -37,6 +39,8 @@ function ExplorerPage() {
   const [filters, setFilters] = useState<ObjectFilters>({})
   const [page, setPage] = useState(0)
   const [graphExpanded, setGraphExpanded] = useState(false)
+  // 유형 관계도의 보기 방식. 객체를 골랐다가 전체 구조로 돌아와도 고른 보기를 유지한다.
+  const [modelView, setModelView] = useState<ModelGraphView>('graph')
 
   // 객체를 고르면 주소에 번호를 쓰고, 선택을 풀면 지운다. 기록을 쌓지 않아 뒤로 가기는 이전 화면으로 간다.
   function selectObject(id: number | null) {
@@ -84,6 +88,20 @@ function ExplorerPage() {
   })
   const isModelGraphForbidden =
     modelGraphError instanceof ApiError && modelGraphError.status === 403
+  const showModelGraph =
+    selectedId === null && Boolean(modelGraph) && !isModelGraphForbidden
+
+  // 관계도 칸 제목에 쓸 고른 객체의 이름. 관계도·상세와 같은 캐시를 쓴다.
+  const { data: selectedObject } = useQuery({
+    queryKey: ['objects', selectedId],
+    queryFn: () => fetchObject(selectedId as number),
+    enabled: selectedId !== null,
+  })
+  const graphTitle = showModelGraph
+    ? '객체 유형 간 관계'
+    : selectedId !== null && selectedObject
+      ? `${withAndParticle(selectedObject.displayName)} 연결된 정보`
+      : '관계 탐색'
 
   const {
     data: objectTypes = [],
@@ -193,7 +211,9 @@ function ExplorerPage() {
           <div className="explorer-panel-heading">
             <h2>객체 목록</h2>
             {totalCount !== undefined && (
-              <span className="explorer-count">{totalCount}건</span>
+              <span className="explorer-count">
+                {formatCount(totalCount)}건
+              </span>
             )}
             {isFetching && !isPending && (
               <span role="status" className="explorer-count">
@@ -219,18 +239,43 @@ function ExplorerPage() {
 
         <section aria-label="관계도" className="explorer-panel explorer-graph">
           <div className="explorer-panel-heading">
-            <h2>
-              {selectedId === null && modelGraph && !isModelGraphForbidden
-                ? '객체 유형 간 관계'
-                : '관계 탐색'}
-            </h2>
-            <Button
-              variant="text"
-              aria-pressed={graphExpanded}
-              onClick={() => setGraphExpanded((expanded) => !expanded)}
-            >
-              {graphExpanded ? '분할 보기' : '관계도 확장'}
-            </Button>
+            <h2>{graphTitle}</h2>
+            <div className="explorer-panel-actions">
+              {showModelGraph && (
+                <div
+                  role="group"
+                  aria-label="보기 방식"
+                  className="explorer-view-toggle"
+                >
+                  <button
+                    type="button"
+                    aria-pressed={modelView === 'graph'}
+                    onClick={() => setModelView('graph')}
+                  >
+                    개요
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={modelView === 'list'}
+                    onClick={() => setModelView('list')}
+                  >
+                    유형 목록
+                  </button>
+                </div>
+              )}
+              {selectedId !== null && (
+                <Button variant="text" onClick={() => selectObject(null)}>
+                  ← 전체 구조로
+                </Button>
+              )}
+              <Button
+                variant="text"
+                aria-pressed={graphExpanded}
+                onClick={() => setGraphExpanded((expanded) => !expanded)}
+              >
+                {graphExpanded ? '분할 보기' : '관계도 확장'}
+              </Button>
+            </div>
           </div>
           <div className="explorer-panel-body">
             {selectedId === null &&
@@ -250,16 +295,7 @@ function ExplorerPage() {
                 </div>
               )}
             {selectedId !== null ? (
-              <>
-                <Button
-                  variant="secondary"
-                  onClick={() => selectObject(null)}
-                  className="mb-3"
-                >
-                  ← 전체 구조로
-                </Button>
-                <ObjectGraph objectId={selectedId} onSelect={selectObject} />
-              </>
+              <ObjectGraph objectId={selectedId} onSelect={selectObject} />
             ) : isModelGraphPending ? (
               <p className="text-slate-500">유형 관계도를 불러오는 중…</p>
             ) : modelGraph && !isModelGraphForbidden ? (
@@ -269,6 +305,7 @@ function ExplorerPage() {
                 }
               >
                 <ModelGraph
+                  view={modelView}
                   graph={modelGraph}
                   selectedTypeId={filters.objectTypeId ?? null}
                   onSelect={handleSelectType}

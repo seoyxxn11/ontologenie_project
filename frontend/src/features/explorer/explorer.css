@@ -8,10 +8,6 @@
     minmax(160px, 1fr) auto;
   align-items: end;
   gap: 12px 16px;
-  border: 1px solid var(--ui-border);
-  border-radius: var(--ui-panel-radius);
-  padding: 16px;
-  background: var(--ui-surface);
 }
 .explorer-field-label {
   display: block;
@@ -41,7 +37,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 16px 0;
+  margin: 24px 0 16px;
   color: var(--ui-text-secondary);
   overflow-wrap: anywhere;
 }
@@ -149,20 +145,17 @@
   overscroll-behavior: contain;
 }
 .explorer-detail-hint {
-  border-left: 3px solid var(--ui-brand);
-  padding: 8px 12px;
   color: var(--ui-text-secondary);
   line-height: 24px;
 }
-.explorer-detail-actions {
+.explorer-detail-buttons {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
   gap: 8px;
+  margin-bottom: 16px;
 }
 .explorer-panel-body .explorer-detail-title {
-  margin-top: 12px;
+  margin-top: 4px;
   color: var(--ui-text);
   font-size: 24px;
   font-weight: 700;
@@ -215,10 +208,12 @@
 .explorer-workbench.is-expanded > :is(.explorer-list, .explorer-detail) {
   display: none;
 }
+/* 1440×900에서 관계도 그림 전체가 첫 화면에 들어오도록 창 높이에 맞춘다. */
 .explorer-graph-canvas {
+  height: max(360px, calc(100vh - 360px));
   overflow-x: auto;
-  border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius);
+  background: var(--ui-surface-subtle);
 }
 .explorer-graph-canvas > .object-graph-canvas {
   min-width: 560px;
@@ -229,16 +224,53 @@
 .object-graph-node,
 .object-graph-center {
   overflow-wrap: anywhere;
+  word-break: keep-all;
 }
 .object-graph-node {
+  border-color: var(--ui-border);
   border-radius: var(--ui-radius);
   background: var(--ui-surface);
   color: var(--ui-text);
   font-size: 14px;
 }
+/* 반투명 보라를 흰 바탕 위에 겹쳐 불투명하게 칠한다. 연결선이 글자 위로 비치지 않는다. */
 .object-graph-node[aria-pressed='true'] {
-  border-color: var(--ui-brand-strong);
-  background: var(--ui-brand-subtle);
+  border: 2px solid var(--ui-brand-strong);
+  background:
+    linear-gradient(var(--ui-brand-subtle), var(--ui-brand-subtle)),
+    var(--ui-surface);
+}
+.object-graph-center-name {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+/* 관계 이름표는 자르지 않고 2줄까지 줄바꿈한다. */
+.object-graph-label {
+  display: -webkit-box;
+  max-width: 10rem;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+/* 한국어는 단어 단위로 줄을 바꾸고, 띄어쓰기 없는 긴 이름은 칸 안에서 아무 곳에서나 줄을 바꾼다. */
+.explorer-object-name,
+.explorer-panel-heading h2,
+.explorer-panel-body .explorer-detail-title,
+.model-graph-node,
+.model-graph-edge-label {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.explorer-panel-heading h2 {
+  min-width: 0;
+}
+/* 빈 결과 안내를 목록 칸 안에서 또 상자로 감싸지 않는다(이 화면만). */
+.explorer-object-list .ui-feedback--empty {
+  border: 0;
 }
 .object-graph-center {
   border-color: var(--ui-brand);
@@ -254,17 +286,72 @@
 .explorer-page .text-slate-400 {
   color: var(--ui-text-secondary);
 }
-.model-graph-toolbar {
+.explorer-panel-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 12px;
 }
-.model-graph-toolbar button[aria-pressed='true'] {
-  border-color: var(--ui-brand-strong);
-  color: var(--ui-brand-strong);
+/* 관계도 칸 제목 줄의 개요 / 유형 목록 전환 */
+/* overflow를 숨기지 않아야 키보드 포커스 테두리가 잘리지 않는다. 모서리는 양 끝 버튼에 준다. */
+.explorer-view-toggle {
+  display: flex;
+  border: 1px solid var(--ui-input-border);
+  border-radius: var(--ui-radius);
+}
+.explorer-view-toggle button:first-child {
+  border-radius: 3px 0 0 3px;
+}
+.explorer-view-toggle button:last-child {
+  border-radius: 0 3px 3px 0;
+}
+.explorer-view-toggle button:focus-visible {
+  position: relative;
+  z-index: 1;
+}
+.explorer-view-toggle button {
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  background: var(--ui-surface);
+  color: var(--ui-text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+}
+.explorer-view-toggle button + button {
+  border-left: 1px solid var(--ui-input-border);
+}
+.explorer-view-toggle button:hover {
+  background: var(--ui-surface-subtle);
+}
+.explorer-view-toggle button[aria-pressed='true'] {
   background: var(--ui-brand-subtle);
+  color: var(--ui-text);
+  box-shadow: inset 0 -2px 0 var(--ui-brand-strong);
+}
+/* 그림 오른쪽 위에 겹친 배율 버튼 */
+.model-graph-zoom {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface);
+}
+.model-graph-zoom button {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  background: none;
+  color: var(--ui-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.model-graph-zoom button + button {
+  border-left: 1px solid var(--ui-border);
+}
+.model-graph-zoom button:hover {
+  background: var(--ui-surface-subtle);
 }
 .model-graph-directory {
   display: grid;
@@ -290,6 +377,9 @@
   color: var(--ui-text-secondary);
 }
 .model-graph-caption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
   margin-top: 12px;
   color: var(--ui-text-secondary);
   font-size: 14px;
@@ -334,4 +424,8 @@
   .explorer-object-list {
     max-height: 320px;
   }
+}
+/* 관계도 확장일 때만 그림을 더 높게 해서, 세로로 긴 유형 관계도를 더 크게 보여 준다. */
+.explorer-workbench.is-expanded .explorer-graph-canvas {
+  height: max(360px, calc(100vh - 230px));
 }
