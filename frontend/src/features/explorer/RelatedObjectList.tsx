@@ -4,6 +4,8 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router'
+import { positiveId } from './searchState'
 import Button from '../../components/Button'
 import Pagination from '../../components/Pagination'
 import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
@@ -60,7 +62,14 @@ function ListHeading({
 
 function RelatedObjectPage(props: Omit<Props, 'vanished'>) {
   const { objectId, group, selectedId, onSelect } = props
-  const [page, setPage] = useState(0)
+  const [params, setParams] = useSearchParams()
+  const page = Math.min(positiveId(params.get('relatedPage')) ?? 0, 2147483647)
+  function setPage(nextPage: number, replace = false) {
+    const next = new URLSearchParams(params)
+    if (nextPage > 0) next.set('relatedPage', String(nextPage))
+    else next.delete('relatedPage')
+    setParams(next, { replace })
+  }
   const client = useQueryClient()
   const query = useQuery({
     queryKey: ['objects', objectId, 'related', group.key, page],
@@ -97,10 +106,24 @@ function RelatedObjectPage(props: Omit<Props, 'vanished'>) {
     }
   }, [client, objectId, group.linkCount, latestTotal, query.isPlaceholderData])
 
-  if (!query.isFetching && !query.isError) {
+  useEffect(() => {
+    if (query.isFetching || query.isPlaceholderData || query.isError) return
     const last = Math.max(0, Math.ceil(total / OBJECT_PAGE_SIZE) - 1)
-    if (page > last) setPage(last)
-  }
+    if (page > last) {
+      const next = new URLSearchParams(params)
+      if (last > 0) next.set('relatedPage', String(last))
+      else next.delete('relatedPage')
+      setParams(next, { replace: true })
+    }
+  }, [
+    page,
+    total,
+    query.isFetching,
+    query.isPlaceholderData,
+    query.isError,
+    params,
+    setParams,
+  ])
 
   return (
     <section aria-label={`${group.relatedTypeName} 연결 목록`}>
@@ -131,14 +154,15 @@ function RelatedObjectPage(props: Omit<Props, 'vanished'>) {
       </div>
       {data && total > 0 && (
         <Pagination
-          page={
+          page={Math.min(
             query.isPlaceholderData || query.isError
               ? (data.meta?.page ?? page)
-              : page
-          }
+              : page,
+            Math.max(0, Math.ceil(total / OBJECT_PAGE_SIZE) - 1),
+          )}
           size={OBJECT_PAGE_SIZE}
           totalElements={total}
-          onChange={setPage}
+          onChange={(next) => setPage(next)}
           pending={query.isFetching}
           compact
           showSummary={false}

@@ -114,6 +114,10 @@ function ObjectSearchBar({
           className={fieldClass}
         >
           <option value="">전체</option>
+          {typeId &&
+            !objectTypes.some((type) => String(type.id) === typeId) && (
+              <option value={typeId}>유형 이름 확인 불가 (#{typeId})</option>
+            )}
           {objectTypes.map((type) => (
             <option key={type.id} value={type.id}>
               {type.name}
