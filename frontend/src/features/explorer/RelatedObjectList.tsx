@@ -11,6 +11,7 @@ import Pagination from '../../components/Pagination'
 import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
 import { fetchObjectLinks, OBJECT_PAGE_SIZE } from './api'
 import { formatCount, formatObjectCode } from './format'
+import { linkContext } from './detailPresentation'
 import type { LinkGroup } from './graphLayout'
 import ObjectCard from './ObjectCard'
 
@@ -146,6 +147,7 @@ function RelatedObjectPage(props: Omit<Props, 'vanished'>) {
               code={formatObjectCode(link.relatedObject.id)}
               name={link.relatedObject.displayName}
               typeLabel={link.relatedObject.objectTypeName}
+              context={linkContext(link)}
               selected={link.relatedObject.id === selectedId}
               onSelect={() => onSelect(link.relatedObject.id)}
             />

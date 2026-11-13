@@ -6,9 +6,10 @@ import Button from '../../components/Button'
 import StatusBadge from '../../components/StatusBadge'
 import { createConversation } from '../agent/api'
 import type { AgentConversation, AgentEntryState } from '../agent/types'
-import { fetchObject } from './api'
+import { fetchObject, fetchObjectProperties } from './api'
 import EvidenceDialog from './EvidenceDialog'
-import { formatObjectKey, formatPropertyValue } from './format'
+import { formatObjectKey } from './format'
+import { detailValue } from './detailPresentation'
 import { statusLabels } from './labels'
 import type { ObjectInstanceDetail } from './types'
 
@@ -47,6 +48,17 @@ function ObjectDetailContent({ objectId }: ObjectDetailContentProps) {
   } = useQuery({
     queryKey: ['objects', objectId],
     queryFn: () => fetchObject(objectId),
+  })
+  const definitions = useQuery({
+    queryKey: [
+      'ontology',
+      'object-properties',
+      String(object?.objectTypeId ?? ''),
+    ],
+    queryFn: () => fetchObjectProperties(object!.objectTypeId),
+    enabled: Boolean(object),
+    retry: false,
+    staleTime: 60_000,
   })
 
   // [질문하기]: 새 대화를 만들고, 이 객체와 미리 채울 질문을 들고 대화 화면으로 간다(152).
@@ -89,22 +101,31 @@ function ObjectDetailContent({ objectId }: ObjectDetailContentProps) {
   const restrictedCount = object.restrictedPropertyCodes.length
   const { propertyNames, restrictedPropertyCodes } = object
   function propertyRows(entries: [string, unknown][]) {
-    return entries.map(([code, value]) => (
-      <div key={code}>
-        <dt>{propertyNames[code] ?? code}</dt>
-        <dd
-          className={
-            restrictedPropertyCodes.includes(code)
-              ? 'explorer-restricted'
-              : undefined
-          }
-        >
-          {restrictedPropertyCodes.includes(code)
-            ? '권한 없음'
-            : formatPropertyValue(value)}
-        </dd>
-      </div>
-    ))
+    return entries.map(([code, value]) => {
+      const definition = definitions.data?.find((item) => item.code === code)
+      return (
+        <div key={code}>
+          <dt>{propertyNames[code] ?? definition?.name ?? code}</dt>
+          <dd
+            className={
+              restrictedPropertyCodes.includes(code)
+                ? 'explorer-restricted'
+                : undefined
+            }
+          >
+            {restrictedPropertyCodes.includes(code)
+              ? '권한 없음'
+              : detailValue(value, definition)}
+            {definition?.description?.trim() &&
+              !restrictedPropertyCodes.includes(code) && (
+                <p className="mt-1 text-xs text-slate-500">
+                  {definition.description}
+                </p>
+              )}
+          </dd>
+        </div>
+      )
+    })
   }
 
   return (
@@ -115,7 +136,6 @@ function ObjectDetailContent({ objectId }: ObjectDetailContentProps) {
           .join(' / ')}
       </p>
       <h2 className="explorer-detail-title">{object.displayName}</h2>
-      <p className="explorer-source-caption">{source}</p>
       <div className="explorer-ai-handoff">
         <Button
           pending={askMutation.isPending}
@@ -132,7 +152,15 @@ function ObjectDetailContent({ objectId }: ObjectDetailContentProps) {
           권한 제한 속성 {restrictedCount}개
         </p>
       )}
-      <h3 className="ui-page-title">속성</h3>
+      <h3 className="mt-4 mb-2 text-sm font-semibold text-slate-700">
+        업무 요약
+      </h3>
+      {properties.length === 0 && <p>제공된 속성이 없습니다.</p>}
+      {definitions.isError && (
+        <p className="text-xs text-slate-500">
+          속성 설명·단위를 확인할 수 없습니다. 값은 제공된 그대로 표시합니다.
+        </p>
+      )}
       <dl className="explorer-properties">
         {propertyRows(properties.slice(0, 4))}
       </dl>
@@ -157,6 +185,7 @@ function ObjectDetailContent({ objectId }: ObjectDetailContentProps) {
       </div>
       <details className="explorer-detail-more">
         <summary>수집 정보</summary>
+        <p className="explorer-source-caption">{source}</p>
         <dl className="explorer-detail-times">
           <dt>기준 시점</dt>
           <dd>{formatDateTime(object.dataAsOf)}</dd>

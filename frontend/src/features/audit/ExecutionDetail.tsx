@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { ErrorState, LoadingState } from '../../components/Feedback'
 import { fetchExecutionChanges, fetchExecutionDetail } from './api'
 import EntityChangeTable from './EntityChangeTable'
+import ExecutionValues from './ExecutionValues'
+import { eventKindLabels, executionStatusLabels } from './labels'
 import type { Execution, ExecutionDetail as Detail } from './types'
 
 function formatJson(
@@ -26,7 +28,13 @@ function failureReasonText(reason: string | null) {
     : reason
 }
 
-function DetailContent({ detail }: { detail: Detail }) {
+function DetailContent({
+  detail,
+  execution,
+}: {
+  detail: Detail
+  execution: Execution
+}) {
   const failed = detail.status === 'FAILED'
   const resultValues = { ...detail.result }
   if (failed) {
@@ -37,15 +45,24 @@ function DetailContent({ detail }: { detail: Detail }) {
   const result = formatJson(resultValues)
   return (
     <>
+      <p className="mt-2 font-semibold text-slate-900">
+        {execution.actionName || eventKindLabels[execution.eventKind]} ·{' '}
+        {executionStatusLabels[detail.status]}
+      </p>
+      <p className="text-sm text-slate-600">
+        변경 {execution.changeCount}건
+        {execution.targetLabel ? ` · 대상: ${execution.targetLabel}` : ''}
+      </p>
       <p className="mt-2 font-semibold text-slate-700">입력값</p>
       {detail.restrictedPropertyCodes.length > 0 && (
         <p className="text-slate-500">
           입력값 중 권한으로 가린 속성이 있습니다.
         </p>
       )}
-      <pre className="whitespace-pre-wrap break-all text-slate-900">
-        {input ?? '기록된 입력값 없음'}
-      </pre>
+      <ExecutionValues
+        values={detail.input}
+        restricted={detail.restrictedPropertyCodes}
+      />
       {detail.status === 'BLOCKED' && (
         <>
           <p className="mt-2 font-semibold text-slate-700">차단 이유</p>
@@ -65,11 +82,24 @@ function DetailContent({ detail }: { detail: Detail }) {
       {result && (
         <>
           <p className="mt-2 font-semibold text-slate-700">처리 결과</p>
-          <pre className="whitespace-pre-wrap break-all text-slate-900">
-            {result}
-          </pre>
+          <ExecutionValues values={resultValues} />
         </>
       )}
+      <details className="mt-3 text-sm">
+        <summary className="cursor-pointer text-slate-500">
+          기술 정보 · JSON
+        </summary>
+        <p className="mt-2 font-semibold">입력 JSON</p>
+        <pre className="whitespace-pre-wrap break-all">
+          {input ?? '기록된 입력값 없음'}
+        </pre>
+        {result && (
+          <>
+            <p className="mt-2 font-semibold">결과 JSON</p>
+            <pre className="whitespace-pre-wrap break-all">{result}</pre>
+          </>
+        )}
+      </details>
     </>
   )
 }
@@ -157,7 +187,7 @@ export default function ExecutionDetail({
               }}
             />
           ) : (
-            <DetailContent detail={data.data} />
+            <DetailContent detail={data.data} execution={execution} />
           )}
           <ExecutionChanges id={execution.id} count={execution.changeCount} />
         </>
