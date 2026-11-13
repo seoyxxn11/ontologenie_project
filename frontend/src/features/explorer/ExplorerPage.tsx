@@ -195,8 +195,8 @@ function ExplorerPage() {
   }
 
   // 유형 카드를 누르면 검색어는 그대로 두고 객체 유형만 바꾼다.
-  function handleSelectType(typeId: number) {
-    handleSearch({ q: filters.q, objectTypeId: typeId })
+  function handleSelectType(typeId: number | null) {
+    handleSearch({ q: filters.q, objectTypeId: typeId ?? undefined })
   }
 
   const totalCount = objectPage?.meta?.totalElements ?? objectPage?.data.length
@@ -251,6 +251,10 @@ function ExplorerPage() {
         title="업무 데이터"
         description="객체를 찾고, 연결 관계와 원천 근거를 함께 확인하세요."
       />
+
+      {import.meta.env.DEV && import.meta.env.MODE === 'graph-demo' && (
+        <p className="explorer-demo-notice">로컬 미리보기 · 가상 예시 데이터</p>
+      )}
 
       {/* 유형 카드로 조건이 바뀌면 검색 줄 칸도 그 조건으로 다시 채운다. */}
       <ObjectSearchBar

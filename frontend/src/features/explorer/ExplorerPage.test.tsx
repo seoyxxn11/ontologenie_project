@@ -789,7 +789,7 @@ test('같은 두 유형 사이의 관계는 선 하나에 이름을 모아 보�
   expect(assigned.parentElement).toBe(alternative.parentElement)
 })
 
-test('고른 유형의 선은 카드 아래에 두고 다른 선보다 위에 그린다', async () => {
+test('선택 유형으로 들어오는 선은 황록으로 표시하고 카드 아래에 둔다', async () => {
   const user = userEvent.setup()
   renderExplorerPage()
 
@@ -801,8 +801,133 @@ test('고른 유형의 선은 카드 아래에 두고 다른 선보다 위에 �
   for (const edge of edges) {
     expect(Number(edge.closest('svg')?.style.zIndex || 0)).toBeLessThan(1)
   }
-  const lastPath = edges.at(-1)?.querySelector('.react-flow__edge-path')
-  expect(lastPath?.getAttribute('style')).toMatch(/6f5adf|111, 90, 223/i)
+  expect(edges).toHaveLength(4)
+  for (const edge of edges.filter(
+    (edge) => edge.getAttribute('data-id') !== '4-5',
+  )) {
+    expect(edge.querySelector('.react-flow__edge-path')).toHaveStyle({
+      stroke: '#657319',
+    })
+  }
+})
+
+test('기본 보기는 전체 배치를 유지하고 집중 보기에서만 이웃을 남긴다', async () => {
+  const user = userEvent.setup()
+  renderExplorerPage()
+  const graph = within(screen.getByRole('region', { name: '관계도' }))
+  await graph.findByRole('button', { name: '객체 유형 작업지시' })
+  const positions = [...document.querySelectorAll('.react-flow__node')].map(
+    (node) => node.getAttribute('style'),
+  )
+  const viewport = document
+    .querySelector('.react-flow__viewport')
+    ?.getAttribute('style')
+  await user.click(
+    await graph.findByRole('button', { name: '객체 유형 작업지시' }),
+  )
+
+  expect(graph.getByRole('button', { name: '객체 유형 메모' })).toBeVisible()
+  expect(
+    [...document.querySelectorAll('.react-flow__node')].map((node) =>
+      node.getAttribute('style'),
+    ),
+  ).toEqual(positions)
+  expect(
+    document.querySelector('.react-flow__viewport')?.getAttribute('style'),
+  ).toBe(viewport)
+  expect(graph.getByText('객체 유형 6개 · 관계 유형 5개')).toBeVisible()
+
+  await user.click(graph.getByRole('button', { name: '집중 보기' }))
+
+  expect(
+    await graph.findByText('객체 유형 3/6개 · 관계 유형 3/5개'),
+  ).toBeVisible()
+  expect(graph.queryByRole('button', { name: '객체 유형 메모' })).toBeNull()
+  for (const edge of document.querySelectorAll('.react-flow__edge-path')) {
+    expect(edge).toHaveStyle({ stroke: '#6f5adf' })
+  }
+  expect(screen.getByLabelText('객체 유형')).toHaveValue('4')
+
+  await user.click(graph.getByRole('button', { name: '전체 배치 보기' }))
+  expect(graph.getByRole('button', { name: '객체 유형 메모' })).toBeVisible()
+  expect(graph.getByText('객체 유형 6개 · 관계 유형 5개')).toBeVisible()
+  expect(screen.getByLabelText('객체 유형')).toHaveValue('4')
+  expect(
+    graph.getByRole('button', { name: '객체 유형 작업지시' }),
+  ).toHaveAttribute('aria-pressed', 'true')
+
+  await user.click(graph.getByRole('button', { name: '집중 보기' }))
+  expect(graph.queryByRole('button', { name: '객체 유형 메모' })).toBeNull()
+
+  await user.click(graph.getByRole('button', { name: '전체 배치 보기' }))
+  await user.click(graph.getByRole('button', { name: '객체 유형 점검 요청' }))
+  await user.click(graph.getByRole('button', { name: '집중 보기' }))
+  expect(
+    await graph.findByText('객체 유형 1/6개 · 관계 유형 0/5개'),
+  ).toBeVisible()
+  expect(graph.queryByRole('button', { name: '객체 유형 작업지시' })).toBeNull()
+
+  await user.click(screen.getByRole('button', { name: '초기화' }))
+  expect(
+    await graph.findByRole('button', { name: '객체 유형 작업지시' }),
+  ).toBeVisible()
+  expect(graph.getByRole('button', { name: '집중 보기' })).toBeDisabled()
+})
+
+test('양방향 관계는 원래 방향별로 색을 나누고 자기 관계는 보라로 보존한다', async () => {
+  server.use(
+    http.get('/api/v1/ontology/model-graph', () =>
+      HttpResponse.json({
+        data: {
+          nodes: [
+            { id: 3, code: 'EQUIPMENT', name: '설비' },
+            { id: 4, code: 'WORK_ORDER', name: '작업지시' },
+            { id: 5, code: 'SALES_ORDER', name: '수주' },
+            { id: 6, code: 'HANDOVER_NOTE', name: '메모' },
+          ],
+          edges: [
+            { id: 1, sourceTypeId: 4, targetTypeId: 3 },
+            { id: 2, sourceTypeId: 3, targetTypeId: 4 },
+            { id: 3, sourceTypeId: 6, targetTypeId: 4 },
+            { id: 4, sourceTypeId: 4, targetTypeId: 4 },
+          ].map((edge) => ({
+            ...edge,
+            code: `R${edge.id}`,
+            name: `관계 ${edge.id}`,
+            cardinality: 'MANY_TO_ONE',
+            relationCount: 1,
+            activeLinkCount: 1,
+          })),
+        },
+      }),
+    ),
+  )
+  const user = userEvent.setup()
+  renderExplorerPage()
+  const graph = within(screen.getByRole('region', { name: '관계도' }))
+  await user.click(
+    await graph.findByRole('button', { name: '객체 유형 작업지시' }),
+  )
+  await user.click(graph.getByRole('button', { name: '집중 보기' }))
+  expect(
+    await graph.findByText('객체 유형 3/4개 · 관계 유형 4/4개'),
+  ).toBeVisible()
+  expect(graph.getAllByRole('button', { name: '객체 유형 설비' })).toHaveLength(
+    1,
+  )
+  expect(graph.queryByRole('button', { name: '객체 유형 수주' })).toBeNull()
+  for (const [id, color] of [
+    ['4-3', '#6f5adf'],
+    ['3-4', '#657319'],
+    ['6-4', '#657319'],
+    ['4-4', '#6f5adf'],
+  ]) {
+    expect(
+      document.querySelector(
+        `.react-flow__edge[data-id="${id}"] .react-flow__edge-path`,
+      ),
+    ).toHaveStyle({ stroke: color })
+  }
 })
 
 test('유형을 고르면 그 유형의 관계 이름표만 보여준다', async () => {
