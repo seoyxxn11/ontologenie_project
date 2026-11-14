@@ -304,7 +304,8 @@ public class AgentResponder {
                                         objectSetFindEnabled))
                         .user(userPrompt(question, interpretation, askedClarification))
                         .options(options)
-                        .tools(tools(session))
+                        // 도구 결과의 자유 글 속 이름·전화번호를 가린 뒤 모델에 넘긴다(414)
+                        .toolCallbacks(ModelMaskingToolCallback.wrapAll(tools(session)))
                         .call()
                         .content();
         if (content == null || content.isBlank()) {
