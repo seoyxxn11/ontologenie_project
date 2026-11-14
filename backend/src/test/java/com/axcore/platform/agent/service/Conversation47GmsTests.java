@@ -340,6 +340,7 @@ class Conversation47GmsTests {
                         mock(PropertyValueSampleService.class),
                         CLOCK,
                         reasoningEffort,
+                        false,
                         false);
         AgentQuerySession session =
                 new AgentQuerySession(

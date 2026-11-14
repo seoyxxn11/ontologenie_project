@@ -12,6 +12,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -92,8 +93,7 @@ public class ObjectPathPlanner {
                 search.truncated());
     }
 
-    private static ObjectTypeSummary resolve(
-            List<ObjectTypeSummary> types, String value, String field) {
+    static ObjectTypeSummary resolve(List<ObjectTypeSummary> types, String value, String field) {
         if (value == null || value.isBlank()) {
             throw new AgentQuerySession.InvalidInput(field + "가 없습니다.", null);
         }
@@ -107,14 +107,45 @@ public class ObjectPathPlanner {
                                                 || text.equals(type.name()))
                         .toList();
         if (matches.isEmpty()) {
+            List<String> similar = similarTypeNames(types, text);
+            String hint =
+                    similar.isEmpty()
+                            ? ""
+                            : " 이름이 비슷한 유형: "
+                                    + String.join(", ", similar)
+                                    + ". 이 중 하나의 이름이나 ID로 다시 부른다.";
             throw new AgentQuerySession.InvalidInput(
-                    "볼 수 있는 객체 유형에 '%s'가 없습니다. 모델 요약의 유형 이름이나 ID를 넣는다.".formatted(text), null);
+                    "볼 수 있는 객체 유형에 '%s'가 없습니다. 모델 요약의 유형 이름이나 ID를 넣는다.".formatted(text) + hint,
+                    null);
         }
         if (matches.size() > 1) {
             throw new AgentQuerySession.InvalidInput(
                     "'%s'에 맞는 객체 유형이 여럿입니다. 유형 ID를 넣는다.".formatted(text), null);
         }
         return matches.getFirst();
+    }
+
+    static final int MAX_SIMILAR_TYPES = 5;
+
+    /**
+     * 넣은 말을 이름이나 코드에 품은 유형, 또는 이름이 넣은 말 안에 든 유형이다. AI가 "공정"처럼 모델에 없는 유형 이름을 지어내고 멈춘 일이 있었다(GMS R1).
+     * 볼 수 있는 유형 안에서만 고르고, 이름 순으로 {@value MAX_SIMILAR_TYPES}개까지다.
+     */
+    static List<String> similarTypeNames(List<ObjectTypeSummary> types, String text) {
+        String lowered = text.toLowerCase(Locale.ROOT);
+        return types.stream()
+                .filter(
+                        type ->
+                                type.name().contains(text)
+                                        || text.contains(type.name())
+                                        || (type.code() != null
+                                                && type.code()
+                                                        .toLowerCase(Locale.ROOT)
+                                                        .contains(lowered)))
+                .map(type -> type.name() + "(#" + type.id() + ")")
+                .sorted()
+                .limit(MAX_SIMILAR_TYPES)
+                .toList();
     }
 
     private record Edge(LinkTypeSummary link, String direction, long from, long to) {}

@@ -82,6 +82,28 @@ public class AgentQuerySession {
         searchArounds++;
     }
 
+    // 이번 답변에서 성공한 목표 유형 찾기 수. 한 번에 경로 여러 개를 건너므로 따로 센다.
+    private int finds;
+
+    synchronized int finds() {
+        return finds;
+    }
+
+    synchronized void countFind() {
+        finds++;
+    }
+
+    // 목표 유형 찾기가 만든 Object Set id. 이 집합을 관계 따라가기로 거르다 실패하면 찾기를 다시 부르라고 안내한다.
+    private final Set<String> foundSetIds = new HashSet<>();
+
+    synchronized void markFoundSet(String id) {
+        foundSetIds.add(id);
+    }
+
+    synchronized boolean isFoundSet(String id) {
+        return id != null && foundSetIds.contains(id.strip());
+    }
+
     /** 기준 시점을 구하지 않는 세션. 기준 시점과 관계없는 도구·기록 테스트가 쓴다. */
     public AgentQuerySession(
             LoginAccount asker, long questionId, AgentQueryRecorder recorder, Clock clock) {

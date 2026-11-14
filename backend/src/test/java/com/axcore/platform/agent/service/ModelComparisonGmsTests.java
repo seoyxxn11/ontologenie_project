@@ -172,6 +172,7 @@ class ModelComparisonGmsTests {
                                                             propertyValues,
                                                             clock,
                                                             reasoningEffort,
+                                                            false,
                                                             false);
                                             AtomicReference<Result> result =
                                                     new AtomicReference<>();

@@ -34,6 +34,7 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -172,14 +173,15 @@ public class ObjectQueryService
                 matched.add(filter);
                 continue;
             }
-            List<String> stored =
-                    objects.findSpacingVariants(
-                            typeId, filter.code(), filter.value(), status, MAX_SPACING_VARIANTS);
-            boolean replace = stored.size() == 1 && !stored.contains(filter.value());
-            matched.add(
-                    replace
-                            ? new PropertyFilter(filter.code(), filter.type(), stored.getFirst())
-                            : filter);
+            List<String> values = new ArrayList<>();
+            for (String value : filter.values()) {
+                List<String> stored =
+                        objects.findSpacingVariants(
+                                typeId, filter.code(), value, status, MAX_SPACING_VARIANTS);
+                boolean replace = stored.size() == 1 && !stored.contains(value);
+                values.add(replace ? stored.getFirst() : value);
+            }
+            matched.add(new PropertyFilter(filter.code(), filter.type(), values));
         }
         return new SearchFilters(List.copyOf(matched), filters.period());
     }
@@ -414,10 +416,22 @@ public class ObjectQueryService
             throw baseTypeMismatch(linkType, direction, firstId);
         }
 
+        Map<String, List<String>> conditions = new LinkedHashMap<>();
+        request.propertyValues()
+                .forEach((code, value) -> conditions.put(code, Collections.singletonList(value)));
+        request.propertyValueSets()
+                .forEach(
+                        (code, values) -> {
+                            if (conditions.putIfAbsent(code, values) != null) {
+                                throw BusinessException.invalidField(
+                                        "propertyValueSets[" + code + "]",
+                                        "같은 속성을 propertyValues와 propertyValueSets에 함께 넣을 수 없습니다.");
+                            }
+                        });
         SearchFilters filters =
-                filterValidator.validate(
+                filterValidator.validateAny(
                         relatedTypeId,
-                        request.propertyValues(),
+                        conditions,
                         request.dateProperty(),
                         request.from(),
                         request.to(),

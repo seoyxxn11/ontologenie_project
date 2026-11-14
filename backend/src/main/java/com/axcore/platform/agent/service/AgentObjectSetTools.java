@@ -51,6 +51,19 @@ public class AgentObjectSetTools {
     static final String OBJECT_SET_START = "OBJECT_SET_START";
     static final String OBJECT_SET_SEARCH_AROUND = "OBJECT_SET_SEARCH_AROUND";
     static final String OBJECT_SET_LIST = "OBJECT_SET_LIST";
+    static final String OBJECT_SET_FIND = "OBJECT_SET_FIND";
+
+    /**
+     * 끝난 값으로 보이는 말(구조 개선 검토 라운드 3). 저장하지 않는 참고 후보이고 최종 판단은 AI가 한다. "반품"처럼 이 말이 없는 끝난 값도 AI가 뜻으로
+     * 판단한다.
+     */
+    static final List<String> FINISHED_WORDS = List.of("완료", "취소", "종료", "마감", "출하", "폐기", "해지");
+
+    /** 값별 건수를 보여 줄 속성의 값 종류 상한. 상태처럼 값 종류가 적은 속성만 보여 준다. */
+    static final int MAX_COUNTED_VALUES = 10;
+
+    /** 한 답변에서 목표 유형 찾기를 부를 수 있는 수. 한 번에 경로 여러 개(최대 20단계)를 건너므로 작게 둔다. */
+    static final int MAX_FINDS = 3;
 
     /** 한 답변에서 건널 수 있는 단계 수. 단계가 많으면 경로를 잘못 골랐을 가능성이 크다. */
     static final int MAX_SEARCH_AROUNDS = 5;
@@ -184,16 +197,32 @@ public class AgentObjectSetTools {
                 input,
                 null,
                 null,
-                () ->
-                        searchAround(
+                () -> {
+                    try {
+                        return searchAround(
                                 objectSetId,
                                 linkTypeId,
                                 direction,
                                 propertyValues,
                                 dateProperty,
                                 from,
-                                to));
+                                to);
+                    } catch (InvalidInput ex) {
+                        if (!session.isFoundSet(objectSetId)) {
+                            throw ex;
+                        }
+                        // FIND 결과를 관계 따라가기로 다시 거르려다 관계를 잘못 고르는 일이 반복됐다(GMS S4).
+                        throw new InvalidInput(ex.getMessage() + FOUND_SET_HINT, ex);
+                    }
+                });
     }
+
+    static final String FOUND_SET_HINT =
+            " 이 Object Set은 "
+                    + OBJECT_SET_FIND
+                    + "가 만들었습니다. 찾은 객체의 조건이나 경로를 바꾸려면 관계 따라가기 대신 "
+                    + OBJECT_SET_FIND
+                    + "를 propertyValues·pathIndex와 함께 다시 부릅니다.";
 
     /** Object Set의 객체를 id 순으로 20건씩 속성과 함께 보여 준다. 여기서 받은 객체만 다른 도구로 더 조회할 수 있다. */
     @Tool(
@@ -481,6 +510,444 @@ public class AgentObjectSetTools {
             source.put("unavailableBaseObjects", unavailable);
         }
         return new Outcome(data, category, List.of(source), asOf);
+    }
+
+    /**
+     * 목표 유형 찾기(OBJECT_SET_FIND). 시작 객체와 도착 유형만 받아 경로 후보({@link ObjectPathPlanner#search})를 서버가 차례로
+     * 건넌다. 조건은 마지막 단계(도착 유형)에만 걸어 조건을 중간 단계에 거는 실수와 방향 실수를 구조로 막는다. 경로마다 건수·값별 건수·끝난 값 후보를 돌려주고,
+     * 결과가 있는 경로가 하나면 그 Object Set을 바로 쓰게 한다. 도구 노출은 {@link AgentObjectSetFindTools}가 한다.
+     */
+    Map<String, Object> find(
+            List<Long> objectIds,
+            String targetType,
+            Map<String, List<String>> propertyValues,
+            String dateProperty,
+            String from,
+            String to,
+            Integer pathIndex) {
+        Map<String, Object> input = new LinkedHashMap<>();
+        AgentQueryTools.putIfPresent(input, "objectIds", objectIds);
+        AgentQueryTools.putIfPresent(input, "targetType", targetType);
+        if (propertyValues != null && !propertyValues.isEmpty()) {
+            input.put("propertyValues", propertyValues);
+        }
+        AgentQueryTools.putIfPresent(input, "dateProperty", dateProperty);
+        AgentQueryTools.putIfPresent(input, "from", from);
+        AgentQueryTools.putIfPresent(input, "to", to);
+        AgentQueryTools.putIfPresent(input, "pathIndex", pathIndex);
+        if (objectIds != null
+                && !objectIds.isEmpty()
+                && (objectIds.stream().anyMatch(Objects::isNull)
+                        || !session.objectsAllowed(Set.copyOf(objectIds)))) {
+            return Map.of("error", AgentQuerySession.NOT_TARGET);
+        }
+        return session.run(
+                OBJECT_SET_FIND,
+                "목표 유형 찾기",
+                input,
+                null,
+                null,
+                () ->
+                        findPaths(
+                                objectIds,
+                                targetType,
+                                propertyValues == null ? Map.of() : propertyValues,
+                                dateProperty,
+                                from,
+                                to,
+                                pathIndex));
+    }
+
+    /** reachedTarget는 마지막 단계(찾는 유형)까지 건넜다는 뜻이다. 0건이어도 조건까지 확인한 것이다. */
+    private record PathRun(
+            int index,
+            ObjectPathPlanner.PathCandidate path,
+            List<Long> ids,
+            String stoppedAt,
+            String error,
+            boolean denied,
+            boolean reachedTarget) {}
+
+    private Outcome findPaths(
+            List<Long> objectIds,
+            String targetType,
+            Map<String, List<String>> conditions,
+            String dateProperty,
+            String from,
+            String to,
+            Integer pathIndex) {
+        if (objectIds == null || objectIds.isEmpty()) {
+            throw new InvalidInput("objectIds가 없습니다. '참고 객체 ID'를 넣어 주세요.", null);
+        }
+        if (session.finds() >= MAX_FINDS) {
+            throw new InvalidInput(
+                    "한 질문에서 목표 유형 찾기는 " + MAX_FINDS + "번까지입니다. 지금까지 찾은 objectSetId로 답해 주세요.", null);
+        }
+        Set<Long> requested = new LinkedHashSet<>(objectIds);
+        if (requested.size() > MAX_START_OBJECTS) {
+            throw new InvalidInput("objectIds는 " + MAX_START_OBJECTS + "개까지 넣을 수 있습니다.", null);
+        }
+        List<ObjectSearchResponse> found =
+                objects.findByIds(session.asker(), DataPurpose.MODEL, requested);
+        int unavailable = requested.size() - found.size();
+        if (found.isEmpty()) {
+            Map<String, Object> gone = new LinkedHashMap<>();
+            gone.put("count", 0);
+            gone.put("unavailableObjects", unavailable);
+            return new Outcome(gone, AgentResultCategory.NO_DATA, List.of(), null);
+        }
+        Set<Long> startTypes =
+                found.stream()
+                        .map(ObjectSearchResponse::objectTypeId)
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (startTypes.size() > 1) {
+            throw new InvalidInput("한 유형의 객체만 넣어 주세요. 넣은 객체의 유형: " + startTypes, null);
+        }
+        long fromType = found.getFirst().objectTypeId();
+        ModelSummaryResponse summary = models.summarize(dataAccess.forModel(session.asker()));
+        ObjectTypeSummary target =
+                ObjectPathPlanner.resolve(summary.objectTypes(), targetType, "targetType");
+        if (target.id() == fromType) {
+            throw new InvalidInput(
+                    "시작 객체가 이미 '"
+                            + target.name()
+                            + "' 유형입니다. 객체를 보려면 OBJECT_DETAIL이나 OBJECT_LIST를 씁니다.",
+                    null);
+        }
+        List<Long> start = found.stream().map(ObjectSearchResponse::id).toList();
+        ObjectPathPlanner.PathSearch search =
+                ObjectPathPlanner.search(summary, fromType, target.id());
+        // 가장 짧은 경로만 본다. 더 긴 경로는 품목·부서 같은 공통 정보를 거쳐 뜻 없는 객체까지 모았다(GMS S5). MetricFlow도 같은 이유로 홉 수를
+        // 제한한다.
+        int shortest =
+                search.candidates().stream()
+                        .mapToInt(ObjectPathPlanner.PathCandidate::hops)
+                        .min()
+                        .orElse(0);
+        List<ObjectPathPlanner.PathCandidate> candidates =
+                search.candidates().stream().filter(path -> path.hops() == shortest).toList();
+        boolean morePaths = search.truncated() || candidates.size() < search.candidates().size();
+        if (pathIndex != null && (pathIndex < 1 || pathIndex > candidates.size())) {
+            throw new InvalidInput("pathIndex는 1부터 " + candidates.size() + " 사이여야 합니다.", null);
+        }
+        List<PropertyItem> targetProperties = properties(target.id());
+        // 경로를 건너기 전에 조건을 찾는 유형 기준으로 확인한다. 경로가 중간에서 멈추면 서비스가 조건을 검증하지 못해 잘못된 조건이 "없음"으로 끝났다(리뷰 M1).
+        conditions = storedConditions(target.name(), targetProperties, conditions);
+        PropertyDataType periodType =
+                AgentObjectListTools.dataTypeOf(targetProperties, dateProperty);
+        boolean filtered =
+                !conditions.isEmpty()
+                        || AgentObjectListTools.blankToNull(dateProperty) != null
+                        || AgentObjectListTools.blankToNull(from) != null
+                        || AgentObjectListTools.blankToNull(to) != null;
+
+        List<PathRun> runs = new ArrayList<>();
+        for (int index = 1; index <= candidates.size(); index++) {
+            if (pathIndex == null || pathIndex == index) {
+                runs.add(
+                        runPath(
+                                index,
+                                candidates.get(index - 1),
+                                start,
+                                conditions,
+                                dateProperty,
+                                periodType,
+                                from,
+                                to));
+            }
+        }
+        // 조건은 모든 경로에 같으므로 한 경로라도 볼 수 없는 속성 조건으로 거절되면 DENIED다(리뷰 M1).
+        if (runs.stream().anyMatch(PathRun::denied)) {
+            return denied();
+        }
+        List<PathRun> nonEmpty = runs.stream().filter(run -> !run.ids().isEmpty()).toList();
+
+        String fromTypeName = typeName(summary, fromType);
+        List<Map<String, Object>> paths = new ArrayList<>();
+        List<Map<String, Object>> sources = new ArrayList<>();
+        // 시작 객체는 이미 이번 답변의 대상이라 출처로 남겨도 허용 객체가 늘지 않는다.
+        start.forEach(id -> sources.add(Map.of("objectId", id)));
+        Set<Long> seen = new LinkedHashSet<>(start);
+        Map<Integer, ObjectSet> saved = new LinkedHashMap<>();
+        for (PathRun run : runs) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("pathIndex", run.index());
+            item.put("route", route(fromTypeName, run.path()));
+            item.put("count", run.ids().size());
+            ObjectSet set = null;
+            if (!run.ids().isEmpty()) {
+                set = session.saveObjectSet(target.id(), run.ids());
+                session.markFoundSet(set.id());
+                saved.put(run.index(), set);
+                item.put("objectSetId", set.id());
+                item.put("sample", names(sample(run.ids())));
+                Map<String, Map<String, Long>> counts =
+                        valueCounts(target.id(), targetProperties, run.ids());
+                item.put("valueCounts", counts);
+                Map<String, List<String>> finished = finishedLike(counts);
+                if (!finished.isEmpty()) {
+                    item.put("finishedLike", finished);
+                }
+                seen.addAll(run.ids());
+            }
+            if (run.stoppedAt() != null) {
+                item.put("stoppedAt", run.stoppedAt());
+            }
+            if (run.error() != null) {
+                item.put("error", run.error());
+            }
+            if (run.denied()) {
+                item.put("denied", true);
+            }
+            paths.add(item);
+            // 객체 ID는 넣지 않아 허용 객체가 늘지 않는다(326). 목록 보기로 받은 객체만 객체별 조회에 쓴다.
+            Map<String, Object> source = new LinkedHashMap<>();
+            source.put("objectSetId", set == null ? null : set.id());
+            source.put("pathIndex", run.index());
+            source.put("objectTypeId", target.id());
+            source.put(
+                    "objectTypeIds",
+                    run.path().steps().stream().map(ObjectPathPlanner.PathStep::toTypeId).toList());
+            source.put("count", run.ids().size());
+            sources.add(source);
+        }
+
+        boolean failedPath = runs.stream().anyMatch(run -> run.error() != null);
+        PathRun chosen =
+                pathIndex != null
+                        ? runs.getFirst()
+                        : nonEmpty.size() == 1 && !failedPath ? nonEmpty.getFirst() : null;
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("targetTypeId", target.id());
+        data.put("targetTypeName", target.name());
+        if (chosen != null && saved.containsKey(chosen.index())) {
+            data.put("chosenPathIndex", chosen.index());
+            data.put("objectSetId", saved.get(chosen.index()).id());
+            data.put("count", chosen.ids().size());
+        }
+        data.put("paths", paths);
+        if (candidates.isEmpty()) {
+            data.put("message", fromTypeName + "에서 " + target.name() + "까지 갈 수 있는 관계 경로가 없습니다.");
+        } else if (chosen == null && (nonEmpty.size() > 1 || failedPath)) {
+            data.put(
+                    "next",
+                    "결과가 있는 경로가 여럿이거나 확인하지 못한 경로가 있습니다. 질문의 말과 route의 유형 이름을 맞춰 경로를 골라 그"
+                            + " objectSetId로 OBJECT_SET_LIST를 부릅니다.");
+        }
+        if (morePaths) {
+            data.put("morePaths", true);
+        }
+        data.put("properties", targetProperties);
+
+        if (unavailable > 0) {
+            data.put("unavailableObjects", unavailable);
+        }
+        // 조건을 넣었어도 마지막 단계까지 간 경로가 없으면 조건과 관계없이 연결이 없는 것이다(리뷰 M1).
+        boolean reachedTarget = runs.stream().anyMatch(PathRun::reachedTarget);
+        AgentResultCategory category =
+                !nonEmpty.isEmpty()
+                        ? AgentResultCategory.FOUND
+                        : filtered && reachedTarget
+                                ? AgentResultCategory.NO_DATA
+                                : AgentResultCategory.UNLINKED;
+        Instant asOf =
+                category == AgentResultCategory.NO_DATA ? null : session.dataAsOfObjects(seen);
+        session.countFind();
+        return new Outcome(data, category, sources, asOf);
+    }
+
+    /** 경로 하나를 차례로 건넌다. 조건은 마지막 단계에만 건다. 중간에 0건이면 멈추고 어디서 멈췄는지 남긴다. */
+    private PathRun runPath(
+            int index,
+            ObjectPathPlanner.PathCandidate path,
+            List<Long> start,
+            Map<String, List<String>> conditions,
+            String dateProperty,
+            PropertyDataType periodType,
+            String from,
+            String to) {
+        List<Long> ids = start;
+        List<ObjectPathPlanner.PathStep> steps = path.steps();
+        for (int step = 0; step < steps.size(); step++) {
+            ObjectPathPlanner.PathStep hop = steps.get(step);
+            boolean last = step == steps.size() - 1;
+            ObjectSearchAroundResult result;
+            try {
+                result =
+                        details.searchAround(
+                                session.asker(),
+                                DataPurpose.MODEL,
+                                new ObjectSearchAroundRequest(
+                                        ids,
+                                        hop.linkTypeId(),
+                                        Direction.valueOf(hop.direction()),
+                                        Map.of(),
+                                        last
+                                                ? AgentObjectListTools.blankToNull(dateProperty)
+                                                : null,
+                                        last
+                                                ? AgentObjectListTools.periodStart(periodType, from)
+                                                : null,
+                                        last
+                                                ? AgentObjectListTools.periodEnd(periodType, to)
+                                                : null,
+                                        last ? conditions : Map.of()));
+            } catch (BusinessException ex) {
+                CommonErrorCode code =
+                        ex.getErrorCode() instanceof CommonErrorCode common ? common : null;
+                if (code == CommonErrorCode.FORBIDDEN) {
+                    return new PathRun(index, path, List.of(), hop.toTypeName(), null, true, false);
+                }
+                if (code == CommonErrorCode.VALIDATION_FAILED) {
+                    throw new InvalidInput(AgentObjectListTools.reasonOf(ex), ex);
+                }
+                if (code == CommonErrorCode.BUSINESS_RULE_VIOLATION) {
+                    String reason =
+                            last
+                                    ? "찾는 유형의 결과가 " + MAX_SET_SIZE + "건을 넘습니다. 조건을 더해 다시 부릅니다."
+                                    : "중간 단계("
+                                            + hop.toTypeName()
+                                            + ")에서 "
+                                            + MAX_SET_SIZE
+                                            + "건을 넘어 이 경로를 끝까지 건너지 못했습니다. 이 경로가 필요하면 관계 따라가기로 단계마다 조건을 넣어 건넙니다.";
+                    return new PathRun(
+                            index, path, List.of(), hop.toTypeName(), reason, false, false);
+                }
+                if (code == CommonErrorCode.RESOURCE_NOT_FOUND) {
+                    // 단계 사이에 객체가 삭제되거나 볼 수 없게 되면 그 경로만 확인하지 못한 것으로 둔다(리뷰 m3).
+                    return new PathRun(
+                            index,
+                            path,
+                            List.of(),
+                            hop.toTypeName(),
+                            "그사이 삭제되거나 볼 수 없게 된 객체가 있어 이 경로를 확인하지 못했습니다.",
+                            false,
+                            false);
+                }
+                throw ex;
+            }
+            ids = result.objectIds();
+            if (ids.isEmpty()) {
+                return new PathRun(
+                        index, path, List.of(), last ? null : hop.toTypeName(), null, false, last);
+            }
+        }
+        return new PathRun(index, path, ids, null, null, false, true);
+    }
+
+    /** "설비 → 작업지시 공정 배정 → 작업지시 → 수주"처럼 경로를 유형 이름으로 보여 준다. */
+    private static String route(String fromTypeName, ObjectPathPlanner.PathCandidate path) {
+        StringBuilder text = new StringBuilder(fromTypeName);
+        for (ObjectPathPlanner.PathStep step : path.steps()) {
+            text.append(" → ").append(step.toTypeName());
+        }
+        return text.toString();
+    }
+
+    /**
+     * 도착 객체의 범주 값 속성마다 값별 건수. 범주 값 속성은 이미 받은 속성 목록에서 값 종류가 있는 것이다(유형 전체를 다시 세지 않는다, 리뷰 m4). 값 종류가
+     * {@value #MAX_COUNTED_VALUES}개를 넘는 속성은 뺀다.
+     */
+    private Map<String, Map<String, Long>> valueCounts(
+            long typeId, List<PropertyItem> properties, List<Long> ids) {
+        List<String> codes =
+                properties.stream()
+                        .filter(
+                                property ->
+                                        property.values() != null && !property.values().isEmpty())
+                        .map(PropertyItem::code)
+                        .toList();
+        Map<String, Map<String, Long>> counts =
+                values.stringValueCounts(session.asker(), DataPurpose.MODEL, typeId, ids, codes);
+        Map<String, Map<String, Long>> shown = new LinkedHashMap<>();
+        counts.forEach(
+                (code, byValue) -> {
+                    if (byValue.size() <= MAX_COUNTED_VALUES) {
+                        shown.put(code, byValue);
+                    }
+                });
+        return shown;
+    }
+
+    /** 끝난 값으로 보이는 값({@link #FINISHED_WORDS}가 들어간 값). 참고 후보일 뿐 저장하지 않는다. */
+    static Map<String, List<String>> finishedLike(Map<String, Map<String, Long>> counts) {
+        Map<String, List<String>> finished = new LinkedHashMap<>();
+        counts.forEach(
+                (code, byValue) -> {
+                    List<String> matched =
+                            byValue.keySet().stream()
+                                    .filter(
+                                            value ->
+                                                    FINISHED_WORDS.stream()
+                                                            .anyMatch(value::contains))
+                                    .toList();
+                    if (!matched.isEmpty()) {
+                        finished.put(code, matched);
+                    }
+                });
+        return finished;
+    }
+
+    /**
+     * 조건을 찾는 유형의 저장 값으로 맞춘다. 없는 속성이나 저장 값에 없는 값이면 입력 오류로 저장 값을 알려 다시 부르게 한다. "진행 중"처럼 뜻만 같은 값으로 0건을
+     * 받고 "없다"고 답하던 실수를 막는다(GMS M1·G2). 띄어쓰기만 다른 값은 저장 값으로 바꾼다(378과 같은 기준). 값 목록을 모르는 속성(값 종류가 많거나
+     * 문자가 아님)은 서비스 검증에 맡긴다.
+     */
+    private static Map<String, List<String>> storedConditions(
+            String typeName, List<PropertyItem> properties, Map<String, List<String>> conditions) {
+        Map<String, List<String>> stored = new LinkedHashMap<>();
+        conditions.forEach(
+                (code, given) -> {
+                    PropertyItem property =
+                            properties.stream()
+                                    .filter(item -> item.code().equals(code))
+                                    .findFirst()
+                                    .orElseThrow(
+                                            () ->
+                                                    new InvalidInput(
+                                                            "'"
+                                                                    + typeName
+                                                                    + "'에 속성 '"
+                                                                    + code
+                                                                    + "'가 없습니다. 쓸 수 있는 속성: "
+                                                                    + properties.stream()
+                                                                            .map(PropertyItem::code)
+                                                                            .toList(),
+                                                            null));
+                    if (given == null || given.isEmpty()) {
+                        throw new InvalidInput(
+                                "propertyValues[" + code + "]에 값을 하나 이상 넣어 주세요.", null);
+                    }
+                    List<String> known = property.values();
+                    if (known == null || known.isEmpty()) {
+                        stored.put(code, given);
+                        return;
+                    }
+                    List<String> matched = new ArrayList<>();
+                    List<String> missing = new ArrayList<>();
+                    for (String value : given) {
+                        String compact = value == null ? "" : value.replaceAll("\\s", "");
+                        known.stream()
+                                .filter(
+                                        candidate ->
+                                                candidate.replaceAll("\\s", "").equals(compact))
+                                .findFirst()
+                                .ifPresentOrElse(matched::add, () -> missing.add(value));
+                    }
+                    if (!missing.isEmpty()) {
+                        throw new InvalidInput(
+                                "'"
+                                        + code
+                                        + "'에 저장된 값이 아닌 값이 있습니다: "
+                                        + missing
+                                        + ". 저장된 값 "
+                                        + known
+                                        + " 중에서 뜻이 같은 값을 골라 다시 부릅니다.",
+                                null);
+                    }
+                    stored.put(code, matched);
+                });
+        return stored;
     }
 
     /** 고칠 수 있는 입력 오류는 이유를 돌려주고, 볼 수 없는 민감 속성 조건은 DENIED로 답한다. */

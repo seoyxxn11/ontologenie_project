@@ -51,6 +51,9 @@ axcore:
     # Object Set 도구(OBJECT_SET_START·SEARCH_AROUND·LIST, 380). true일 때만 AI에게 준다. 382 GMS에서 2홉 질문 정답률이 아직 낮아(docs/agent-scenario-gms.md) 기본은 끈다.
     object-sets:
       enabled: ${AXCORE_AGENT_OBJECT_SETS_ENABLED:false}
+    # 목표 유형 찾기 도구(OBJECT_SET_FIND). 객체 집합 도구를 켰을 때만 쓴다. 서버가 경로를 찾고 조건은 찾는 유형에만 건다.
+    object-set-find:
+      enabled: ${AXCORE_AGENT_OBJECT_SET_FIND_ENABLED:false}
   # 내부 API(/api/v1/internal/**)를 부르는 FastAPI와 나눠 가진 공유 비밀(X-Internal-Token). 값은 환경변수로만 넣는다.
   # 비어 있으면 내부 API를 모두 막는다. AI 쪽 AI_ONTOLOGY_INTERNAL_TOKEN과 같은 값이어야 한다.
   internal-api:

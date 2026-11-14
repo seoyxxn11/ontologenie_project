@@ -14,7 +14,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -68,6 +71,16 @@ class AgentScenarioGmsTests {
      * 쓴다.
      */
     private static final String PRESS_REPLY = "1라인 3호 프레스(설비)요";
+
+    /** 수주 번호(OD-연월-순번). */
+    private static final Pattern ORDER_NO = Pattern.compile("OD-\\d{4}-\\d{3}");
+
+    /** 작업지시 번호(JB연월-순번). */
+    private static final Pattern WORK_ORDER_NO = Pattern.compile("JB\\d{4}-\\d{4}");
+
+    /** P103이 멈추면 영향받는 끝나지 않은 수주. OD-2610-019는 재배정 뒤 밀리는 작업지시의 수주라 말해도 된다(S4). */
+    private static final Set<String> UNFINISHED_ORDERS_NEAR_P103 =
+            Set.of("OD-2610-021", "OD-2610-019");
 
     private static final Set<String> READ_TOOLS =
             Set.of(AgentObjectDetailTools.OBJECT_DETAIL, AgentObjectDetailTools.OBJECT_LINKS);
@@ -177,9 +190,58 @@ class AgentScenarioGmsTests {
         run.expectReadOrPassedThrough(
                 data.object("WorkOrder", Map.of("wo_no", "JB2610-0141")), typeId("WorkOrder"));
         run.expectReached(data.object("SalesOrder", Map.of("so_no", "OD-2610-021")));
+        // 조건 없이 모은 수주를 그대로 나열하면 출하완료 수주가 섞인다(11-13 운영 질문). 끝나지 않은 수주만 말해야 한다.
+        run.expectOnlyOrders(UNFINISHED_ORDERS_NEAR_P103, "OD-2610-021");
         run.log(
                 "멈춘 작업지시 JB2610-0141(성형·트리밍 잔량 3,200) → 수주 OD-2610-021(납기 2026-11-04). "
                         + "납기 위험 수주는 OD-2610-019(연결 작업지시 JB2610-0145 대기, 납기 2026-10-31)");
+        run.verify();
+    }
+
+    /**
+     * S5(11-13 운영 질문): P103에 공정이 배정된 작업지시 61건의 수주 57건 중 56건은 출하완료이고, 끝나지 않은 것은 OD-2610-021(생산중, 납기
+     * 2026-11-04)뿐이다. 조건 없이 모아 오래된 출하완료 수주를 답하던 문제를 잡는다.
+     */
+    @Test
+    void s5AnswersOnlyUnfinishedOrdersAffectedByStoppedP103() {
+        Run run = ask("P103이 멈췄어. 어떤 주문이 영향을 받아? 납기도 알려줘.", PRESS_REPLY);
+
+        run.expectStartedFrom(press());
+        // OD-2610-019는 P103 경로의 수주가 아니다(재배정까지 따지는 S4만 허용). 여기서는 OD-2610-021만 허용한다(리뷰 m8).
+        run.expectOnlyOrders(Set.of("OD-2610-021"), "OD-2610-021");
+        run.log("P103 공정 배정 122 → 작업지시 61 → 수주 57 중 끝나지 않은 것은 OD-2610-021(생산중, 납기 2026-11-04)뿐");
+        run.verify();
+    }
+
+    /**
+     * G1(11-13 일반화 확인): 지시문 예시에 없는 설비·상태 값으로 S5와 같은 꼴을 묻는다. P201 공정 배정 30건 → 작업지시 15건 → 수주 15건 중
+     * 끝나지 않은 것은 OD-2610-018(생산중, 납기 11-05)과 OD-2610-020(접수, 납기 11-10) 두 건이다. 끝나지 않은 값이 둘이라 값마다 건너야
+     * 한다.
+     */
+    @Test
+    void g1AnswersUnfinishedOrdersIfP201BreaksDown() {
+        Run run = ask("P201이 고장 나면 영향받는 수주는?", "2라인 1호 프레스(설비)요");
+
+        run.expectStartedFrom(data.object("Equipment", Map.of("code", "P201")));
+        run.expectOnlyOrders(Set.of("OD-2610-018", "OD-2610-020"), "OD-2610-018", "OD-2610-020");
+        run.log("OD-2610-018(생산중, 납기 2026-11-05), OD-2610-020(접수, 납기 2026-11-10)");
+        run.verify();
+    }
+
+    /**
+     * G2(11-13 일반화 확인): M1과 같은 2홉 꼴이지만 설비·상태 값이 다르다. 1라인 블랭킹기(B101)에 공정이 배정된 작업지시 139건 중 대기는
+     * JB2610-0143, JB2610-0145 두 건이다. 조건(대기)은 공정이 아니라 작업지시 단계에 넣어야 한다.
+     */
+    @Test
+    void g2FindsWaitingWorkOrdersAssignedToBlanker() {
+        Run run = ask("1라인 블랭킹기에 배정된 대기 중인 작업지시 보여줘", "1라인 블랭킹기(설비)요");
+
+        run.expectStartedFrom(data.object("Equipment", Map.of("code", "B101")));
+        run.expectOnlyWorkOrders(
+                Set.of("JB2610-0143", "JB2610-0145"), "JB2610-0143", "JB2610-0145");
+        // 공정에도 같은 "대기" 값이 있어 공정 단계에 조건을 걸어도 우연히 맞는다. 작업지시로 건널 때 조건을 넣었는지 따로 본다.
+        run.expectFilteredHopTo(typeId("WorkOrder"));
+        run.log("대기 작업지시 JB2610-0143, JB2610-0145");
         run.verify();
     }
 
@@ -540,8 +602,11 @@ class AgentScenarioGmsTests {
                                             (AgentObjectDetailTools.OBJECT_LINKS.equals(call.tool())
                                                             && Long.valueOf(objectId)
                                                                     .equals(call.targetId()))
-                                                    || (AgentObjectSetTools.OBJECT_SET_START.equals(
-                                                                    call.tool())
+                                                    || ((AgentObjectSetTools.OBJECT_SET_START
+                                                                            .equals(call.tool())
+                                                                    || AgentObjectSetTools
+                                                                            .OBJECT_SET_FIND
+                                                                            .equals(call.tool()))
                                                             && hasSource(call, objectId)));
             if (!started) {
                 failures.add("객체 " + objectId + "에서 관계 조회나 객체 집합을 시작하지 않음");
@@ -592,7 +657,45 @@ class AgentScenarioGmsTests {
                                                     && hasSource(call, objectId)));
         }
 
+        /** 객체 집합으로 그 유형에 조건을 넣어 건넜어야 한다. 조건을 중간 단계에 걸고 우연히 맞은 답을 걸러 낸다(G2). */
+        void expectFilteredHopTo(long objectTypeId) {
+            if (!hoppedTo(objectTypeId, true)) {
+                failures.add("유형 " + objectTypeId + "로 건널 때 조건을 넣지 않음");
+            }
+        }
+
+        /**
+         * 객체 집합으로 그 유형에 닿았는지 본다. 건너기(SEARCH_AROUND)는 도착 유형, 목표 유형 찾기(FIND)는 지나간 유형(objectTypeIds)으로
+         * 본다. filtered면 조건을 넣은 호출만 센다. FIND의 조건은 도착 유형에만 걸리므로 filtered는 도착 유형으로만 본다.
+         */
         private boolean hoppedTo(long objectTypeId, boolean filtered) {
+            boolean found =
+                    calls.stream()
+                            .filter(call -> AgentObjectSetTools.OBJECT_SET_FIND.equals(call.tool()))
+                            .filter(call -> !filtered || hasConditions(call))
+                            .flatMap(call -> call.sources().stream())
+                            .anyMatch(
+                                    source ->
+                                            source.get("count") instanceof Number count
+                                                    && count.longValue() > 0
+                                                    && (filtered
+                                                            ? Long.valueOf(objectTypeId)
+                                                                    .equals(
+                                                                            source.get(
+                                                                                    "objectTypeId"))
+                                                            : source.get("objectTypeIds")
+                                                                            instanceof List<?> types
+                                                                    && types.contains(
+                                                                            objectTypeId)));
+            return found || searchedAroundTo(objectTypeId, filtered);
+        }
+
+        private static boolean hasConditions(Call call) {
+            return call.input().get("propertyValues") instanceof Map<?, ?> values
+                    && !values.isEmpty();
+        }
+
+        private boolean searchedAroundTo(long objectTypeId, boolean filtered) {
             return calls.stream()
                     .filter(
                             call ->
@@ -631,6 +734,39 @@ class AgentScenarioGmsTests {
                                                                                     .get(key))));
             if (!called) {
                 failures.add(tool + "를 " + key + "=" + value + "로 부르지 않음");
+            }
+        }
+
+        /**
+         * 답에 required 수주 번호가 모두 있어야 하고, 답에 나온 수주 번호(OD-…)는 모두 allowed 안에 있어야 한다. 끝난 수주를 섞지 않았는지 본다.
+         */
+        void expectOnlyOrders(Set<String> allowed, String... required) {
+            expectOnlyCodes(ORDER_NO, allowed, required);
+        }
+
+        /** expectOnlyOrders와 같고 작업지시 번호(JB…)를 본다. */
+        void expectOnlyWorkOrders(Set<String> allowed, String... required) {
+            expectOnlyCodes(WORK_ORDER_NO, allowed, required);
+        }
+
+        private void expectOnlyCodes(Pattern pattern, Set<String> allowed, String... required) {
+            for (String code : required) {
+                if (answer == null || !answer.contains(code)) {
+                    failures.add("답에 " + code + "이 없음");
+                }
+            }
+            if (answer == null) {
+                return;
+            }
+            Set<String> others = new TreeSet<>();
+            Matcher matcher = pattern.matcher(answer);
+            while (matcher.find()) {
+                if (!allowed.contains(matcher.group())) {
+                    others.add(matcher.group());
+                }
+            }
+            if (!others.isEmpty()) {
+                failures.add("조건에 맞지 않는 번호를 답에 넣음: " + others);
             }
         }
 

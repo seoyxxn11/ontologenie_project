@@ -339,15 +339,18 @@ public class ObjectQueryRepository {
             PropertyFilter filter = filters.values().get(index);
             String key = "filterProperty" + index;
             String value = "filterValue" + index;
-            sql.append(" and ")
-                    .append(propertyExpression(key, filter.type()))
-                    .append(" = cast(:")
-                    .append(value)
-                    .append(" as ")
-                    .append(sqlType(filter.type()))
-                    .append(")\n");
+            sql.append(" and ").append(propertyExpression(key, filter.type()));
+            if (filter.values().size() == 1) {
+                sql.append(" = cast(:").append(value).append(" as ");
+                sql.append(sqlType(filter.type())).append(")\n");
+                parameters.put(value, filter.values().getFirst());
+            } else {
+                // 값이 여럿이면 그중 하나와 같으면 된다. Agent 목표 유형 찾기(OBJECT_SET_FIND)만 쓴다. 076 공개 API는 값 하나다.
+                sql.append(" = any(cast(cast(:").append(value).append(" as text[]) as ");
+                sql.append(sqlType(filter.type())).append("[]))\n");
+                parameters.put(value, new SqlArrayValue("text", filter.values().toArray()));
+            }
             parameters.put(key, filter.code());
-            parameters.put(value, filter.value());
         }
         PeriodFilter period = filters.period();
         if (period != null) {
@@ -402,7 +405,19 @@ public class ObjectQueryRepository {
 
     private record SearchClause(String sql, Map<String, Object> parameters) {}
 
-    public record PropertyFilter(String code, PropertyDataType type, String value) {}
+    /** 속성 하나의 조건. 값이 여럿이면 그중 하나와 같으면 된다. */
+    public record PropertyFilter(String code, PropertyDataType type, List<String> values) {
+        public PropertyFilter {
+            values = List.copyOf(values);
+            if (values.isEmpty()) {
+                throw new IllegalArgumentException("조건 값이 없습니다: " + code);
+            }
+        }
+
+        public PropertyFilter(String code, PropertyDataType type, String value) {
+            this(code, type, List.of(value));
+        }
+    }
 
     public record PeriodFilter(String code, PropertyDataType type, String from, String to) {}
 
