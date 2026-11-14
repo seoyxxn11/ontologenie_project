@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react'
-import Button from '../../components/Button'
+import AgentIconButton from './AgentIconButton'
 import Pagination from '../../components/Pagination'
 import { NEW_CONVERSATION_TITLE } from './labels'
 import type { AgentConversation } from './types'
@@ -91,12 +91,19 @@ function ConversationList({
   )
 
   return (
-    <aside aria-label="대화방 목록" className="agent-sidebar">
+    <aside
+      id="agent-conversation-list"
+      aria-label="대화방 목록"
+      className="agent-sidebar"
+    >
       <div className="agent-sidebar-heading">
         <h2>대화</h2>
-        <Button variant="secondary" onClick={onCreate} pending={creating}>
-          + 새 대화
-        </Button>
+        <AgentIconButton
+          label="새 대화"
+          icon="plus"
+          onClick={onCreate}
+          pending={creating}
+        />
       </div>
       {!hasConversations ? (
         <p className="agent-sidebar-empty">아직 대화가 없어요.</p>
