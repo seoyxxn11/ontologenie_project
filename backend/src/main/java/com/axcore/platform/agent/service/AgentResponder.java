@@ -96,6 +96,9 @@ public class AgentResponder {
               "P101에서 찍으면"처럼 설비를 정해 물으면 그 설비를 equipmentId로 넣는다.
             - 완료 시각 계산 결과를 말할 때는 계산 근거(남은 수량, 개당 표준 가공 시간, 준비 시간)와 assumptions의 가정(연속 가동, 교대·휴무·비가동
               미반영)을 함께 말한다. missingInputs가 있으면 계산하지 못한 이유로 그 항목을 말한다.
+            - 작업지시를 다른 설비에서 할 수 있는지(대체 설비)는 설비 조건 비교 도구로 확인한다. 작업지시 ID와 후보 설비 ID는 검색이나 관계 조회로
+              먼저 찾는다. 설비마다 충족·미충족·미확인과 이유(필요한 설비 종류·최소 능력과 설비의 값)를 말한다. 충족은 설비 종류·능력 조건만 맞는다는
+              뜻이므로 금형 호환·착수 순서·납기는 확인하지 않았다고 함께 말한다. 가능 여부를 묻는 질문에 재배정 계획 저장 Action을 부르지 않는다.
             - Action 도구(조회 도구가 아닌 것)는 사용자가 그 일을 해 달라고 분명히 요청했을 때만 부른다.
             - Action 입력의 기준 시점(dataAsOf)은 계획에 쓴 조회 결과의 기준 시점 중 가장 이른 값을 쓴다. 조회한 기준 시점이 없을 때만 "현재 시각"을 쓴다.
             - 그 밖에 시각이 필요하면 "현재 시각"을 기준으로 정한다. 사용자가 "지금"이라고 하면 현재 시각이다.
@@ -196,6 +199,7 @@ public class AgentResponder {
     private final DataAccessPolicy dataAccess;
     private final AgentActionTools actionTools;
     private final CompletionEstimator completionEstimator;
+    private final EquipmentCapabilityComparer capabilityComparer;
     private final PropertyValueSampleService propertyValues;
     private final Clock clock;
 
@@ -224,6 +228,7 @@ public class AgentResponder {
             DataAccessPolicy dataAccess,
             AgentActionTools actionTools,
             CompletionEstimator completionEstimator,
+            EquipmentCapabilityComparer capabilityComparer,
             PropertyValueSampleService propertyValues,
             Clock clock,
             @Value("${axcore.agent.reasoning-effort:none}") String reasoningEffort,
@@ -238,6 +243,7 @@ public class AgentResponder {
         this.dataAccess = dataAccess;
         this.actionTools = actionTools;
         this.completionEstimator = completionEstimator;
+        this.capabilityComparer = capabilityComparer;
         this.propertyValues = propertyValues;
         this.clock = clock;
         this.reasoningEffort = reasoningEffort;
@@ -307,6 +313,7 @@ public class AgentResponder {
                 query -> tools.add(new AgentObjectEvidenceTools(session, query)));
         objectPaths.ifAvailable(planner -> tools.add(new AgentObjectPathTools(session, planner)));
         tools.add(new AgentCompletionEstimateTools(session, completionEstimator));
+        tools.add(new AgentEquipmentCapabilityTools(session, capabilityComparer));
         tools.add(actionTools.forAnswer(session));
         return tools.toArray();
     }

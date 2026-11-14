@@ -336,6 +336,7 @@ class Conversation47GmsTests {
                         mock(DataAccessPolicy.class),
                         actions,
                         mock(CompletionEstimator.class),
+                        mock(EquipmentCapabilityComparer.class),
                         mock(PropertyValueSampleService.class),
                         CLOCK,
                         reasoningEffort,

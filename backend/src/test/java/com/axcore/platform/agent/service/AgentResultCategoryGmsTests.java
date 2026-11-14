@@ -68,6 +68,7 @@ class AgentResultCategoryGmsTests {
     @Autowired PropertyValueSampleService propertyValues;
     @MockitoBean AgentActionTools actionTools;
     @Autowired CompletionEstimator completionEstimator;
+    @Autowired EquipmentCapabilityComparer capabilityComparer;
 
     @Value("${axcore.agent.reasoning-effort:none}")
     String reasoningEffort;
@@ -231,6 +232,7 @@ class AgentResultCategoryGmsTests {
                 dataAccess,
                 actionTools,
                 completionEstimator,
+                capabilityComparer,
                 propertyValues,
                 Clock.systemUTC(),
                 reasoningEffort,

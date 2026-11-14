@@ -293,6 +293,27 @@ class AgentScenarioGmsTests {
     }
 
     /**
+     * R1(대체 설비 비교 요청, 2026-11-13): 대체 설비 조건 비교를 저장 없이 한다. JB2610-0141(제품 BRK-210R)의 공정 20·30은
+     * PRS·최소 400톤이다. P101은 PRS 400톤이라 충족, P201은 PRS 300톤이라 미충족이다. 재배정 계획 저장 Action을 부르지 않아야 한다.
+     */
+    @Test
+    void r1ComparesAlternativeEquipmentWithoutSavingPlan() {
+        Run run =
+                ask(
+                        "JB2610-0141을 P101이나 P201에서 이어서 생산할 수 있어? 각 설비의 능력이 이 작업에 필요한 조건을 충족하는지 비교해 줘.",
+                        "작업지시 JB2610-0141, 설비 P101과 P201이요");
+
+        run.expectInput(
+                AgentEquipmentCapabilityTools.COMPARE_EQUIPMENT_CAPABILITY,
+                "workOrderId",
+                data.object("WorkOrder", Map.of("wo_no", "JB2610-0141")));
+        run.expectAnswerWith("400", "300", "미충족");
+        run.expectNotCalled("CREATE_REASSIGNMENT_PLAN");
+        run.log("공정 20·30 PRS·최소 400톤. P101 400톤 충족, P201 300톤 미충족. 계획 저장 안 함");
+        run.verify();
+    }
+
+    /**
      * L1(359): 종류 전체·조건 질문을 객체 목록 조회로 답한다. 진행 중인 작업지시는 JB2610-0138·0141·0142 세 건이다. 값("진행")은 AI가 목록
      * 결과에서 골라야 한다.
      */
@@ -610,6 +631,22 @@ class AgentScenarioGmsTests {
                                                                                     .get(key))));
             if (!called) {
                 failures.add(tool + "를 " + key + "=" + value + "로 부르지 않음");
+            }
+        }
+
+        /** 답에 이 값들이 모두 있어야 한다. */
+        void expectAnswerWith(String... values) {
+            for (String value : values) {
+                if (answer == null || !answer.contains(value)) {
+                    failures.add("답에 " + value + "이 없음");
+                }
+            }
+        }
+
+        /** 그 도구를 부르지 않았어야 한다(예: 가능 여부만 물었는데 저장 Action을 부름). */
+        void expectNotCalled(String tool) {
+            if (calls.stream().anyMatch(call -> tool.equals(call.tool()))) {
+                failures.add(tool + "를 부름");
             }
         }
 

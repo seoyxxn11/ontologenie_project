@@ -229,8 +229,12 @@ class ReassignmentPlanValidator {
                                     sequenceLabel,
                                     words.value(workOrder.type(), workOrder.product(), product));
                 }
-                String requiredKind = standard.text(routing.equipmentKind());
-                if (requiredKind != null && !requiredKind.equals(to.text(equipment.kind()))) {
+                // 판정 규칙은 Agent의 저장 없는 설비 조건 비교와 같다(EquipmentCapability). 모르는 값(UNKNOWN)도 저장은 막는다.
+                EquipmentCapability.Check check =
+                        EquipmentCapability.check(standard, to, properties);
+                String requiredKind = check.requiredKind();
+                if (check.kind() == EquipmentCapability.Verdict.NOT_MET
+                        || check.kind() == EquipmentCapability.Verdict.UNKNOWN) {
                     return "대체 설비 %s(%s)는 작업지시 %s의 %s 공정에 쓸 수 없는 종류입니다(필요: %s)."
                             .formatted(
                                     toLabel,
@@ -243,10 +247,10 @@ class ReassignmentPlanValidator {
                                     words.value(
                                             routing.type(), routing.equipmentKind(), requiredKind));
                 }
-                BigDecimal minimum = standard.number(routing.minCapacity());
+                BigDecimal minimum = check.minimumCapacity();
                 if (minimum != null) {
-                    BigDecimal capacity = to.number(equipment.capacity());
-                    if (capacity == null || capacity.compareTo(minimum) < 0) {
+                    BigDecimal capacity = check.capacity();
+                    if (check.capacityVerdict() != EquipmentCapability.Verdict.MET) {
                         return "대체 설비 %s의 능력 %s톤이 작업지시 %s의 %s 공정 최소 %s톤보다 작습니다."
                                 .formatted(
                                         toLabel,
