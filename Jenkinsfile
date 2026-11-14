@@ -321,7 +321,8 @@ pipeline {
             when { expression { env.DEPLOY_BACKEND == 'true' } }
             steps {
                 // 작업 폴더의 backend/ 로 굽는다. 태그 = 커밋 번호. (수동 배포 절차 3번과 동일)
-                sh 'docker build -t axcore-backend:${GIT_SHA} backend'
+                // 이미지는 커밋마다 한 번만 굽는다(아래 buildOnce).
+                script { buildOnce('axcore-backend', 'backend') }
             }
         }
 
@@ -348,7 +349,7 @@ pipeline {
             when { expression { env.DEPLOY_AI == 'true' } }
             steps {
                 // backend 배포 뒤 AI 이미지를 빌드한다. 태그 = 커밋 번호.
-                sh 'docker build -t axcore-ai:${GIT_SHA} ai'
+                script { buildOnce('axcore-ai', 'ai') }
             }
         }
 
@@ -365,7 +366,7 @@ pipeline {
             when { expression { env.DEPLOY_FRONTEND == 'true' } }
             steps {
                 // 작업 폴더의 frontend/ 로 굽는다 (frontend/Dockerfile: node 빌드 → nginx 정적 서빙). 태그 = 커밋 번호.
-                sh 'docker build -t axcore-frontend:${GIT_SHA} frontend'
+                script { buildOnce('axcore-frontend', 'frontend') }
             }
         }
 
@@ -835,6 +836,20 @@ def waitForHttpHealth(List services) {
     """
 }
 
+// 이미지를 커밋마다 한 번만 굽는다. 태그 = 커밋 번호라, 그 커밋의 이미지가 이미 있으면 그대로 쓴다.
+// 같은 커밋을 다시 구우면 내용이 같아도 빌드 정보(attestation) 때문에 이미지 ID가 바뀌어, 그 태그로 떠 있는 컨테이너와
+// 태그가 서로 다른 이미지를 가리키게 된다(2026-11-14 FORCE_DEPLOY #432 뒤 #435·#436 배포 실패). 굽는 데 쓰는 것은 그 커밋의
+// 폴더뿐이라(빌드 인자 없음) 다시 구울 이유가 없다. 이미지가 잘못 구워졌으면 태그를 지우고 다시 돌린다.
+def buildOnce(String image, String dir) {
+    sh """
+        if docker image inspect ${image}:${env.GIT_SHA} >/dev/null 2>&1; then
+            echo "${image}:${env.GIT_SHA} 이미지가 이미 있어 다시 굽지 않는다"
+        else
+            docker build -t ${image}:${env.GIT_SHA} ${dir}
+        fi
+    """
+}
+
 def deploymentCompose() {
     return "env -u AI_ONTOLOGY_LLM_PROVIDER -u AI_ONTOLOGY_LLM_BASE_URL -u AI_ONTOLOGY_LLM_API_KEY -u AXCORE_AGENT_LLM docker compose --env-file '${env.DEPLOY_DIR}/.env' -f '${env.DEPLOY_DIR}/compose.yaml'"
 }
@@ -852,14 +867,16 @@ def deployService(String svc, String tagVar, List companions = []) {
     for (companion in companions) {
         def wasRunning = sh(returnStatus: true, script: "[ \"\$(docker inspect --format '{{.State.Running}}' ${companion} 2>/dev/null)\" = true ]") == 0
         if (wasRunning) {
-            // 버전이 이미 다른 상태에서 공유 태그만으로 롤백하지 않는다.
+            // 버전이 이미 다른 상태에서 공유 태그만으로 롤백하지 않는다. 버전은 커밋(컨테이너를 띄운 태그 이름)으로 본다.
+            // 이미지 ID는 같은 커밋이라도 다시 구우면 달라지고, 정리 단계에서 지워질 수도 있어 버전 비교에 쓰지 않는다.
             if (!prev) {
                 error("${companion} 실행 중이지만 이전 ${tagVar}가 없어 배포를 중단합니다.")
             }
             sh """
-                expected=\$(docker image inspect axcore-backend:${prev} --format '{{.Id}}')
-                actual=\$(docker inspect ${companion} --format '{{.Image}}')
-                [ "\$expected" = "\$actual" ] || { echo '${companion} 이미지와 ${tagVar} 불일치'; exit 1; }
+                actual=\$(docker inspect ${companion} --format '{{.Config.Image}}')
+                [ "\$actual" = 'axcore-backend:${prev}' ] || { echo "${companion} 버전(\$actual)과 ${tagVar}(${prev}) 불일치"; exit 1; }
+                # 실패하면 이 태그로 되돌리므로 그 이미지가 남아 있어야 한다
+                docker image inspect 'axcore-backend:${prev}' >/dev/null 2>&1 || { echo "롤백할 axcore-backend:${prev} 이미지가 없음"; exit 1; }
             """
             rollbackServices.add(companion)
         } else {
