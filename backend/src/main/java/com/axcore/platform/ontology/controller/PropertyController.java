@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -37,19 +38,24 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class PropertyController {
 
+    /** 026을 객체 조회 범위로 받는 값. 관리자도 검색 조건 목록은 이 범위로 받는다(420). */
+    private static final String VIEWABLE_SCOPE = "viewable";
+
     private final PropertyService propertyService;
     private final DefinitionEditRecorder editRecorder;
     private final DataAccessPolicy dataAccessPolicy;
 
     /**
      * API 026. 관리자는 정의를 관리하므로 모든 속성을 본다. 다른 역할은 객체 조회(076~078)와 같은 범위로, 볼 수 있는 유형의 볼 수 있는 속성만 받는다.
-     * 탐색 화면의 속성 조건 검색과 속성 이름·단위 표시에 쓴다.
+     * 탐색 화면의 속성 조건 검색과 속성 이름·단위 표시에 쓴다. {@code scope=viewable}이면 관리자도 객체 조회 범위로 받는다. 검색 조건 목록에 그
+     * 사람이 검색할 수 없는 민감 속성을 보이지 않기 위해서다(S15P31C106-420).
      */
     @GetMapping("/object-types/{id}/properties")
     public ApiResponse<List<PropertyResponse>> findProperties(
             @PathVariable("id") @Min(1) long objectTypeId,
+            @RequestParam(name = "scope", required = false) String scope,
             @AuthenticationPrincipal LoginAccount loginAccount) {
-        if (isAdmin(loginAccount)) {
+        if (isAdmin(loginAccount) && !VIEWABLE_SCOPE.equals(scope)) {
             return ApiResponse.of(propertyService.findProperties(objectTypeId));
         }
         return ApiResponse.of(

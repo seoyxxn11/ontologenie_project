@@ -146,6 +146,11 @@ class PropertyApiTests {
         mockMvc.perform(get(propertiesPath(typeId)).cookie(admin.session()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(2));
+        // 검색 조건용(scope=viewable)이면 관리자도 객체 조회 범위로 받는다(420). 관리자는 민감 값을 볼 수 없다
+        mockMvc.perform(get(propertiesPath(typeId) + "?scope=viewable").cookie(admin.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].code").value("status"));
         // 민감 값을 볼 수 없는 역할은 민감 속성을 받지 않는다(그 속성으로 검색할 수 없다)
         mockMvc.perform(get(propertiesPath(typeId)).cookie(viewer.session()))
                 .andExpect(status().isOk())

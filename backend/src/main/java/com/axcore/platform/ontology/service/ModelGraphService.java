@@ -1,5 +1,6 @@
 package com.axcore.platform.ontology.service;
 
+import com.axcore.platform.auth.service.DataAccess;
 import com.axcore.platform.ontology.dto.ModelGraphResponse;
 import com.axcore.platform.ontology.repository.ModelGraphQueryRepository;
 import com.axcore.platform.ontology.repository.ObjectTypeRepository;
@@ -20,5 +21,20 @@ public class ModelGraphService {
     public ModelGraphResponse getGraph() {
         return new ModelGraphResponse(
                 objectTypes.findModelGraphNodes(), graphQuery.findModelGraphEdges());
+    }
+
+    /** 볼 수 있는 유형과, 양 끝이 모두 볼 수 있는 유형인 관계만 남긴다. 숨긴 유형의 이름·관계 수를 알리지 않는다. */
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public ModelGraphResponse getVisibleGraph(DataAccess access) {
+        return new ModelGraphResponse(
+                objectTypes.findModelGraphNodes().stream()
+                        .filter(node -> access.canView(node.id()))
+                        .toList(),
+                graphQuery.findModelGraphEdges().stream()
+                        .filter(
+                                edge ->
+                                        access.canView(edge.sourceTypeId())
+                                                && access.canView(edge.targetTypeId()))
+                        .toList());
     }
 }

@@ -137,7 +137,7 @@ function ExplorerPage() {
   })
 
   // 객체를 고르기 전 가운데에 보여 줄 객체 유형 관계도(042).
-  // 관리자 전용 API의 403은 객체 선택 안내로 처리한다.
+  // 관리자 외 역할은 볼 수 있는 유형만 받는다(420). 볼 유형이 없거나 403이면 객체 선택 안내로 처리한다.
   const {
     data: modelGraph,
     isPending: isModelGraphPending,
@@ -152,8 +152,10 @@ function ExplorerPage() {
   })
   const isModelGraphForbidden =
     modelGraphError instanceof ApiError && modelGraphError.status === 403
-  const showModelGraph =
-    anchorId === null && Boolean(modelGraph) && !isModelGraphForbidden
+  // 보여 줄 유형이 하나라도 있을 때만 관계도로 쓴다.
+  const visibleModelGraph =
+    modelGraph?.nodes.length && !isModelGraphForbidden ? modelGraph : undefined
+  const showModelGraph = anchorId === null && Boolean(visibleModelGraph)
 
   // 관계도 칸 제목에 쓸 고른 객체의 이름. 관계도·상세와 같은 캐시를 쓴다.
   const { data: selectedObject } = useQuery({
@@ -426,7 +428,7 @@ function ExplorerPage() {
               />
             ) : isModelGraphPending ? (
               <p className="text-slate-500">유형 관계도를 불러오는 중…</p>
-            ) : modelGraph && !isModelGraphForbidden ? (
+            ) : visibleModelGraph ? (
               <Suspense
                 fallback={
                   <p className="text-slate-500">유형 관계도를 불러오는 중…</p>
@@ -434,7 +436,7 @@ function ExplorerPage() {
               >
                 <ModelGraph
                   view={modelView}
-                  graph={modelGraph}
+                  graph={visibleModelGraph}
                   selectedTypeId={filters.objectTypeId ?? null}
                   onSelect={handleSelectType}
                 />
@@ -481,10 +483,13 @@ function ExplorerPage() {
             key={selectedId ?? `type-${filters.objectTypeId ?? 'all'}`}
             className="explorer-panel-body explorer-detail-body"
           >
-            {selectedId !== null || !modelGraph || isModelGraphForbidden ? (
+            {selectedId !== null || !visibleModelGraph ? (
               <ObjectDetail objectId={selectedId} />
             ) : filters.objectTypeId ? (
-              <TypeRelations graph={modelGraph} typeId={filters.objectTypeId} />
+              <TypeRelations
+                graph={visibleModelGraph}
+                typeId={filters.objectTypeId}
+              />
             ) : (
               <p className="explorer-detail-hint">
                 가운데에서 객체 유형을 고르거나 왼쪽 목록에서 객체를 선택해
