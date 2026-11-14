@@ -35,6 +35,7 @@ FN-ISS-01~04의 정합성 문제 목록·근거 조회, 처리 상태 변경, �
 
 - `evidence`는 저장된 근거를 그대로 주되 `causeConfirmed`는 항상 넣는다. 저장된 근거에 boolean으로 없으면 `false`다. 화면은 false일 때 "원인 미확정"을 표시한다(FN-ISS-02).
 - 원인을 확인한 검사는 근거에 `"causeConfirmed": true`를 넣어 등록한다.
+- `rawValue`·`transformedValue`·`evidence.transformedValues`는 보는 사람의 조회 범위로 가린 값이다(403). 값을 낸 규칙 개정본(`linkMappingId`)의 출발·도착 유형을 모두 볼 수 있고 비교 조건 속성이 모두 볼 수 있는 값일 때만 보여 준다. 아니면 셋을 `null`로 두고 가린 칸 이름을 `restrictedFields`(이름순)에 담는다. 값이 원래 없어서 `null`이면 `restrictedFields`는 비어 있다. 067·068 응답도 같다. 기준은 [data-access.md](data-access.md) "저장된 사본 (403)"이다.
 
 ## 문제 등록 (`IssueRegistrationService.register`)
 
@@ -107,6 +108,7 @@ FN-ISS-01~04의 정합성 문제 목록·근거 조회, 처리 상태 변경, �
 
 - `page`는 0부터 시작하고 기본값은 0, `size` 기본값은 20이다. `checkedAt` 내림차순, 같은 시각이면 `checkRunId` 내림차순으로 반환한다.
 - 각 항목은 `issueId`, `checkRunId`, `triggerKind`, 실행 `status`, 판정 `outcome`, `detail`, `checkedAt`을 담는다. `detail`에는 원본 값, 변환 값, 대상 존재 여부, 판정 분류, 판정 사유(`reason`), 검사에 사용한 규칙 개정본 ID(`linkMappingId`)가 들어간다.
+- `detail`의 원본·변환 값은 그 `linkMappingId` 규칙과 보는 사람의 조회 범위로 가린다(403). 가렸으면 `null`로 두고 `detail.restrictedFields`에 칸 이름을 넣는다. `linkMappingId`가 없는 옛 기록은 값을 가린다.
 - 실제로 판정한 PASSED와 FAILED만 저장하며, 같은 문제·검사 실행의 기록은 하나만 남긴다. 판정할 수 없었던 항목은 실행 감사 기록의 집계에서 확인할 수 있다.
 - 문제가 없으면 404, 문제가 있지만 기록이 없으면 200과 빈 목록을 반환한다. 잘못된 ID·페이지 조건은 400, 미인증은 401, 관리자 권한이 없으면 403이다.
 

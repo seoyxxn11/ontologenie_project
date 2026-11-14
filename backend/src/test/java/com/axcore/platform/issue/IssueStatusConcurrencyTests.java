@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.axcore.platform.TestcontainersConfiguration;
 import com.axcore.platform.global.error.BusinessException;
+import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.issue.dto.IssueResponse;
 import com.axcore.platform.issue.dto.IssueStatusChangeRequest;
 import com.axcore.platform.issue.service.IssueStatusService;
@@ -89,7 +90,7 @@ class IssueStatusConcurrencyTests {
         Callable<String> change =
                 () -> {
                     try {
-                        IssueResponse response = statusService.change(issueId, request, accountId);
+                        IssueResponse response = statusService.change(issueId, request, admin());
                         return "OK:" + response.rowVersion();
                     } catch (BusinessException conflict) {
                         assertThat(conflict.getErrorCode().status()).isEqualTo(HttpStatus.CONFLICT);
@@ -126,7 +127,7 @@ class IssueStatusConcurrencyTests {
                 statusService.change(
                         issueId,
                         new IssueStatusChangeRequest("CHECKING", "확인 시작", null, 0L),
-                        accountId);
+                        admin());
         assertThat(checking.rowVersion()).isEqualTo(1);
         assertThat(issueRow()).containsEntry("row_version", 1);
 
@@ -134,7 +135,7 @@ class IssueStatusConcurrencyTests {
                 statusService.change(
                         issueId,
                         new IssueStatusChangeRequest("FIXED_PENDING_REVERIFY", "수정 완료", null, 1L),
-                        accountId);
+                        admin());
         assertThat(fixed.rowVersion()).isEqualTo(2);
         assertThat(issueRow())
                 .containsEntry("status", "FIXED_PENDING_REVERIFY")
@@ -179,5 +180,9 @@ class IssueStatusConcurrencyTests {
                 .param("id", issueId)
                 .query(Long.class)
                 .single();
+    }
+
+    private LoginAccount admin() {
+        return new LoginAccount(accountId, "admin", "ADMIN", false);
     }
 }

@@ -40,4 +40,39 @@ public interface PropertySourceMappingRepository
 
     /** 여러 객체 매핑의 속성 매핑. 전체 읽기(Jira 197)가 쓴다. */
     List<PropertySourceMapping> findBySourceMappingIdInOrderById(Collection<Long> sourceMappingIds);
+
+    /**
+     * 원천 표의 컬럼이 담기는 속성(403). 저장된 제안 근거의 예시 값이 지금 어느 유형·속성의 값인지 알아 조회 범위로 가릴 때 쓴다. 꺼진 매핑도 넣는다(가리는
+     * 쪽으로). 표 키는 소문자로 비교한다.
+     */
+    @Query(
+            """
+            select distinct new com.axcore.platform.mapping.repository.MappedSourceColumn(
+                lower(r.resourceKey), c.columnName, t.code, p.code)
+            from PropertySourceMapping m
+            join SourceColumn c on c.id = m.sourceColumnId
+            join SourceResource r on r.id = m.sourceResourceId
+            join PropertyDefinition p on p.id = m.propertyDefinitionId
+            join ObjectType t on t.id = p.objectTypeId
+            where lower(r.resourceKey) in :resourceKeys
+            """)
+    List<MappedSourceColumn> findMappedColumns(
+            @Param("resourceKeys") Collection<String> resourceKeys);
+
+    /**
+     * 유형의 속성을 담는 원천 컬럼(403). 저장된 검사 표본의 원천 키({@code 컬럼 → 값})에서 민감 속성을 담는 키 컬럼을 찾을 때 쓴다. 꺼진 매핑도 넣는다.
+     */
+    @Query(
+            """
+            select distinct new com.axcore.platform.mapping.repository.MappedSourceColumn(
+                lower(r.resourceKey), c.columnName, t.code, p.code)
+            from PropertySourceMapping m
+            join SourceColumn c on c.id = m.sourceColumnId
+            join SourceResource r on r.id = m.sourceResourceId
+            join PropertyDefinition p on p.id = m.propertyDefinitionId
+            join ObjectType t on t.id = p.objectTypeId
+            where t.code in :typeCodes
+            """)
+    List<MappedSourceColumn> findMappedColumnsOfTypes(
+            @Param("typeCodes") Collection<String> typeCodes);
 }

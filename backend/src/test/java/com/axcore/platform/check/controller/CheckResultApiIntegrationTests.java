@@ -86,8 +86,11 @@ class CheckResultApiIntegrationTests {
                 .andExpect(jsonPath("$.data[0].duplicateCount").value(2))
                 .andExpect(jsonPath("$.data[0].violationCount").value(1))
                 .andExpect(jsonPath("$.data[0].matchRate").value(0.4))
-                .andExpect(jsonPath("$.data[0].sampleRows[0].rawValue").value("W23"))
-                .andExpect(jsonPath("$.data[0].sampleRows[0].transformedValue").value("E023"))
+                // 후보 시험 실행이 아니어서 후보의 유형·조건을 알 수 없으므로 값은 가린다(403). 건수·분류·사유는 남는다.
+                .andExpect(jsonPath("$.data[0].sampleRows[0].rawValue").value(nullValue()))
+                .andExpect(jsonPath("$.data[0].sampleRows[0].transformedValue").value(nullValue()))
+                .andExpect(
+                        jsonPath("$.data[0].sampleRows[0].restrictedFields[0]").value("rawValue"))
                 .andExpect(jsonPath("$.data[0].sampleRows[0].classification").value("UNMATCHED"))
                 .andExpect(jsonPath("$.data[0].sampleRows[0].reason").value("대상 객체 없음"))
                 .andExpect(jsonPath("$.data[0].aiConfidence").doesNotExist())
@@ -429,13 +432,23 @@ class CheckResultApiIntegrationTests {
                 .sql(
                         """
                         with source_type as (
-                            insert into object_type (code, name)
-                            values (:sourceCode, '테스트 출발 유형')
+                            insert into object_type (code, name, access_group)
+                            values (:sourceCode, '테스트 출발 유형', 'PRODUCTION')
                             returning id
                         ),
                         target_type as (
-                            insert into object_type (code, name)
-                            values (:targetCode, '테스트 도착 유형')
+                            insert into object_type (code, name, access_group)
+                            values (:targetCode, '테스트 도착 유형', 'PRODUCTION')
+                            returning id
+                        ),
+                        source_property as (
+                            insert into property_definition (object_type_id, code, name, data_type)
+                            select id, 'code', '코드', 'STRING' from source_type
+                            returning id
+                        ),
+                        target_property as (
+                            insert into property_definition (object_type_id, code, name, data_type)
+                            select id, 'code', '코드', 'STRING' from target_type
                             returning id
                         ),
                         relation_type as (
@@ -449,11 +462,20 @@ class CheckResultApiIntegrationTests {
                             from source_type s
                             cross join target_type t
                             returning id
+                        ),
+                        mapping as (
+                            insert into link_mapping (link_type_id, code, revision)
+                            select id, :mappingCode, 1 from relation_type
+                            returning id
+                        ),
+                        -- 비교 조건은 규칙과 같은 트랜잭션에서만 넣을 수 있다. 검사 값은 이 조건(일반 속성)의 값이라 ADMIN에게 보인다(403).
+                        condition as (
+                            insert into link_mapping_condition (
+                                link_mapping_id, source_property_id, target_property_id, sequence_no)
+                            select m.id, s.id, t.id, 1
+                            from mapping m cross join source_property s cross join target_property t
                         )
-                        insert into link_mapping (link_type_id, code, revision)
-                        select id, :mappingCode, 1
-                        from relation_type
-                        returning id
+                        select id from mapping
                         """)
                 .param("sourceCode", "SRC_" + suffix)
                 .param("targetCode", "DST_" + suffix)

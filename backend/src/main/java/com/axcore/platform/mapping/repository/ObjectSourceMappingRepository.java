@@ -1,6 +1,7 @@
 package com.axcore.platform.mapping.repository;
 
 import com.axcore.platform.mapping.domain.ObjectSourceMapping;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -52,4 +53,17 @@ public interface ObjectSourceMappingRepository extends JpaRepository<ObjectSourc
 
     /** 한 원천 자원의 켜진 매핑. 전체 읽기(Jira 197)가 이 매핑으로 객체를 만든다. */
     List<ObjectSourceMapping> findBySourceResourceIdAndActiveTrueOrderById(Long sourceResourceId);
+
+    /** 원천 표를 담는 객체 유형(403). 제안 근거의 예시 값이 볼 수 없는 유형의 표에서 왔는지 볼 때 쓴다. 꺼진 매핑도 넣는다. 표 키는 소문자로 비교한다. */
+    @Query(
+            """
+            select distinct new com.axcore.platform.mapping.repository.MappedSourceTable(
+                lower(r.resourceKey), t.code)
+            from ObjectSourceMapping m
+            join SourceResource r on r.id = m.sourceResourceId
+            join ObjectType t on t.id = m.objectTypeId
+            where lower(r.resourceKey) in :resourceKeys
+            """)
+    List<MappedSourceTable> findMappedTables(
+            @Param("resourceKeys") Collection<String> resourceKeys);
 }

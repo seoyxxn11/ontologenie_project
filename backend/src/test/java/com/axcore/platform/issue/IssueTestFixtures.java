@@ -150,13 +150,13 @@ public record IssueTestFixtures(JdbcClient jdbc) {
         return jdbc.sql(
                         """
                         with source_type as (
-                            insert into object_type (code, name)
-                            values (:sourceCode, '문제 테스트 출발 유형')
+                            insert into object_type (code, name, access_group)
+                            values (:sourceCode, '문제 테스트 출발 유형', 'PRODUCTION')
                             returning id
                         ),
                         target_type as (
-                            insert into object_type (code, name)
-                            values (:targetCode, '문제 테스트 도착 유형')
+                            insert into object_type (code, name, access_group)
+                            values (:targetCode, '문제 테스트 도착 유형', 'PRODUCTION')
                             returning id
                         ),
                         relation_type as (

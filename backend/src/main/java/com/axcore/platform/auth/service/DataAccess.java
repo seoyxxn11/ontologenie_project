@@ -85,6 +85,19 @@ public final class DataAccess {
         return scope != null && scope.visible();
     }
 
+    /**
+     * 범위를 읽을 때 있던 유형인가. 볼 수 있는지와 관계없다. 저장된 사본(검사 표본·제안 근거)이 아직 만들지 않은 후보 유형을 가리키는지 가를 때 쓴다(403).
+     */
+    public boolean hasType(String objectTypeCode) {
+        return scopesByCode.containsKey(objectTypeCode);
+    }
+
+    /** 유형 코드로 확인한다. 저장된 사본처럼 유형 코드만 아는 기록이 쓴다(403). 없는 유형이면 false다. */
+    public boolean canViewRestricted(String objectTypeCode) {
+        ObjectTypeScope scope = scopesByCode.get(objectTypeCode);
+        return scope != null && canViewRestricted(scope.objectTypeId());
+    }
+
     /** 볼 수 없는 유형이면 false다. 모델 용도면 항상 false다. */
     public boolean canViewRestricted(long objectTypeId) {
         ObjectTypeScope scope = scopes.get(objectTypeId);

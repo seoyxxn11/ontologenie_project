@@ -36,7 +36,7 @@
 | 목록 | 뜻 |
 |---|---|
 | `SCOPED` | 범위를 적용해 돌려주는 곳(`ScopedObjectReader`, 객체 조회, Agent 조건 값 종류) |
-| `INTERNAL` | 사용자 응답에 객체 값을 내보내지 않는 곳(수집 쓰기, 검사 배치, 연결 재계산, ID·유형·건수만 읽는 확인) |
+| `INTERNAL` | 객체 값을 바로 응답에 담지 않는 곳(수집 쓰기, 검사 배치, 연결 재계산, ID·유형·건수만 읽는 확인). 검사 배치(`CheckObjectReader`)가 읽은 값은 사본으로 저장돼 문제·검사 결과로 나간다. 그 사본은 돌려줄 때 아래 "저장된 사본 (403)"대로 가린다 |
 | `TO_MIGRATE` | 공통 진입점으로 옮겨야 하는 곳. 옮기면 목록에서 지운다 |
 
 새로 `object_instance`를 읽어야 하면, 사용자 요청 경로는 `ScopedObjectReader`를 쓰고, 내부 작업이면 이유와 함께 `INTERNAL`에 올린다.
@@ -132,7 +132,7 @@ Agent 도구 결과는 외부 언어 모델의 입력이 된다. 그래서 Agent
 | 항목 | 내용 |
 |---|---|
 | 언제 | 응답에 가리지 않은 민감 값(null 아님)이 하나라도 있을 때, 응답 한 번에 한 행. 가렸거나 값이 비었으면 남기지 않는다 |
-| 경로(`input.view`) | 077 `OBJECT_DETAIL`, 076 `OBJECT_SEARCH`, 값으로 찾기 `OBJECT_VALUE_SEARCH`, ID로 읽기 `OBJECT_BY_IDS`, 092 `ACTION_RESULT`, 093~095 `REASSIGNMENT_PLAN`, 097 `AUDIT_DETAIL`, 098 `AUDIT_CHANGES` |
+| 경로(`input.view`) | 077 `OBJECT_DETAIL`, 076 `OBJECT_SEARCH`, 값으로 찾기 `OBJECT_VALUE_SEARCH`, ID로 읽기 `OBJECT_BY_IDS`, 092 `ACTION_RESULT`, 093~095 `REASSIGNMENT_PLAN`, 097 `AUDIT_DETAIL`, 098 `AUDIT_CHANGES`. 저장된 사본(403): 065 `ISSUE_SEARCH`, 066 `ISSUE_DETAIL`, 067 `ISSUE_STATUS`, 068 `ISSUE_FORWARD`, 070 `ISSUE_VERIFICATIONS`, 062 `CHECK_RESULTS`, 재검증 비교 `CHECK_COMPARISON`, 제안 목록 `PROPOSAL_SEARCH`, 049 `PROPOSAL_DETAIL`, 선택지 `PROPOSAL_OPTIONS`, 개정 이력 `PROPOSAL_REVISIONS`, 020 `ANALYSIS_PROPOSALS` |
 | 남기는 것 | 요청자와 역할 스냅샷, 진입 경로(WEB), `result.seen`(대상 종류·ID·필드 코드), `result.policyVersion`(원천 데이터 정책 목록 지문). 대상이 하나면 `target_type`·`target_id`에도 둔다 |
 | 남기지 않는 것 | 값 원문 |
 | 실패 | 기록이 실패하면 응답도 실패한다. 접속 기록 없이 민감 값을 내보내지 않는다. 기록은 응답 트랜잭션과 따로 커밋한다 |
@@ -140,8 +140,35 @@ Agent 도구 결과는 외부 언어 모델의 입력이 된다. 그래서 Agent
 | 보존 | 248(로그 보존 정책)이 정해지기 전까지 `action_execution`과 같다 |
 
 - 기록 위치는 응답을 만드는 서비스다. 공통 가림(`DataAccess.mask`, `AuditValueMasker`)은 보여 준 민감 코드(`revealedPropertyCodes`)만 알려 준다. Action 검증처럼 값을 사람에게 내보내지 않는 내부 읽기는 남기지 않는다.
-- 기록할 일이 없는 경로: Agent는 모델 용도라 늘 가린다(그래서 경로 AGENT는 생기지 않는다). 값 표본(`PropertyValueSampleService`)은 Agent만 쓴다. 정합성 검사 표본은 연결 키·원천 키만 담는데 391부터 둘 다 민감일 수 없다. 미리보기·원천 표본은 민감 값을 읽지 않는다.
+- 기록할 일이 없는 경로: Agent는 모델 용도라 늘 가린다(그래서 경로 AGENT는 생기지 않는다). 값 표본(`PropertyValueSampleService`)은 Agent만 쓴다. 미리보기·원천 표본은 민감 값을 읽지 않는다.
+- 저장된 사본(403)도 같은 규칙으로 남긴다. 391부터 연결 키·원천 키는 민감일 수 없어 보통은 남을 일이 없다. 다만 391 이전 사본, 폐기된 규칙 개정본, 저장 뒤 민감으로 올린 속성의 사본은 민감 값일 수 있다. 지금 이 API를 쓰는 ADMIN은 민감 값을 볼 수 없어(V21) 늘 가려지고 기록도 남지 않는다. ADMIN 허용 행이 민감 값을 열면 그때부터 남는다. 대상 종류는 `issue`·`check_result`·`check_run`(비교는 재검증 실행)·`proposal_item`이고, 필드는 `유형코드.속성코드`다.
 - 한계: 응답에 담긴 값을 기준으로 남긴다. 화면이 실제로 보여 줬는지는 모른다. 기록 뒤 응답 직렬화가 실패하면 기록만 남는다(넘치게 남는 쪽).
+
+## 저장된 사본 (403)
+
+객체 밖에 복사해 둔 객체 값도 객체와 같은 기준으로 돌려준다. ADMIN은 민감 값을 볼 수 없는 역할이라(V21) "ADMIN 전용 API"라는 것만으로는 안전하지 않다. 저장할 때가 아니라 **돌려줄 때** 지금의 정의와 보는 사람의 범위로 가린다. 그래서 저장 뒤 속성을 민감으로 올리거나 유형 그룹을 바꿔도 옛 사본이 그대로 나가지 않는다. 사본을 지우거나 다시 쓰지는 않는다.
+
+| 사본 | API | 가리는 칸 | 기준이 되는 규칙 |
+|---|---|---|---|
+| 문제 | 065·066·067·068 | `rawValue`, `transformedValue`, `evidence.transformedValues` | 문제의 `linkMappingId` 개정본 |
+| 재검증 기록 | 070 | `detail.rawValue`, `detail.transformedValue` | `detail.linkMappingId` 개정본. 없는 옛 기록은 가린다 |
+| 검사 결과 표본 | 062 | `sampleRows[].rawValue`·`transformedValue`·`sourceKey`·`targetKey` | 승인 규칙이면 결과의 `linkMappingId`, 후보 시험이면 그 검사 실행이 시험한 후보 개정본 |
+| 재검증 비교 | 059 하위 `/comparison` | `before`·`after`의 `rawValue`·`transformedValue` | 근거의 `linkMappingId` 개정본 |
+| 제안 근거 | 제안 목록·049 상세·선택지·개정 이력·020 분석별 제안 | 근거 항목(`locator`를 가진 객체)의 `values`·`snippet` | 위치(`스키마.표[.컬럼]`)가 지금 담기는 유형·속성 |
+
+**검사 값(`StoredCheckValues`):** 규칙의 출발·도착 유형을 모두 볼 수 있고, 비교 조건의 출발·도착 속성이 모두 가릴 값이 아닐 때만 비교값과 원천 키를 보여 준다. 하나라도 아니면 모두 비운다. 대응한 행은 양쪽 비교값이 같아서 한쪽만 비우면 다른 쪽 값과 원천 키로 알아낼 수 있기 때문이다(후보 시험 400과 같은 기준). 값을 보여 줄 때도 원천 키는 `ObjectDisplaySql`과 같은 기준으로 가린다. 보는 사람이 그 유형의 민감 값을 볼 수 없으면, 일반 속성에만 매핑돼 있다고 확인된 키 컬럼만 보여 주고, 매핑이 없거나(지운 매핑 포함) 민감 속성에 매핑된 키 컬럼의 값은 비운다. 같은 이름의 컬럼이 그 유형의 다른 원천 표에서 민감 속성에 매핑돼도 비운다. 규칙을 찾지 못하거나 후보를 읽을 수 없으면 모두 비운다. 후보 시험의 유형이 아직 만들지 않은 후보 유형이면 그 쪽에는 범위가 없으므로, 400이 저장할 때 원천 정책으로 가린 그대로 둔다.
+
+**제안 근거(`ProposalEvidenceScope`):** 위치가 볼 수 없는 유형이 담는 표이거나, 보는 사람이 볼 수 없는 민감 속성이 담는 컬럼(묶은 컬럼 `a+b`는 하나라도)이면 `values`를 비우고 `snippet`을 "조회 범위상 예시 값을 보여 주지 않습니다."로 바꾼다. 위치는 남긴다. 꺼진 매핑도 본다. 아직 어느 유형에도 매핑되지 않은 표·컬럼은 원천 데이터 정책(105 수신 때 가림, 399)만 따른다. 원천 표본(225)과 같은 수준이다.
+
+- 가린 칸 이름은 `restrictedFields`(이름순)에 둔다. 값이 원래 없어 `null`인 것과 가린 것을 화면이 나눌 수 있게 한다. 062는 후보 시험이 저장 때 비운 칸과 합친다. 제안 근거는 399와 같은 모양(빈 `values`, 고정 `snippet`)으로 알린다.
+- 판정 분류·사유(`classification`·`reason`·`failureReason`)와 객체 ID, 건수는 남긴다. 사유 문장에는 속성 코드만 들어가고 값은 없다.
+- 지금 이 API는 모두 ADMIN 전용이라 VIEWER·PLANNER는 403이다. 범위는 역할 이름이 아니라 허용 행으로 정하므로, 나중에 다른 역할에 열어도 같은 기준이 적용된다.
+- 가리지 않은 민감 값을 내보내면 열람 기록(394)을 남긴다. 위 "민감 값 열람 기록"을 본다. 067·068은 문제 행을 잠근 채 응답을 만들므로 기록이 상태 변경보다 먼저 따로 커밋된다. 기록이 실패하면 상태 변경도 되돌리고, 기록 뒤 상태 변경 커밋이 실패하면 기록만 남는다(넘치게 남는 쪽).
+- 제안 근거에서 항목을 하나라도 가렸으면 그 항목을 품은 근거(와 그 위)의 자유 문장·문서 칸도 "조회 범위상 예시 값이 든 설명을 보여 주지 않습니다."로 바꾼다. 대상은 `reason`·`holdReason`·`llmJudgement`(AI가 원천 값 예시를 넣기도 함), 문서 연결 근거의 `originalText`·`documentLabel`·`observations[].text`·`times[].text`·`targetLabels` 값이다. 칸 이름과 다른 칸은 남긴다.
+- 개정 저장(`POST /proposals/{id}/revisions`): 화면은 가린 근거(049·선택지 응답)를 고쳐 통째로 보낸다. 그대로 저장하면 가린 문구가 원본을 영구히 덮으므로, 요청 근거의 각 자리가 "저장된 근거를 이 사용자 기준으로 가린 값"과 같으면 그 자리는 저장된 원본으로 되돌린다(`ProposalEvidenceScope.restore`). 사람이 실제로 바꾼 자리(예: `reason`)는 바꾼 값을 쓴다. 선택지 근거는 지금 개정본의 같은 순서 선택지와 맞춘다. 한계: 목록 길이를 바꾼 자리(항목을 빼거나 더함)는 그 목록을 요청대로 저장하므로, 그 안에 남은 가린 항목은 가린 모양으로 저장된다.
+- 한계: 가린 항목이 없는 근거의 문장, 제목, payload(정의 후보, 연결 규칙 후보의 행 조건 값 포함)는 고치지 않는다. 문장 안의 값은 위치를 알 수 없어서다. 민감 속성은 행 조건에 쓸 수 없으므로(400) payload의 행 조건 값은 일반 값이다.
+- 한계: 원천 표본(225)·매핑 미리보기(040·102)는 이 기준이 아니라 원천 데이터 정책만 따른다. 그룹이 없는 유형에 매핑된 표의 일반 컬럼도 ADMIN에게 보인다.
+- 시험: `StoredCopyScopeApiTests`(ADMIN이 일반 값은 보고, 민감 속성을 조건으로 쓴 규칙·그룹 없는 유형의 값은 문제·재검증 기록·검사 결과·후보 시험·재검증 비교·제안 근거에서 못 봄, VIEWER 403, 민감 값을 여는 허용 행이면 값과 열람 기록).
 
 ## 아직 남은 것 (384 다른 작업)
 

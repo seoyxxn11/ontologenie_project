@@ -73,7 +73,7 @@ public class AnalysisController {
             @AuthenticationPrincipal LoginAccount account) {
         requireAdmin(account);
         return ApiResponse.ofPage(
-                queries.proposals(id, request, page(request.page(), request.size())));
+                queries.proposals(account, id, request, page(request.page(), request.size())));
     }
 
     private static PageRequest page(Integer page, Integer size) {

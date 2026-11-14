@@ -7,6 +7,8 @@ import com.axcore.platform.audit.domain.EntryPoint;
 import com.axcore.platform.audit.domain.EventKind;
 import com.axcore.platform.audit.domain.ExecutionStatus;
 import com.axcore.platform.audit.service.AuditRecorder;
+import com.axcore.platform.auth.service.DataAccess;
+import com.axcore.platform.auth.service.DataAccessPolicy;
 import com.axcore.platform.check.domain.CandidateCheckTarget;
 import com.axcore.platform.check.service.CandidateCheckService;
 import com.axcore.platform.global.error.BusinessException;
@@ -42,6 +44,8 @@ public class ProposalCommandService {
     private final ProposalPayloadValidator validator;
     private final CandidateCheckService checks;
     private final AuditRecorder audits;
+    private final DataAccessPolicy dataAccessPolicy;
+    private final ProposalEvidenceScope evidenceScope;
 
     public ProposalWriteResponse create(ManualProposalCreateRequest request, LoginAccount account) {
         if (!"LINK_RULE".equals(request.itemKind())) {
@@ -97,10 +101,38 @@ public class ProposalCommandService {
                             item.getAnalysisRunId(),
                             "options[" + i + "].payload"));
         }
+        // 화면은 가린 근거(049·선택지 응답)를 고쳐 통째로 보낸다. 가린 자리는 저장된 원본으로 되돌려 원본을 덮지 않는다(403).
+        DataAccess access = dataAccessPolicy.of(account);
+        Map<String, Object> evidence =
+                evidenceScope.restore(access, item.getEvidence(), request.evidence());
+        List<ProposalOptionCreateRequest> options = restoreOptions(access, item, request.options());
         Map<String, Object> before = metadata(item);
-        item.revise(request.payload(), request.evidence());
+        item.revise(request.payload(), evidence);
         items.flush();
-        return saveRevision(item, request.options(), types, account, before);
+        return saveRevision(item, options, types, account, before);
+    }
+
+    /**
+     * 선택지 근거도 같은 번호(지금 개정본의 선택지 순서)의 저장된 근거와 맞춰 가린 자리를 되돌린다. 화면은 선택지를 받은 순서대로 보낸다. 번호가 없는 새 선택지는
+     * 그대로다.
+     */
+    private List<ProposalOptionCreateRequest> restoreOptions(
+            DataAccess access, ProposalItem item, List<ProposalOptionCreateRequest> requested) {
+        List<ProposalOption> stored =
+                proposalOptions.findByProposalItemIdAndRevisionOrderByOptionNo(
+                        item.getId(), item.getRevision());
+        List<ProposalOptionCreateRequest> restored = new ArrayList<>(requested.size());
+        for (int i = 0; i < requested.size(); i++) {
+            ProposalOptionCreateRequest option = requested.get(i);
+            restored.add(
+                    i < stored.size()
+                            ? new ProposalOptionCreateRequest(
+                                    option.payload(),
+                                    evidenceScope.restore(
+                                            access, stored.get(i).getEvidence(), option.evidence()))
+                            : option);
+        }
+        return restored;
     }
 
     private ProposalWriteResponse saveRevision(

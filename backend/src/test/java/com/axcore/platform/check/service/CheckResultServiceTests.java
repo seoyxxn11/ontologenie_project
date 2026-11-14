@@ -2,21 +2,29 @@ package com.axcore.platform.check.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.axcore.platform.audit.service.RestrictedViewRecorder;
+import com.axcore.platform.auth.service.DataAccessPolicy;
 import com.axcore.platform.check.domain.CheckResult;
 import com.axcore.platform.check.dto.CheckResultResponse;
 import com.axcore.platform.check.dto.CheckResultSearchRequest;
 import com.axcore.platform.check.repository.CheckResultRepository;
 import com.axcore.platform.check.repository.CheckRunQueryRepository;
+import com.axcore.platform.check.service.StoredCheckValues.Masked;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
+import com.axcore.platform.global.security.LoginAccount;
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -39,6 +47,8 @@ class CheckResultServiceTests {
 
     private static final long RUN_ID = 10L;
 
+    private static final LoginAccount ADMIN = new LoginAccount(1L, "admin", "ADMIN", false);
+
     private static final CheckResultSearchRequest REQUEST =
             new CheckResultSearchRequest(null, null, null, null);
 
@@ -46,7 +56,28 @@ class CheckResultServiceTests {
 
     @Mock CheckRunQueryRepository checkRunQueryRepository;
 
+    @Mock DataAccessPolicy dataAccessPolicy;
+
+    @Mock StoredCheckValues storedValues;
+
+    @Mock StoredCheckValues.Viewer viewer;
+
+    @Mock RestrictedViewRecorder restrictedViews;
+
     @InjectMocks CheckResultService checkResultService;
+
+    // 표본 가림은 StoredCopyScopeApiTests(실제 DB·보안 설정)에서 본다. 여기서는 값을 그대로 넘긴다.
+    @BeforeEach
+    void passValuesThrough() {
+        lenient().when(storedValues.viewer(any())).thenReturn(viewer);
+        lenient()
+                .when(viewer.sample(any(), any()))
+                .thenAnswer(
+                        invocation -> {
+                            Map<String, Object> sample = invocation.getArgument(1);
+                            return new Masked(new LinkedHashMap<>(sample), List.of(), List.of());
+                        });
+    }
 
     @Test
     void returnsResponseWithEvidenceAndInspectedRevision() {
@@ -69,7 +100,8 @@ class CheckResultServiceTests {
 
         givenSuccessfulPage(pageable, List.of(entity), 1);
 
-        Page<CheckResultResponse> result = checkResultService.search(RUN_ID, REQUEST, pageable);
+        Page<CheckResultResponse> result =
+                checkResultService.search(ADMIN, RUN_ID, REQUEST, pageable);
 
         assertThat(result.getContent()).hasSize(1);
 
@@ -105,7 +137,7 @@ class CheckResultServiceTests {
 
         given(checkRunQueryRepository.findStatusById(999L)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> checkResultService.search(999L, REQUEST, pageable))
+        assertThatThrownBy(() -> checkResultService.search(ADMIN, 999L, REQUEST, pageable))
                 .isInstanceOfSatisfying(
                         BusinessException.class,
                         exception -> {
@@ -127,7 +159,8 @@ class CheckResultServiceTests {
 
         given(checkRunQueryRepository.findStatusById(RUN_ID)).willReturn(Optional.of(status));
 
-        Page<CheckResultResponse> result = checkResultService.search(RUN_ID, REQUEST, pageable);
+        Page<CheckResultResponse> result =
+                checkResultService.search(ADMIN, RUN_ID, REQUEST, pageable);
 
         assertThat(result.getContent()).isEmpty();
         assertThat(result.getNumber()).isEqualTo(1);
@@ -145,7 +178,8 @@ class CheckResultServiceTests {
 
         givenSuccessfulPage(pageable, List.of(sampleResult(3, 2)), 1);
 
-        Page<CheckResultResponse> result = checkResultService.search(RUN_ID, REQUEST, pageable);
+        Page<CheckResultResponse> result =
+                checkResultService.search(ADMIN, RUN_ID, REQUEST, pageable);
 
         assertThat(result.getContent().get(0).matchRate())
                 .isEqualByComparingTo(new BigDecimal("0.6667"));
@@ -157,7 +191,8 @@ class CheckResultServiceTests {
 
         givenSuccessfulPage(pageable, List.of(sampleResult(0, 0)), 1);
 
-        Page<CheckResultResponse> result = checkResultService.search(RUN_ID, REQUEST, pageable);
+        Page<CheckResultResponse> result =
+                checkResultService.search(ADMIN, RUN_ID, REQUEST, pageable);
 
         CheckResultResponse response = result.getContent().get(0);
 
@@ -173,7 +208,8 @@ class CheckResultServiceTests {
 
         givenSuccessfulPage(pageable, List.of(sampleResult(10, 7)), 3);
 
-        Page<CheckResultResponse> result = checkResultService.search(RUN_ID, REQUEST, pageable);
+        Page<CheckResultResponse> result =
+                checkResultService.search(ADMIN, RUN_ID, REQUEST, pageable);
 
         assertThat(result.getContent()).extracting(CheckResultResponse::id).containsExactly(20L);
         assertThat(result.getNumber()).isEqualTo(1);
@@ -189,7 +225,8 @@ class CheckResultServiceTests {
 
         givenSuccessfulPage(pageable, List.of(), 0);
 
-        Page<CheckResultResponse> result = checkResultService.search(RUN_ID, REQUEST, pageable);
+        Page<CheckResultResponse> result =
+                checkResultService.search(ADMIN, RUN_ID, REQUEST, pageable);
 
         assertThat(result.getContent()).isEmpty();
         assertThat(result.getNumber()).isZero();
@@ -211,7 +248,8 @@ class CheckResultServiceTests {
 
         givenSuccessfulPage(pageable, List.of(entity), 1);
 
-        Page<CheckResultResponse> result = checkResultService.search(RUN_ID, REQUEST, pageable);
+        Page<CheckResultResponse> result =
+                checkResultService.search(ADMIN, RUN_ID, REQUEST, pageable);
 
         CheckResultResponse response = result.getContent().get(0);
 

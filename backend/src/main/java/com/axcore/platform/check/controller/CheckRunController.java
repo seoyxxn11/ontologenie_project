@@ -70,7 +70,7 @@ public class CheckRunController {
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
             @AuthenticationPrincipal LoginAccount account) {
         requireAdmin(account);
-        Comparison comparison = comparisons.get(id, PageRequest.of(page, size));
+        Comparison comparison = comparisons.get(account, id, PageRequest.of(page, size));
         return new ApiResponse<>(
                 new ReverificationComparisonResponse(
                         comparison.comparedToRunId(),

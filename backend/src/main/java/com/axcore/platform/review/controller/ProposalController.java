@@ -104,7 +104,7 @@ public class ProposalController {
 
         PageRequest pageable = PageRequest.of(page, size, Sort.by("id").descending());
 
-        return ApiResponse.ofPage(proposalService.search(request, pageable));
+        return ApiResponse.ofPage(proposalService.search(loginAccount, request, pageable));
     }
 
     @GetMapping("/{id}")
@@ -114,7 +114,7 @@ public class ProposalController {
 
         requireAdmin(loginAccount);
 
-        return ApiResponse.of(proposalService.getProposal(id));
+        return ApiResponse.of(proposalService.getProposal(loginAccount, id));
     }
 
     @GetMapping("/{id}/options")
@@ -127,7 +127,7 @@ public class ProposalController {
 
         requireAdmin(loginAccount);
 
-        return ApiResponse.of(proposalService.getOptions(id, revision));
+        return ApiResponse.of(proposalService.getOptions(loginAccount, id, revision));
     }
 
     @GetMapping("/{id}/revisions")
@@ -143,7 +143,7 @@ public class ProposalController {
 
         PageRequest pageable = PageRequest.of(page, size);
 
-        return ApiResponse.ofPage(proposalService.getRevisions(id, pageable));
+        return ApiResponse.ofPage(proposalService.getRevisions(loginAccount, id, pageable));
     }
 
     @GetMapping("/{id}/decisions")

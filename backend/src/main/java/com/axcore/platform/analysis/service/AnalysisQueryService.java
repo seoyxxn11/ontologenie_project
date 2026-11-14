@@ -6,6 +6,7 @@ import com.axcore.platform.analysis.dto.AnalysisSearchRequest;
 import com.axcore.platform.analysis.repository.AnalysisQueryRepository;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
+import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.review.dto.ProposalResponse;
 import com.axcore.platform.review.dto.ProposalSearchRequest;
 import com.axcore.platform.review.service.ProposalService;
@@ -32,11 +33,15 @@ public class AnalysisQueryService {
     }
 
     public Page<ProposalResponse> proposals(
-            long id, AnalysisProposalSearchRequest request, Pageable pageable) {
+            LoginAccount viewer,
+            long id,
+            AnalysisProposalSearchRequest request,
+            Pageable pageable) {
         if (!repository.exists(id)) {
             throw notFound();
         }
         return proposals.searchByAnalysis(
+                viewer,
                 id,
                 new ProposalSearchRequest(
                         "AI",
