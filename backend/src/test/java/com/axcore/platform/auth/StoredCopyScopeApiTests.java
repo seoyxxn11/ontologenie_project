@@ -549,13 +549,19 @@ class StoredCopyScopeApiTests {
                                                 "evidence",
                                                 optionEvidence))));
         String token = UUID.randomUUID().toString();
-        mockMvc.perform(
-                        post("/api/v1/proposals/" + proposal + "/revisions")
-                                .cookie(session, new Cookie("XSRF-TOKEN", token))
-                                .header("X-XSRF-TOKEN", token)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(request))
-                .andExpect(status().isCreated());
+        String response =
+                mockMvc.perform(
+                                post("/api/v1/proposals/" + proposal + "/revisions")
+                                        .cookie(session, new Cookie("XSRF-TOKEN", token))
+                                        .header("X-XSRF-TOKEN", token)
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(request))
+                        .andExpect(status().isCreated())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+        // 개정 응답도 조회와 같이 가린다. 되돌린 원본을 그대로 돌려주지 않는다(428)
+        assertThat(response).contains("조회 범위상").doesNotContain("SECRET-V", "HIDDEN-V");
 
         String stored =
                 jdbc.sql("select evidence::text from proposal_item where id = :id")

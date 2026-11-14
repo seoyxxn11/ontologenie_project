@@ -23,8 +23,12 @@ public record ProposalWriteResponse(
         Long createdBy,
         Instant createdAt,
         Long checkRunId) {
-    /** checkRunId는 검사 대상이 아닌 종류(CandidateCheckTarget)면 null이다. */
-    public static ProposalWriteResponse from(ProposalItem item, Long checkRunId) {
+    /**
+     * checkRunId는 검사 대상이 아닌 종류(CandidateCheckTarget)면 null이다. evidence는 보는 사람 범위로 가린 근거다. 저장된
+     * 원본({@code item.getEvidence()})을 그대로 넣지 않는다(428).
+     */
+    public static ProposalWriteResponse from(
+            ProposalItem item, Map<String, Object> evidence, Long checkRunId) {
         return new ProposalWriteResponse(
                 item.getId(),
                 item.getAnalysisRunId(),
@@ -32,7 +36,7 @@ public record ProposalWriteResponse(
                 item.getItemKind(),
                 item.getRevision(),
                 item.getPayload(),
-                item.getEvidence(),
+                evidence,
                 item.getAiConfidence(),
                 item.getReviewStatus(),
                 item.getApplyStatus(),
