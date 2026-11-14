@@ -673,6 +673,163 @@ class AgentObjectSetToolsIntegrationTests {
                                         .doesNotContain(AgentObjectSetTools.OBJECT_SET_FIND));
     }
 
+    /**
+     * 관계 따라가기도 값 목록을 받는다(그중 하나와 같으면 된다). 값 하나만 받던 때 목록을 넣어 입력을 읽지 못하고, 조건을 뺀 채 끝난 기록까지 모아 답을 확정하지
+     * 못한 일이 있었다(2026-11-14 대화 103). 출발 유형의 속성을 조건에 넣으면 도착 유형의 속성을 알려 준다(대화 102).
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void searchesAroundWithSeveralValuesAndExplainsConditionsOnTheWrongSide() {
+        property(operation, "seq", "STRING", "NORMAL");
+        AgentQuerySession session = session();
+        session.allowObjects(List.of(o1, o2, o3), true);
+        AgentObjectSetTools tools = tools(session);
+        tools.objectSetStart(List.of(o1, o2, o3), null, null, null, null, null);
+
+        Map<String, Object> both =
+                (Map<String, Object>)
+                        tools.objectSetSearchAround(
+                                        "S1",
+                                        operationOrder,
+                                        null,
+                                        Map.of("state", List.of("진행", "완료")),
+                                        null,
+                                        null,
+                                        null)
+                                .get("data");
+        assertThat(both).containsEntry("count", 3);
+        Map<String, Object> partly =
+                (Map<String, Object>)
+                        tools.objectSetSearchAround(
+                                        "S1",
+                                        operationOrder,
+                                        null,
+                                        Map.of("state", List.of("진행", "보류")),
+                                        null,
+                                        null,
+                                        null)
+                                .get("data");
+        assertThat(partly)
+                .containsEntry("count", 2)
+                .containsEntry("unmatchedValues", Map.of("state", "보류"));
+        Map<String, Object> one =
+                (Map<String, Object>)
+                        tools.objectSetSearchAround(
+                                        "S1",
+                                        operationOrder,
+                                        null,
+                                        Map.of("state", List.of("완료")),
+                                        null,
+                                        null,
+                                        null)
+                                .get("data");
+        assertThat(one).as("값이 하나뿐인 목록은 값 하나 조건과 같다").containsEntry("count", 1);
+
+        assertThat(
+                        tools.objectSetSearchAround(
+                                "S1", operationOrder, null, Map.of("seq", "10"), null, null, null))
+                .hasEntrySatisfying(
+                        "error",
+                        error ->
+                                assertThat((String) error)
+                                        .contains("도착 유형", "[state]", "출발 유형", "[seq]"));
+        assertThat(
+                        tools.objectSetStart(
+                                null,
+                                workOrder,
+                                Map.of("state", List.of("진행", "완료")),
+                                null,
+                                null,
+                                null))
+                .as("조건으로 시작할 때도 값 목록을 받는다")
+                .hasEntrySatisfying(
+                        "data",
+                        data -> assertThat((Map<String, Object>) data).containsEntry("count", 3));
+    }
+
+    /**
+     * 빈 값(null, 빈 목록, null만 든 목록)은 조건을 빼지 않고 입력 오류다. 조용히 빼면 조건 없는 결과가 조건을 건 결과처럼 나간다(!475 리뷰). 값
+     * 목록은 20개까지, 목표 유형 찾기는 값 하나도 받는다. 방향 오류에는 조건 안내를 붙이지 않는다.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void rejectsEmptyConditionsAndKeepsHintsToConditionErrors() {
+        AgentQuerySession session = session();
+        session.allowObjects(List.of(o1, o2, o3, p103), true);
+        AgentObjectSetTools tools = tools(session);
+        tools.objectSetStart(List.of(o1, o2, o3), null, null, null, null, null);
+        Map<String, Object> nullValue = new java.util.HashMap<>();
+        nullValue.put("state", null);
+        List<String> onlyNull = new java.util.ArrayList<>();
+        onlyNull.add(null);
+
+        for (Map<String, Object> empty :
+                List.<Map<String, Object>>of(
+                        Map.of("state", List.of()), nullValue, Map.of("state", onlyNull))) {
+            assertThat(
+                            tools.objectSetSearchAround(
+                                    "S1", operationOrder, null, empty, null, null, null))
+                    .hasEntrySatisfying(
+                            "error", error -> assertThat((String) error).contains("값을 하나 이상"));
+            assertThat(tools.objectSetStart(null, workOrder, empty, null, null, null))
+                    .hasEntrySatisfying(
+                            "error", error -> assertThat((String) error).contains("값을 하나 이상"));
+        }
+        List<String> many =
+                java.util.stream.IntStream.rangeClosed(1, AgentConditions.MAX_VALUES + 1)
+                        .mapToObj(i -> "v" + i)
+                        .toList();
+        assertThat(
+                        tools.objectSetSearchAround(
+                                "S1",
+                                operationOrder,
+                                null,
+                                Map.of("state", many),
+                                null,
+                                null,
+                                null))
+                .hasEntrySatisfying("error", error -> assertThat((String) error).contains("20개까지"));
+        assertThat(
+                        tools.objectSetSearchAround(
+                                "S1",
+                                operationOrder,
+                                "IN",
+                                Map.of("state", "진행"),
+                                null,
+                                null,
+                                null))
+                .as("방향 오류에는 조건 안내를 붙이지 않는다")
+                .hasEntrySatisfying(
+                        "error", error -> assertThat((String) error).doesNotContain("의 속성에만 겁니다"));
+
+        AgentQuerySession findSession = session();
+        findSession.allowObjects(List.of(p103), true);
+        AgentObjectSetTools finder = tools(findSession);
+        assertThat(
+                        finder.find(
+                                List.of(p103),
+                                tag + "-order",
+                                Map.of("state", List.of()),
+                                null,
+                                null,
+                                null,
+                                null))
+                .hasEntrySatisfying(
+                        "error", error -> assertThat((String) error).contains("값을 하나 이상"));
+        Map<String, Object> single =
+                (Map<String, Object>)
+                        finder.find(
+                                        List.of(p103),
+                                        tag + "-order",
+                                        Map.of("state", "진행"),
+                                        null,
+                                        null,
+                                        null,
+                                        null)
+                                .get("data");
+        assertThat(single).as("목표 유형 찾기도 값 하나를 받는다").containsEntry("count", 2);
+    }
+
     private AgentQuerySession session() {
         return new AgentQuerySession(VIEWER, 11L, recorder, Clock.systemUTC(), dataAsOf);
     }

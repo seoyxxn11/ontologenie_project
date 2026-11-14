@@ -382,6 +382,39 @@ class AgentScenarioGmsTests {
         run.verify();
     }
 
+    /**
+     * W1(대화 103의 B2, 2026-11-14): 같은 질문이 한 번은 맞고 한 번은 "확인 불가"로 끝났다. 관계 따라가기에 "진행·대기"를 값 목록으로 넣다 입력을
+     * 읽지 못하고, 조건 없이 63건을 모아 첫 쪽만 본 뒤 포기했다. P101의 진행·대기 작업지시는 JB2610-0138(진행, OD-2610-021)과
+     * JB2610-0145(대기, OD-2610-019)다.
+     */
+    @Test
+    void w1ComparesWaitingAndRunningWorkOrdersOnP101() {
+        Run run =
+                ask(
+                        "P101에 배정된 진행·대기 작업을 확인해 줘. 특히 JB2610-0138과 JB2610-0145의 연결 수주, 납기, 계획 시작일을 비교해"
+                                + " 줘.",
+                        "1라인 1호 프레스(설비)요");
+
+        run.expectAnswerWith("JB2610-0138", "JB2610-0145", "OD-2610-021", "OD-2610-019");
+        run.expectAnswerWithout("확인 불가", "확인하지 못");
+        run.log("JB2610-0138 진행·OD-2610-021, JB2610-0145 대기·OD-2610-019");
+        run.verify();
+    }
+
+    /**
+     * W2(대화 102의 A1, 2026-11-14): 답은 맞았지만 관계 따라가기 조건을 출발 유형의 속성(equipment_code, code)에 걸어 두 번 입력
+     * 오류가 나 27초가 걸렸다. JB2610-0141의 중단 공정 20·30은 잔량 3,200개씩, 연결 수주는 OD-2610-021(납기 2026-11-04)이다.
+     */
+    @Test
+    void w2ReadsStoppedOperationsOfWorkOrderOnP103() {
+        Run run = ask("P103에서 중단된 JB2610-0141의 공정과 잔량을 확인하고, 연결된 수주와 납기를 알려줘.", null);
+
+        run.expectAnswerWith("3,200", "OD-2610-021", "2026-11-04");
+        run.expectAnswerWithout("확인 불가", "확인하지 못");
+        run.log("공정 20·30 잔량 3,200, OD-2610-021 납기 2026-11-04");
+        run.verify();
+    }
+
     /** 운영 대화 95(2026-11-14)의 앞 세 질문. 계획 저장 요청 전에 정지 공정·P101 작업·설비 조건 비교를 차례로 물었다. */
     private static final List<String> PLAN_CONTEXT =
             List.of(

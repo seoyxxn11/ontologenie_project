@@ -345,7 +345,7 @@ public class ObjectQueryRepository {
                 sql.append(sqlType(filter.type())).append(")\n");
                 parameters.put(value, filter.values().getFirst());
             } else {
-                // 값이 여럿이면 그중 하나와 같으면 된다. Agent 목표 유형 찾기(OBJECT_SET_FIND)만 쓴다. 076 공개 API는 값 하나다.
+                // 값이 여럿이면 그중 하나와 같으면 된다. Agent 조회 도구(객체 목록·객체 집합·목표 유형 찾기)만 쓴다. 076 공개 API는 값 하나다.
                 sql.append(" = any(cast(cast(:").append(value).append(" as text[]) as ");
                 sql.append(sqlType(filter.type())).append("[]))\n");
                 parameters.put(value, new SqlArrayValue("text", filter.values().toArray()));
