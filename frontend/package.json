@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:api": "vite --mode api",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
+    "test:dev-api": "node scripts/verifyDevApi.mjs",
     "test:coverage": "vitest run --coverage.enabled --coverage.provider=v8 --coverage.reporter=lcovonly",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

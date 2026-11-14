@@ -1,4 +1,5 @@
 import { delay, http, HttpResponse } from 'msw'
+import { requireMockAdmin } from './access'
 import type {
   ConnectionCheck,
   Source,
@@ -193,6 +194,9 @@ export const sourceHandlers = [
     },
   ),
   http.get('/api/v1/ontology/source-previews/:id', ({ params }) => {
+    const denied = requireMockAdmin()
+    if (denied) return denied
+    // SAMPLE에 없는 ID는 다음 MAPPING_PREVIEW 핸들러에 넘긴다(서버는 같은 102 API).
     const preview = samplePreviews.get(Number(params.id))
     if (preview) return HttpResponse.json({ data: preview })
   }),

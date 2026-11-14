@@ -5,13 +5,17 @@ import { http, HttpResponse } from 'msw'
 import { createMemoryRouter, RouterProvider, Link } from 'react-router'
 import { beforeEach, expect, test, onTestFinished } from 'vitest'
 import { resetMappingMocks } from '../../mocks/mappingHandlers'
+import { demoAccount, setMockAccount } from '../../mocks/auth'
 import { server } from '../../mocks/node'
 import SourcesPage from '../sources/SourcesPage'
 import type { ObjectMapping } from './api'
 
 const objectPath = '/api/v1/ontology/object-mappings'
 
-beforeEach(resetMappingMocks)
+beforeEach(() => {
+  resetMappingMocks()
+  setMockAccount({ ...demoAccount, roleCode: 'ADMIN' })
+})
 
 function openSources(path = '/admin/sources?source=1&tab=mapping') {
   const queryClient = new QueryClient({
