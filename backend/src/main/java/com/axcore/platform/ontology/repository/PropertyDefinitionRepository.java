@@ -31,4 +31,8 @@ public interface PropertyDefinitionRepository extends JpaRepository<PropertyDefi
     /** 잠그기 전에 민감도만 읽는다. 엔티티를 불러오지 않아 뒤의 잠금 조회가 최신 행을 읽는다(401). */
     @Query("select p.sensitivity from PropertyDefinition p where p.id = :id")
     Optional<PropertySensitivity> findSensitivity(@Param("id") Long id);
+
+    /** 잠그기 전에 소속 유형만 읽는다(430). */
+    @Query("select p.objectTypeId from PropertyDefinition p where p.id = :id")
+    Optional<Long> findObjectTypeId(@Param("id") Long id);
 }

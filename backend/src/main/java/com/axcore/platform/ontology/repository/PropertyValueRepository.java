@@ -3,6 +3,7 @@ package com.axcore.platform.ontology.repository;
 import com.axcore.platform.ontology.domain.PropertyConstraints;
 import com.axcore.platform.ontology.domain.PropertyDataType;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +40,52 @@ public class PropertyValueRepository {
     /** 값(null 아님)이 남아 있는 객체. 민감 속성을 일반으로 내리기 전에 확인한다(384·401). 매핑이 없어도 객체에 남은 값은 민감 값이다. */
     public ValueConflict findPresentValues(Long objectTypeId, String code) {
         return find(objectTypeId, code, "not (" + MISSING + ")", Map.of());
+    }
+
+    /**
+     * 그 객체 매핑들이 만든 객체에서만 이 속성의 값을 지운다. 금지 컬럼을 담던 매핑의 값만 지우고, 같은 속성을 다른 표의 일반 컬럼에서 채운 객체는 두기 위해서다
+     * (430). 지운 객체 수를 돌려준다.
+     */
+    public int clearValues(Long objectTypeId, String code, Collection<Long> sourceMappingIds) {
+        if (sourceMappingIds.isEmpty()) {
+            return 0;
+        }
+        return jdbcClient
+                .sql(
+                        """
+                        update object_instance o set properties = o.properties - :code
+                        where o.object_type_id = :objectTypeId
+                          and o.source_mapping_id in (:mappings)
+                          and jsonb_typeof(o.properties -> :code) is distinct from 'null'
+                          and jsonb_exists(o.properties, :code)
+                        """)
+                .param("objectTypeId", objectTypeId)
+                .param("code", code)
+                .param("mappings", sourceMappingIds)
+                .update();
+    }
+
+    /**
+     * 그 유형의 모든 객체 표시 이름을 원천 키로 바꾼다. 대표 속성이 민감·금지 컬럼을 담게 되어 대표에서 뺐을 때, 꺼진 매핑의 객체처럼 다시 읽지 않는 객체의 표시
+     * 이름에도 그 값이 남아 있어서다(430). 수집이 대표 속성이 없을 때 쓰는 것과 같은 모양이다: 객체 매핑의 키 컬럼 순서대로 값을 " / "로 잇고, 없으면 키
+     * JSON, 300자까지.
+     */
+    public int resetDisplayNames(Long objectTypeId) {
+        return jdbcClient
+                .sql(
+                        """
+                        update object_instance o
+                           set display_name = left(coalesce(
+                                   nullif((select string_agg(o.source_key ->> k.col, ' / ' order by k.ord)
+                                             from object_source_mapping m,
+                                                  jsonb_array_elements_text(m.key_columns) with ordinality k(col, ord)
+                                            where m.id = o.source_mapping_id), ''),
+                                   o.source_key::text), 300)
+                        where o.object_type_id = :objectTypeId
+                          and o.source_mapping_id is not null
+                        """)
+                .param("objectTypeId", objectTypeId)
+                .update();
     }
 
     /**
