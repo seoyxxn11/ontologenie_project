@@ -1,15 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import Button from '../../components/Button'
-import DataTable from '../../components/DataTable'
+import StatusBadge from '../../components/StatusBadge'
 import PageHeader from '../../components/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
 import AnalysisTargetDialog from '../analysis/AnalysisTargetDialog'
 import { analysisRunPath } from '../analysis/labels'
 import MappingPanel from '../mapping/MappingPanel'
 import { mappingPreviewApi } from '../mapping/previewApi'
-import { fetchSources } from './api'
+import { fetchSource, fetchSources } from './api'
 import ConnectionInfo from './ConnectionInfo'
 import { connectionStatusLabels, sourceKindLabels } from './labels'
 import ReadableScope from './ReadableScope'
@@ -62,9 +62,63 @@ function SourcesPage() {
   const selectedId = Number(searchParams.get('source'))
   const selected =
     sources?.find((source) => source.id === selectedId) ?? sources?.[0]
+  const detail = useQuery({
+    queryKey: ['sources', selected?.id, 'detail'],
+    queryFn: () => fetchSource(selected!.id),
+    enabled: selected !== undefined,
+  })
   const tab =
     tabs.find((item) => item.key === searchParams.get('tab'))?.key ??
     'connection'
+
+  const optionsRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const options = optionsRef.current
+    if (!options) return
+    const revealSelection = () => {
+      if (!options.clientHeight) return
+      const buttons = options.querySelectorAll<HTMLButtonElement>(
+        '.sources-source-button',
+      )
+      const tallest = Array.from(buttons).reduce(
+        (height, button) => Math.max(height, button.offsetHeight),
+        0,
+      )
+      options.style.setProperty('--sources-option-height', `${tallest + 8}px`)
+      const button = options.querySelector<HTMLButtonElement>(
+        '[aria-pressed="true"]',
+      )
+      if (!button) return
+      const bounds = options.getBoundingClientRect()
+      const selectedBounds = button.getBoundingClientRect()
+      if (selectedBounds.bottom > bounds.bottom - 4) {
+        options.scrollTop += selectedBounds.bottom - bounds.bottom + 4
+      } else if (selectedBounds.top < bounds.top + 4) {
+        options.scrollTop += selectedBounds.top - bounds.top - 4
+      }
+    }
+    revealSelection()
+    document.fonts?.addEventListener('loadingdone', revealSelection)
+    let width = options.clientWidth
+    const resized = () => {
+      if (options.clientWidth === width) return
+      width = options.clientWidth
+      revealSelection()
+    }
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', resized)
+      return () => {
+        window.removeEventListener('resize', resized)
+        document.fonts?.removeEventListener('loadingdone', revealSelection)
+      }
+    }
+    const observer = new ResizeObserver(resized)
+    observer.observe(options)
+    return () => {
+      observer.disconnect()
+      document.fonts?.removeEventListener('loadingdone', revealSelection)
+    }
+  }, [selected?.id, sources, detail.data?.connectionStatus, isPending, isError])
 
   function select(sourceId: number, nextTab: TabKey = 'connection') {
     setSearchParams({ source: String(sourceId), tab: nextTab })
@@ -93,48 +147,47 @@ function SourcesPage() {
     list = <EmptyState message="등록된 원천이 없습니다." />
   } else {
     list = (
-      <DataTable label="등록된 원천 목록" className="sources-table">
-        <thead className="bg-slate-50 text-xs text-slate-500">
-          <tr>
-            <th scope="col" className="px-4 py-3 font-normal">
-              원천
-            </th>
-            <th scope="col" className="px-4 py-3 font-normal">
-              유형
-            </th>
-            <th scope="col" className="px-4 py-3 font-normal">
-              접속 확인
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {sources.map((source) => {
-            const active = source.id === selected?.id
-            const status = connectionStatusLabels[source.connectionStatus]
-            return (
-              <tr key={source.id} data-selected={active || undefined}>
-                <th scope="row" className="px-4 py-3 text-left">
-                  <Button
-                    variant="text"
-                    aria-pressed={active}
-                    aria-controls="source-detail"
-                    onClick={() => select(source.id)}
-                    className="sources-select"
-                  >
-                    {source.name}
-                  </Button>
-                </th>
-                <td className="px-4 py-3">
-                  {sourceKindLabels[source.sourceKind]}
-                </td>
-                <td className={`px-4 py-3 ${status.className}`}>
-                  {status.label}
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </DataTable>
+      <div
+        ref={optionsRef}
+        role="group"
+        aria-label="등록된 원천"
+        className="sources-options"
+      >
+        {sources.map((source) => {
+          const active = source.id === selected?.id
+          const status =
+            connectionStatusLabels[
+              active
+                ? (detail.data?.connectionStatus ?? source.connectionStatus)
+                : source.connectionStatus
+            ]
+          return (
+            <Button
+              key={source.id}
+              variant="secondary"
+              aria-label={source.name}
+              aria-describedby={
+                'source-kind-' + source.id + ' source-status-' + source.id
+              }
+              aria-pressed={active}
+              aria-controls="source-detail"
+              onClick={() => select(source.id)}
+              className={
+                'sources-source-button' +
+                (source.name.length > 48 ? ' sources-source-button--long' : '')
+              }
+            >
+              <span className="sources-source-name">{source.name}</span>
+              <span id={'source-kind-' + source.id} className="sr-only">
+                {sourceKindLabels[source.sourceKind]}
+              </span>
+              <span id={'source-status-' + source.id}>
+                <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+              </span>
+            </Button>
+          )
+        })}
+      </div>
     )
   }
 
@@ -143,41 +196,32 @@ function SourcesPage() {
       <PageHeader
         title="데이터 연결"
         description="원천별 접속 상태를 비교하고, 수집 대상·매핑·실행 이력을 확인하세요."
-        action={
-          <Button variant="secondary" onClick={register}>
-            + 원천 등록
-          </Button>
-        }
       />
       <FormSaveStatus />
-      <div className="sources-workbench">
-        <section className="sources-list" aria-label="원천 선택">
-          <div className="sources-panel-heading">
-            <div className="flex items-baseline gap-2">
-              <h2 className="text-lg font-semibold text-slate-900">
-                등록된 원천
-              </h2>
-              {sources && (
-                <span className="text-sm text-slate-500">{`${sources.length}개`}</span>
-              )}
-            </div>
-          </div>
-          {list}
-          <div className="sources-list-note">
-            <p>
-              접속 확인과 수집 실행 상태는 별도입니다. 최근 상태·시각은 우측
-              요약에서, 전체 실행 기록은 선택한 원천의 수집 이력에서 확인하세요.
-            </p>
-            {selected && (
-              <Button
-                variant="text"
-                onClick={() => select(selected.id, 'sync')}
-              >
-                수집 이력 보기
-              </Button>
+      <div className="sources-toolbar">
+        <section className="sources-selector" aria-label="원천 선택">
+          <div className="sources-selector-label">
+            <h2>원천</h2>
+            {sources && (
+              <span className="text-sm text-slate-500">
+                {sources.length + '개'}
+              </span>
             )}
           </div>
+          {list}
+          <Button
+            variant="secondary"
+            onClick={register}
+            className="sources-register"
+          >
+            + 원천 등록
+          </Button>
         </section>
+        {selected && (
+          <Button onClick={() => setAnalyzing(true)}>AI 관계 제안 받기</Button>
+        )}
+      </div>
+      <div className="sources-workbench">
         {registering && (
           <SourceFormDialog
             onClose={(navigating) => {
@@ -196,32 +240,18 @@ function SourcesPage() {
             aria-label="원천 상세"
             className="sources-detail"
           >
-            <h2 className="sources-detail-heading">{selected.name} 상세</h2>
-            <section className="sources-summary" aria-label="최근 수집 요약">
-              <DataTable label="선택한 원천 수집 요약">
-                <thead>
-                  <tr>
-                    <th scope="col">최근 수집 실행</th>
-                    <th scope="col">수집 시각</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <SourceSyncSummary
-                      key={selected.id}
-                      sourceId={selected.id}
-                      sourceName={selected.name}
-                    />
-                  </tr>
-                </tbody>
-              </DataTable>
-              <p className="mt-3 text-sm text-slate-500">
-                전체 읽기는 가장 최근에 접수한 실행 기준입니다. 실패한 실행의
-                종료 시각은 성공 수집 시각이 아닙니다. CDC 반영은 마지막 반영한
-                원천 트랜잭션의 커밋 시각이며, 현재 CDC 정상 여부나 반영 지연을
-                뜻하지 않습니다.
-              </p>
-            </section>
+            <div className="sources-detail-heading">
+              <h2>{selected.name} 상세</h2>
+            </div>
+            <SourceSyncSummary
+              key={selected.id}
+              sourceId={selected.id}
+              sourceName={selected.name}
+              connectionStatus={
+                detail.data?.connectionStatus ?? selected.connectionStatus
+              }
+              onViewHistory={() => select(selected.id, 'sync')}
+            />
             <div role="group" aria-label="상세 항목" className="sources-tabs">
               {tabs.map((item) => (
                 <button
@@ -273,11 +303,6 @@ function SourcesPage() {
                   previewAccess={mappingPreviewApi}
                 />
               )}
-            </div>
-            <div className="sources-detail-footer">
-              <Button onClick={() => setAnalyzing(true)}>
-                이 원천으로 AI 관계 제안 받기
-              </Button>
             </div>
             {analyzing && (
               <AnalysisTargetDialog

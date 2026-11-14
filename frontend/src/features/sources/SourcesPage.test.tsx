@@ -32,6 +32,17 @@ afterEach(() => {
   resetSourceMocks()
 })
 
+async function findConnectionStatus(
+  label: string,
+  waitOptions?: { timeout: number },
+) {
+  await screen.findByRole('button', { name: '정보 수정' })
+  const summary = within(
+    await screen.findByRole('region', { name: / 상태 요약$/ }),
+  )
+  return summary.findByText(label, {}, waitOptions)
+}
+
 function renderSourcesPage(path = '/admin/sources') {
   const router = createMemoryRouter(
     [
@@ -232,7 +243,7 @@ test('수집 이력 탭에서 실제 어댑터로 073 요청·074 이력·075 �
   await screen.findByText('수집 실행 #21을 접수했습니다.')
   await screen.findByRole('button', { name: '수집 실행 #21' })
   const summary = within(
-    screen.getByRole('table', { name: '선택한 원천 수집 요약' }),
+    screen.getByRole('region', { name: 'ERP 운영 DB 상태 요약' }),
   )
   expect(await summary.findByText('전체 읽기 · 완료')).toBeInTheDocument()
   const detail = within(
@@ -360,21 +371,80 @@ function checkResult(overrides: Partial<ConnectionCheck>): ConnectionCheck {
   }
 }
 
-test('등록된 원천을 표로 보여주고 첫 원천의 접속 정보를 연다', async () => {
+test('상단 원천 버튼에 접속 상태를 표시하고 선택 원천의 상세를 연다', async () => {
+  const user = userEvent.setup()
+  renderSourcesPage()
+  const erp = await screen.findByRole('button', { name: 'ERP 운영 DB' })
+  const mes = screen.getByRole('button', { name: 'MES 운영 DB' })
+  expect(erp).toHaveTextContent('수집 접속 확인됨')
+  expect(erp).toHaveAttribute('aria-pressed', 'true')
+  expect(mes).toHaveTextContent('수집 확인 필요')
+  expect(mes).toHaveAttribute('aria-pressed', 'false')
+  expect(erp).toHaveAttribute('aria-controls', 'source-detail')
+  expect(
+    screen.queryByRole('table', { name: '등록된 원천 목록' }),
+  ).not.toBeInTheDocument()
+  await user.click(mes)
+  expect(mes).toHaveAttribute('aria-pressed', 'true')
+  expect(erp).toHaveAttribute('aria-pressed', 'false')
+  expect(
+    await screen.findByRole('heading', { name: 'MES 운영 DB 상세' }),
+  ).toBeVisible()
+  expect(
+    screen.getByRole('button', { name: 'AI 관계 제안 받기' }),
+  ).toBeEnabled()
+})
+
+test('5개 상세 탭과 선택 원천의 AI 제안 진입 및 URL 복원을 유지한다', async () => {
+  const user = userEvent.setup()
+  const router = renderSourcesPage('/admin/sources?source=2&tab=samples')
+  await screen.findByRole('heading', { name: 'MES 운영 DB 상세' })
+  const tabs = within(screen.getByRole('group', { name: '상세 항목' }))
+  expect(
+    tabs.getAllByRole('button').map((button) => button.textContent),
+  ).toEqual(['접속 정보', '수집 대상', '원천 표본', '원천 매핑', '수집 이력'])
+  expect(tabs.getByRole('button', { name: '원천 표본' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await user.click(screen.getByRole('button', { name: 'AI 관계 제안 받기' }))
+  const dialog = within(
+    await screen.findByRole('dialog', { name: '분석 대상 선택' }),
+  )
+  expect(
+    await dialog.findByRole('combobox', { name: '등록된 원천' }),
+  ).toHaveValue('2')
+  await user.click(dialog.getByRole('button', { name: '닫기' }))
+  await user.click(screen.getByRole('button', { name: 'ERP 운영 DB' }))
+  expect(router.state.location.search).toBe('?source=1&tab=connection')
+  await act(async () => {
+    await router.navigate(-1)
+  })
+  expect(
+    screen.getByRole('button', { name: 'MES 운영 DB', pressed: true }),
+  ).toBeInTheDocument()
+  expect(tabs.getByRole('button', { name: '원천 표본' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+})
+
+test('등록된 원천과 첫 원천의 접속 정보를 연다', async () => {
+  const user = userEvent.setup()
   renderSourcesPage()
 
   expect(
     screen.getByRole('heading', { name: '데이터 연결' }),
   ).toBeInTheDocument()
-  const table = await screen.findByRole('table', { name: '등록된 원천 목록' })
-  const rows = within(table).getAllByRole('row')
-  expect(rows[1]).toHaveTextContent('ERP 운영 DB')
-  expect(rows[1]).toHaveTextContent('구조화 데이터')
-  expect(rows[1]).toHaveTextContent('읽기 접속 확인됨')
-  expect(rows[2]).toHaveTextContent('확인 필요')
+  const sources = within(
+    await screen.findByRole('group', { name: '등록된 원천' }),
+  )
+  const erp = sources.getByRole('button', { name: 'ERP 운영 DB' })
+  expect(erp).toHaveTextContent('수집 접속 확인됨')
+  expect(erp).toHaveAccessibleDescription('구조화 데이터 수집 접속 확인됨')
   expect(
-    screen.getByRole('heading', { name: '등록된 원천' }),
-  ).toBeInTheDocument()
+    sources.getByRole('button', { name: 'MES 운영 DB' }),
+  ).toHaveTextContent('수집 확인 필요')
   expect(
     screen.getByRole('heading', { name: 'ERP 운영 DB 상세' }),
   ).toBeInTheDocument()
@@ -382,15 +452,30 @@ test('등록된 원천을 표로 보여주고 첫 원천의 접속 정보를 연
   expect(
     await screen.findByText('erp-db.internal:5432 · erp'),
   ).toBeInTheDocument()
-  expect(
-    screen.getByText('수집 계정 platform_ro · AI 분석 계정 platform_ai'),
-  ).toBeInTheDocument()
   // 연결 검사는 쓰기 권한을 검사하지 않으므로 읽기 전용이라고 단정하지 않는다
-  expect(screen.getByText('읽기 전용으로 접속됨')).toBeInTheDocument()
+  expect(
+    within(
+      screen.getByRole('region', { name: 'ERP 운영 DB 상태 요약' }),
+    ).getByText('수집 접속 확인됨'),
+  ).toBeInTheDocument()
   expect(screen.queryByText(/SELECT only/)).not.toBeInTheDocument()
-  // 가장 최근 검사의 계정별 결과
-  const results = await screen.findByRole('list', { name: '계정별 결과' })
-  expect(results).toHaveTextContent('수집 계정: 읽을 수 있는 표 18개 · 컬럼')
+  expect(
+    await screen.findByText('수집 계정 · AI 분석 계정 접속 확인됨'),
+  ).toBeVisible()
+  expect(screen.getByText('platform_ro')).not.toBeVisible()
+  expect(screen.getByText('platform_ai')).not.toBeVisible()
+  const details = screen.getByText('계정별 상세').closest('details')!
+  expect(details).not.toHaveAttribute('open')
+  await user.click(screen.getByText('계정별 상세'))
+  const results = screen.getByRole('list', { name: '계정별 결과' })
+  expect(results).toBeVisible()
+  expect(results).toHaveTextContent('수집 계정')
+  expect(results).toHaveTextContent('platform_ro')
+  expect(results).toHaveTextContent('AI 분석 계정')
+  expect(results).toHaveTextContent('platform_ai')
+  expect(results).toHaveTextContent('읽을 수 있는 표 18개 · 컬럼 127개')
+  await user.click(screen.getByText('계정별 상세'))
+  expect(results).not.toBeVisible()
 })
 
 test('검사한 적 없는 원천은 미검증으로 보이고 결과가 없다', async () => {
@@ -403,7 +488,7 @@ test('검사한 적 없는 원천은 미검증으로 보이고 결과가 없다'
   expect(
     screen.getByRole('heading', { name: 'MES 운영 DB 상세' }),
   ).toBeInTheDocument()
-  expect(await screen.findByText('미검증')).toBeInTheDocument()
+  expect(await findConnectionStatus('수집 확인 필요')).toBeInTheDocument()
   expect(
     screen.queryByRole('region', { name: '연결 확인 결과' }),
   ).not.toBeInTheDocument()
@@ -467,19 +552,29 @@ test('연결 다시 확인을 누르면 끝날 때까지 다시 조회하고 계
     }),
   )
   renderSourcesPage('/admin/sources?source=2')
-  await screen.findByText('미검증')
+  await findConnectionStatus('수집 확인 필요')
 
   await user.click(screen.getByRole('button', { name: '연결 다시 확인' }))
 
   expect(await screen.findByText('검사 중')).toBeInTheDocument()
+  const announcement = screen.getByText('검사 중').closest('[role="status"]')
+  expect(announcement).toHaveAttribute('aria-live', 'polite')
+  expect(announcement).toHaveAttribute('aria-atomic', 'true')
   expect(screen.getByRole('button', { name: '확인 중…' })).toBeDisabled()
   expect(
-    await screen.findByText(
-      '수집 계정: 읽을 수 있는 표 15개 · 컬럼 120개',
-      {},
-      { timeout: 4000 },
-    ),
-  ).toBeInTheDocument()
+    await screen.findByText('수집 계정 접속 확인됨', {}, { timeout: 4000 }),
+  ).toBeVisible()
+  expect(
+    screen.getByText('수집 계정 접속 확인됨').closest('[role="status"]'),
+  ).toBe(announcement)
+  expect(
+    screen.queryByText('수집 계정 · AI 분석 계정 접속 확인됨'),
+  ).not.toBeInTheDocument()
+  expect(
+    screen.getByText('읽을 수 있는 표 15개 · 컬럼 120개'),
+  ).not.toBeVisible()
+  await user.click(screen.getByText('계정별 상세'))
+  expect(screen.getByText('읽을 수 있는 표 15개 · 컬럼 120개')).toBeVisible()
   expect(screen.getByRole('button', { name: '연결 다시 확인' })).toBeEnabled()
 })
 
@@ -514,7 +609,7 @@ test('계정 접속에 실패하면 계정별 실패 사유를 보여준다', as
     ),
   )
   renderSourcesPage('/admin/sources?source=2')
-  await screen.findByText('미검증')
+  await findConnectionStatus('수집 확인 필요')
 
   await user.click(screen.getByRole('button', { name: '연결 다시 확인' }))
 
@@ -523,7 +618,103 @@ test('계정 접속에 실패하면 계정별 실패 사유를 보여준다', as
   )
   expect(
     screen.getByText('AI 분석 계정: 실패 · 원천 계정 인증에 실패했습니다'),
-  ).toBeInTheDocument()
+  ).toBeVisible()
+  expect(
+    screen.getByText('계정별 상세').closest('details'),
+  ).not.toHaveAttribute('open')
+})
+
+test('수집 접속이 성공해도 AI 계정 실패를 상세 밖에 표시한다', async () => {
+  server.use(
+    http.get('/api/v1/sources/:id/connection-checks/:checkId', () =>
+      HttpResponse.json({
+        data: checkResult({
+          status: 'SUCCEEDED',
+          errorMessage: null,
+          result: {
+            accounts: [
+              {
+                purpose: 'SYNC',
+                status: 'SUCCEEDED',
+                readableTableCount: 18,
+                readableColumnCount: 140,
+                errorMessage: null,
+              },
+              {
+                purpose: 'AI',
+                status: 'FAILED',
+                readableTableCount: null,
+                readableColumnCount: null,
+                errorMessage: 'AI 분석 계정의 접속 권한을 확인해 주세요.',
+              },
+            ],
+          },
+        }),
+      }),
+    ),
+  )
+  renderSourcesPage()
+  const failure = await screen.findByRole('alert')
+  expect(failure).toBeVisible()
+  expect(failure).toHaveTextContent(
+    'AI 분석 계정: 실패 · AI 분석 계정의 접속 권한을 확인해 주세요.',
+  )
+  expect(failure.closest('details')).toBeNull()
+  expect(screen.getByText('일부 계정 실패')).toBeVisible()
+  expect(
+    screen.getByText('계정별 상세').closest('details'),
+  ).not.toHaveAttribute('open')
+  const erp = screen.getByRole('button', { name: 'ERP 운영 DB' })
+  expect(erp).toHaveTextContent('수집 접속 확인됨')
+  expect(erp).not.toHaveTextContent('AI')
+  expect(
+    screen.queryByText('수집 계정 · AI 분석 계정 접속 확인됨'),
+  ).not.toBeInTheDocument()
+})
+
+test('검사 결과 갱신 실패 뒤 이전 계정 성공 요약과 수치를 남기지 않는다', async () => {
+  const user = userEvent.setup()
+  let fail = false
+  server.use(
+    http.get('/api/v1/sources/:id/connection-checks/:checkId', () =>
+      fail
+        ? HttpResponse.json(
+            {
+              error: { code: 'INTERNAL_ERROR', message: '검사 결과 조회 실패' },
+            },
+            { status: 500 },
+          )
+        : HttpResponse.json({
+            data: checkResult({
+              result: {
+                accounts: [
+                  {
+                    purpose: 'SYNC',
+                    status: 'SUCCEEDED',
+                    readableTableCount: 15,
+                    readableColumnCount: 120,
+                    errorMessage: null,
+                  },
+                ],
+              },
+            }),
+          }),
+    ),
+  )
+  renderSourcesPage()
+  await screen.findByText('수집 계정 접속 확인됨')
+  fail = true
+  await user.click(screen.getByRole('button', { name: '수집 대상' }))
+  await user.click(screen.getByRole('button', { name: '접속 정보' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    '검사 결과 조회 실패',
+  )
+  expect(screen.queryByText('수집 계정 접속 확인됨')).not.toBeInTheDocument()
+  await user.click(screen.getByText('계정별 상세'))
+  expect(screen.getByText('platform_ro')).toBeVisible()
+  expect(
+    screen.queryByText('읽을 수 있는 표 15개 · 컬럼 120개'),
+  ).not.toBeInTheDocument()
 })
 
 test('같은 원천의 확인이 진행 중이면 합류했다고 알려준다', async () => {
@@ -547,7 +738,7 @@ test('같은 원천의 확인이 진행 중이면 합류했다고 알려준다',
     ),
   )
   renderSourcesPage('/admin/sources?source=2')
-  await screen.findByText('미검증')
+  await findConnectionStatus('수집 확인 필요')
 
   await user.click(screen.getByRole('button', { name: '연결 다시 확인' }))
 
@@ -576,7 +767,7 @@ test('연결 확인 요청 권한이 없으면 서버가 준 안내를 보여준
     ),
   )
   renderSourcesPage('/admin/sources?source=2')
-  await screen.findByText('미검증')
+  await findConnectionStatus('수집 확인 필요')
 
   await user.click(screen.getByRole('button', { name: '연결 다시 확인' }))
 
@@ -588,7 +779,7 @@ test('연결 확인 요청 권한이 없으면 서버가 준 안내를 보여준
 test('수집 대상 탭에서 읽을 수 있는 표를 펼치면 컬럼과 기본키를 보여준다', async () => {
   const user = userEvent.setup()
   renderSourcesPage('/admin/sources?source=2')
-  await screen.findByText('미검증')
+  await findConnectionStatus('수집 확인 필요')
 
   await user.click(screen.getByRole('button', { name: '수집 대상' }))
 
@@ -763,7 +954,7 @@ test('이미 있는 원천 코드면 서버가 준 안내를 보여준다', asyn
 test('접속 대상을 바꾸면 미검증으로 돌아가고 다시 확인하라고 안내한다', async () => {
   const user = userEvent.setup()
   renderSourcesPage()
-  await screen.findByText('읽기 전용으로 접속됨')
+  await findConnectionStatus('수집 접속 확인됨')
 
   await user.click(screen.getByRole('button', { name: '정보 수정' }))
   const dialog = screen.getByRole('dialog', { name: '원천 정보 수정' })
@@ -782,13 +973,17 @@ test('접속 대상을 바꾸면 미검증으로 돌아가고 다시 확인하�
   expect(
     await screen.findByText('erp-db2.internal:5432 · erp'),
   ).toBeInTheDocument()
-  expect(screen.getByText('미검증')).toBeInTheDocument()
+  expect(
+    within(screen.getByRole('region', { name: / 상태 요약$/ })).getByText(
+      '수집 확인 필요',
+    ),
+  ).toBeInTheDocument()
 })
 
 test('계정 이름만 바꾸고 비밀번호를 넣지 않으면 저장하지 않는다', async () => {
   const user = userEvent.setup()
   renderSourcesPage()
-  await screen.findByText('읽기 전용으로 접속됨')
+  await findConnectionStatus('수집 접속 확인됨')
 
   await user.click(screen.getByRole('button', { name: '정보 수정' }))
   const dialog = screen.getByRole('dialog', { name: '원천 정보 수정' })
@@ -820,7 +1015,7 @@ test('다른 사람이 먼저 수정했으면 최신 상태를 확인하라고 �
     ),
   )
   renderSourcesPage()
-  await screen.findByText('읽기 전용으로 접속됨')
+  await findConnectionStatus('수집 접속 확인됨')
 
   await user.click(screen.getByRole('button', { name: '정보 수정' }))
   const dialog = screen.getByRole('dialog', { name: '원천 정보 수정' })
@@ -883,7 +1078,7 @@ test('다른 곳에서 먼저 저장해 409가 나면 최신 내용을 불러와
     }),
   )
   renderSourcesPage()
-  await screen.findByText('읽기 전용으로 접속됨')
+  await findConnectionStatus('수집 접속 확인됨')
 
   await user.click(screen.getByRole('button', { name: '정보 수정' }))
   const dialog = screen.getByRole('dialog', { name: '원천 정보 수정' })
@@ -936,7 +1131,7 @@ test('409 뒤 다시 저장해도 다른 곳에서 바꾼 접속 대상을 옛 �
     }),
   )
   renderSourcesPage()
-  await screen.findByText('읽기 전용으로 접속됨')
+  await findConnectionStatus('수집 접속 확인됨')
 
   await user.click(screen.getByRole('button', { name: '정보 수정' }))
   const dialog = screen.getByRole('dialog', { name: '원천 정보 수정' })
@@ -972,7 +1167,7 @@ test('계정 이름은 앞뒤 공백을 빼고 보낸다', async () => {
       sent = (await request.clone().json()) as SourceUpdateRequest
   })
   renderSourcesPage()
-  await screen.findByText('읽기 전용으로 접속됨')
+  await findConnectionStatus('수집 접속 확인됨')
 
   await user.click(screen.getByRole('button', { name: '정보 수정' }))
   const dialog = screen.getByRole('dialog', { name: '원천 정보 수정' })
@@ -1026,11 +1221,17 @@ test('다른 곳에서 요청한 검사가 끝나도 원천 상태를 다시 불
   )
   renderSourcesPage()
 
-  expect(await screen.findByText('미검증')).toBeInTheDocument()
+  expect(await findConnectionStatus('수집 확인 필요')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'ERP 운영 DB' })).toHaveTextContent(
+    '수집 확인 필요',
+  )
   expect(await screen.findByText('검사 중')).toBeInTheDocument()
   expect(
-    await screen.findByText('읽기 전용으로 접속됨', {}, { timeout: 5000 }),
+    await findConnectionStatus('수집 접속 확인됨', { timeout: 5000 }),
   ).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'ERP 운영 DB' })).toHaveTextContent(
+    '수집 접속 확인됨',
+  )
 })
 
 test('검사 결과를 불러오지 못하면 확인 중 상태로 막아 두지 않는다', async () => {
@@ -1051,7 +1252,7 @@ test('검사 결과를 불러오지 못하면 확인 중 상태로 막아 두지
     ),
   )
   renderSourcesPage('/admin/sources?source=2')
-  await screen.findByText('미검증')
+  await findConnectionStatus('수집 확인 필요')
 
   await user.click(screen.getByRole('button', { name: '연결 다시 확인' }))
 
@@ -1075,7 +1276,7 @@ test('검사가 시간 상한까지 끝나지 않으면 다시 불러오기를 �
     )
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     renderSourcesPage('/admin/sources?source=2')
-    await screen.findByText('미검증')
+    await findConnectionStatus('수집 확인 필요')
 
     await user.click(screen.getByRole('button', { name: '연결 다시 확인' }))
     expect(

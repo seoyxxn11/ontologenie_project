@@ -22,10 +22,7 @@ function isRunning(status: CheckStatus | undefined) {
 }
 
 function accountResult(account: AccountCheck) {
-  if (account.status === 'FAILED') {
-    return `실패 · ${account.errorMessage ?? '사유 없음'}`
-  }
-  return `읽을 수 있는 표 ${account.readableTableCount ?? '-'}개 · 컬럼 ${account.readableColumnCount ?? '-'}개`
+  return `읽을 수 있는 표 ${account.readableTableCount ?? '—'}개 · 컬럼 ${account.readableColumnCount ?? '—'}개`
 }
 
 // 접속 정보 탭: 011 상세와 013 연결 다시 확인, 100 계정별 결과
@@ -125,6 +122,19 @@ function ConnectionInfo({
       !check.isError &&
       !expired &&
       (!status || isRunning(status)))
+  const accounts = check.isError ? [] : (check.data?.result.accounts ?? [])
+  const failedAccounts = accounts.filter(
+    (account) => account.status === 'FAILED',
+  )
+  const confirmedAccounts = running
+    ? []
+    : accounts.filter((account) => account.status === 'SUCCEEDED')
+  const purposes = [
+    ...new Set([
+      ...source.credentials.map((credential) => credential.purpose),
+      ...accounts.map((account) => account.purpose),
+    ]),
+  ]
 
   return (
     <div className="space-y-4 text-sm">
@@ -139,24 +149,6 @@ function ConnectionInfo({
             {host
               ? `${host}${port ? `:${port}` : ''}${database ? ` · ${database}` : ''}`
               : '-'}
-          </dd>
-          <dt className="text-slate-500">계정</dt>
-          <dd className="text-slate-900">
-            {source.credentials.length
-              ? source.credentials
-                  .map(
-                    (credential) =>
-                      `${purposeLabels[credential.purpose]} ${credential.username}`,
-                  )
-                  .join(' · ')
-              : '-'}
-          </dd>
-          <dt className="text-slate-500">접속 확인</dt>
-          <dd className="text-slate-900">
-            {/* 연결 검사는 읽기 전용 세션으로 접속해 SELECT 가능한 표를 셀 뿐, 쓰기 권한이 없는지는 검사하지 않는다 */}
-            {source.connectionStatus === 'CONNECTED'
-              ? '읽기 전용으로 접속됨'
-              : '미검증'}
           </dd>
         </dl>
         <div className="sources-connection-actions">
@@ -205,15 +197,36 @@ function ConnectionInfo({
       {checkId !== undefined && (
         <section
           aria-label="연결 확인 결과"
-          className="space-y-2 rounded-lg border border-slate-200 p-4"
+          className="sources-account-results space-y-2"
         >
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-semibold text-slate-900">연결 확인 결과</h3>
-            {status && (
-              <StatusBadge tone={checkStatusLabels[status].tone}>
-                {checkStatusLabels[status].label}
-              </StatusBadge>
-            )}
+            <div role="status" aria-live="polite" aria-atomic="true">
+              {status &&
+                !check.isError &&
+                (status === 'SUCCEEDED' &&
+                failedAccounts.length === 0 &&
+                confirmedAccounts.length > 0 ? (
+                  <p className="text-slate-600">
+                    {confirmedAccounts
+                      .map((account) => purposeLabels[account.purpose])
+                      .join(' · ')}{' '}
+                    접속 확인됨
+                  </p>
+                ) : (
+                  <StatusBadge
+                    tone={
+                      status === 'SUCCEEDED' && failedAccounts.length > 0
+                        ? 'warning'
+                        : checkStatusLabels[status].tone
+                    }
+                  >
+                    {status === 'SUCCEEDED' && failedAccounts.length > 0
+                      ? '일부 계정 실패'
+                      : checkStatusLabels[status].label}
+                  </StatusBadge>
+                ))}
+            </div>
           </div>
           {joined && (
             <p className="text-xs text-slate-500">
@@ -234,28 +247,41 @@ function ConnectionInfo({
               확인을 눌러 주세요.
             </p>
           )}
-          {check.data?.errorMessage && (
-            <p role="alert" className="text-red-700">
-              {check.data.errorMessage}
-            </p>
-          )}
-          {check.data && check.data.result.accounts.length > 0 && (
-            <ul aria-label="계정별 결과" className="space-y-1">
-              {check.data.result.accounts.map((account) => (
-                <li
-                  key={account.purpose}
-                  className={
-                    account.status === 'FAILED'
-                      ? 'text-red-700'
-                      : 'text-slate-700'
-                  }
-                >
-                  {purposeLabels[account.purpose]}: {accountResult(account)}
-                </li>
-              ))}
-            </ul>
-          )}
+          {!check.isError &&
+            (check.data?.errorMessage || failedAccounts.length > 0) && (
+              <div role="alert" className="space-y-1 text-red-700">
+                {check.data?.errorMessage && <p>{check.data.errorMessage}</p>}
+                {failedAccounts.map((account) => (
+                  <p key={account.purpose}>
+                    {purposeLabels[account.purpose]}: 실패 ·{' '}
+                    {account.errorMessage ?? '사유 없음'}
+                  </p>
+                ))}
+              </div>
+            )}
         </section>
+      )}
+      {purposes.length > 0 && (
+        <details className="sources-account-details">
+          <summary>계정별 상세</summary>
+          <ul aria-label="계정별 결과" className="sources-account-list">
+            {purposes.map((purpose) => {
+              const credential = source.credentials.find(
+                (credential) => credential.purpose === purpose,
+              )
+              const result = confirmedAccounts.find(
+                (account) => account.purpose === purpose,
+              )
+              return (
+                <li key={purpose}>
+                  <span>{purposeLabels[purpose]}</span>
+                  <span>{credential?.username ?? '—'}</span>
+                  {result && <span>{accountResult(result)}</span>}
+                </li>
+              )
+            })}
+          </ul>
+        </details>
       )}
     </div>
   )

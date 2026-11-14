@@ -17,12 +17,24 @@ export const sourceKindLabels: Record<SourceKind, string> = {
 // 목업의 접속 확인 칸
 export const connectionStatusLabels: Record<
   ConnectionStatus,
-  { label: string; className: string }
+  { label: string; className: string; tone: Tone }
 > = {
-  UNVERIFIED: { label: '확인 필요', className: 'text-amber-700' },
+  UNVERIFIED: {
+    label: '수집 확인 필요',
+    className: 'text-amber-700',
+    tone: 'warning',
+  },
   // 읽기 전용 세션 접속과 SELECT 가능한 표만 확인한다(쓰기 권한은 검사하지 않음)
-  CONNECTED: { label: '읽기 접속 확인됨', className: 'text-slate-500' },
-  FAILED: { label: '연결 실패', className: 'text-red-700' },
+  CONNECTED: {
+    label: '수집 접속 확인됨',
+    className: 'text-slate-500',
+    tone: 'success',
+  },
+  FAILED: {
+    label: '수집 접속 실패',
+    className: 'text-red-700',
+    tone: 'danger',
+  },
 }
 
 export const checkStatusLabels: Record<
