@@ -30,6 +30,12 @@ from app.models.candidate import (
 )
 from app.models.source import ColumnRef, TableSchema
 from app.proposers import confidence as score
+from app.proposers.access import (
+    GROUP_TEXT,
+    access_group,
+    is_free_text,
+    sensitivity_category,
+)
 from app.source_policy import is_restricted
 from app.sources.csv_reader import CsvSourceReader
 
@@ -461,6 +467,7 @@ def _table_candidates(
         locator=key,
         snippet=f"{len(df):,}행 · 기본키 {_cols(keys) or '없음'} · 참조 테이블 {_cols(sorted(in_tables)) or '없음'}",
     )
+    group, why_group = access_group(key)
     out = [
         Candidate(
             candidate_id=f"OT-{key}",
@@ -470,8 +477,14 @@ def _table_candidates(
                 name=name,
                 description=f"원천 {key}의 한 행",
                 category=category,
+                access_group=group,
             ),
-            reason=f"분류: {CATEGORY_TEXT.get(category, category)} ({why})",
+            reason=f"분류: {CATEGORY_TEXT.get(category, category)} ({why})"
+            + (
+                f" · 조회 그룹: {GROUP_TEXT[group]} ({why_group})"
+                if group
+                else f" · 조회 그룹: 없음 ({why_group})"
+            ),
             evidence=[table_evidence],
             confidence=score.build(
                 score.object_type(bool(schema.primary_key), bool(keys), len(in_tables)),
@@ -505,7 +518,11 @@ def _table_candidates(
         col_values = values[col.name]
         prop = prop_codes[col.name]
         # 담당·검사자처럼 사람을 적는 칸에 이름이 섞여 있으면(부서명 사이 '홍보람') 일부만 이름이어도 개인정보로 본다
-        personal = is_personal_column(stats, col.name, col.comment, col_values)
+        personal_value = is_personal_column(stats, col.name, col.comment, col_values)
+        # 민감 분류 기준(392): 사람을 알아볼 수 있는 값, 인사 속성, 평가. 자유 글은 검토만 권한다
+        # 행 구분 키는 식별 속성이 되어 민감일 수 없다(승인 반영이 거절한다)
+        category = None if col.name in keys else sensitivity_category(key, col.name)
+        personal = personal_value or category is not None
         dtype = data_type(stats, col_values)
         # 다른 칸에 섞인 사람 이름 모양 값은 근거·LLM 질문에 그대로 쓰지 않는다
         hint = f"{col.name} {col.comment or ''}"
@@ -524,13 +541,20 @@ def _table_candidates(
             values=[] if personal else [v for v in examples if v != MASK],
         )
         why_personal = (
-            "이름·주석이 개인정보를 가리킴"
-            if stats.is_personal
-            else "원천 정책의 민감 컬럼"
+            "원천 정책의 민감 컬럼"
             if is_restricted(stats.ref)
-            else "값이 사람 이름 모양"
-            if personal
+            else "사람을 알아볼 수 있는 값: 이름·주석이 개인정보를 가리킴"
+            if stats.is_personal
+            else "사람을 알아볼 수 있는 값: 값이 사람 이름 모양"
+            if personal_value
+            else category
+            if category
             else ""
+        )
+        free_text = (
+            not personal
+            and dtype == DataType.STRING
+            and is_free_text(col.name, col.comment)
         )
         out.append(
             Candidate(
@@ -560,7 +584,12 @@ def _table_candidates(
                     if stats.null_count == 0
                     else f" · 빈 값 {stats.null_count}행"
                 )
-                + (f" · 개인정보 ({why_personal})" if personal else ""),
+                + (f" · 민감 ({why_personal})" if personal else "")
+                + (
+                    " · 자유 글: 사람 이름이 섞일 수 있어 민감 여부를 검토하세요"
+                    if free_text
+                    else ""
+                ),
                 evidence=[evidence],
                 confidence=score.build(
                     score.property_(

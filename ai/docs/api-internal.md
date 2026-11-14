@@ -55,7 +55,7 @@
 
 | 종류 | `payload` | `evidence`에 더해지는 것 |
 | --- | --- | --- |
-| OBJECT_TYPE | 객체 유형 칸(`code`, `name`, `description`, `synonyms`, `note`, `category`) + `objectMapping` {`sourceId`, `resourceKey`, `keyColumns`} + `properties[]` {`code`, `name`, `dataType`, `description`, `isIdentifier`, `isRequired`, `unit`, `sensitivity`, `sourceColumn`, `transformSteps`} + `displayPropertyCode`(대표 속성으로 쓸 묶음 속성 코드, 없으면 칸 없음) | `objectMapping` {title, reason, items, …}, `properties[]` {code, title, reason, items, confidenceItems, mapping} |
+| OBJECT_TYPE | 객체 유형 칸(`code`, `name`, `description`, `synonyms`, `note`, `category`, `accessGroup`) + `objectMapping` {`sourceId`, `resourceKey`, `keyColumns`} + `properties[]` {`code`, `name`, `dataType`, `description`, `isIdentifier`, `isRequired`, `unit`, `sensitivity`, `sourceColumn`, `transformSteps`} + `displayPropertyCode`(대표 속성으로 쓸 묶음 속성 코드, 없으면 칸 없음) | `objectMapping` {title, reason, items, …}, `properties[]` {code, title, reason, items, confidenceItems, mapping} |
 | LINK_RULE | 연결 규칙 칸(`code`, `name`, `linkTypeCode`, `pattern`, `conditions`, `sourceFilter`, `description`) + `linkType` {`code`, `name`, `sourceTypeCode`, `targetTypeCode`, `cardinality`, `description`} | 없음(규칙과 관계 유형의 근거가 같음) |
 
 대표 속성(`displayPropertyCode`)은 수집한 객체의 표시 이름이 됩니다. 묶음 속성 중 글자형이고 식별 키·민감 속성이 아닌 이름 성격 컬럼을 고릅니다. 우선순위는 `name` → `*_name`·`*_nm` → 한국어 이름이 '명'·'이름'으로 끝나는 속성('설명' 제외)입니다. 없으면 칸을 보내지 않고, 표시 이름은 원천 키 값이 됩니다. 이 칸은 재분석 지문에서 뺍니다(이 칸이 생기기 전에 승인한 유형이 '변경'으로 다시 올라오지 않게).
@@ -72,7 +72,15 @@ LINK_RULE·LINK_TYPE·DOCUMENT_LINK의 `name`(관계 유형은 `linkType.name`·
 
 DOCUMENT_LINK `payload`는 `name`, `linkTypeCode`, `documentId`, `spanStart`·`spanEnd`(원문 글자 위치, 끝 미포함), `mentionText`, `targetObjectRef`, `expressionKind`입니다. `expressionKind`는 OBSERVED(확인) · ESTIMATED(추정)입니다. 관찰이 모두 부정인 언급은 연결하지 않습니다. 설비 후보가 여럿이면 `options[]`에 후보마다 하나씩 두고 보류 권고(`holdRecommended`)로 보냅니다. 문서 연결이 쓰는 관계 유형(`MENTIONS_EQUIPMENT` 등, 메모 → 설비·작업지시·정비·출하, MANY_TO_MANY)도 LINK_TYPE 후보로 함께 냅니다. 관계 유형은 출발 객체 유형이 하나라서 정비 기록 연결은 `MAINTENANCE_ORDER_MENTIONS_EQUIPMENT`처럼 앞에 표 이름을 붙입니다.
 
-속성의 `sensitivity`(객체 후보 `payload.properties[].sensitivity`)는 ERD `property_definition.sensitivity`와 같은 값(NORMAL · RESTRICTED)입니다. 개인정보로 본 컬럼은 RESTRICTED입니다.
+속성의 `sensitivity`(객체 후보 `payload.properties[].sensitivity`)는 ERD `property_definition.sensitivity`와 같은 값(NORMAL · RESTRICTED)입니다. 민감 분류 기준(392, `app/proposers/access.py`)에 걸리면 RESTRICTED이고, 이유를 속성 근거 `reason`에 "민감 (기준: …)"으로 남깁니다.
+
+- 사람을 알아볼 수 있는 값: 이름·주석이 개인정보를 가리킴, 값이 사람 이름 모양, 사람 표(직원·작업자 등)의 연락처·주소·생년월일
+- 인사 속성: 사람 표의 직급·입사·고용 형태·급여 등
+- 평가: 사람 표의 숙련도·평점·점수 등(제품 등급·검사 점수처럼 사람 표가 아닌 곳은 아니다)
+- 원천 정책의 민감 컬럼(`app/source_policy.py`)
+- 자유 글(메모·비고·내용)은 사람 이름이 섞일 수 있지만 업무 내용이라 자동으로 민감으로 두지 않습니다. 근거에 "자유 글: … 검토하세요"를 붙여 검토자가 정합니다. 인계 메모 같은 칸을 민감으로 두면 관리자·Agent가 내용을 볼 수 없기 때문입니다.
+
+객체 유형의 `accessGroup`은 조회 그룹 기본값입니다(392). 플랫폼은 그룹이 없는 유형을 어느 역할에도 보여 주지 않으므로, 원천 업무 영역으로 PRODUCTION(생산·설비) 또는 SALES_SUPPLY(영업·구매·재고)를 넣습니다. 표 이름 낱말로 정하고(`sales`·`purchase`·`vendor`·`stock`·`item`·`material` 등은 SALES_SUPPLY, `work`·`equipment`·`defect`·`worker`·`department` 등은 PRODUCTION), 낱말이 없으면 MES 원천은 PRODUCTION입니다. 정하지 못하거나 두 영역에 함께 걸리면 `null`이고 승인하면 비공개입니다. 이유는 유형 근거 `reason`의 "조회 그룹: …"에 남깁니다. 검토자가 화면에서 바꾸거나 비울 수 있고, 재분석 지문에서는 뺍니다(대표 속성과 같은 이유).
 
 관계 개수 `MANY_TO_MANY`는 도착이 키가 아닌 종류 관계(라우팅 설비 종류 → 설비 종류)에 씁니다. 다른 표를 거쳐야 이어지는 관계(공정 실적 → 작업지시 → 라우팅)는 연결 규칙(`link_mapping_condition`, 두 객체의 속성 비교)으로 표현할 수 없어 LINK_RULE 없이 LINK_TYPE만 보류 권고로 냅니다.
 

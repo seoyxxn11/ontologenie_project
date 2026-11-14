@@ -34,7 +34,8 @@ def camel_keys(value):
 
 # 화면에 보이는 이름·설명. LLM이 실행마다 다르게 써서 지문에서 뺀다(같은 원천이면 '유지').
 # 대표 속성도 뺀다. 이 칸이 생기기 전에 승인한 유형이 재분석에서 모두 '변경'으로 다시 올라오지 않게 한다
-WORDING_KEYS = {"name", "description", "synonyms", "displayPropertyCode"}
+# 조회 그룹 기본값(392)도 같은 이유로 뺀다. 둘 다 검토자가 화면에서 바꾸는 값이다
+WORDING_KEYS = {"name", "description", "synonyms", "displayPropertyCode", "accessGroup"}
 
 
 def _without_wording(value):

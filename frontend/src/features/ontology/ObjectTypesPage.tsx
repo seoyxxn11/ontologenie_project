@@ -6,6 +6,8 @@ import DataTable from '../../components/DataTable'
 import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
 import PageHeader from '../../components/PageHeader'
 import StatusBadge from '../../components/StatusBadge'
+import AccessGroupEditor from './AccessGroupEditor'
+import { accessGroupText } from './accessGroups'
 import {
   fetchObjectTypeList,
   fetchTypeProperties,
@@ -15,6 +17,8 @@ import {
 import type { ObjectTypeItem } from './types'
 import './objectTypes.css'
 
+const groupSavedNotice =
+  '조회 그룹을 저장했습니다. 그룹에 허용된 역할의 업무 데이터 화면과 AI 업무 도우미에 바로 반영됩니다.'
 const savedNotice =
   '저장했습니다. 이 유형이 매핑된 원천 표를 다시 읽도록 예약했습니다. 다시 읽기가 끝나면 기존 객체의 표시 이름도 바뀝니다.'
 
@@ -164,6 +168,7 @@ export default function ObjectTypesPage() {
           <thead>
             <tr>
               <th className="px-4 py-3">이름·코드</th>
+              <th className="px-4 py-3">조회 그룹</th>
               <th className="px-4 py-3">대표 속성</th>
             </tr>
           </thead>
@@ -190,6 +195,11 @@ export default function ObjectTypesPage() {
                   </p>
                 </td>
                 <td>
+                  <StatusBadge tone={type.accessGroup ? 'success' : 'warning'}>
+                    {accessGroupText(type.accessGroup)}
+                  </StatusBadge>
+                </td>
+                <td>
                   <StatusBadge
                     tone={
                       type.displayPropertyId === null ? 'warning' : 'success'
@@ -202,21 +212,27 @@ export default function ObjectTypesPage() {
             ))}
           </tbody>
         </DataTable>
-        <section
-          aria-label="대표 속성 지정"
-          className="management-panel space-y-4"
-        >
+        <section aria-label="유형 설정" className="management-panel space-y-4">
           {notice && (
             <p role="status" className="management-subpanel">
               {notice}
             </p>
           )}
           {selected ? (
-            <DisplayPropertyEditor
-              key={`${selected.id}-${selected.rowVersion}`}
-              type={selected}
-              onSaved={() => setNotice(savedNotice)}
-            />
+            <>
+              <DisplayPropertyEditor
+                key={`${selected.id}-${selected.rowVersion}`}
+                type={selected}
+                onSaved={() => setNotice(savedNotice)}
+              />
+              <div className="management-subpanel">
+                <AccessGroupEditor
+                  key={`group-${selected.id}-${selected.rowVersion}`}
+                  type={selected}
+                  onSaved={() => setNotice(groupSavedNotice)}
+                />
+              </div>
+            </>
           ) : (
             <EmptyState message="목록에서 객체 유형을 고르세요." />
           )}
@@ -229,7 +245,7 @@ export default function ObjectTypesPage() {
     <div className="management-page space-y-6">
       <PageHeader
         title="객체 유형"
-        description="대표 속성 값이 객체의 표시 이름이 됩니다. 업무 데이터 화면과 AI 업무 도우미는 이 이름으로 객체를 보여 주고 찾습니다."
+        description="대표 속성 값이 객체의 표시 이름이 됩니다. 업무 데이터 화면과 AI 업무 도우미는 이 이름으로 객체를 보여 주고 찾습니다. 조회 그룹이 없는 유형은 어느 역할에도 보이지 않습니다."
       />
       {content}
     </div>

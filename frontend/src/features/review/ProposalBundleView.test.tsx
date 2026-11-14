@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { expect, test } from 'vitest'
@@ -164,6 +165,87 @@ test('객체 후보는 속성과 원천 컬럼을 표로 보여 주고 같은 �
   expect(screen.queryByText('properties')).not.toBeInTheDocument()
   expect(screen.queryByText('objectMapping')).not.toBeInTheDocument()
   expect(screen.getByText('원천 mes.work_order의 한 행')).toBeInTheDocument()
+})
+
+test('그룹이 없으면 비공개로 들어간다고 알리고, 그룹·민감도를 고쳐 개정본으로 저장한다', async () => {
+  let body: Record<string, unknown> | undefined
+  server.use(
+    http.get('/api/v1/proposals/:id/options', () =>
+      HttpResponse.json({ data: [] }),
+    ),
+    http.post('/api/v1/proposals/:id/revisions', async ({ request }) => {
+      body = (await request.json()) as Record<string, unknown>
+      return HttpResponse.json(
+        {
+          data: {
+            ...objectBundle,
+            revision: 2,
+            payload: body.payload,
+            checkRunId: null,
+          },
+        },
+        { status: 201 },
+      )
+    }),
+  )
+  open(objectBundle)
+
+  expect(
+    await screen.findByText(
+      /승인 뒤 어느 역할에도 이 유형의 객체가 보이지 않습니다/,
+    ),
+  ).toBeInTheDocument()
+  const form = screen.getByRole('form', { name: '조회 그룹과 민감도 고치기' })
+  const user = userEvent.setup()
+  const save = within(form).getByRole('button', { name: '개정본으로 저장' })
+  expect(save).toBeDisabled()
+  // 식별 속성은 민감으로 둘 수 없다
+  const identifier = within(form).getByLabelText('wo_no 민감도')
+  expect(
+    within(identifier).getByRole('option', { name: '제한(민감)' }),
+  ).toBeDisabled()
+
+  await user.selectOptions(
+    within(form).getByLabelText('조회 그룹'),
+    'PRODUCTION',
+  )
+  await user.selectOptions(
+    within(form).getByLabelText('worker_name 민감도'),
+    'NORMAL',
+  )
+  await user.click(save)
+
+  expect(await within(form).findByRole('status')).toHaveTextContent(
+    '개정본을 저장했습니다(개정 2).',
+  )
+  expect(body?.baseRevision).toBe(1)
+  expect(body?.options).toEqual([])
+  expect(body?.evidence).toEqual(objectBundle.evidence)
+  const payload = body?.payload as Record<string, unknown>
+  expect(payload.accessGroup).toBe('PRODUCTION')
+  expect(
+    (payload.properties as { code: string; sensitivity: string }[]).map(
+      (property) => [property.code, property.sensitivity],
+    ),
+  ).toEqual([
+    ['wo_no', 'NORMAL'],
+    ['worker_name', 'NORMAL'],
+  ])
+  expect(payload.objectMapping).toEqual(objectBundle.payload.objectMapping)
+})
+
+test('결정한 후보는 그룹·민감도를 고칠 수 없다', async () => {
+  open({
+    ...objectBundle,
+    id: 805,
+    reviewStatus: 'APPROVED',
+    payload: { ...objectBundle.payload, accessGroup: 'PRODUCTION' },
+  })
+
+  expect(await screen.findByText('생산·설비')).toBeInTheDocument()
+  expect(
+    screen.queryByRole('form', { name: '조회 그룹과 민감도 고치기' }),
+  ).not.toBeInTheDocument()
 })
 
 test('관계 후보는 관계 유형과 비교 조건을 함께 보여 준다', async () => {

@@ -1,4 +1,6 @@
 import DataTable from '../../components/DataTable'
+import { accessGroupText } from '../ontology/accessGroups'
+import BundleAccessEditor from './BundleAccessEditor'
 import {
   conditionText,
   isBundle,
@@ -56,6 +58,11 @@ const cardinalityLabels: Record<string, string> = {
   MANY_TO_MANY: 'N:N',
 }
 
+// 검토 결정 전(대기·보류) 후보만 그룹·민감도를 고칠 수 있다
+function editable(proposal: Proposal) {
+  return ['PENDING', 'HELD'].includes(proposal.reviewStatus)
+}
+
 function ObjectBundle({ proposal }: { proposal: Proposal }) {
   const { payload, evidence } = proposal
   const mapping = isRow(payload.objectMapping) ? payload.objectMapping : null
@@ -86,6 +93,20 @@ function ObjectBundle({ proposal }: { proposal: Proposal }) {
         <dd>{mappingWhy}</dd>
         <dt className="font-medium text-slate-600">속성 수</dt>
         <dd>{properties.length}개</dd>
+        <dt className="font-medium text-slate-600">조회 그룹</dt>
+        <dd>
+          {accessGroupText(
+            typeof payload.accessGroup === 'string'
+              ? payload.accessGroup
+              : null,
+          )}
+          {!payload.accessGroup && editable(proposal) && (
+            <p className="mt-1 text-amber-700">
+              그룹이 없으면 승인 뒤 어느 역할에도 이 유형의 객체가 보이지
+              않습니다. 아래에서 정하거나 승인 뒤 객체 유형 화면에서 지정하세요.
+            </p>
+          )}
+        </dd>
       </dl>
       <div className="mt-4">
         <DataTable label={`${text(payload.code)} 속성 목록`}>
@@ -147,6 +168,10 @@ function ObjectBundle({ proposal }: { proposal: Proposal }) {
           </tbody>
         </DataTable>
       </div>
+      {editable(proposal) && (
+        // 개정본을 저장하면 다시 조회되어 개정 번호가 바뀐다. 저장 완료 문구가 남도록 후보마다 한 번만 만든다
+        <BundleAccessEditor key={proposal.id} proposal={proposal} />
+      )}
     </section>
   )
 }

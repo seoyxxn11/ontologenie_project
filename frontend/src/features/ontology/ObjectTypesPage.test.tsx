@@ -13,6 +13,7 @@ const equipment: ObjectTypeItem = {
   code: 'EQUIPMENT',
   name: '설비',
   displayPropertyId: null,
+  accessGroup: null,
   rowVersion: 3,
 }
 const item: ObjectTypeItem = {
@@ -20,6 +21,7 @@ const item: ObjectTypeItem = {
   code: 'ITEM',
   name: '품목',
   displayPropertyId: 21,
+  accessGroup: 'SALES_SUPPLY',
   rowVersion: 0,
 }
 const equipmentProperties: PropertyItem[] = [
@@ -208,4 +210,107 @@ test('속성 목록을 불러오는 동안과 실패했을 때를 따로 보여 
   ).toBeInTheDocument()
   expect(await screen.findByRole('alert')).toHaveTextContent('서버 오류')
   expect(screen.queryByLabelText('대표 속성')).not.toBeInTheDocument()
+})
+
+test('조회 그룹을 고르면 024로 보내고, 목록에 그룹을 보여 준다', async () => {
+  serveTypes()
+  let body: Record<string, unknown> | undefined
+  server.use(
+    http.patch('/api/v1/ontology/object-types/:id', async ({ request }) => {
+      body = (await request.json()) as Record<string, unknown>
+      return HttpResponse.json({
+        data: { ...equipment, accessGroup: 'PRODUCTION', rowVersion: 4 },
+      })
+    }),
+  )
+  open()
+  const table = await screen.findByRole('table', { name: '객체 유형 목록' })
+  const rows = within(table).getAllByRole('row')
+  expect(within(rows[1]).getByText('비공개 (그룹 없음)')).toBeInTheDocument()
+  expect(within(rows[2]).getByText('영업·구매·재고')).toBeInTheDocument()
+
+  const user = await choose('설비')
+  const select = await screen.findByLabelText('조회 그룹')
+  expect(
+    within(select)
+      .getAllByRole('option')
+      .map((option) => option.textContent),
+  ).toEqual([
+    '비공개 (그룹 없음)',
+    '생산·설비 (PRODUCTION)',
+    '영업·구매·재고 (SALES_SUPPLY)',
+  ])
+  expect(screen.getByRole('button', { name: '그룹 저장' })).toBeDisabled()
+
+  await user.selectOptions(select, 'PRODUCTION')
+  await user.click(screen.getByRole('button', { name: '그룹 저장' }))
+
+  expect(
+    await screen.findByText(/조회 그룹을 저장했습니다/),
+  ).toBeInTheDocument()
+  expect(body).toEqual({ accessGroup: 'PRODUCTION', rowVersion: 3 })
+  expect(within(rows[1]).getByText('생산·설비')).toBeInTheDocument()
+})
+
+test('비공개를 고르면 null을 보낸다', async () => {
+  serveTypes()
+  let body: Record<string, unknown> | undefined
+  server.use(
+    http.patch('/api/v1/ontology/object-types/:id', async ({ request }) => {
+      body = (await request.json()) as Record<string, unknown>
+      return HttpResponse.json({
+        data: { ...item, accessGroup: null, rowVersion: 1 },
+      })
+    }),
+  )
+  open()
+  const user = await choose('품목')
+  await user.selectOptions(await screen.findByLabelText('조회 그룹'), '')
+  await user.click(screen.getByRole('button', { name: '그룹 저장' }))
+
+  await screen.findByText(/조회 그룹을 저장했습니다/)
+  expect(body).toEqual({ accessGroup: null, rowVersion: 0 })
+})
+
+test('정책을 어긴 매핑이 있어 거절되면 어긴 매핑을 보여 준다', async () => {
+  serveTypes()
+  server.use(
+    http.patch('/api/v1/ontology/object-types/:id', () =>
+      HttpResponse.json(
+        {
+          error: {
+            code: 'BUSINESS_RULE_VIOLATION',
+            message:
+              '원천 데이터 정책을 어기는 매핑이 있어 그룹을 지정할 수 없습니다. 매핑을 고친 뒤 지정하세요.',
+            details: {
+              field: 'accessGroup',
+              violations: [
+                {
+                  kind: 'FORBIDDEN_COLUMN',
+                  resourceKey: 'erp.employee',
+                  columnName: 'emp_name',
+                  objectMappingId: 8,
+                  propertyMappingId: 51,
+                  propertyCode: 'emp_name',
+                },
+              ],
+            },
+          },
+        },
+        { status: 422 },
+      ),
+    ),
+  )
+  open()
+  const user = await choose('설비')
+  await user.selectOptions(
+    await screen.findByLabelText('조회 그룹'),
+    'PRODUCTION',
+  )
+  await user.click(screen.getByRole('button', { name: '그룹 저장' }))
+
+  const list = await screen.findByRole('list', { name: '정책을 어긴 매핑' })
+  expect(list).toHaveTextContent(
+    'erp.employee.emp_name → emp_name · 금지 컬럼(수집하지 않음)',
+  )
 })

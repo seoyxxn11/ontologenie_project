@@ -238,6 +238,16 @@ export default function ProposalDecision({
             반영: {applyLabels[result.applyStatus] ?? result.applyStatus}
           </p>
           <p>반영 대상 {result.appliedEntityIds.length}건</p>
+          {result.decision === 'APPROVE' &&
+            // 선택지로 승인하면 선택지의 내용이 반영되므로 원래 내용의 그룹으로 판단하지 않는다
+            mutation.variables?.selectedOptionId === undefined &&
+            proposal.itemKind === 'OBJECT_TYPE' &&
+            !proposal.payload.accessGroup && (
+              <p>
+                조회 그룹 없이 반영해 비공개입니다. 어느 역할에도 이 유형의
+                객체가 보이지 않으니 객체 유형 화면에서 조회 그룹을 지정하세요.
+              </p>
+            )}
         </div>
       )}
     </section>

@@ -93,3 +93,34 @@ export async function saveRule(input: {
     )
   return response.data
 }
+
+// 객체 유형 후보의 조회 그룹·속성 민감도를 고쳐 개정본으로 저장한다(392). 정의 후보라 후보 검사는 접수하지 않는다(checkRunId null).
+// 선택지는 그대로 다시 보낸다. 근거는 바꾸지 않는다.
+export async function reviseObjectProposal(
+  proposal: Proposal,
+  payload: Record<string, unknown>,
+) {
+  const options = await fetchProposalOptions(proposal.id, proposal.revision)
+  const response = await apiPost<ProposalWriteResult>(
+    `/proposals/${proposal.id}/revisions`,
+    {
+      baseRevision: proposal.revision,
+      payload,
+      evidence: proposal.evidence,
+      options: options.map((option) => ({
+        payload: option.payload,
+        evidence: option.evidence,
+      })),
+    },
+  )
+  if (
+    response?.data?.id !== proposal.id ||
+    !Number.isSafeInteger(response.data.revision) ||
+    response.data.revision <= proposal.revision
+  )
+    throw new ApiError(
+      '저장 응답을 확인할 수 없습니다. 제안을 새로 조회해 확인해 주세요.',
+      { kind: 'invalid-response' },
+    )
+  return response.data
+}

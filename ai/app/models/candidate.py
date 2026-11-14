@@ -108,6 +108,8 @@ class ObjectTypePayload(BaseModel):
     note: str | None = None
     # 표 종류 제안. 운영 ERD object_type에는 없는 값이라 검토 참고용이다
     category: ObjectCategory | None = None
+    # 조회 그룹 기본값(object_type.access_group, 392). 원천 업무 영역으로 정하고, 정하지 못하면 None(승인하면 비공개)
+    access_group: str | None = None
 
 
 class PropertyPayload(BaseModel):
