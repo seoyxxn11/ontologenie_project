@@ -904,7 +904,7 @@ export const handlers = [
   http.get('/api/v1/objects', async ({ request }) => {
     await delay()
     const params = new URL(request.url).searchParams
-    const q = params.get('q') ?? ''
+    const q = (params.get('q') ?? '').trim().toLowerCase()
     const page = Number(params.get('page') ?? 0)
     const size = Number(params.get('size') ?? 20)
     const objectTypeId = Number(params.get('objectTypeId'))
@@ -913,7 +913,9 @@ export const handlers = [
       return match ? [[match[1], value]] : []
     })
     const matched = objects.filter((item) => {
-      const numbers = Object.values(item.sourceKey ?? {}).map(String)
+      const numbers = Object.values(item.sourceKey ?? {})
+        .filter((value) => value !== null && value !== undefined)
+        .map(String)
       const matchesType = !objectTypeId || item.objectTypeId === objectTypeId
       return (
         matchesType &&
@@ -922,7 +924,9 @@ export const handlers = [
             item.properties[code] != null &&
             String(item.properties[code]) === value,
         ) &&
-        [item.displayName, ...numbers].some((text) => text.includes(q))
+        [item.displayName, ...numbers].some((text) =>
+          text.toLowerCase().includes(q),
+        )
       )
     })
     const start = page * size

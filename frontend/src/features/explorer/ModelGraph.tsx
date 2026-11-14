@@ -2,6 +2,7 @@ import {
   BaseEdge,
   EdgeLabelRenderer,
   getBezierPath,
+  getViewportForBounds,
   Handle,
   MarkerType,
   Panel,
@@ -181,6 +182,8 @@ const INCOMING_LINE_COLOR = '#657319'
 const OUTGOING_LINE_COLOR = '#6f5adf'
 // 그림 칸 크기가 이만큼 이상 바뀌어야 고른 유형에 다시 맞춘다.
 const RESIZE_REFIT_PX = 40
+const MIN_GRAPH_ZOOM = 0.01
+const MAX_GRAPH_ZOOM = 1.5
 
 const nodeTypes = { type: TypeNode }
 const edgeTypes = { relation: RelationEdge }
@@ -205,6 +208,9 @@ function ModelGraph({
     null,
   )
   const canvas = useRef<HTMLDivElement | null>(null)
+  const toolbar = useRef<HTMLDivElement | null>(null)
+  const zoomTools = useRef<HTMLDivElement | null>(null)
+  const fullscreenHint = useRef<HTMLDivElement | null>(null)
   const [navigation, navigate] = useReducer(
     graphNavigationReducer,
     selectedTypeId,
@@ -218,7 +224,7 @@ function ModelGraph({
     selectedCenter?: { x: number; y: number }
     entered: boolean
   } | null>(null)
-  // 검색 줄에서 유형을 바꾼 경우도 이전 선택과 마지막 화면 위치를 기록한다.
+  // 검색 줄에서 유형을 바꾼 경우도 현재 보기 방식과 화면 위치를 유지한다.
   if (navigation.selectedTypeId !== selectedTypeId) {
     navigate({ type: 'select', id: selectedTypeId })
   }
@@ -253,14 +259,15 @@ function ModelGraph({
     [visibleGraph.nodes, lines, points, routes, selectedTypeId],
   )
 
-  // 고른 유형과 그 유형에 연결된 유형이 모두 보이게 맞춘다. 고른 유형이 없으면 전체를 맞춘다.
+  // 현재 표시된 카드와 선을 맞춘다. controlled nodes의 갱신을 기다리는 fitView 대신 직접 범위를 적용한다.
   const fitSelection = useCallback(() => {
     const instance = flow.current
     if (!instance) return
-    if (!focused || selectedTypeId === null) {
-      void instance.fitView({ padding: 0.15 })
-      return
-    }
+    const element = canvas.current
+    const viewportElement = element?.querySelector<HTMLElement>('.react-flow')
+    const width = element?.clientWidth || viewportElement?.offsetWidth
+    const height = element?.clientHeight || viewportElement?.offsetHeight
+    if (!width || !height) return
     const boxes = visibleGraph.nodes.flatMap(({ id }) => {
       const point = points.get(id)
       if (!point) return []
@@ -274,7 +281,10 @@ function ModelGraph({
       ]
     })
     if (boxes.length === 0) return
-    if (boxes.length === 1 && selfRelationHeight(lines, selectedTypeId) === 0) {
+    if (
+      boxes.length === 1 &&
+      selfRelationHeight(lines, visibleGraph.nodes[0].id) === 0
+    ) {
       // 연결 없는 유형은 카드 하나만 크게 확대하지 않고 읽기 크기(1배)로 가운데에 둔다.
       const [box] = boxes
       void instance.setCenter(
@@ -284,30 +294,59 @@ function ModelGraph({
       )
       return
     }
-    const selected = points.get(selectedTypeId)
-    if (!selected) return
-    const centerX = selected.x + TYPE_NODE_WIDTH / 2
+    const routePoints = [...routes.values()].flatMap((route) => route.points)
+    const left = Math.min(
+      ...boxes.map((box) => box.left),
+      ...routePoints.map((p) => p.x),
+    )
+    const right = Math.max(
+      ...boxes.map((box) => box.right),
+      ...routePoints.map((p) => p.x),
+    )
+    const top = Math.min(
+      ...boxes.map((box) => box.top),
+      ...routePoints.map((p) => p.y),
+    )
+    const bottom = Math.max(
+      ...boxes.map((box) => box.bottom),
+      ...routePoints.map((p) => p.y),
+    )
+    const selected =
+      focused && selectedTypeId !== null
+        ? points.get(selectedTypeId)
+        : undefined
+    const centerX = selected
+      ? selected.x + TYPE_NODE_WIDTH / 2
+      : (left + right) / 2
     const centerY =
-      selected.y +
-      selfRelationHeight(lines, selectedTypeId) +
-      TYPE_NODE_HEIGHT / 2
+      selected && selectedTypeId !== null
+        ? selected.y +
+          selfRelationHeight(lines, selectedTypeId) +
+          TYPE_NODE_HEIGHT / 2
+        : (top + bottom) / 2
     // 양옆 관계 수가 달라도 선택한 카드가 화면 가운데에 오도록 대칭 영역을 맞춘다.
-    const halfWidth = Math.max(
-      ...boxes.flatMap((box) => [centerX - box.left, box.right - centerX]),
-    )
-    const halfHeight = Math.max(
-      ...boxes.flatMap((box) => [centerY - box.top, box.bottom - centerY]),
-    )
-    void instance.fitBounds(
+    const halfWidth = Math.max(centerX - left, right - centerX)
+    const halfHeight = Math.max(centerY - top, bottom - centerY)
+    const viewport = getViewportForBounds(
       {
         x: centerX - halfWidth,
         y: centerY - halfHeight,
         width: halfWidth * 2,
         height: halfHeight * 2,
       },
-      { padding: 0.15 },
+      width,
+      height,
+      MIN_GRAPH_ZOOM,
+      MAX_GRAPH_ZOOM,
+      {
+        top: `${(toolbar.current?.offsetHeight ?? 40) + 24}px`,
+        right: '24px',
+        bottom: `${(fullscreenHint.current?.offsetHeight ?? 0) + 24}px`,
+        left: `${(zoomTools.current?.offsetWidth ?? 34) + 24}px`,
+      },
     )
-  }, [focused, selectedTypeId, visibleGraph.nodes, points, lines])
+    void instance.setViewport(viewport)
+  }, [focused, selectedTypeId, visibleGraph.nodes, points, lines, routes])
 
   const applyCamera = useCallback(
     (camera: GraphCameraRequest, remembered: Viewport | null = null) => {
@@ -337,13 +376,6 @@ function ModelGraph({
   function selectType(id: number) {
     navigate({ type: 'select', id, viewport: flow.current?.getViewport() })
     onSelect(id)
-  }
-
-  function previousView() {
-    const previous = navigation.history.at(-1)
-    if (!previous) return
-    navigate({ type: 'back' })
-    onSelect(previous.selectedTypeId)
   }
 
   async function toggleFullscreen() {
@@ -501,6 +533,21 @@ function ModelGraph({
     ...lines.filter((line) => !isRelated(line)),
     ...lines.filter(isRelated),
   ]
+  const hasIncoming = lines.some(
+    (line) =>
+      line.targetTypeId === selectedTypeId &&
+      line.sourceTypeId !== selectedTypeId,
+  )
+  const hasOutgoing = lines.some(
+    (line) =>
+      line.sourceTypeId === selectedTypeId &&
+      line.targetTypeId !== selectedTypeId,
+  )
+  const hasSelfRelation = lines.some(
+    (line) =>
+      line.sourceTypeId === selectedTypeId &&
+      line.targetTypeId === selectedTypeId,
+  )
   const edges: RelationFlowEdge[] = orderedLines.map((line) => {
     const related = isRelated(line)
     const color = !related
@@ -535,28 +582,6 @@ function ModelGraph({
     }
   })
 
-  const navigationButtons = (
-    <>
-      <Button
-        variant="secondary"
-        disabled={navigation.history.length === 0}
-        onClick={previousView}
-      >
-        이전 보기
-      </Button>
-      <Button
-        variant="secondary"
-        disabled={!selectedType}
-        aria-pressed={focused}
-        onClick={() =>
-          navigate({ type: 'focus', viewport: flow.current?.getViewport() })
-        }
-      >
-        {focused ? '전체 배치 보기' : '집중 보기'}
-      </Button>
-    </>
-  )
-
   return (
     <div>
       {view === 'list' ? (
@@ -574,17 +599,6 @@ function ModelGraph({
         </div>
       ) : (
         <>
-          <div className="model-graph-focus-bar">
-            <p role="status">
-              <strong>{selectedType?.name ?? '전체 유형'}</strong>
-              {focused
-                ? ` 중심 · 관련 없는 유형 ${graph.nodes.length - visibleGraph.nodes.length}개 접힘`
-                : ' · 전체 배치 유지'}
-            </p>
-            <div className="model-graph-navigation-actions">
-              {navigationButtons}
-            </div>
-          </div>
           {fullscreenError && <p role="alert">{fullscreenError}</p>}
           <div ref={canvas} className="explorer-graph-canvas">
             <ReactFlow
@@ -596,7 +610,7 @@ function ModelGraph({
                 flow.current = instance
                 applyCamera(navigation.camera, navigation.viewport)
               }}
-              // 카메라는 초기 맞춤·명시적 집중 보기·이전 보기에서만 바꾼다.
+              // 카메라는 초기 맞춤과 명시적 도구 조작에서만 바꾼다.
               fitView={false}
               onViewportChange={rememberViewport}
               zoomOnScroll
@@ -604,8 +618,8 @@ function ModelGraph({
               preventScrolling
               panOnScroll={false}
               panOnDrag
-              minZoom={0.3}
-              maxZoom={1.5}
+              minZoom={MIN_GRAPH_ZOOM}
+              maxZoom={MAX_GRAPH_ZOOM}
               nodesDraggable={false}
               nodesConnectable={false}
               elementsSelectable={false}
@@ -615,34 +629,28 @@ function ModelGraph({
               proOptions={{ hideAttribution: true }}
             >
               {fullscreen && (
-                <Panel position="bottom-left">
+                <Panel
+                  position="bottom-right"
+                  style={{ maxWidth: 'calc(100% - 80px)' }}
+                >
                   <div
+                    ref={fullscreenHint}
                     className="model-graph-fullscreen-navigation"
                     role="group"
                     aria-label="전체 화면 탐색"
                   >
                     <strong>{selectedType?.name ?? '전체 유형'}</strong>
-                    {navigationButtons}
                     <span>Esc로 전체 화면 닫기</span>
                   </div>
                 </Panel>
               )}
-              {/* 배율 버튼은 그림 위 오른쪽에 겹쳐 두어 그림 위에 버튼 줄이 생기지 않게 한다. */}
-              <Panel position="top-right">
+              <Panel position="bottom-left">
                 <div
+                  ref={zoomTools}
                   role="group"
                   aria-label="관계도 배율 조절"
-                  className="model-graph-zoom"
+                  className="model-graph-zoom model-graph-scale"
                 >
-                  <button
-                    type="button"
-                    onClick={() => void flow.current?.zoomTo(1)}
-                  >
-                    읽기 크기
-                  </button>
-                  <button type="button" onClick={fitSelection}>
-                    전체 맞춤
-                  </button>
                   <button
                     type="button"
                     onClick={() => void flow.current?.zoomIn()}
@@ -657,8 +665,70 @@ function ModelGraph({
                   >
                     −
                   </button>
-                  <button type="button" onClick={() => void toggleFullscreen()}>
-                    {fullscreen ? '전체 화면 닫기' : '전체 화면'}
+                  <button
+                    type="button"
+                    onClick={() => void toggleFullscreen()}
+                    aria-label={fullscreen ? '전체 화면 닫기' : '전체 화면'}
+                    title={fullscreen ? '전체 화면 닫기' : '전체 화면'}
+                  >
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d={
+                          fullscreen
+                            ? 'M3 9h6V3m6 0v6h6M9 21v-6H3m12 6v-6h6'
+                            : 'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5'
+                        }
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </Panel>
+              <Panel
+                position="top-right"
+                style={{ maxWidth: 'calc(100% - 24px)' }}
+              >
+                <div
+                  ref={toolbar}
+                  role="group"
+                  aria-label="관계도 도구"
+                  className="model-graph-zoom"
+                >
+                  <button
+                    type="button"
+                    disabled={!selectedType}
+                    aria-pressed={focused}
+                    title={
+                      selectedType
+                        ? `${selectedType.name}의 직접 연결만 보기`
+                        : '객체 유형을 먼저 선택하세요'
+                    }
+                    onClick={() =>
+                      navigate({
+                        type: 'focus',
+                        viewport: flow.current?.getViewport(),
+                      })
+                    }
+                  >
+                    {focused ? '전체 배치 보기' : '집중 보기'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void flow.current?.zoomTo(1)}
+                  >
+                    읽기 크기
+                  </button>
+                  <button type="button" onClick={fitSelection}>
+                    전체 맞춤
                   </button>
                 </div>
               </Panel>
@@ -677,14 +747,30 @@ function ModelGraph({
         {view === 'graph' && (
           <span>점선: 현재 연결 0건 · 화살표: 관계 방향</span>
         )}
-        {view === 'graph' && selectedType && (
-          <>
-            <span className="model-graph-legend-in">→ 들어오는 관계</span>
-            <span className="model-graph-legend-out">
-              → 나가는 관계 · 자기 관계
+        {view === 'graph' &&
+          selectedType &&
+          (hasIncoming || hasOutgoing || hasSelfRelation) && (
+            <span
+              className="model-graph-direction-legend"
+              role="group"
+              aria-label="선택 유형 기준 관계 방향"
+            >
+              <span>선택 유형 기준</span>
+              {hasIncoming && (
+                <span className="model-graph-legend-in">→ 들어오는 관계</span>
+              )}
+              {(hasOutgoing || hasSelfRelation) && (
+                <span className="model-graph-legend-out">
+                  →{' '}
+                  {hasOutgoing
+                    ? hasSelfRelation
+                      ? '나가는 관계 · 자기 관계'
+                      : '나가는 관계'
+                    : '자기 관계'}
+                </span>
+              )}
             </span>
-          </>
-        )}
+          )}
       </p>
     </div>
   )

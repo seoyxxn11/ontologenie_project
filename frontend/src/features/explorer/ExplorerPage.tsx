@@ -203,21 +203,6 @@ function ExplorerPage() {
   }
 
   const totalCount = objectPage?.meta?.totalElements ?? objectPage?.data.length
-  const appliedTypeName = objectTypes.find(
-    (type) => type.id === filters.objectTypeId,
-  )?.name
-  const appliedConditions = [
-    appliedTypeName ??
-      (filters.objectTypeId
-        ? `객체 유형 #${filters.objectTypeId}`
-        : '전체 유형'),
-    filters.q ? `이름·ID: ${filters.q}` : null,
-    ...Object.values(filters.propertyValues ?? {}).map(
-      (value) => `속성 값: ${value}`,
-    ),
-  ]
-    .filter(Boolean)
-    .join(' · ')
 
   useEffect(() => {
     if (isFetching || isPlaceholderData || isError || totalCount === undefined)
@@ -305,10 +290,6 @@ function ExplorerPage() {
           </button>
         </p>
       )}
-
-      <p className="explorer-applied-filters" aria-label="적용된 검색 조건">
-        <span>적용 조건</span> {appliedConditions}
-      </p>
 
       {selectedId !== null && (
         <div className="explorer-detail-shortcut">

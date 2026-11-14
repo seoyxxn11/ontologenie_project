@@ -30,7 +30,7 @@ test('선택 없는 전체 화면은 보던 중심을 유지하고 이미 확대
 const overview = { x: 125, y: -80, zoom: 0.75 }
 const focused = { x: -220, y: 95, zoom: 1.2 }
 
-test('기본 선택은 카메라를 그대로 두고 이전 보기에서 최초 선택과 위치·배율을 복원한다', () => {
+test('기본 선택과 재선택은 사용자가 정한 위치·배율을 유지한다', () => {
   let state = createGraphNavigation(null)
   state = graphNavigationReducer(state, {
     type: 'viewport',
@@ -41,16 +41,16 @@ test('기본 선택은 카메라를 그대로 두고 이전 보기에서 최초 
   expect(state.camera.kind).toBe('keep')
   state = graphNavigationReducer(state, { type: 'viewport', viewport: focused })
   state = graphNavigationReducer(state, { type: 'select', id: 4 })
-  state = graphNavigationReducer(state, { type: 'back' })
-  expect(state.selectedTypeId).toBe(14)
-  expect(state.camera).toEqual({ kind: 'restore', viewport: focused })
-  state = graphNavigationReducer(state, { type: 'back' })
-  expect(state.selectedTypeId).toBeNull()
-  expect(state.viewport).toEqual(overview)
-  expect(state.camera).toEqual({ kind: 'restore', viewport: overview })
+  expect(state.selectedTypeId).toBe(4)
+  expect(state.viewport).toEqual(focused)
+  expect(state.camera.kind).toBe('keep')
+  expect(graphNavigationReducer(state, { type: 'select', id: 4 })).toBe(state)
+  expect(
+    graphNavigationReducer(state, { type: 'viewport', viewport: focused }),
+  ).toBe(state)
 })
 
-test('집중 보기와 유형 이동 이력을 뒤로 가면 각각의 보기 방식과 카메라를 복원한다', () => {
+test('집중 보기에서 다른 유형을 선택해도 집중 상태를 유지하고 나갈 때 전체 배율을 복원한다', () => {
   let state = createGraphNavigation(14)
   state = graphNavigationReducer(state, { type: 'focus', viewport: overview })
   expect(state.focused).toBe(true)
@@ -62,26 +62,24 @@ test('집중 보기와 유형 이동 이력을 뒤로 가면 각각의 보기 �
   })
   expect(state.focused).toBe(true)
   expect(state.camera.kind).toBe('fit')
-  state = graphNavigationReducer(state, { type: 'back' })
-  expect(state.selectedTypeId).toBe(14)
-  expect(state.focused).toBe(true)
-  expect(state.viewport).toEqual(focused)
-  state = graphNavigationReducer(state, { type: 'back' })
+  state = graphNavigationReducer(state, { type: 'focus', viewport: focused })
   expect(state.focused).toBe(false)
+  expect(state.selectedTypeId).toBe(4)
   expect(state.camera).toEqual({ kind: 'restore', viewport: overview })
 })
 
-test('전체 배치로 나갈 때는 집중 보기 진입 전 화면으로 돌아가며 빈 이력과 재선택은 무시한다', () => {
+test('유형 선택을 해제하면 전체 배치와 진입 전 카메라로 돌아가고 선택 없이는 집중하지 않는다', () => {
   let state = createGraphNavigation(4)
-  expect(graphNavigationReducer(state, { type: 'back' })).toBe(state)
   expect(graphNavigationReducer(state, { type: 'select', id: 4 })).toBe(state)
   state = graphNavigationReducer(state, { type: 'focus', viewport: overview })
-  state = graphNavigationReducer(state, { type: 'focus', viewport: focused })
+  state = graphNavigationReducer(state, {
+    type: 'select',
+    id: null,
+    viewport: focused,
+  })
   expect(state.focused).toBe(false)
+  expect(state.selectedTypeId).toBeNull()
   expect(state.camera).toEqual({ kind: 'restore', viewport: overview })
-  state = graphNavigationReducer(state, { type: 'back' })
-  expect(state.focused).toBe(true)
-  expect(state.viewport).toEqual(focused)
   expect(
     graphNavigationReducer(createGraphNavigation(null), { type: 'focus' })
       .focused,

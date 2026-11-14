@@ -307,7 +307,7 @@ test('추천 질문을 고르면 입력란에 채우고, 답변을 기다리는 
   // 첫 질문을 보냈으므로 추천 질문은 기본 예시로 바뀌어 있다.
   expect(await screen.findByText(/^답변 준비 중/)).toBeInTheDocument()
   expect(
-    within(suggestions).getByRole('button', {
+    await within(suggestions).findByRole('button', {
       name: 'P103 비가동',
     }),
   ).toBeDisabled()
