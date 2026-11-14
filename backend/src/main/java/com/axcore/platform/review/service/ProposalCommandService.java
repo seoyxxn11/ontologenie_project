@@ -7,6 +7,8 @@ import com.axcore.platform.audit.domain.EntryPoint;
 import com.axcore.platform.audit.domain.EventKind;
 import com.axcore.platform.audit.domain.ExecutionStatus;
 import com.axcore.platform.audit.service.AuditRecorder;
+import com.axcore.platform.audit.service.RestrictedViewRecorder;
+import com.axcore.platform.audit.service.RestrictedViewRecorder.Seen;
 import com.axcore.platform.auth.service.DataAccess;
 import com.axcore.platform.auth.service.DataAccessPolicy;
 import com.axcore.platform.check.domain.CandidateCheckTarget;
@@ -25,7 +27,9 @@ import com.axcore.platform.review.dto.ProposalWriteResponse;
 import com.axcore.platform.review.repository.ProposalItemRepository;
 import com.axcore.platform.review.repository.ProposalOptionRepository;
 import com.axcore.platform.review.repository.ProposalRevisionRepository;
+import com.axcore.platform.review.service.ProposalEvidenceScope.Shown;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +50,7 @@ public class ProposalCommandService {
     private final AuditRecorder audits;
     private final DataAccessPolicy dataAccessPolicy;
     private final ProposalEvidenceScope evidenceScope;
+    private final RestrictedViewRecorder restrictedViews;
 
     public ProposalWriteResponse create(ManualProposalCreateRequest request, LoginAccount account) {
         if (!"LINK_RULE".equals(request.itemKind())) {
@@ -152,7 +157,7 @@ public class ProposalCommandService {
         proposalOptions.saveAllAndFlush(newOptions);
         // 검사 대상이 아닌 종류는 후보 검사를 접수하지 않는다. 개정 기록은 proposal_revision(created_by)에 남는다.
         if (!CandidateCheckTarget.requiresCheck(item.getItemKind())) {
-            return ProposalWriteResponse.from(item, null);
+            return response(item, account, null);
         }
         long checkId =
                 checks.enqueue(
@@ -190,7 +195,22 @@ public class ProposalCommandService {
                         .result(Map.of("status", "QUEUED", "checkRunId", checkId))
                         .changes(changes)
                         .build());
-        return ProposalWriteResponse.from(item, checkId);
+        return response(item, account, checkId);
+    }
+
+    /** 응답 근거는 조회(049)와 같이 보는 사람 범위로 가리고, 가리지 않은 민감 값은 열람 기록을 남긴다(428). */
+    private ProposalWriteResponse response(ProposalItem item, LoginAccount account, Long checkId) {
+        Shown shown =
+                evidenceScope
+                        .show(
+                                dataAccessPolicy.of(account),
+                                Collections.singletonList(item.getEvidence()))
+                        .getFirst();
+        restrictedViews.record(
+                account,
+                ProposalService.WRITE_VIEW,
+                List.of(new Seen(ProposalService.TARGET_TYPE, item.getId(), shown.revealed())));
+        return ProposalWriteResponse.from(item, shown.evidence(), checkId);
     }
 
     private static Map<String, Object> metadata(ProposalItem item) {

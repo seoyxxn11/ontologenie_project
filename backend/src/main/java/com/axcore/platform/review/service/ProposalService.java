@@ -50,6 +50,7 @@ public class ProposalService {
     static final String OPTIONS_VIEW = "PROPOSAL_OPTIONS";
     static final String REVISIONS_VIEW = "PROPOSAL_REVISIONS";
     static final String ANALYSIS_VIEW = "ANALYSIS_PROPOSALS";
+    static final String WRITE_VIEW = "PROPOSAL_WRITE";
     static final String TARGET_TYPE = "proposal_item";
 
     private final ProposalItemRepository proposalItemRepository;
