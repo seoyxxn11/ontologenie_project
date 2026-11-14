@@ -6,6 +6,8 @@ import type { Proposal } from './types'
 export const BUNDLE_PAYLOAD_KEYS = [
   'objectMapping',
   'properties',
+  // 조회 그룹은 객체 표(ObjectBundle)가 보여 주고 고친다(392)
+  'accessGroup',
   'linkType',
   'conditions',
 ]

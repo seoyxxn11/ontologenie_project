@@ -202,6 +202,10 @@ class DefinitionAppliersTests {
         ApplyResult applied =
                 apply(proposal("OBJECT_TYPE"), ProposalItemKind.OBJECT_TYPE, restricted);
         assertThat(applied.summary()).containsEntry("skippedDisplayPropertyCode", "worker_name");
+        // 그룹 없이 승인하면 비공개로 들어갔다고 남긴다(392)
+        assertThat(applied.summary())
+                .containsEntry("accessGroup", null)
+                .containsEntry("visibleToRoles", false);
         assertThat(count("object_type", "code = '" + code + "' and display_property_id is null"))
                 .isEqualTo(1);
 

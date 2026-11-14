@@ -34,3 +34,20 @@ export async function saveDisplayProperty(
     )
   return response.data
 }
+
+// 024 조회 그룹 지정. null이면 비공개로 돌린다. 켜진 매핑이 원천 데이터 정책을 어기면 422(402)
+export async function saveAccessGroup(
+  type: ObjectTypeItem,
+  accessGroup: string | null,
+) {
+  const response = await apiPatch<ObjectTypeItem>(
+    `/ontology/object-types/${type.id}`,
+    { accessGroup, rowVersion: type.rowVersion },
+  )
+  if (!response?.data)
+    throw new ApiError(
+      '저장 응답을 확인할 수 없습니다. 목록을 다시 불러와 확인해 주세요.',
+      { kind: 'invalid-response' },
+    )
+  return response.data
+}
