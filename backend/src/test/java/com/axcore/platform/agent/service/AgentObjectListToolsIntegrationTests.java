@@ -29,6 +29,7 @@ import org.springframework.test.context.ActiveProfiles;
 class AgentObjectListToolsIntegrationTests {
     private static final LoginAccount VIEWER = new LoginAccount(1L, "tester", "VIEWER", false);
     private static final LoginAccount ADMIN = new LoginAccount(1L, "tester", "ADMIN", false);
+    private static final LoginAccount PLANNER = new LoginAccount(1L, "tester", "PLANNER", false);
 
     @Autowired JdbcClient jdbc;
     @Autowired ObjectSearchQuery objects;
@@ -153,13 +154,14 @@ class AgentObjectListToolsIntegrationTests {
     void deniesFilteringByRestrictedPropertyEvenWhenAskerMayViewIt() {
         Map<String, Object> viewer =
                 tools(VIEWER).objectList(visible, Map.of("cost", "1200"), null, null, null, null);
-        Map<String, Object> admin =
-                tools(ADMIN).objectList(visible, Map.of("cost", "1200"), null, null, null, null);
+        // PLANNER는 이 그룹의 민감 값을 볼 수 있다(아래 type의 허용 행). 그래도 모델 용도라 거르지 못한다
+        Map<String, Object> planner =
+                tools(PLANNER).objectList(visible, Map.of("cost", "1200"), null, null, null, null);
         Map<String, Object> unfiltered =
-                tools(ADMIN).objectList(visible, Map.of(), null, null, null, null);
+                tools(PLANNER).objectList(visible, Map.of(), null, null, null, null);
 
         assertThat(viewer).containsEntry("resultCategory", "DENIED");
-        assertThat(admin).containsEntry("resultCategory", "DENIED");
+        assertThat(planner).containsEntry("resultCategory", "DENIED");
         assertThat(((ObjectList) unfiltered.get("data")).properties())
                 .extracting(PropertyItem::code)
                 .doesNotContain("cost");
@@ -194,8 +196,8 @@ class AgentObjectListToolsIntegrationTests {
     }
 
     /**
-     * 시험용 유형. ADMIN에게 그 그룹을 민감 값까지 열어 준다. 384부터 ADMIN도 허용 행으로만 보고 그룹 없는 유형은 아무도 못 보므로, 이 시험의 ADMIN을
-     * "전부 보는 역할"로 쓰려고 행을 넣는다. accessGroup이 null이면 ADMIN만 허용한 그룹을 따로 만든다(예전 "그룹 없어 ADMIN만 봄").
+     * 시험용 유형. ADMIN·PLANNER에게 그 그룹을 열고, 민감 값은 PLANNER만 본다(V21과 같다). 384부터 ADMIN도 허용 행으로만 보고 그룹 없는
+     * 유형은 아무도 못 보므로 행을 넣는다. accessGroup이 null이면 그 두 역할만 허용한 그룹을 따로 만든다.
      */
     private long type(String code, String accessGroup) {
         String group = accessGroup == null ? "admin-only-" + code : accessGroup;
@@ -212,7 +214,7 @@ class AgentObjectListToolsIntegrationTests {
         jdbc.sql(
                         """
                         insert into role_data_scope (role_id, access_group, can_view_restricted)
-                        select id, :group, true from role where code = 'ADMIN'
+                        select id, :group, code = 'PLANNER' from role where code in ('ADMIN', 'PLANNER')
                         on conflict (role_id, access_group) do nothing
                         """)
                 .param("group", group)

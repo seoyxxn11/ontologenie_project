@@ -41,6 +41,7 @@ public class ObjectMappingService {
     private final SourceCatalogService catalogService;
     private final LinkRecomputeService linkRecompute;
     private final SourceColumnPolicy sourceColumnPolicy;
+    private final RestrictedKeyGuard restrictedKeyGuard;
 
     /** API 034. */
     public Page<ObjectMappingResponse> search(
@@ -128,7 +129,6 @@ public class ObjectMappingService {
         }
         validateReferences(
                 request.sourceResourceId(), request.objectTypeId(), request.keyColumns());
-
         boolean identityChanged =
                 mapping.changesIdentity(
                         request.sourceResourceId(), request.objectTypeId(), request.keyColumns());
@@ -144,6 +144,11 @@ public class ObjectMappingService {
             // 수 있어야 한다(398).
             sourceColumnPolicy.requireKeyColumns(
                     target.getResourceKey(), request.keyColumns(), "keyColumns");
+        }
+        if (active && (identityChanged || !wasActive)) {
+            // 민감 속성이 담는 컬럼은 키로 쓰지 않는다(401). 키를 바꾸거나 다시 켤 때만 본다. 401 이전에 만든 설정이 남아 있어도 끄기·행 조건
+            // 수정은 막지 않는다.
+            restrictedKeyGuard.requireKeysNotRestricted(id, request.keyColumns(), "keyColumns");
         }
         if (active
                 && mappingRepository.existsActive(

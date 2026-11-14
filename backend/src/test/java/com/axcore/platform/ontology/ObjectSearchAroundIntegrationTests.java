@@ -35,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 class ObjectSearchAroundIntegrationTests {
 
     private static final LoginAccount ADMIN = new LoginAccount(1L, "tester", "ADMIN", false);
+    private static final LoginAccount PLANNER = new LoginAccount(1L, "tester", "PLANNER", false);
     private static final LoginAccount VIEWER = new LoginAccount(1L, "tester", "VIEWER", false);
 
     @Autowired ObjectDetailQuery query;
@@ -289,7 +290,7 @@ class ObjectSearchAroundIntegrationTests {
         expectError(
                 () -> around(VIEWER, model, op, Map.of("serial", "S-1"), null, null, null),
                 CommonErrorCode.FORBIDDEN);
-        assertThat(around(ADMIN, model, op, Map.of("serial", "S-1"), null, null, null))
+        assertThat(around(PLANNER, model, op, Map.of("serial", "S-1"), null, null, null))
                 .containsExactly(order);
 
         for (long linkType : new long[] {toHidden, Long.MAX_VALUE}) {
@@ -310,7 +311,7 @@ class ObjectSearchAroundIntegrationTests {
                 CommonErrorCode.RESOURCE_NOT_FOUND);
         assertThat(
                         query.searchAround(
-                                        ADMIN,
+                                        PLANNER,
                                         new ObjectSearchAroundRequest(
                                                 List.of(op), toHidden, Direction.OUT))
                                 .objectIds())
@@ -320,7 +321,7 @@ class ObjectSearchAroundIntegrationTests {
             expectError(
                     () ->
                             query.searchAround(
-                                    ADMIN,
+                                    PLANNER,
                                     new ObjectSearchAroundRequest(
                                             List.of(op, base),
                                             model.operationOrder,
@@ -549,7 +550,7 @@ class ObjectSearchAroundIntegrationTests {
         jdbc.sql(
                         """
                         insert into role_data_scope (role_id, access_group, can_view_restricted)
-                        select id, :group, true from role where code = 'ADMIN'
+                        select id, :group, code = 'PLANNER' from role where code in ('ADMIN', 'PLANNER')
                         on conflict (role_id, access_group) do nothing
                         """)
                 .param("group", group)

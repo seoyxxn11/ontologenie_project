@@ -23,6 +23,7 @@ import org.springframework.test.context.ActiveProfiles;
 class PropertyValueSampleServiceTests {
     private static final LoginAccount VIEWER = new LoginAccount(1L, "tester", "VIEWER", false);
     private static final LoginAccount ADMIN = new LoginAccount(1L, "tester", "ADMIN", false);
+    private static final LoginAccount PLANNER = new LoginAccount(1L, "tester", "PLANNER", false);
     private static final int LIMIT = 3;
 
     @Autowired JdbcClient jdbc;
@@ -79,7 +80,7 @@ class PropertyValueSampleServiceTests {
 
         assertThat(samples.stringValues(VIEWER, DataPurpose.VIEW, visible, LIMIT))
                 .doesNotContainKey("owner");
-        assertThat(samples.stringValues(ADMIN, DataPurpose.VIEW, visible, LIMIT))
+        assertThat(samples.stringValues(PLANNER, DataPurpose.VIEW, visible, LIMIT))
                 .containsEntry("owner", List.of("김"));
         jdbc.sql(
                         "update role_data_scope set can_view_restricted = true where access_group = :group")
@@ -121,7 +122,7 @@ class PropertyValueSampleServiceTests {
         jdbc.sql(
                         """
                         insert into role_data_scope (role_id, access_group, can_view_restricted)
-                        select id, :group, true from role where code = 'ADMIN'
+                        select id, :group, code = 'PLANNER' from role where code in ('ADMIN', 'PLANNER')
                         on conflict (role_id, access_group) do nothing
                         """)
                 .param("group", group)

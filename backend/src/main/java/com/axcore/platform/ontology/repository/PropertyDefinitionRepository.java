@@ -1,6 +1,7 @@
 package com.axcore.platform.ontology.repository;
 
 import com.axcore.platform.ontology.domain.PropertyDefinition;
+import com.axcore.platform.ontology.domain.PropertySensitivity;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
@@ -26,4 +27,8 @@ public interface PropertyDefinitionRepository extends JpaRepository<PropertyDefi
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from PropertyDefinition p where p.id = :id")
     Optional<PropertyDefinition> findForUpdate(@Param("id") Long id);
+
+    /** 잠그기 전에 민감도만 읽는다. 엔티티를 불러오지 않아 뒤의 잠금 조회가 최신 행을 읽는다(401). */
+    @Query("select p.sensitivity from PropertyDefinition p where p.id = :id")
+    Optional<PropertySensitivity> findSensitivity(@Param("id") Long id);
 }
