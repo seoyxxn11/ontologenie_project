@@ -43,22 +43,8 @@
 .explorer-search-help button {
   color: var(--ui-brand-strong);
 }
-.explorer-applied-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 8px 0 12px;
-  color: var(--ui-text-secondary);
-  overflow-wrap: anywhere;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 18px;
-}
-.explorer-applied-filters > span {
-  color: var(--ui-text);
-  font-weight: 600;
-}
 .explorer-workbench {
+  margin-top: 32px;
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr) 292px;
   align-items: stretch;
@@ -107,6 +93,24 @@
   min-height: 0;
   max-height: none;
   overflow: visible;
+}
+.explorer-list,
+.explorer-list > section {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+.explorer-list > section {
+  flex: 1;
+}
+.explorer-list .explorer-object-list {
+  display: grid;
+  flex: 1;
+  grid-auto-rows: minmax(48px, 1fr);
+}
+.explorer-list
+  :is(.explorer-panel-heading, .explorer-related-context, .ui-pagination) {
+  flex-shrink: 0;
 }
 .explorer-list .ui-pagination {
   border-top: 1px solid var(--ui-border);
@@ -374,9 +378,10 @@
   color: var(--ui-text);
   box-shadow: inset 0 -2px 0 var(--ui-brand-strong);
 }
-/* 그림 오른쪽 위에 겹친 배율 버튼 */
+/* 그림 안의 보기 도구와 왼쪽 아래 배율 버튼 */
 .model-graph-zoom {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius);
@@ -395,8 +400,30 @@
 .model-graph-zoom button + button {
   border-left: 1px solid var(--ui-border);
 }
-.model-graph-zoom button:hover {
+.model-graph-zoom button:hover:not(:disabled) {
   background: var(--ui-surface-subtle);
+}
+.model-graph-zoom button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.model-graph-zoom button[aria-pressed='true'] {
+  background: var(--ui-brand-subtle);
+  color: var(--ui-brand-strong);
+  box-shadow: inset 0 -2px 0 var(--ui-brand-strong);
+}
+.model-graph-scale {
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
+.model-graph-scale button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+.model-graph-scale button + button {
+  border-left: 0;
+  border-top: 1px solid var(--ui-border);
 }
 .model-graph-directory {
   display: grid;
@@ -421,32 +448,17 @@
 .model-graph-node[aria-pressed='true'] span {
   color: var(--ui-text-secondary);
 }
-.model-graph-caption {
+.model-graph-caption,
+.model-graph-direction-legend {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 16px;
+}
+.model-graph-caption {
   margin-top: 12px;
   color: var(--ui-text-secondary);
   font-size: 14px;
   line-height: 21px;
-}
-.model-graph-focus-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 12px;
-  color: var(--ui-text-secondary);
-  font-size: 14px;
-}
-.model-graph-focus-bar strong {
-  color: var(--ui-text);
-}
-.model-graph-navigation-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 .model-graph-fullscreen-navigation {
   display: flex;
@@ -497,6 +509,7 @@
   }
   .explorer-list {
     grid-row: span 2;
+    align-self: start;
   }
 }
 @media (max-width: 600px) {
@@ -767,6 +780,7 @@
   }
   .explorer-list {
     grid-row: span 2;
+    align-self: start;
   }
   .explorer-detail {
     grid-column: 2;

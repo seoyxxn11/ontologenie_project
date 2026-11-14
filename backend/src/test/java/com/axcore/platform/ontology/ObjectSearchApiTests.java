@@ -710,6 +710,123 @@ class ObjectSearchApiTests {
     }
 
     @Test
+    void searchesVisibleSourceKeysWithoutIdentifierMetadataAndKeepsTypeScope() throws Exception {
+        String tag = UUID.randomUUID().toString();
+        long equipment = type(tag, tag);
+        allowViewer(tag);
+        long code = property(equipment, "serial", "STRING", "NORMAL", null);
+        long name = property(equipment, "name", "STRING", "NORMAL", null);
+        long mapping = restrictedKeyMapping(equipment, code, tag);
+        long press = sourceObject(equipment, mapping, "P103", "ACTIVE");
+        jdbc.sql("update object_type set display_property_id = :name where id = :type")
+                .param("name", name)
+                .param("type", equipment)
+                .update();
+        jdbc.sql(
+                        "update object_instance set display_name = '1라인 3호 프레스', properties = '{\"name\":\"1라인 3호 프레스\"}'::jsonb where id = :id")
+                .param("id", press)
+                .update();
+        long otherType = type(tag + "-other", tag + "-other");
+        allowViewer(tag + "-other");
+        object(otherType, "P103", "{}");
+
+        for (String query : List.of("P103", "p103", " p10 ", "1라인 3호 프레스")) {
+            mvc.perform(
+                            get(PATH)
+                                    .param("q", query)
+                                    .param("objectTypeId", Long.toString(equipment))
+                                    .param("size", "8")
+                                    .with(actor("VIEWER")))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data[0].id").value((int) press))
+                    .andExpect(jsonPath("$.data[0].sourceKey.serial").value("P103"))
+                    .andExpect(jsonPath("$.meta.totalElements").value(1));
+        }
+    }
+
+    @Test
+    void ranksExactVisibleSourceKeysBeforePartialNamesAndEscapesWildcards() throws Exception {
+        String tag = UUID.randomUUID().toString();
+        long type = type(tag, tag);
+        allowViewer(tag);
+        long code = property(type, "serial", "STRING", "NORMAL", null);
+        long name = property(type, "name", "STRING", "NORMAL", null);
+        jdbc.sql("update object_type set display_property_id = :name where id = :type")
+                .param("name", name)
+                .param("type", type)
+                .update();
+        long mapping = restrictedKeyMapping(type, code, tag);
+        long partial = object(type, "P103 부속 설비", "{}");
+        long exact = sourceObject(type, mapping, "P103", "ACTIVE");
+        long literal = sourceObject(type, mapping, "PX_%", "ACTIVE");
+        sourceObject(type, mapping, "PX123", "ACTIVE");
+        jdbc.sql(
+                        "update object_instance set display_name = '이름만 표시', properties = '{\"name\":\"이름만 표시\"}'::jsonb where id in (:ids)")
+                .param("ids", List.of(exact, literal))
+                .update();
+        for (int page = 0; page < 2; page++) {
+            mvc.perform(
+                            get(PATH)
+                                    .param("q", "p103")
+                                    .param("objectTypeId", Long.toString(type))
+                                    .param("page", Integer.toString(page))
+                                    .param("size", "1")
+                                    .with(actor("VIEWER")))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data[0].id").value((int) (page == 0 ? exact : partial)))
+                    .andExpect(jsonPath("$.meta.totalElements").value(2))
+                    .andExpect(jsonPath("$.meta.hasNext").value(page == 0));
+        }
+        mvc.perform(
+                        get(PATH)
+                                .param("q", "px_%")
+                                .param("objectTypeId", Long.toString(type))
+                                .with(actor("VIEWER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value((int) literal))
+                .andExpect(jsonPath("$.meta.totalElements").value(1));
+    }
+
+    @Test
+    void searchingSourceKeysRespectsMaskedFieldsEvenWhenTheNameIsPublic() throws Exception {
+        String tag = UUID.randomUUID().toString();
+        long type = type(tag, tag);
+        allowViewer(tag);
+        long serial = property(type, "serial", "STRING", "RESTRICTED", null);
+        long label = property(type, "label", "STRING", "NORMAL", null);
+        long mapping = restrictedKeyMapping(type, serial, tag);
+        long id = sourceObject(type, mapping, tag + "-secret", "ACTIVE");
+        jdbc.sql("update object_type set display_property_id = :label where id = :type")
+                .param("label", label)
+                .param("type", type)
+                .update();
+        jdbc.sql(
+                        "update object_instance set display_name = '공개 설비 이름', properties = jsonb_build_object('label', '공개 설비 이름'), source_key = source_key || jsonb_build_object('unclassified', cast(:value as text)) where id = :id")
+                .param("value", tag + "-unknown")
+                .param("id", id)
+                .update();
+        for (String suffix : List.of("-secret", "-unknown")) {
+            for (String role : List.of("VIEWER", "ADMIN")) {
+                mvc.perform(
+                                get(PATH)
+                                        .param("q", tag + suffix)
+                                        .param("objectTypeId", Long.toString(type))
+                                        .with(actor(role)))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.meta.totalElements").value(0));
+            }
+            mvc.perform(
+                            get(PATH)
+                                    .param("q", tag + suffix)
+                                    .param("objectTypeId", Long.toString(type))
+                                    .with(actor("PLANNER")))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data[0].id").value((int) id))
+                    .andExpect(jsonPath("$.meta.totalElements").value(1));
+        }
+    }
+
+    @Test
     void ranksExactNamesAndIdentifiersBeforePartialMatchesAcrossPages() throws Exception {
         String tag = UUID.randomUUID().toString();
         String query = tag + "_%";

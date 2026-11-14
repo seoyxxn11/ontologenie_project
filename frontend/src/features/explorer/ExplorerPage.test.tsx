@@ -284,6 +284,24 @@ test('객체 유형을 고르고 검색하면 그 유형의 객체만 보여준�
   expect(screen.queryByText('프레스 작업')).not.toBeInTheDocument()
 })
 
+test.each(['PR-03', 'pr-03', '  Pr-03  '])(
+  '설비 유형과 화면에 표시된 업무 코드 %s로 검색한다',
+  async (keyword) => {
+    const user = userEvent.setup()
+    renderExplorerPage()
+    const list = within(screen.getByRole('region', { name: '객체 목록' }))
+    await list.findByText('PR-03')
+    await user.selectOptions(screen.getByLabelText('객체 유형'), '설비')
+    await user.type(screen.getByLabelText('ID · 이름 검색'), keyword)
+    await user.click(screen.getByRole('button', { name: '검색' }))
+    expect(await list.findByText('1건')).toBeVisible()
+    expect(list.getByRole('button', { name: /프레스 3호기/ })).toBeVisible()
+    expect(
+      list.queryByRole('button', { name: /프레스 1호기/ }),
+    ).not.toBeInTheDocument()
+  },
+)
+
 test('초기화하면 검색 조건을 비우고 전체 목록을 보여준다', async () => {
   const user = userEvent.setup()
   renderExplorerPage()
@@ -1775,13 +1793,11 @@ test('검색 조건을 입력만 하면 현재 결과·페이지를 유지하고
     screen.getByRole('button', { name: '2페이지로 이동' }),
   ).toHaveAttribute('aria-current', 'page')
   expect(screen.getByText('설비 9')).toBeInTheDocument()
-  expect(screen.getByLabelText('적용된 검색 조건')).not.toHaveTextContent(
-    '새 조건',
-  )
+  expect(screen.queryByLabelText('적용된 검색 조건')).not.toBeInTheDocument()
 
   await user.click(screen.getByRole('button', { name: '검색' }))
   await screen.findByText('설비 1')
-  expect(screen.getByLabelText('적용된 검색 조건')).toHaveTextContent('새 조건')
+  expect(screen.getByLabelText('ID · 이름 검색')).toHaveValue('새 조건')
 })
 
 test('유형 목록에서도 유형을 선택해 객체 검색과 관계 상세를 연결한다', async () => {

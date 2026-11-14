@@ -60,6 +60,13 @@ public class ObjectQueryRepository {
               (
                   shown.display_name ilike %1$s
                   or exists (
+                      select 1
+                      from jsonb_each_text(
+                          oi.source_key || coalesce(source_mask.masked_values, '{}'::jsonb)
+                      ) visible_key
+                      where visible_key.value ilike %1$s
+                  )
+                  or exists (
                       select 1 from property_definition identifier
                       where identifier.object_type_id = oi.object_type_id
                         and identifier.is_identifier

@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { http, HttpResponse } from 'msw'
+import { delay, http, HttpResponse } from 'msw'
 import { MemoryRouter, useNavigate } from 'react-router'
 import { expect, test, vi } from 'vitest'
 import { issueFixture } from '../../mocks/issueHandlers'
@@ -826,140 +826,156 @@ test('수동 연결 저장 중 상세 닫기와 다른 상태 변경을 막는�
   )
 })
 
-test('수동 연결 후 조치완료·재검증 통과·해결을 순서대로 진행한다', async () => {
-  let current = { ...issueFixture, status: 'CHECKING' }
-  let linked = false
-  let passed = false
-  const operations: string[] = []
-  const run = {
-    id: 42,
-    triggerKind: 'REVERIFY',
-    status: 'SUCCEEDED',
-    scope: { kind: 'ISSUES', issueIds: [1], linkMappingIds: [12] },
-    comparedToRunId: issueFixture.detectedCheckRunId,
-    requestedAt: '2026-11-13T16:00:00Z',
-    startedAt: '2026-11-13T16:00:01Z',
-    finishedAt: '2026-11-13T16:00:02Z',
-    errorMessage: null,
-    dataBasis: { resources: [] },
-  }
-  server.use(
-    http.get('/api/v1/issues/1', () => HttpResponse.json({ data: current })),
-    http.post('/api/v1/issues/1/manual-links', async ({ request }) => {
-      expect(await request.json()).toEqual({
-        targetObjectId: 301,
-        reason: '시험 연결',
-        rowVersion: 0,
-      })
-      linked = true
-      operations.push('MANUAL_LINK')
-      return HttpResponse.json({
-        data: {
-          issueId: 1,
-          linkId: 812,
-          outcome: 'CREATED',
-          actionExecutionId: 1001,
-        },
-      })
-    }),
-    http.patch('/api/v1/issues/1/status', async ({ request }) => {
-      const body = (await request.json()) as {
-        status: string
-        rowVersion: number
-        resolvedCheckRunId?: number
-      }
-      expect(body.rowVersion).toBe(current.rowVersion)
-      if (body.status === 'FIXED_PENDING_REVERIFY') {
-        expect(linked).toBe(true)
-        expect(current.status).toBe('CHECKING')
-      } else {
-        expect(passed).toBe(true)
-        expect(body.status).toBe('RESOLVED')
-        expect(body.resolvedCheckRunId).toBe(42)
-      }
-      operations.push(body.status)
-      current = {
-        ...current,
-        status: body.status,
-        rowVersion: current.rowVersion + 1,
-        resolvedCheckRunId: body.resolvedCheckRunId ?? null,
-      }
+test.each([0, 80])(
+  '수동 연결 후 조치완료·재검증 통과·해결을 순서대로 진행한다 (상세 갱신 지연 %ims)',
+  async (refreshDelay) => {
+    let current = { ...issueFixture, status: 'CHECKING' }
+    let linked = false
+    let passed = false
+    const operations: string[] = []
+    const client = new QueryClient()
+    const detail = vi.fn(async () => {
+      if (passed) await delay(refreshDelay)
       return HttpResponse.json({ data: current })
-    }),
-    http.post('/api/v1/checks/runs', async ({ request }) => {
-      expect(current.status).toBe('FIXED_PENDING_REVERIFY')
-      expect(await request.json()).toEqual({
-        triggerKind: 'REVERIFY',
-        scope: { kind: 'ISSUES', issueIds: [1] },
-        comparedToRunId: issueFixture.detectedCheckRunId,
-      })
-      passed = true
-      operations.push('REVERIFY_PASSED')
-      return HttpResponse.json({
-        data: { ...run, joined: false, reused: false },
-      })
-    }),
-    http.get('/api/v1/checks/runs/42', () => HttpResponse.json({ data: run })),
-    http.get('/api/v1/issues/1/verifications', () =>
-      HttpResponse.json({
-        data: passed
-          ? [
-              {
-                issueId: 1,
-                checkRunId: 42,
-                triggerKind: 'REVERIFY',
-                status: 'SUCCEEDED',
-                outcome: 'PASSED',
-                detail: { linkMappingId: 12 },
-                checkedAt: run.finishedAt,
-              },
-            ]
-          : [],
-        meta: {
-          page: 0,
-          size: 20,
-          totalElements: passed ? 1 : 0,
-          hasNext: false,
-        },
+    })
+    const run = {
+      id: 42,
+      triggerKind: 'REVERIFY',
+      status: 'SUCCEEDED',
+      scope: { kind: 'ISSUES', issueIds: [1], linkMappingIds: [12] },
+      comparedToRunId: issueFixture.detectedCheckRunId,
+      requestedAt: '2026-11-13T16:00:00Z',
+      startedAt: '2026-11-13T16:00:01Z',
+      finishedAt: '2026-11-13T16:00:02Z',
+      errorMessage: null,
+      dataBasis: { resources: [] },
+    }
+    server.use(
+      http.get('/api/v1/issues/1', detail),
+      http.post('/api/v1/issues/1/manual-links', async ({ request }) => {
+        expect(await request.json()).toEqual({
+          targetObjectId: 301,
+          reason: '시험 연결',
+          rowVersion: 0,
+        })
+        linked = true
+        operations.push('MANUAL_LINK')
+        return HttpResponse.json({
+          data: {
+            issueId: 1,
+            linkId: 812,
+            outcome: 'CREATED',
+            actionExecutionId: 1001,
+          },
+        })
       }),
-    ),
-  )
-  const user = userEvent.setup()
-  open('?view=issues&issue=1')
-  const dialog = within(await screen.findByRole('dialog'))
-  await dialog.findByRole('option', { name: '설비' })
-  await user.selectOptions(dialog.getByLabelText('도착 객체 유형'), '3')
-  await user.type(dialog.getByLabelText('도착 객체 검색어'), '프레스 3호기')
-  await user.click(dialog.getByRole('button', { name: '도착 객체 검색' }))
-  await user.click(await dialog.findByRole('radio', { name: /프레스 3호기/ }))
-  await user.type(dialog.getByLabelText('연결 사유'), '시험 연결')
-  await user.click(dialog.getByRole('button', { name: '연결 내용 확인' }))
-  await user.click(dialog.getByRole('button', { name: '수동 연결 저장' }))
-  await dialog.findByText(
-    '수동 연결을 저장했습니다. 조치완료로 바꾼 뒤 재검증하세요.',
-  )
-  expect(current.status).toBe('CHECKING')
-  await user.selectOptions(
-    dialog.getByLabelText('변경할 상태'),
-    'FIXED_PENDING_REVERIFY',
-  )
-  await user.type(dialog.getByLabelText('변경 사유'), '연결 조치완료')
-  await user.click(dialog.getByRole('button', { name: '상태 변경' }))
-  await user.click(await dialog.findByRole('button', { name: '재검증 실행' }))
-  await dialog.findByText('재검증 실행 #42 · 완료')
-  expect(current.status).toBe('FIXED_PENDING_REVERIFY')
-  await waitFor(() =>
-    expect(dialog.getByLabelText('변경할 상태')).toBeEnabled(),
-  )
-  await user.selectOptions(dialog.getByLabelText('변경할 상태'), 'RESOLVED')
-  await user.type(dialog.getByLabelText('변경 사유'), '재검증 통과 확인')
-  await user.type(dialog.getByLabelText('통과한 재검증 실행 ID'), '42')
-  await user.click(dialog.getByRole('button', { name: '상태 변경' }))
-  await waitFor(() => expect(current.status).toBe('RESOLVED'))
-  expect(operations).toEqual([
-    'MANUAL_LINK',
-    'FIXED_PENDING_REVERIFY',
-    'REVERIFY_PASSED',
-    'RESOLVED',
-  ])
-})
+      http.patch('/api/v1/issues/1/status', async ({ request }) => {
+        const body = (await request.json()) as {
+          status: string
+          rowVersion: number
+          resolvedCheckRunId?: number
+        }
+        expect(body.rowVersion).toBe(current.rowVersion)
+        if (body.status === 'FIXED_PENDING_REVERIFY') {
+          expect(linked).toBe(true)
+          expect(current.status).toBe('CHECKING')
+        } else {
+          expect(passed).toBe(true)
+          expect(body.status).toBe('RESOLVED')
+          expect(body.resolvedCheckRunId).toBe(42)
+        }
+        operations.push(body.status)
+        current = {
+          ...current,
+          status: body.status,
+          rowVersion: current.rowVersion + 1,
+          resolvedCheckRunId: body.resolvedCheckRunId ?? null,
+        }
+        return HttpResponse.json({ data: current })
+      }),
+      http.post('/api/v1/checks/runs', async ({ request }) => {
+        expect(current.status).toBe('FIXED_PENDING_REVERIFY')
+        expect(await request.json()).toEqual({
+          triggerKind: 'REVERIFY',
+          scope: { kind: 'ISSUES', issueIds: [1] },
+          comparedToRunId: issueFixture.detectedCheckRunId,
+        })
+        passed = true
+        operations.push('REVERIFY_PASSED')
+        return HttpResponse.json({
+          data: { ...run, joined: false, reused: false },
+        })
+      }),
+      http.get('/api/v1/checks/runs/42', () =>
+        HttpResponse.json({ data: run }),
+      ),
+      http.get('/api/v1/issues/1/verifications', () =>
+        HttpResponse.json({
+          data: passed
+            ? [
+                {
+                  issueId: 1,
+                  checkRunId: 42,
+                  triggerKind: 'REVERIFY',
+                  status: 'SUCCEEDED',
+                  outcome: 'PASSED',
+                  detail: { linkMappingId: 12 },
+                  checkedAt: run.finishedAt,
+                },
+              ]
+            : [],
+          meta: {
+            page: 0,
+            size: 20,
+            totalElements: passed ? 1 : 0,
+            hasNext: false,
+          },
+        }),
+      ),
+    )
+    const user = userEvent.setup()
+    open('?view=issues&issue=1', undefined, client)
+    const dialog = within(await screen.findByRole('dialog'))
+    await dialog.findByRole('option', { name: '설비' })
+    await user.selectOptions(dialog.getByLabelText('도착 객체 유형'), '3')
+    await user.type(dialog.getByLabelText('도착 객체 검색어'), '프레스 3호기')
+    await user.click(dialog.getByRole('button', { name: '도착 객체 검색' }))
+    await user.click(await dialog.findByRole('radio', { name: /프레스 3호기/ }))
+    await user.type(dialog.getByLabelText('연결 사유'), '시험 연결')
+    await user.click(dialog.getByRole('button', { name: '연결 내용 확인' }))
+    await user.click(dialog.getByRole('button', { name: '수동 연결 저장' }))
+    await dialog.findByText(
+      '수동 연결을 저장했습니다. 조치완료로 바꾼 뒤 재검증하세요.',
+    )
+    expect(current.status).toBe('CHECKING')
+    await user.selectOptions(
+      dialog.getByLabelText('변경할 상태'),
+      'FIXED_PENDING_REVERIFY',
+    )
+    await user.type(dialog.getByLabelText('변경 사유'), '연결 조치완료')
+    await user.click(dialog.getByRole('button', { name: '상태 변경' }))
+    const detailRequestsBeforeReverification = detail.mock.calls.length
+    await user.click(await dialog.findByRole('button', { name: '재검증 실행' }))
+    await dialog.findByText('재검증 실행 #42 · 완료')
+    expect(current.status).toBe('FIXED_PENDING_REVERIFY')
+    await waitFor(() => {
+      expect(detail.mock.calls.length).toBeGreaterThan(
+        detailRequestsBeforeReverification,
+      )
+      expect(client.isFetching({ queryKey: ['issues', 'detail', 1] })).toBe(0)
+      expect(dialog.getByLabelText('변경할 상태')).toBeEnabled()
+    })
+    await user.selectOptions(dialog.getByLabelText('변경할 상태'), 'RESOLVED')
+    expect(dialog.getByLabelText('변경할 상태')).toHaveValue('RESOLVED')
+    await user.type(dialog.getByLabelText('변경 사유'), '재검증 통과 확인')
+    await user.type(dialog.getByLabelText('통과한 재검증 실행 ID'), '42')
+    await user.click(dialog.getByRole('button', { name: '상태 변경' }))
+    await waitFor(() => expect(current.status).toBe('RESOLVED'))
+    expect(operations).toEqual([
+      'MANUAL_LINK',
+      'FIXED_PENDING_REVERIFY',
+      'REVERIFY_PASSED',
+      'RESOLVED',
+    ])
+  },
+)

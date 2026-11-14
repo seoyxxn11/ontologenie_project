@@ -1,24 +1,19 @@
 import type { Viewport } from '@xyflow/react'
 
-type GraphSnapshot = {
+export type GraphNavigation = {
   selectedTypeId: number | null
   focused: boolean
   viewport: Viewport | null
   overviewViewport: Viewport | null
+  camera: GraphCameraRequest
 }
 
 export type GraphCameraRequest =
   { kind: 'keep' | 'fit' } | { kind: 'restore'; viewport: Viewport }
 
-export type GraphNavigation = GraphSnapshot & {
-  history: GraphSnapshot[]
-  camera: GraphCameraRequest
-}
-
 type NavigationAction =
   | { type: 'select'; id: number | null; viewport?: Viewport }
   | { type: 'focus'; viewport?: Viewport }
-  | { type: 'back' }
   | { type: 'viewport'; viewport: Viewport }
 
 type CanvasSize = { width: number; height: number }
@@ -50,20 +45,7 @@ export function createGraphNavigation(
     focused: false,
     viewport: null,
     overviewViewport: null,
-    history: [],
     camera: { kind: 'fit' },
-  }
-}
-
-function snapshot(
-  state: GraphNavigation,
-  viewport = state.viewport,
-): GraphSnapshot {
-  return {
-    selectedTypeId: state.selectedTypeId,
-    focused: state.focused,
-    viewport,
-    overviewViewport: state.overviewViewport,
   }
 }
 
@@ -80,17 +62,6 @@ export function graphNavigationReducer(
       return state
     return { ...state, viewport: action.viewport }
   }
-  if (action.type === 'back') {
-    const previous = state.history.at(-1)
-    if (!previous) return state
-    return {
-      ...previous,
-      history: state.history.slice(0, -1),
-      camera: previous.viewport
-        ? { kind: 'restore', viewport: previous.viewport }
-        : { kind: 'fit' },
-    }
-  }
   const viewport = action.viewport ?? state.viewport
   if (action.type === 'select') {
     if (action.id === state.selectedTypeId) return state
@@ -100,7 +71,6 @@ export function graphNavigationReducer(
       selectedTypeId: action.id,
       focused,
       viewport,
-      history: [...state.history, snapshot(state, viewport)],
       camera: focused
         ? { kind: 'fit' }
         : state.focused && state.overviewViewport
@@ -114,7 +84,6 @@ export function graphNavigationReducer(
     focused: !state.focused,
     viewport,
     overviewViewport: state.focused ? state.overviewViewport : viewport,
-    history: [...state.history, snapshot(state, viewport)],
     camera: !state.focused
       ? { kind: 'fit' }
       : state.overviewViewport
