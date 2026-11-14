@@ -96,7 +96,8 @@ class ConversationSummariesTests {
                             return count;
                         });
         when(summarizer.isConfigured()).thenReturn(true);
-        when(conversations.saveSummary(anyLong(), anyLong(), anyString(), anyLong())).thenReturn(1);
+        when(conversations.saveSummary(anyLong(), anyLong(), anyString(), anyLong(), any()))
+                .thenReturn(1);
     }
 
     @Test
@@ -113,7 +114,7 @@ class ConversationSummariesTests {
                                 new ConversationTurn("질문 1", "답변 1", 1),
                                 new ConversationTurn("질문 2", "답변 2", 2)),
                         TARGET);
-        verify(conversations).saveSummary(CONVERSATION, 0L, "질문 1·2에서 물은 것", 14L);
+        verify(conversations).saveSummary(CONVERSATION, 0L, "질문 1·2에서 물은 것", 14L, null);
     }
 
     @Test
@@ -125,7 +126,7 @@ class ConversationSummariesTests {
 
         verify(summarizer)
                 .summarize("질문 1에서 물은 것", List.of(new ConversationTurn("질문 2", "답변 2", 2)), TARGET);
-        verify(conversations).saveSummary(CONVERSATION, 12L, "질문 1·2에서 물은 것", 14L);
+        verify(conversations).saveSummary(CONVERSATION, 12L, "질문 1·2에서 물은 것", 14L, null);
     }
 
     @Test
@@ -141,7 +142,7 @@ class ConversationSummariesTests {
                         500)
                 .refreshAfter(ANSWER);
 
-        verify(conversations).saveSummary(CONVERSATION, 0L, "질문 1~4에서 물은 것", 18L);
+        verify(conversations).saveSummary(CONVERSATION, 0L, "질문 1~4에서 물은 것", 18L, null);
     }
 
     @Test
@@ -153,7 +154,7 @@ class ConversationSummariesTests {
                         conversations, messages, new RecentTurns(0, 2000), summarizer, 500)
                 .refreshAfter(ANSWER);
 
-        verify(conversations).saveSummary(CONVERSATION, 0L, "질문 1~6에서 물은 것", 22L);
+        verify(conversations).saveSummary(CONVERSATION, 0L, "질문 1~6에서 물은 것", 22L, null);
     }
 
     @Test
@@ -170,7 +171,7 @@ class ConversationSummariesTests {
                 .refreshAfter(ANSWER);
 
         // 처리 중인 답변의 질문은 요약하지 않는다. 그 답변이 끝난 뒤 다음 요약이 다룬다.
-        verify(conversations).saveSummary(CONVERSATION, 0L, "질문 1~6에서 물은 것", 22L);
+        verify(conversations).saveSummary(CONVERSATION, 0L, "질문 1~6에서 물은 것", 22L, null);
     }
 
     @Test
@@ -192,7 +193,7 @@ class ConversationSummariesTests {
         assertThat(turns.getValue().getLast().question()).isEqualTo("질문 21");
         // 요약에 남길 순번은 대화 전체 기준이다(질문 2는 2번째 질문).
         assertThat(turns.getValue()).extracting(ConversationTurn::order).startsWith(2).endsWith(21);
-        verify(conversations).saveSummary(CONVERSATION, 12L, "질문 1~21에서 물은 것", 52L);
+        verify(conversations).saveSummary(CONVERSATION, 12L, "질문 1~21에서 물은 것", 52L, null);
     }
 
     @Test
@@ -211,7 +212,7 @@ class ConversationSummariesTests {
         verify(summarizer).summarize(any(), turns.capture(), anyInt());
         assertThat(turns.getValue().getLast())
                 .isEqualTo(new ConversationTurn("질문 20", "답변 20", 20));
-        verify(conversations).saveSummary(CONVERSATION, 11L, "질문 1~20을 물었다.", 50L);
+        verify(conversations).saveSummary(CONVERSATION, 11L, "질문 1~20을 물었다.", 50L, null);
     }
 
     @Test
@@ -238,7 +239,8 @@ class ConversationSummariesTests {
         summaries(500).refreshAfter(ANSWER);
 
         verify(summarizer, never()).summarize(any(), any(), anyInt());
-        verify(conversations, never()).saveSummary(anyLong(), anyLong(), anyString(), anyLong());
+        verify(conversations, never())
+                .saveSummary(anyLong(), anyLong(), anyString(), anyLong(), any());
     }
 
     @Test
@@ -248,7 +250,7 @@ class ConversationSummariesTests {
 
         summaries(500).refreshAfter(ANSWER);
 
-        verify(conversations).saveSummary(CONVERSATION, 0L, "가".repeat(390), 14L);
+        verify(conversations).saveSummary(CONVERSATION, 0L, "가".repeat(390), 14L, null);
     }
 
     @Test
@@ -260,7 +262,8 @@ class ConversationSummariesTests {
         summaries(500).refreshAfter(ANSWER);
 
         // 잘라서 저장하면 방금 합친 질문 2가 빠진 채 요약한 것으로 표시된다. 저장하지 않으면 다음 답변 뒤에 다시 다룬다.
-        verify(conversations, never()).saveSummary(anyLong(), anyLong(), anyString(), anyLong());
+        verify(conversations, never())
+                .saveSummary(anyLong(), anyLong(), anyString(), anyLong(), any());
     }
 
     @Test
@@ -270,7 +273,7 @@ class ConversationSummariesTests {
         summaries(500).refreshAfter(ANSWER);
 
         verify(summarizer, never()).shorten(anyString(), anyInt());
-        verify(conversations).saveSummary(CONVERSATION, 0L, "가".repeat(500), 14L);
+        verify(conversations).saveSummary(CONVERSATION, 0L, "가".repeat(500), 14L, null);
     }
 
     @Test
@@ -282,7 +285,8 @@ class ConversationSummariesTests {
         // 예외를 밖으로 던지지 않아 답변 처리에 영향을 주지 않는다.
         summaries(500).refreshAfter(ANSWER);
 
-        verify(conversations, never()).saveSummary(anyLong(), anyLong(), anyString(), anyLong());
+        verify(conversations, never())
+                .saveSummary(anyLong(), anyLong(), anyString(), anyLong(), any());
     }
 
     @Test
@@ -291,18 +295,20 @@ class ConversationSummariesTests {
 
         summaries(500).refreshAfter(ANSWER);
 
-        verify(conversations, never()).saveSummary(anyLong(), anyLong(), anyString(), anyLong());
+        verify(conversations, never())
+                .saveSummary(anyLong(), anyLong(), anyString(), anyLong(), any());
     }
 
     @Test
     void dropsItsSummaryQuietlyWhenAnotherOneWasSavedFirst() {
         when(summarizer.summarize(any(), any(), anyInt())).thenReturn("늦게 끝난 요약");
-        when(conversations.saveSummary(anyLong(), anyLong(), anyString(), anyLong())).thenReturn(0);
+        when(conversations.saveSummary(anyLong(), anyLong(), anyString(), anyLong(), any()))
+                .thenReturn(0);
 
         // 같은 대화의 다른 요약이 먼저 저장했으면 버린다. 예외를 던지지 않는다.
         summaries(500).refreshAfter(ANSWER);
 
-        verify(conversations).saveSummary(CONVERSATION, 0L, "늦게 끝난 요약", 14L);
+        verify(conversations).saveSummary(CONVERSATION, 0L, "늦게 끝난 요약", 14L, null);
     }
 
     @Test
@@ -334,6 +340,101 @@ class ConversationSummariesTests {
 
         verify(summarizer, never()).summarize(any(), any(), anyInt());
         verifyNoInteractions(conversations);
+    }
+
+    // 413: 유형 1·2가 보이던 범위(WIDE)와, 유형 2가 빠진 지금 범위(NARROW)
+    private static final Map<String, Object> WIDE =
+            Map.of(
+                    "policy",
+                    "p",
+                    "types",
+                    Map.of(
+                            "1", Map.of("restrictedView", false, "restricted", List.of()),
+                            "2", Map.of("restrictedView", false, "restricted", List.of())));
+    private static final Map<String, Object> NARROW =
+            Map.of(
+                    "policy",
+                    "p",
+                    "types",
+                    Map.of("1", Map.of("restrictedView", false, "restricted", List.of())));
+
+    @Test
+    void leavesOutTurnsAskedBeforeTheScopeNarrowed() {
+        askedUnder(WIDE, 1);
+        askedUnder(NARROW, 2, 3, 4, 5, 6);
+        when(summarizer.summarize(any(), any(), anyInt())).thenReturn("질문 2에서 물은 것");
+
+        summaries(500).refreshAfter(ANSWER);
+
+        verify(summarizer)
+                .summarize(null, List.of(new ConversationTurn("질문 2", "답변 2", 2)), TARGET);
+        verify(conversations)
+                .saveSummary(CONVERSATION, 0L, "질문 2에서 물은 것", 14L, AgentAccessScope.toText(NARROW));
+    }
+
+    @Test
+    void dropsPreviousSummaryMadeUnderAWiderScope() {
+        summarizedUntil("질문 1에서 물은 것", 12L);
+        ReflectionTestUtils.setField(
+                conversation, "summaryAccessScope", AgentAccessScope.toText(WIDE));
+        askedUnder(NARROW, 1, 2, 3, 4, 5, 6);
+        when(summarizer.summarize(any(), any(), anyInt())).thenReturn("질문 2에서 물은 것");
+
+        summaries(500).refreshAfter(ANSWER);
+
+        verify(summarizer)
+                .summarize(null, List.of(new ConversationTurn("질문 2", "답변 2", 2)), TARGET);
+    }
+
+    @Test
+    void movesPastTurnsThatWereAllAskedBeforeTheScopeNarrowed() {
+        askedUnder(WIDE, 1, 2);
+        askedUnder(NARROW, 3, 4, 5, 6);
+
+        summaries(500).refreshAfter(ANSWER);
+
+        // 요약할 턴이 없어도 그 턴을 다시 읽지 않게 범위만 넘긴다
+        verify(summarizer, never()).summarize(any(), any(), anyInt());
+        verify(conversations)
+                .saveSummary(CONVERSATION, 0L, "", 14L, AgentAccessScope.toText(NARROW));
+    }
+
+    @Test
+    void keepsPreviousSummaryAndItsScopeWhenOnlyWithdrawnTurnsWereRead() {
+        // 이전 요약은 유형 1의 민감 속성이 하나 더 있던 때(지금보다 넓지 않은 범위) 만든 것이라 그대로 쓴다
+        String madeUnder =
+                AgentAccessScope.toText(
+                        Map.of(
+                                "policy",
+                                "p",
+                                "types",
+                                Map.of(
+                                        "1",
+                                        Map.of(
+                                                "restrictedView",
+                                                false,
+                                                "restricted",
+                                                List.of("technician")))));
+        summarizedUntil("질문 1에서 물은 것", 12L);
+        ReflectionTestUtils.setField(conversation, "summaryAccessScope", madeUnder);
+        askedUnder(NARROW, 1);
+        askedUnder(WIDE, 2);
+        askedUnder(NARROW, 3, 4, 5, 6);
+
+        summaries(500).refreshAfter(ANSWER);
+
+        verify(summarizer, never()).summarize(any(), any(), anyInt());
+        verify(conversations).saveSummary(CONVERSATION, 12L, "질문 1에서 물은 것", 14L, madeUnder);
+    }
+
+    /** 질문 번호(1부터)들을 그 범위에서 물은 것으로 표시한다. */
+    private void askedUnder(Map<String, Object> scope, int... questions) {
+        for (int question : questions) {
+            ReflectionTestUtils.setField(
+                    conversationMessages.get((question - 1) * 2),
+                    "context",
+                    Map.of(AgentAccessScope.CONTEXT_KEY, scope));
+        }
     }
 
     private ConversationSummaries summaries(int maxLength) {

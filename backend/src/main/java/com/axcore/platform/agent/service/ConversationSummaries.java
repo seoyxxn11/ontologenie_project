@@ -9,6 +9,7 @@ import com.axcore.platform.agent.repository.AgentMessageRepository;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -94,9 +95,37 @@ public class ConversationSummaries {
         before = Math.min(before, firstUnfinishedQuestionId(recent));
         Long summarizedUntil = conversation.getSummarizedUntilMessageId();
         long after = summarizedUntil == null ? 0 : summarizedUntil;
-        List<AgentMessage> added = toSummarize(conversationId, after, before);
+        List<AgentMessage> read = toSummarize(conversationId, after, before);
+        // 요약은 가장 최근 질문의 범위로 만든다. 그 범위보다 넓은 범위에서 만든 답변은 넣지 않고, 이전 요약을 만든 범위보다 줄었으면 이전 요약도
+        // 버린다(413). 이 기능 전 질문(범위 없음)이면 예전처럼 모두 합친다.
+        Map<String, Object> scope = AgentAccessScope.latestScope(recent);
+        String previousSummary = conversation.getSummary();
+        List<AgentMessage> added = read;
+        if (scope != null) {
+            added =
+                    AgentAccessScope.withoutWithdrawnTurns(
+                            read, AgentAccessScope.withdrawnAnswersIn(read, scope));
+            if (!AgentAccessScope.summaryUsable(conversation.getSummaryAccessScope(), scope)) {
+                previousSummary = null;
+            }
+        }
+        if (previousSummary != null && previousSummary.isBlank()) {
+            previousSummary = null;
+        }
         Long firstQuestionId = RecentTurns.firstQuestionId(added);
         if (firstQuestionId == null) {
+            if (!read.isEmpty() && added.size() < read.size()) {
+                // 읽은 턴이 모두 범위가 줄기 전 것이면 요약은 그대로(없으면 빈 채로) 두고 그 턴을 다시 읽지 않게 범위만 넘긴다.
+                // 요약을 그대로 두면 그 요약을 만든 범위도 그대로 둔다.
+                conversations.saveSummary(
+                        conversationId,
+                        after,
+                        previousSummary == null ? "" : previousSummary,
+                        read.getLast().getId(),
+                        previousSummary == null
+                                ? AgentAccessScope.toText(scope)
+                                : conversation.getSummaryAccessScope());
+            }
             return;
         }
         // 요약에 "N번째 질문"으로 남겨, 최근 대화 원문과 같은 기준으로 질문 순서를 세게 한다.
@@ -105,13 +134,16 @@ public class ConversationSummaries {
                 RecentTurns.turnsOf(added, firstOrder).stream()
                         .map(ConversationSummaries::shortened)
                         .toList();
-        String summary = summarized(conversation.getSummary(), turns);
+        String summary = summarized(previousSummary, turns);
         if (summary == null) {
             log.warn("대화 {}의 요약이 비었거나 상한을 넘어 이전 요약을 그대로 둡니다. 다음 답변 뒤에 다시 만듭니다.", conversationId);
             return;
         }
-        long until = added.getLast().getId();
-        if (conversations.saveSummary(conversationId, after, summary, until) == 0) {
+        // 범위가 줄기 전 턴을 뺐어도 읽은 데까지 넘긴다. 그 턴은 다음 요약에서 다시 읽지 않는다.
+        long until = read.getLast().getId();
+        if (conversations.saveSummary(
+                        conversationId, after, summary, until, AgentAccessScope.toText(scope))
+                == 0) {
             // 같은 대화의 다른 요약이 먼저 저장했다. 그 요약이 이 범위를 이미 다뤘거나 다음 답변 뒤에 이어서 다룬다.
             log.info("대화 {}의 요약을 다른 처리가 먼저 저장해 이번 요약은 버립니다.", conversationId);
         }

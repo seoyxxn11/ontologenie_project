@@ -40,7 +40,8 @@ public interface AgentConversationRepository extends JpaRepository<AgentConversa
     @Query(
             """
             update AgentConversation c
-               set c.summary = :summary, c.summarizedUntilMessageId = :until
+               set c.summary = :summary, c.summarizedUntilMessageId = :until,
+                   c.summaryAccessScope = :scope
              where c.id = :id
                and coalesce(c.summarizedUntilMessageId, 0) = :expectedUntil
             """)
@@ -48,5 +49,6 @@ public interface AgentConversationRepository extends JpaRepository<AgentConversa
             @Param("id") Long id,
             @Param("expectedUntil") long expectedUntil,
             @Param("summary") String summary,
-            @Param("until") long until);
+            @Param("until") long until,
+            @Param("scope") String scope);
 }

@@ -48,22 +48,26 @@ class AgentConversationRepositoryTests {
 
     @Test
     void savesSummaryOnlyWhenRangeIsStillWhatWasRead() {
-        assertThat(conversations.saveSummary(conversationId, 0L, "질문 1을 물었다.", 12L)).isEqualTo(1);
+        assertThat(conversations.saveSummary(conversationId, 0L, "질문 1을 물었다.", 12L, null))
+                .isEqualTo(1);
         // 같은 범위(요약 없음)를 읽고 늦게 끝난 요약은 먼저 저장된 요약을 덮지 않는다.
-        assertThat(conversations.saveSummary(conversationId, 0L, "늦게 끝난 요약", 14L)).isZero();
-        assertThat(conversations.saveSummary(conversationId, 12L, "질문 1·2를 물었다.", 14L))
+        assertThat(conversations.saveSummary(conversationId, 0L, "늦게 끝난 요약", 14L, null)).isZero();
+        assertThat(
+                        conversations.saveSummary(
+                                conversationId, 12L, "질문 1·2를 물었다.", 14L, "{\"policy\":\"p\"}"))
                 .isEqualTo(1);
 
         assertThat(stored())
                 .containsEntry("summary", "질문 1·2를 물었다.")
-                .containsEntry("summarized_until_message_id", 14L);
+                .containsEntry("summarized_until_message_id", 14L)
+                .containsEntry("summary_access_scope", "{\"policy\":\"p\"}");
     }
 
     @Test
     void savingConversationForNewQuestionDoesNotOverwriteSummary() {
         AgentConversation loaded = conversations.findById(conversationId).orElseThrow();
         // 질문을 받는 동안 다른 처리가 요약을 저장했다.
-        conversations.saveSummary(conversationId, 0L, "질문 1을 물었다.", 12L);
+        conversations.saveSummary(conversationId, 0L, "질문 1을 물었다.", 12L, null);
 
         // 질문을 받은 쪽은 요약이 없던 때의 Entity를 고쳐 저장한다.
         loaded.recordMessage("새 질문", NOW.plusSeconds(60));
@@ -77,7 +81,7 @@ class AgentConversationRepositoryTests {
     private Map<String, Object> stored() {
         return jdbc.sql(
                         """
-                        select summary, summarized_until_message_id
+                        select summary, summarized_until_message_id, summary_access_scope
                           from agent_conversation
                          where id = :id
                         """)

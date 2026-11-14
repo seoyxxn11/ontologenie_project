@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.axcore.platform.TestcontainersConfiguration;
 import com.axcore.platform.agent.repository.AgentMessageRepository;
+import com.axcore.platform.global.security.LoginAccount;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -97,7 +98,9 @@ class AgentAnswerConcurrencyTests {
         // 그 사이 084 조회가 5분 넘은 답변을 정리하려 한다. 정리는 잠금을 기다려야 한다.
         Future<?> cleanup =
                 pool.submit(
-                        () -> messageService.search(owner, conversation, PageRequest.of(0, 20)));
+                        () ->
+                                messageService.search(
+                                        ownerAccount(), conversation, PageRequest.of(0, 20)));
         awaitLockWaiter();
         release.countDown();
         saving.get(10, TimeUnit.SECONDS);
@@ -115,7 +118,9 @@ class AgentAnswerConcurrencyTests {
         // search는 @Transactional(REQUIRED)이라 아래 트랜잭션에 합류해, 커밋 전에 멈출 수 있다.
         Future<?> cleaning =
                 holdLockWhile(
-                        () -> messageService.search(owner, conversation, PageRequest.of(0, 20)));
+                        () ->
+                                messageService.search(
+                                        ownerAccount(), conversation, PageRequest.of(0, 20)));
 
         // 그 사이 처리기가 계획을 만든 결과를 저장하려 한다. 저장은 잠금을 기다려야 한다.
         Future<?> saving =
@@ -247,5 +252,9 @@ class AgentAnswerConcurrencyTests {
                 .param("minutes", minutesAgo)
                 .query(Long.class)
                 .single();
+    }
+
+    private LoginAccount ownerAccount() {
+        return new LoginAccount(owner, "owner", "ADMIN", false);
     }
 }

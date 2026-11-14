@@ -9,6 +9,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -155,6 +157,26 @@ public final class DataAccess {
             throw new BusinessException(
                     CommonErrorCode.RESOURCE_NOT_FOUND, Map.of("resource", resource, "id", id));
         }
+    }
+
+    /**
+     * 보이는 유형마다 민감 값 열람 여부({@code restrictedView})와 민감 속성 코드({@code restricted}). 키는 유형 ID 글자다. 과거
+     * 대화를 다시 쓸 때 답할 때보다 범위가 줄었는지 본다(S15P31C106-413).
+     */
+    public Map<String, Map<String, Object>> visibleScopes() {
+        Map<String, Map<String, Object>> visible = new TreeMap<>();
+        for (ObjectTypeScope scope : scopes.values()) {
+            if (canView(scope.objectTypeId())) {
+                visible.put(
+                        Long.toString(scope.objectTypeId()),
+                        Map.of(
+                                "restrictedView",
+                                canViewRestricted(scope.objectTypeId()),
+                                "restricted",
+                                List.copyOf(new TreeSet<>(scope.restrictedPropertyCodes()))));
+            }
+        }
+        return visible;
     }
 
     /**
