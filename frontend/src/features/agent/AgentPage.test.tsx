@@ -71,7 +71,100 @@ function renderAgentPage(
 }
 
 const SAMPLE_ANSWER = /PR-03의 이번 달 비가동은 2건입니다/
-const EMPTY_MESSAGE = '업무에 대해 질문해 주세요. 예: P103의 상태를 알려줘'
+const EMPTY_MESSAGE = '어떤 업무를 확인할까요?'
+
+test('대화 목록을 접고 펴도 질문·답변·열린 출처를 유지한다', async () => {
+  const user = userEvent.setup()
+  renderAgentPage('/agent?conversation=1')
+  await screen.findByText(SAMPLE_ANSWER)
+  const input = screen.getByLabelText('업무 질문')
+  await user.type(input, '정비 기록을 다시 확인해줘')
+  await user.click(screen.getByText('출처 및 조회 상태'))
+  const evidence = screen.getByText('출처 및 조회 상태').closest('details')!
+  await user.click(screen.getByRole('button', { name: '대화 목록 접기' }))
+  expect(
+    screen.queryByRole('complementary', { name: '대화방 목록' }),
+  ).toBeNull()
+  expect(screen.getByText(SAMPLE_ANSWER)).toBeVisible()
+  expect(input).toHaveValue('정비 기록을 다시 확인해줘')
+  expect(evidence).toHaveAttribute('open')
+  await user.click(screen.getByRole('button', { name: '대화 목록 펼치기' }))
+  expect(
+    screen.getByRole('complementary', { name: '대화방 목록' }),
+  ).toBeVisible()
+  expect(input).toHaveValue('정비 기록을 다시 확인해줘')
+  expect(evidence).toHaveAttribute('open')
+})
+
+test('아이콘 새 대화를 열고 돌아오면 대화별 초안을 복원하고 같은 새 대화의 질문은 지우지 않는다', async () => {
+  const user = userEvent.setup()
+  renderAgentPage('/agent?conversation=1')
+  await screen.findByText(SAMPLE_ANSWER)
+  await user.type(screen.getByLabelText('업무 질문'), '기존 대화 초안')
+  const list = screen.getByRole('complementary', { name: '대화방 목록' })
+  const create = within(
+    within(list).getByRole('heading', { name: '대화' }).parentElement!,
+  ).getByRole('button', { name: '새 대화' })
+  expect(create.textContent).toBe('')
+  expect(create.querySelector('svg')).not.toBeNull()
+  await user.click(create)
+  await screen.findByText(EMPTY_MESSAGE)
+  await waitFor(() => expect(screen.getByLabelText('업무 질문')).toHaveFocus())
+  await user.type(screen.getByLabelText('업무 질문'), '새 대화 초안')
+  const rows = within(list).getAllByRole('listitem')
+  const created = within(rows[0]).getByRole('button', {
+    name: '새 대화',
+    pressed: true,
+  })
+  await user.click(create)
+  expect(screen.getByLabelText('업무 질문')).toHaveValue('새 대화 초안')
+  expect(within(list).getAllByRole('listitem')).toHaveLength(rows.length)
+  await user.click(
+    within(list).getByRole('button', {
+      name: '설비 PR-03의 최근 비가동 이력과 장부가를 알려줘',
+    }),
+  )
+  expect(await screen.findByText(SAMPLE_ANSWER)).toBeVisible()
+  expect(screen.getByLabelText('업무 질문')).toHaveValue('기존 대화 초안')
+  await user.click(created)
+  expect(await screen.findByText(EMPTY_MESSAGE)).toBeVisible()
+  expect(screen.getByLabelText('업무 질문')).toHaveValue('새 대화 초안')
+  expect(screen.queryByText(/\/ 2,000자/)).toBeNull()
+  expect(screen.getByLabelText('업무 질문')).toHaveAttribute(
+    'maxlength',
+    '2000',
+  )
+})
+
+test('객체에서 이어온 질문은 다른 대화에 다녀와도 초안과 참고 객체를 유지한다', async () => {
+  const user = userEvent.setup()
+  const sent = recordQuestionBodies(2)
+  renderEnteredFromObject()
+  const input = await screen.findByLabelText('업무 질문')
+  await user.clear(input)
+  await user.type(input, '프레스 3호기의 정비 이력을 알려줘')
+  const list = screen.getByRole('complementary', { name: '대화방 목록' })
+  await user.click(
+    within(list).getByRole('button', {
+      name: '설비 PR-03의 최근 비가동 이력과 장부가를 알려줘',
+    }),
+  )
+  await screen.findByText(SAMPLE_ANSWER)
+  await user.click(
+    within(list).getByRole('button', { name: '새 대화', pressed: false }),
+  )
+  const restored = await screen.findByLabelText('업무 질문')
+  expect(restored).toHaveValue('프레스 3호기의 정비 이력을 알려줘')
+  await user.click(screen.getByRole('button', { name: '보내기' }))
+  await waitFor(() =>
+    expect(sent).toEqual([
+      {
+        content: '프레스 3호기의 정비 이력을 알려줘',
+        referenceObjectIds: [301],
+      },
+    ]),
+  )
+})
 
 test('대화 목록을 최근 순으로 보여 주고 가장 최근 대화를 연다', async () => {
   renderAgentPage()
@@ -87,6 +180,91 @@ test('대화 목록을 최근 순으로 보여 주고 가장 최근 대화를 �
   ).toBeInTheDocument()
   expect(await screen.findByText(EMPTY_MESSAGE)).toBeInTheDocument()
 })
+
+test('전송 응답 전에 다른 대화를 다녀와도 중복 제출을 막고 성공한 초안은 비운다', async () => {
+  const user = userEvent.setup()
+  let release = () => {}
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const sent = recordQuestionBodies(2)
+  server.use(
+    http.post('/api/v1/agent/conversations/2/messages', async () => {
+      await held
+    }),
+  )
+  onTestFinished(release)
+  try {
+    renderAgentPage('/agent?conversation=2')
+    await screen.findByText(EMPTY_MESSAGE)
+    await user.type(screen.getByLabelText('업무 질문'), '전송 중인 질문')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+    const list = screen.getByRole('complementary', { name: '대화방 목록' })
+    await user.click(
+      within(list).getByRole('button', {
+        name: '설비 PR-03의 최근 비가동 이력과 장부가를 알려줘',
+      }),
+    )
+    await screen.findByText(SAMPLE_ANSWER)
+    await user.click(
+      within(list).getByRole('button', { name: '새 대화', pressed: false }),
+    )
+    const input = await screen.findByLabelText('업무 질문')
+    expect(input).toHaveValue('전송 중인 질문')
+    expect(input).toBeDisabled()
+    expect(screen.getByRole('button', { name: '보내기' })).toBeDisabled()
+    release()
+    await waitFor(() => expect(input).toHaveValue(''))
+    expect(sent).toHaveLength(1)
+  } finally {
+    release()
+  }
+})
+
+test('객체 질문을 전송하는 중 대화를 왕복해도 첫 질문의 참고 객체를 다시 쓰지 않는다', async () => {
+  const user = userEvent.setup()
+  let release = () => {}
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const sent = recordQuestionBodies(2)
+  server.use(
+    http.post('/api/v1/agent/conversations/2/messages', async () => {
+      await held
+    }),
+  )
+  onTestFinished(release)
+  try {
+    renderEnteredFromObject()
+    await user.click(await screen.findByRole('button', { name: '보내기' }))
+    const list = screen.getByRole('complementary', { name: '대화방 목록' })
+    await user.click(
+      within(list).getByRole('button', {
+        name: '설비 PR-03의 최근 비가동 이력과 장부가를 알려줘',
+      }),
+    )
+    await screen.findByText(SAMPLE_ANSWER)
+    await user.click(
+      within(list).getByRole('button', { name: '새 대화', pressed: false }),
+    )
+    const input = await screen.findByLabelText('업무 질문')
+    expect(input).toBeDisabled()
+    release()
+    await waitFor(() => expect(input).toHaveValue(''))
+    await screen.findByText(SAMPLE_ANSWER)
+    await waitFor(() => expect(input).toBeEnabled())
+    await user.type(input, '06번 설비의 실행 이력을 알려줘')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+    await waitFor(() => expect(sent).toHaveLength(2))
+    expect(sent[0]).toEqual({
+      content: '프레스 3호기에 연결된 업무 정보를 알려줘',
+      referenceObjectIds: [301],
+    })
+    expect(sent[1]).toEqual({ content: '06번 설비의 실행 이력을 알려줘' })
+  } finally {
+    release()
+  }
+}, 15000)
 
 test('답변은 바로 보이고 출처와 조회 상태는 기본으로 접혀 있으며 펼치고 접을 수 있다', async () => {
   const user = userEvent.setup()
@@ -135,7 +313,7 @@ test('질문을 보내면 처리 단계를 보여 주다가 답변으로 바꾼�
 
   const input = screen.getByLabelText('업무 질문')
   await user.type(input, 'PR-03 비가동 알려줘')
-  await user.click(screen.getByRole('button', { name: '보내기 ↑' }))
+  await user.click(screen.getByRole('button', { name: '보내기' }))
 
   expect(await screen.findByText(/답변 준비 중/)).toBeInTheDocument()
   expect(input).toBeDisabled()
@@ -157,7 +335,7 @@ test('답변을 끝내지 못하면 실패 안내를 보여 준다', async () =>
   await screen.findByText(EMPTY_MESSAGE)
 
   await user.type(screen.getByLabelText('업무 질문'), '실패 확인용 질문')
-  await user.click(screen.getByRole('button', { name: '보내기 ↑' }))
+  await user.click(screen.getByRole('button', { name: '보내기' }))
 
   const alert = await screen.findByRole('alert', {}, { timeout: 10_000 })
   expect(alert).toHaveTextContent('답변을 끝내지 못했어요.')
@@ -170,7 +348,9 @@ test('새 대화를 만들면 목록에 추가하고 그 대화를 연다', asyn
   const list = await screen.findByRole('complementary', { name: '대화방 목록' })
 
   await user.click(
-    await within(list).findByRole('button', { name: '+ 새 대화' }),
+    within(
+      within(list).getByRole('heading', { name: '대화' }).parentElement!,
+    ).getByRole('button', { name: '새 대화' }),
   )
 
   await waitFor(() =>
@@ -253,7 +433,7 @@ test('객체에서 들어오면 질문을 미리 채우고 첫 질문에 그 객
       { name: '재배정 계획' },
     ),
   ).toBeInTheDocument()
-  await user.click(screen.getByRole('button', { name: '보내기 ↑' }))
+  await user.click(screen.getByRole('button', { name: '보내기' }))
 
   await waitFor(() =>
     expect(sent).toEqual([
@@ -270,7 +450,7 @@ test('참고 객체는 첫 질문에만 보내고, 다음 질문부터는 보내
   const sent = recordQuestionBodies()
   renderEnteredFromObject()
 
-  await user.click(await screen.findByRole('button', { name: '보내기 ↑' }))
+  await user.click(await screen.findByRole('button', { name: '보내기' }))
   // 첫 답변이 다 끝날 때까지 기다린다(보낸 직후 입력란이 잠깐 열리는 순간과 구분).
   const input = screen.getByLabelText('업무 질문')
   expect(await screen.findByText(SAMPLE_ANSWER)).toBeInTheDocument()
@@ -282,7 +462,7 @@ test('참고 객체는 첫 질문에만 보내고, 다음 질문부터는 보내
   ).toBeInTheDocument()
 
   await user.type(input, '06번의 실행 이력은?')
-  await user.click(screen.getByRole('button', { name: '보내기 ↑' }))
+  await user.click(screen.getByRole('button', { name: '보내기' }))
 
   // 다른 객체를 물어도 처음 객체(301)로 답하지 않게, 다음 질문에는 참고 객체를 붙이지 않는다.
   await waitFor(() => expect(sent).toHaveLength(2))
@@ -302,7 +482,7 @@ test('추천 질문을 고르면 입력란에 채우고, 답변을 기다리는 
   expect(input).toHaveValue('프레스 3호기의 최근 실행 이력을 알려줘')
   expect(input).toHaveFocus()
 
-  await user.click(screen.getByRole('button', { name: '보내기 ↑' }))
+  await user.click(screen.getByRole('button', { name: '보내기' }))
   // 처리 중인 답변이 화면에 보이는 동안(RUNNING) 추천 질문을 누를 수 없다.
   // 첫 질문을 보냈으므로 추천 질문은 기본 예시로 바뀌어 있다.
   expect(await screen.findByText(/^답변 준비 중/)).toBeInTheDocument()
@@ -329,7 +509,7 @@ test('첫 질문을 보내는 사이 다른 대화로 옮기면, 답이 와도 �
   try {
     renderEnteredFromObject()
 
-    await user.click(await screen.findByRole('button', { name: '보내기 ↑' }))
+    await user.click(await screen.findByRole('button', { name: '보내기' }))
     const list = screen.getByRole('complementary', { name: '대화방 목록' })
     await user.click(
       within(list).getByRole('button', {
@@ -377,7 +557,7 @@ test('이미 질문이 있는 대화에 남은 기록으로 들어오면 참고 
   ).toBeInTheDocument()
 
   await user.type(input, '06번의 실행 이력은?')
-  await user.click(screen.getByRole('button', { name: '보내기 ↑' }))
+  await user.click(screen.getByRole('button', { name: '보내기' }))
 
   await waitFor(() =>
     expect(sent).toEqual([{ content: '06번의 실행 이력은?' }]),
@@ -510,7 +690,7 @@ test('이름·유형이 없는 예전 기록으로 들어오면 참고 객체 �
   expect(screen.queryByText(/undefined/)).not.toBeInTheDocument()
 
   await user.type(screen.getByLabelText('업무 질문'), '설비 상태 알려줘')
-  await user.click(screen.getByRole('button', { name: '보내기 ↑' }))
+  await user.click(screen.getByRole('button', { name: '보내기' }))
   await waitFor(() => expect(sent).toEqual([{ content: '설비 상태 알려줘' }]))
 })
 

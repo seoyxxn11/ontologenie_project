@@ -1,5 +1,11 @@
-import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
-import Button from '../../components/Button'
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from 'react'
+import AgentIconButton from './AgentIconButton'
 import { useAuth } from '../auth/auth-context'
 import SavedQuestions from './SavedQuestions'
 import { MAX_SAVED_QUESTIONS, useSavedQuestions } from './savedQuestionStore'
@@ -10,6 +16,9 @@ import type { ReferenceObject } from './types'
 type ChatComposerProps = {
   disabled: boolean
   initialDraft?: string
+  draftValue?: string
+  onDraftChange?: (draft: string) => void
+  focusRequest?: number
   // 첫 질문 전까지의 참고 객체. 추천 질문을 그 객체에 맞춘다. 없으면 null(150).
   reference?: ReferenceObject | null
   onSend: (content: string) => Promise<void>
@@ -18,22 +27,41 @@ type ChatComposerProps = {
 function ChatComposer({
   disabled,
   initialDraft = '',
+  draftValue,
+  onDraftChange,
+  focusRequest = 0,
   reference = null,
   onSend,
 }: ChatComposerProps) {
   const { account } = useAuth()
-  const [draft, setDraft] = useState(initialDraft)
+  const [localDraft, setLocalDraft] = useState(initialDraft)
+  const draft = draftValue ?? localDraft
+  function setDraft(next: string) {
+    setLocalDraft(next)
+    onDraftChange?.(next)
+  }
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const content = draft.trim()
   // 자주 쓰는 질문(257). 이 브라우저에 계정별로 보관한다.
   const saved = useSavedQuestions(account?.id ?? null)
   const alreadySaved = saved.questions.includes(content)
+  useLayoutEffect(() => {
+    onDraftChange?.(draft)
+    const input = inputRef.current
+    if (!input) return
+    input.style.height = 'auto'
+    input.style.height = `${Math.min(160, Math.max(40, input.scrollHeight))}px`
+    input.style.overflowY = input.scrollHeight > 160 ? 'auto' : 'hidden'
+  }, [draft, onDraftChange])
+  useLayoutEffect(() => {
+    if (focusRequest > 0) inputRef.current?.focus()
+  }, [focusRequest])
 
   async function send() {
     if (!content || disabled) return
     try {
       await onSend(content)
-      setDraft('')
+      setLocalDraft('')
     } catch {
       // 실패하면 쓴 질문을 그대로 두고, 오류는 대화 화면에서 보여 준다.
     }
@@ -79,56 +107,69 @@ function ChatComposer({
           onPick={handlePick}
           onRemove={saved.remove}
         />
+        {reference && (
+          <p className="agent-reference">
+            {reference.typeName} · {reference.name}
+          </p>
+        )}
         <div className="agent-composer-label">
           <label htmlFor="agent-input">업무 질문</label>
-          <span id="agent-input-limit">{draft.length} / 2,000자</span>
         </div>
-        <textarea
-          id="agent-input"
-          aria-label="업무 질문"
-          aria-describedby="agent-input-help agent-input-limit"
-          ref={inputRef}
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={disabled}
-          maxLength={2000}
-          rows={3}
-          placeholder="궁금한 업무를 입력하세요. 필요하면 대상이나 조건을 다시 확인합니다."
-          className="agent-question-input"
-        />
-        <div className="agent-composer-footer">
-          <p id="agent-input-help">Enter로 보내기 · Shift+Enter로 줄바꿈</p>
-          <div className="agent-composer-actions">
-            {/* 지금 입력한 문장을 내 질문으로 저장한다. 로그인 전이거나, 비었거나, 이미 저장했거나, 가득 찼으면 누를 수 없다.
+        <div className="agent-input-box">
+          <textarea
+            id="agent-input"
+            aria-label="업무 질문"
+            aria-describedby="agent-input-help"
+            ref={inputRef}
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={disabled}
+            maxLength={2000}
+            rows={1}
+            placeholder="업무에 대해 질문해 주세요."
+            className="agent-question-input"
+          />
+          <div className="agent-composer-footer">
+            <div className="agent-composer-actions">
+              {/* 지금 입력한 문장을 내 질문으로 저장한다. 로그인 전이거나, 비었거나, 이미 저장했거나, 가득 찼으면 누를 수 없다.
             저장하면 버튼이 막히므로 다시 입력란으로 돌아가 이어서 쓸 수 있게 한다. 별 기호는 화면 읽기 프로그램이 읽지 않는다. */}
-            <Button
-              variant="secondary"
-              onClick={() => {
-                saved.save(content)
-                inputRef.current?.focus()
-              }}
-              disabled={
-                !saved.canSave || !content || alreadySaved || saved.isFull
-              }
-              title={
-                saved.isFull
-                  ? `내 질문은 ${MAX_SAVED_QUESTIONS}개까지 저장할 수 있습니다. 하나를 지운 뒤 저장하세요.`
-                  : '지금 입력한 질문을 이 브라우저에 계정별로 저장합니다.'
-              }
-            >
-              <span aria-hidden="true">{alreadySaved ? '★ ' : '☆ '}</span>
-              {alreadySaved
-                ? saved.storageFailed
-                  ? '임시 보관 중'
-                  : '저장됨'
-                : '내 질문 저장'}
-            </Button>
-            <Button type="submit" disabled={disabled || !content}>
-              {disabled ? '처리 중…' : '보내기 ↑'}
-            </Button>
+              <AgentIconButton
+                icon="star"
+                className="agent-save-question"
+                aria-pressed={alreadySaved}
+                onClick={() => {
+                  saved.save(content)
+                  inputRef.current?.focus()
+                }}
+                disabled={
+                  !saved.canSave || !content || alreadySaved || saved.isFull
+                }
+                label={
+                  alreadySaved
+                    ? saved.storageFailed
+                      ? '임시 보관 중'
+                      : '저장됨'
+                    : '내 질문 저장'
+                }
+                title={
+                  saved.isFull
+                    ? `내 질문은 ${MAX_SAVED_QUESTIONS}개까지 저장할 수 있습니다. 하나를 지운 뒤 저장하세요.`
+                    : '지금 입력한 질문을 이 브라우저에 계정별로 저장합니다.'
+                }
+              />
+              <AgentIconButton
+                icon="send"
+                label="보내기"
+                className="agent-send-question"
+                type="submit"
+                pending={disabled}
+                disabled={!content}
+              />
+            </div>
           </div>
         </div>
+        <p id="agent-input-help">Enter로 보내기 · Shift+Enter로 줄바꿈</p>
         {saved.storageFailed && (
           <p role="status" className="agent-storage-notice">
             {saved.capacityConflict

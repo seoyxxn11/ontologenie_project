@@ -1,8 +1,15 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  useIsMutating,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
-import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
+import { ErrorState, LoadingState } from '../../components/Feedback'
 import ChatComposer from './ChatComposer'
+import AgentIconButton from './AgentIconButton'
+import type { ConversationDraft } from './AgentPage'
 import MessageItem from './MessageItem'
 import { fetchMessages, sendQuestion } from './api'
 import { NEW_CONVERSATION_TITLE } from './labels'
@@ -20,12 +27,28 @@ const NEAR_BOTTOM_PX = 80
 
 function ConversationPanel({
   conversation,
+  storedDraft,
+  onDraftChange,
+  focusRequest,
+  sidebarCollapsed,
+  onToggleSidebar,
 }: {
   conversation: AgentConversation
+  storedDraft?: ConversationDraft
+  onDraftChange: (
+    id: number,
+    content: string,
+    entry: AgentEntryState | null,
+  ) => void
+  focusRequest: number
+  sidebarCollapsed: boolean
+  onToggleSidebar: () => void
 }) {
   const queryClient = useQueryClient()
   const location = useLocation()
   const navigate = useNavigate()
+  const sending =
+    useIsMutating({ mutationKey: ['agent', 'send', conversation.id] }) > 0
   const messagesQuery = useQuery({
     queryKey: ['agent', 'messages', conversation.id],
     queryFn: () => fetchMessages(conversation.id),
@@ -63,10 +86,12 @@ function ConversationPanel({
   // Explorer의 [질문하기]로 이 대화에 들어왔으면 그 객체를 첫 질문에만 함께 보낸다(152).
   // 다음 질문부터 같은 대상을 이어 쓰거나 다른 대상으로 바꾸는 일은 서버가 맡는다(147). 질문마다 보내면 다른 객체를 물어도
   // 처음 객체로 답할 수 있기 때문이다. 첫 질문 전까지는 주소 기록(history state)에 남아 새로고침해도 유지되고, 화면에는 따로
-  // 표시하지 않고 추천 질문에 반영한다(150).
+  // 참고 객체와 추천 질문에 반영한다(150).
   // 주소 기록만 믿지 않고, 이 화면에서 새로 읽은 대화가 비어 있을 때만 참고 객체를 쓴다. 첫 질문을 보내는 사이 다른 대화로
   // 옮기거나 새로고침하면 기록이 지워지지 않고 남는데, 나중에 돌아왔을 때 다시 붙지 않게 하기 위해서다.
-  const savedEntry = entryFor(location.state, conversation.id)
+  const savedEntry = storedDraft
+    ? storedDraft.entry
+    : entryFor(location.state, conversation.id)
   const freshlyLoaded =
     messagesQuery.isSuccess && messagesQuery.isFetchedAfterMount
   // 미리 채운 질문은 입력란을 처음 그릴 때만 들어가므로, 기록이 있으면 대화를 다 읽은 뒤 입력란을 그린다. 읽다 실패하면
@@ -76,6 +101,7 @@ function ConversationPanel({
   const [decision, setDecision] = useState<{
     entry: AgentEntryState | null
   } | null>(null)
+  const [entryConsumed, setEntryConsumed] = useState(false)
   if (decision === null && (!savedEntry || freshlyLoaded)) {
     setDecision({
       entry: savedEntry && messages.length === 0 ? savedEntry : null,
@@ -83,7 +109,7 @@ function ConversationPanel({
   }
   const composerReady = decision !== null
   // 첫 질문을 보내 주소 기록을 지우면 더는 쓰지 않는다.
-  const entry = savedEntry ? (decision?.entry ?? null) : null
+  const entry = !entryConsumed && savedEntry ? (decision?.entry ?? null) : null
   const reference: ReferenceObject | null = entry
     ? {
         id: entry.referenceObjectId,
@@ -101,6 +127,7 @@ function ConversationPanel({
   }
 
   const sendMutation = useMutation({
+    mutationKey: ['agent', 'send', conversation.id],
     mutationFn: (content: string) =>
       sendQuestion(
         conversation.id,
@@ -109,6 +136,8 @@ function ConversationPanel({
           : { content },
       ),
     onSuccess: () => {
+      setEntryConsumed(true)
+      onDraftChange(conversation.id, '', null)
       // 접수된 질문과 처리 중 답변을 다시 읽고, 첫 질문이면 바뀐 제목도 목록에 반영한다.
       void queryClient.invalidateQueries({
         queryKey: ['agent', 'messages', conversation.id],
@@ -146,9 +175,7 @@ function ConversationPanel({
       )
     }
     if (messages.length === 0) {
-      return (
-        <EmptyState message="업무에 대해 질문해 주세요. 예: P103의 상태를 알려줘" />
-      )
+      return <p className="agent-new-prompt">어떤 업무를 확인할까요?</p>
     }
     return messages.map((message) => (
       <MessageItem key={message.id} message={message} />
@@ -158,9 +185,18 @@ function ConversationPanel({
   // 대화 목록과 입력란은 유지하고 메시지 영역 안에서 이전 답변을 읽는다.
   return (
     <section aria-label="현재 대화" className="agent-conversation">
-      <h2 className="agent-conversation-heading">
-        {conversation.title ?? NEW_CONVERSATION_TITLE}
-      </h2>
+      <div className="agent-conversation-header">
+        <AgentIconButton
+          label={sidebarCollapsed ? '대화 목록 펼치기' : '대화 목록 접기'}
+          icon={sidebarCollapsed ? 'expand' : 'collapse'}
+          aria-expanded={!sidebarCollapsed}
+          aria-controls="agent-conversation-list"
+          onClick={onToggleSidebar}
+        />
+        <h2 className="agent-conversation-heading">
+          {conversation.title ?? NEW_CONVERSATION_TITLE}
+        </h2>
+      </div>
       <div
         ref={logRef}
         role="log"
@@ -169,6 +205,7 @@ function ConversationPanel({
         tabIndex={0}
         onScroll={handleLogScroll}
         className="agent-message-log"
+        data-empty={messagesQuery.isSuccess && messages.length === 0}
       >
         {renderMessages()}
       </div>
@@ -182,9 +219,13 @@ function ConversationPanel({
       )}
       {composerReady && (
         <ChatComposer
-          initialDraft={entry?.draft}
+          draftValue={storedDraft?.content ?? entry?.draft ?? ''}
+          onDraftChange={(content) =>
+            onDraftChange(conversation.id, content, entry)
+          }
+          focusRequest={focusRequest}
           reference={reference}
-          disabled={running || sendMutation.isPending}
+          disabled={running || sending}
           onSend={handleSend}
         />
       )}
