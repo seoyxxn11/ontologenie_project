@@ -48,9 +48,9 @@ docker exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:90
 
 ## 현재 상태 (2026-11-14)
 
-두 커넥터 `cdc-erp`·`cdc-mes`가 RUNNING이고 원천 슬롯 `axcore_erp`·`axcore_mes`가 쓰이는 중입니다(2026-11-11 315 운영 연결). 원천 토픽은 `ERP_MAIN.all`·`MES_MAIN.all` 두 개이고, batch의 CDC 소비자와 수집 뒤 검사(SYNC)가 켜져 있습니다. 플랫폼 `cdc_offset`에 원천마다 한 행이 있습니다.
+두 커넥터 `cdc-erp`·`cdc-mes`가 RUNNING이고 원천 슬롯 `axcore_erp`·`axcore_mes`가 쓰이는 중입니다. 원천 토픽은 `ERP_MAIN.all`·`MES_MAIN.all` 두 개이고, batch의 CDC 소비자와 수집 뒤 검사(SYNC)가 켜져 있습니다. 플랫폼 `cdc_offset`에 원천마다 한 행이 있습니다.
 
-원천에는 아직 허용 목록(395)이 적용되지 않아 publication이 예전 정의입니다(ERP에 `attendance`·`fixed_asset`, 컬럼 목록 없음). 허용 목록을 적용하려면 슬롯을 지워야 하므로 아래 "허용 목록 적용 때 다시 붙이기" 순서를 따릅니다(S15P31C106-397).
+2026-11-14 원천에 허용 목록(395)을 적용했습니다(S15P31C106-397). 아래 "허용 목록 적용 때 다시 붙이기" 순서로 커넥터·슬롯을 지우고 적용한 뒤 금지 표·컬럼 제외 설정(`table.exclude.list`·`column.exclude.list`)을 넣어 다시 등록했고, 슬롯이 없던 사이는 전체 다시 읽기로 메웠습니다. publication은 ERP 11표(`employee`는 `emp_no, dept_code`), MES 14표(`worker`는 `id, shift, line, skill_level, active_yn`)입니다. 기록은 `docs/evidence/397-20261114/apply.md`. 새 커넥터가 `employee`·`worker` 변경을 금지 컬럼 없이 보내는지는 원천에 실제 변경이 생긴 뒤 토픽에서 확인합니다.
 
 ## 운영 연결 순서 (S15P31C106-315)
 
