@@ -7,7 +7,7 @@
 | ERP | `3.35.230.145` (t3a.medium, Amazon Linux 2023) | `erp` | 18개 | 11개 (11개) |
 | MES | `3.34.192.251` (t3a.medium, Amazon Linux 2023) | `mes` | 15개 | 14개 (14개) |
 
-플랫폼이 읽는 표·컬럼은 아래 "허용 목록"으로 정합니다(S15P31C106-395). 기존 서버는 아직 예전 권한(표 전체)이고, 허용 목록 적용은 S15P31C106-397에서 승인 뒤에 합니다.
+플랫폼이 읽는 표·컬럼은 아래 "허용 목록"으로 정합니다(S15P31C106-395). 기존 서버 두 대에도 2026-11-14 적용했습니다(S15P31C106-397, 기록 `docs/evidence/397-20261114/apply.md`).
 
 접속 사용자는 `ec2-user`, 키는 `C106_Source.pem`입니다. 두 서버의 구성은 `.env`의 `SOURCE_DB`만 다릅니다.
 
@@ -76,11 +76,11 @@ python -m unittest discover -s infra/tests -p 'test_source_allowlist.py' -v
 
 플랫폼은 원천 권한으로 읽을 수 있는 컬럼만 가져오므로(`SourceCatalogReader`·`SourceTableReader`의 `has_column_privilege`, `ai/app/sources/postgres_reader.py`) 컬럼 권한으로 바꿔도 `SELECT *` 오류가 나지 않습니다.
 
-## 기존 서버에 적용 (S15P31C106-397, 승인 뒤)
+## 기존 서버에 적용 (S15P31C106-397, 2026-11-14 적용)
 
 2026-11-02 세팅한 서버는 예전 스크립트로 만들어졌습니다. 세 계정이 스키마의 모든 표를 읽고(이후 회계 4표는 회수), publication에 금지 표·컬럼이 들어 있습니다. `migrate_allowlist.sql`로 바꿉니다. 원천 관리자 계정(`source_admin`)으로 컨테이너 안에서 실행하고, 플랫폼 계정에는 아무 권한도 더하지 않습니다.
 
-1. **커넥터가 없을 때 한다.** 슬롯이 있으면 바꾸기 전에 쌓인 WAL은 예전 publication 기준으로 풀려 금지 컬럼이 나갈 수 있다. 2026-11-14 현재 두 커넥터가 돌고 슬롯 `axcore_erp`·`axcore_mes`가 있다. 적용 전에 커넥터를 멈추고 슬롯을 지운다(`infra/cdc/README.md` "허용 목록 적용 때 다시 붙이기"). 적용 전 보고의 "복제 슬롯"이 비어 있는지 본다. 있으면 커넥터를 멈추고 슬롯을 지운 뒤 적용하고, 커넥터는 적용 뒤 다시 등록한다.
+1. **커넥터가 없을 때 한다.** 슬롯이 있으면 바꾸기 전에 쌓인 WAL은 예전 publication 기준으로 풀려 금지 컬럼이 나갈 수 있다. 운영처럼 커넥터가 돌고 있으면 적용 전에 커넥터를 멈추고 슬롯을 지운다(`infra/cdc/README.md` "허용 목록 적용 때 다시 붙이기", 2026-11-14 이 순서로 적용). 적용 전 보고의 "복제 슬롯"이 비어 있는지 본다. 있으면 커넥터를 멈추고 슬롯을 지운 뒤 적용하고, 커넥터는 적용 뒤 다시 등록한다.
 
    **슬롯 확인(스크립트가 막는다):** `apply_allowlist.sql`은 publication 정의가 실제로 바뀌는데 그 DB에 논리 복제 슬롯이 있으면 예외로 전체를 되돌린다. `setup_roles.sql`(setup.sh)과 `migrate_allowlist.sql` 확정 모두 같다. 시험 실행은 멈추지 않고 경고("확정하면 멈춘다")만 낸다. 슬롯을 지울 수 없는데 꼭 지금 바꿔야 하면 `migrate_allowlist.sql`을 `-v apply=1 -v allow_slot=1`로 실행한다. 그때는 바꾸기 전 WAL이 예전 정의로 풀린다는 것을 알고 하는 것이다.
 2. 스크립트를 서버에 올린다. `sql/`은 폴더째 마운트되어 있어 바로 컨테이너에 보인다.
@@ -167,6 +167,5 @@ publication과 컬럼 목록은 **Debezium이 쓰는 pgoutput 출력**만 거릅
 
 ## 남은 것
 
-- 기존 원천 서버 두 대에 허용 목록 적용(S15P31C106-397, 승인 뒤, 위 절차)
-- Debezium 커넥터가 컬럼 목록 publication에서 금지 컬럼 없이 메시지를 만드는지 커넥터 등록 뒤 확인. 두 번째 방어로 커넥터 설정에 `column.exclude.list`를 둘지 정한다(`infra/cdc/`)
+- Debezium 커넥터가 컬럼 목록 publication에서 금지 컬럼 없이 메시지를 만드는지 원천에 `employee`·`worker` 변경이 생긴 뒤 토픽에서 확인. 커넥터 설정에는 두 번째 방어로 `column.exclude.list`를 넣었다(397, `infra/cdc/`). 등록·RUNNING과 heartbeat까지는 확인했다
 - 시나리오 5 원천 수정분(`ai/data/scenario-v1.0/s5_fix.sql`)은 시연 때만 관리자 계정으로 적용한다
