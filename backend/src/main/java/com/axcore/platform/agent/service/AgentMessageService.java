@@ -60,11 +60,7 @@ public class AgentMessageService {
     public List<AgentMessageResponse> ask(
             LoginAccount asker, long conversationId, QuestionRequest request) {
         AgentConversation conversation = ownedConversation(asker.id(), conversationId);
-        failStaleAnswers(conversationId);
-        if (messages.existsByConversationIdAndStatus(conversationId, MessageStatus.RUNNING)) {
-            throw new BusinessException(
-                    CommonErrorCode.CONFLICT, "이 대화에서 처리 중인 답변이 있습니다.", Map.of());
-        }
+        rejectIfAnswering(conversationId);
         PendingClarification pending = pendingClarification(conversationId);
         QuestionInterpretation previous = previousConditions(conversationId);
         List<ConversationTurn> turns = recentTurns(conversationId);
@@ -151,12 +147,21 @@ public class AgentMessageService {
 
     private AgentConversation ownedConversation(long accountId, long conversationId) {
         return conversations
-                .findByIdAndAccountId(conversationId, accountId)
+                .findByIdAndAccountIdAndDeletedAtIsNull(conversationId, accountId)
                 .orElseThrow(
                         () ->
                                 new BusinessException(
                                         CommonErrorCode.RESOURCE_NOT_FOUND,
                                         Map.of("resource", "agent_conversation")));
+    }
+
+    /** 085·106. 멈춘 답변을 실패로 정리한 뒤에도 처리 중인 답변이 있으면 409로 거절한다. 호출자가 대화 소유자를 먼저 확인한다. */
+    void rejectIfAnswering(long conversationId) {
+        failStaleAnswers(conversationId);
+        if (messages.existsByConversationIdAndStatus(conversationId, MessageStatus.RUNNING)) {
+            throw new BusinessException(
+                    CommonErrorCode.CONFLICT, "이 대화에서 처리 중인 답변이 있습니다.", Map.of());
+        }
     }
 
     private void failStaleAnswers(long conversationId) {

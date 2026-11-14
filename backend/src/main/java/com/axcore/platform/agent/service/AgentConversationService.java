@@ -10,7 +10,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -21,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AgentConversationService {
     private final AgentConversationRepository repository;
+    private final AgentMessageService messageService;
     private final Clock clock;
 
     @Transactional
@@ -32,41 +32,37 @@ public class AgentConversationService {
     }
 
     public Page<AgentConversationResponse> search(long accountId, Pageable pageable) {
-        return repository.findByAccountId(accountId, pageable).map(AgentConversationResponse::from);
+        return repository
+                .findByAccountIdAndDeletedAtIsNull(accountId, pageable)
+                .map(AgentConversationResponse::from);
     }
 
     /**
-     * 임시(개발 데이터 정리용, 나중에 제거): 내 대화를 DB에서 지운다. 메시지는 함께 지워진다. 조회 기록이나 재배정 계획이 이 대화를 가리키면 DB가 막으므로
-     * 409로 답한다.
+     * 106. 내 대화를 지운다. 감사 기록이 메시지를 가리킬 수 있어 행은 남기고 지운 시각만 적는다. 없는 대화, 남의 대화, 이미 지운 대화는 404, 처리 중인
+     * 답변이 있으면 409로 답한다.
      */
     @Transactional
-    public void deleteTemporarily(long accountId, long id) {
-        AgentConversation conversation =
-                repository
-                        .findByIdAndAccountId(id, accountId)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                CommonErrorCode.RESOURCE_NOT_FOUND,
-                                                Map.of("resource", "agent_conversation")));
-        try {
-            repository.delete(conversation);
-            repository.flush();
-        } catch (DataIntegrityViolationException ex) {
-            throw new BusinessException(
-                    CommonErrorCode.CONFLICT, "실행 기록이 있는 대화는 지울 수 없습니다.", Map.of());
+    public void delete(long accountId, long id) {
+        ownedConversation(accountId, id);
+        messageService.rejectIfAnswering(id);
+        if (repository.markDeleted(id, accountId, Instant.now(clock)) == 0) {
+            throw notFound();
         }
     }
 
-    /** 다른 사용자의 대화는 없는 대화와 같게 404로 답한다(존재 여부를 알리지 않는다). */
+    /** 다른 사용자의 대화와 지운 대화는 없는 대화와 같게 404로 답한다(존재 여부를 알리지 않는다). */
     public AgentConversationResponse get(long accountId, long id) {
+        return AgentConversationResponse.from(ownedConversation(accountId, id));
+    }
+
+    private AgentConversation ownedConversation(long accountId, long id) {
         return repository
-                .findByIdAndAccountId(id, accountId)
-                .map(AgentConversationResponse::from)
-                .orElseThrow(
-                        () ->
-                                new BusinessException(
-                                        CommonErrorCode.RESOURCE_NOT_FOUND,
-                                        Map.of("resource", "agent_conversation")));
+                .findByIdAndAccountIdAndDeletedAtIsNull(id, accountId)
+                .orElseThrow(AgentConversationService::notFound);
+    }
+
+    private static BusinessException notFound() {
+        return new BusinessException(
+                CommonErrorCode.RESOURCE_NOT_FOUND, Map.of("resource", "agent_conversation"));
     }
 }

@@ -6,7 +6,7 @@ import ConversationList from './ConversationList'
 import ConversationPanel from './ConversationPanel'
 import {
   createConversation,
-  deleteConversationTemporarily,
+  deleteConversation,
   fetchConversations,
 } from './api'
 import type { AgentConversation } from './types'
@@ -36,9 +36,9 @@ function AgentPage() {
     },
   })
 
-  // 임시(개발 데이터 정리용, 나중에 제거): 지운 뒤 목록을 다시 읽고, 열려 있던 대화면 주소에서 뺀다.
+  // 지운 뒤 목록을 다시 읽고, 열려 있던 대화면 주소에서 뺀다.
   const deleteMutation = useMutation({
-    mutationFn: deleteConversationTemporarily,
+    mutationFn: deleteConversation,
     onSuccess: (_, deletedId) => {
       queryClient.removeQueries({ queryKey: ['agent', 'messages', deletedId] })
       void queryClient.invalidateQueries({

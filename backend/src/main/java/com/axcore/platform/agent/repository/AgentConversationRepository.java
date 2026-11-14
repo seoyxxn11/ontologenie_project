@@ -1,6 +1,7 @@
 package com.axcore.platform.agent.repository;
 
 import com.axcore.platform.agent.domain.AgentConversation;
+import java.time.Instant;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,9 +13,23 @@ import org.springframework.transaction.annotation.Transactional;
 
 public interface AgentConversationRepository extends JpaRepository<AgentConversation, Long> {
 
-    Page<AgentConversation> findByAccountId(Long accountId, Pageable pageable);
+    Page<AgentConversation> findByAccountIdAndDeletedAtIsNull(Long accountId, Pageable pageable);
 
-    Optional<AgentConversation> findByIdAndAccountId(Long id, Long accountId);
+    Optional<AgentConversation> findByIdAndAccountIdAndDeletedAtIsNull(Long id, Long accountId);
+
+    /** 본인의 지우지 않은 대화에 지운 시각을 적는다. 없거나 남의 대화거나 이미 지운 대화면 0을 돌려준다. */
+    @Transactional
+    @Modifying
+    @Query(
+            """
+            update AgentConversation c
+               set c.deletedAt = :at
+             where c.id = :id
+               and c.accountId = :accountId
+               and c.deletedAt is null
+            """)
+    int markDeleted(
+            @Param("id") Long id, @Param("accountId") Long accountId, @Param("at") Instant at);
 
     /**
      * 오래된 대화 요약을 저장한다(333). 요약을 만들기 전에 읽은 범위(expectedUntil, 요약이 없었으면 0)가 그대로일 때만 바꾼다. 같은 대화의 요약이

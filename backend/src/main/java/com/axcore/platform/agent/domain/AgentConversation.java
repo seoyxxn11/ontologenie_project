@@ -41,6 +41,13 @@ public class AgentConversation {
     @Column(insertable = false, updatable = false)
     private Long summarizedUntilMessageId;
 
+    /**
+     * 사용자가 대화를 지운 시각. {@code AgentConversationRepository.markDeleted}로만 바꾼다. 처리 중인 답변이 이 Entity를
+     * 저장해도 지운 표시를 옛 값으로 덮지 않게 Entity 저장에서는 쓰지 않는다.
+     */
+    @Column(insertable = false, updatable = false)
+    private Instant deletedAt;
+
     private AgentConversation(Long accountId, Instant now) {
         this.accountId = accountId;
         this.startedAt = now;

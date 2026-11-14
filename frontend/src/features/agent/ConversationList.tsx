@@ -10,7 +10,6 @@ type ConversationListProps = {
   creating: boolean
   onSelect: (id: number) => void
   onCreate: () => void
-  // 임시(개발 데이터 정리용, 나중에 제거)
   deleting: boolean
   onDelete: (id: number) => void
 }
@@ -121,13 +120,16 @@ function ConversationList({
                   >
                     <span>{conversation.title ?? NEW_CONVERSATION_TITLE}</span>
                   </button>
-                  {/* 임시(개발 데이터 정리용, 나중에 제거): DB에서 바로 지운다. */}
                   <button
                     type="button"
                     disabled={deleting}
                     aria-label={`${conversation.title ?? NEW_CONVERSATION_TITLE} 삭제`}
                     onClick={() => {
-                      if (window.confirm('이 대화를 DB에서 완전히 지울까요?')) {
+                      if (
+                        window.confirm(
+                          '이 대화를 지울까요? 지운 대화는 다시 열 수 없어요.',
+                        )
+                      ) {
                         onDelete(conversation.id)
                       }
                     }}
