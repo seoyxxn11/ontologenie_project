@@ -4,8 +4,8 @@
 
 | 서버 | 주소 | DB·스키마 | 표 | 플랫폼이 읽는 표 (CDC) |
 |---|---|---|---|---|
-| ERP | `3.35.230.145` (t3a.medium, Amazon Linux 2023) | `erp` | 18개 | 12개 (11개) |
-| MES | `3.34.192.251` (t3a.medium, Amazon Linux 2023) | `mes` | 15개 | 15개 (14개) |
+| ERP | `3.35.230.145` (t3a.medium, Amazon Linux 2023) | `erp` | 18개 | 11개 (11개) |
+| MES | `3.34.192.251` (t3a.medium, Amazon Linux 2023) | `mes` | 15개 | 14개 (14개) |
 
 플랫폼이 읽는 표·컬럼은 아래 "허용 목록"으로 정합니다(S15P31C106-395). 기존 서버는 아직 예전 권한(표 전체)이고, 허용 목록 적용은 S15P31C106-397에서 승인 뒤에 합니다.
 
@@ -51,7 +51,7 @@ ssh -i $K $H "~/source-db/setup.sh $DB"        # .env·인증서 생성, 기동,
 | `sql/migrate_allowlist.sql` | 기존 서버용. 계정은 건드리지 않고 권한·publication만 바꾼다. 기본은 시험 실행(되돌림), `-v apply=1`이면 확정. 슬롯이 있으면 확정을 멈춘다(`-v allow_slot=1`로만 넘어감) |
 | `sql/report_access.sql` | 읽기만 한다. 계정별 읽을 수 있는 컬럼, publication 표·컬럼, replica identity, 남은 기본 권한, 복제 슬롯 |
 
-정책은 백엔드 `application.yml`의 `axcore.source-data-policy`와 글자까지 같아야 합니다. `infra/tests/test_source_allowlist.py`가 둘을 비교합니다(백엔드에 정책이 없으면 건너뜀).
+정책은 백엔드 `application.yml`의 `axcore.source-data-policy`와 글자까지 같아야 합니다. `infra/tests/test_source_allowlist.py`가 둘과 AI 사본(`ai/app/source_policy.py`)을 비교하고, MR 검사(Jenkins Infra check)에서 `infra/`·`Jenkinsfile`·`application.yml`·AI 사본 중 하나가 바뀌면 돕니다(S15P31C106-405). 백엔드 정책이 없으면 실패합니다.
 
 ```bash
 python -m unittest discover -s infra/tests -p 'test_source_allowlist.py' -v
@@ -59,10 +59,10 @@ python -m unittest discover -s infra/tests -p 'test_source_allowlist.py' -v
 
 | 등급 | 대상 | `platform_ro` | `platform_ai` | `platform_cdc`·publication |
 |---|---|---|---|---|
-| 금지 | `erp.attendance`·`erp.fixed_asset` 표 전체, `erp.employee`의 `emp_name`·`position`·`hire_date`·`employment_type`·`status`, `mes.worker.name` | 못 읽음 | 못 읽음 | 못 읽음·안 보냄 |
+| 금지 | `erp.attendance`·`erp.fixed_asset`·`erp.change_log`·`mes.change_log` 표 전체, `erp.employee`의 `emp_name`·`position`·`hire_date`·`employment_type`·`status`, `mes.worker.name` | 못 읽음 | 못 읽음 | 못 읽음·안 보냄 |
 | 제한 | `mes.maintenance_order.technician`, `erp.vendor.contact_name`, `mes.worker.skill_level` | 읽음 | 못 읽음 | 읽음·보냄 |
 | 제외 | ERP 회계 4표(`sales_invoice`·`purchase_invoice`·`gl_account`·`journal_entry`, S15P31C106-133) | 못 읽음 | 못 읽음 | 못 읽음·안 보냄 |
-| 일반 | 나머지. `change_log`는 CDC에서만 뺀다 | 읽음 | 읽음 | 읽음·보냄 |
+| 일반 | 나머지 | 읽음 | 읽음 | 읽음·보냄 |
 
 허용 목록의 규칙:
 
@@ -153,7 +153,8 @@ publication과 컬럼 목록은 **Debezium이 쓰는 pgoutput 출력**만 거릅
 - **정의 오류**: 정책 컬럼 오타, `ro_columns`에 금지 컬럼, 금지 표를 허용 목록에, AI 목록에 제한 컬럼, 제한 컬럼 표의 AI 목록 생략, 컬럼 목록에서 기본 키 누락 — 모두 예외로 멈추고 상태 그대로
 - **실제 복제**: 다른 PostgreSQL에서 `platform_cdc`로 `axcore_cdc`를 구독. 첫 복사에서 `employee`의 금지 5컬럼·`worker.name`이 비어 있고 `attendance`·`fixed_asset`은 오지 않음. 이후 `UPDATE`(금지 컬럼 포함)·`INSERT`·`DELETE`가 전달되고 금지 컬럼 값은 오지 않음
 - **REPLICATION 한계**: `platform_cdc`로 `test_decoding` 슬롯을 만들면 `erp.attendance` 변경이 보임(위 "한계")
-- **정책 비교**: `test_source_allowlist.py` — develop(정책 없음)은 건너뜀, 391 브랜치의 `application.yml`과는 일치, 한 글자 바꾸면 실패
+- **정책 비교**: `test_source_allowlist.py` — 391 브랜치의 `application.yml`과는 일치, 한 글자 바꾸면 실패(395 당시 기록. 그때는 정책이 없으면 건너뛰었지만, 405부터는 백엔드 정책이 없으면 시험이 실패한다)
+- **change_log 금지**(2026-11-14, S15P31C106-405): 같은 방법으로 새 설치 → ERP 11표(CDC 11), MES 14표(CDC 14). 세 계정 모두 `change_log` 거부, publication에 없음. 다시 실행해도 성공
 
 ## 원천에 테이블을 추가할 때
 

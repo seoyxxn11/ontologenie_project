@@ -51,7 +51,7 @@
 
 | 등급 | 컬럼 | 다루는 법 |
 |---|---|---|
-| 금지(FORBIDDEN) | `erp.attendance.*`, `erp.fixed_asset.*`, `erp.employee.{emp_name, position, hire_date, employment_type, status}`, `mes.worker.name` | 들이지 않는다. 매핑·표본·적재 모두 막는다 |
+| 금지(FORBIDDEN) | `erp.attendance.*`, `erp.fixed_asset.*`, `erp.change_log.*`, `mes.change_log.*`(근태 키를 담는 동기화 기록, 405 결정 D3), `erp.employee.{emp_name, position, hire_date, employment_type, status}`, `mes.worker.name` | 들이지 않는다. 매핑·표본·적재 모두 막는다 |
 | 민감(RESTRICTED) | `mes.maintenance_order.technician`, `erp.vendor.contact_name`, `mes.worker.skill_level` | 들이지만 민감 속성으로만 담는다 |
 | 일반 | 그 밖 | 제한 없음 |
 
@@ -95,6 +95,56 @@
 - **위반 보고 API:** `GET /api/v1/sources/policy-violations`(ADMIN). 켜진 매핑의 위반 목록(`violations`: 종류, 원천 테이블·컬럼, 객체 매핑·속성 매핑, 유형 코드와 그룹, 속성)과, 켜진 매핑이 있지만 적재 계획을 만들 수 없는 테이블(`blockedResources`: 사유, 다시 읽기 대기 여부)을 돌려준다. `policyVersion`은 정책 목록 지문이다. 정책 파일을 바꾸거나 배포하기 전, 유형을 공개하기 전에 `violations`가 비었는지 본다. 테이블마다 계획을 만들어 보므로 가끔 부르는 관리용 조회다.
 - **막힌 테이블:** 적재 계획을 만들 수 없는 테이블의 CDC 변경은 건너뛰고 다시 읽기를 표시한다. 감시 작업이 한 번 넣어 사유를 수집 실패로 남기고, 고치면 다시 읽는다. 복구 중인 원천은 이 테이블을 기다리지 않는다. 자세한 것은 [CDC 소비](cdc-consumer.md) "적재할 수 없는 테이블"이다.
 
+### 닫힌 기본값과 목록 일치 (405)
+
+정책 목록이 조용히 열리지 않게 한다.
+
+| 경우 | 동작 |
+|---|---|
+| 섹션이 없거나 금지 목록이 빔 | 기동하지 않는다(`SourceColumnPolicy` 생성 실패). 민감 목록만 남아도(프로필·환경변수로 금지만 비운 경우) 금지 데이터가 모두 열리므로 같다. 정책 없이 띄워야 하면 `axcore.source-data-policy.allow-empty: true`를 명시한다 |
+| 항목 형식이 틀림 | 기동하지 않는다. 금지는 `스키마.표.컬럼` 또는 `스키마.표.*`, 민감은 `스키마.표.컬럼`만(영문자·밑줄로 시작). `.*`를 빠뜨린 `erp.attendance`는 어떤 컬럼에도 맞지 않아 표가 통째로 열리고, 민감은 컬럼 단위로만 판단해 민감 목록의 `.*`도 아무 컬럼에 맞지 않으므로 둘 다 막는다. 오류 문장에 틀린 항목을 모두 담는다. 이름은 ASCII만 받는다(지금 원천 표는 모두 ASCII). 비ASCII 이름이 생기면 기동이 멈추므로 형식을 넓힌다 |
+| 카탈로그와 다름 | 기동은 하고 경고 로그만 남긴다(`SourcePolicyCatalogCheck`, 기동 직후 한 번). 아래 표 |
+
+카탈로그(연결 검사가 채운 `source_resource`·`source_column`)에서 "지금 읽을 수 있는" 표·컬럼만 본다. 연결 검사는 권한이 빠진 표를 지우지 않고 `is_readable=false`로, 권한만 빠진 컬럼은 `is_present=true`인 채 예전 `last_seen_at`으로 남긴다. 그래서 `is_readable` 표와, 그 표와 같은 `last_seen_at`(마지막 연결 검사에서 읽힘)을 가진 컬럼만 읽을 수 있다고 본다. 원천 허용 목록(395)을 적용하면 금지 항목은 여기 없어야 맞다.
+
+| 항목 | 경고하는 경우 |
+|---|---|
+| 민감 컬럼 | 카탈로그에 그 컬럼이 없음(이름 오타·원천 변경) |
+| 금지 컬럼 | 그 표가 카탈로그에 없음(표 이름 오타), 또는 그 컬럼이 카탈로그에 보임(허용 목록 미적용) |
+| 금지 표(`.*`) | 카탈로그에 보임(허용 목록 미적용). 없으면 맞는 상태라 표 이름 오타는 여기서 못 찾는다. 금지 컬럼 이름 오타도 허용 목록 적용 뒤에는 못 찾는다(원천에 허용 목록을 적용할 때 `apply_allowlist.sql`이 없는 컬럼으로 멈춘다) |
+
+- 읽을 수 있는 표가 없으면(원천 등록 전) 견주지 않는다. 읽을 수 있는 표가 하나도 없는 스키마의 항목도 건너뛴다(ERP만 등록했으면 `mes.*` 항목은 보지 않음). 같은 `스키마.표`가 여러 원천에 있으면 합쳐 본다. 이름은 대소문자를 보지 않는다. 카탈로그를 못 읽으면 경고만 하고 기동은 계속한다.
+- 허용 목록을 아직 적용하지 않은 운영 원천(397 전)에서는 금지 표·컬럼이 보인다는 경고가 기동마다 나온다. 397 적용 뒤 연결 검사를 다시 하면 사라진다.
+- 한계: 정책은 표 이름이 정확히 같을 때만 맞는다. 같은 데이터를 다른 이름으로 보여 주는 뷰나 파티션 자식 표는 정책에 걸리지 않는다. 카탈로그는 파티션 자식 표를 빼지만 뷰는 자기 이름으로 담는다. 원천 허용 목록이 그런 뷰·표에 권한을 주지 않는 것으로 막는다(목록에 없는 표는 아무도 못 읽음).
+- 한계: 환경변수·외부 설정으로 금지 목록을 비우면 기동하지 않지만, 일부만 줄이면 막지 못한다(프로필 yml 덮어쓰기는 `SourceDataPolicyDecisionTests`가 막는다). 원천 계정 허용 목록이 1차 방어이고, 기동 로그에 금지·민감 개수와 정책 지문(`fingerprint()`)을 남겨 배포 때 결정과 같은지 확인할 수 있다.
+- 환경변수로 덮을 때 이름은 `AXCORE_SOURCEDATAPOLICY_FORBIDDEN_0`(하이픈을 지움)과 `AXCORE_SOURCE_DATA_POLICY_FORBIDDEN_0`(하이픈 자리에 밑줄) 둘 다 바인딩된다(`SourceDataPolicyDecisionTests`가 확인). 배포 설정(`.env.config` 등)에 이런 변수를 두지 않는다. 지금 `infra/`에는 없다.
+- 한계: 기동 경고와 정책 로그는 프로세스마다 나온다(api 두 대·batch 하나면 세 번). 카탈로그를 못 읽어도 기동을 계속하는 경로와 batch 프로필의 실제 정책 목록은 직접 시험하지 않는다(api 컨텍스트 목록과 프로필 yml 덮어쓰기만 시험).
+- 397에서 허용 목록을 운영 원천에 적용하면 `platform_cdc`뿐 아니라 `platform_ro`·`platform_ai`의 `change_log` 권한도 함께 회수된다. 플랫폼이 쓰는 매핑이 없는지 먼저 확인한다.
+
+목록이 세 곳에 있어 시험으로 묶는다.
+
+| 시험 | 보는 것 | 도는 곳 |
+|---|---|---|
+| `SourceDataPolicyDecisionTests` | `application.yml` 목록이 결정과 같음 | 백엔드 빌드 |
+| `infra/tests/test_source_allowlist.py` | 원천 허용 목록(`allowlist.sql`)의 정책과 AI 사본(`ai/app/source_policy.py`)이 `application.yml`과 같음, 민감 항목에 `.*` 없음, 표 전체 금지인 표를 허용 목록에 두지 않음. 백엔드 정책이 없으면 실패 | Jenkins Infra check. MR에서 `infra/`·`Jenkinsfile`·`backend/src/main/resources/application.yml`·`ai/app/source_policy.py` 중 하나가 바뀌면 돈다. 필요한 파일만 읽기 전용으로 붙이고, 링크(작업 폴더 밖을 가리킬 수 있음)면 붙이지 않고 멈춘다. 이 셸(파일 목록·링크 거절)은 같은 단계의 `infra/tests/test_jenkins_mounts.py`가 가짜 git·docker로 확인한다 |
+| `ai/tests/test_source_policy.py` | AI 사본이 `application.yml`과 같음 | 로컬. CI의 AI check는 `ai/`만 붙여 백엔드 파일이 없으면 건너뛴다(같은 비교는 위 Infra check가 한다) |
+
+- 단위 테스트의 정책(`TestSourcePolicy`)은 목록을 복사하지 않고 main의 `application.yml`을 읽는다.
+- 목록을 바꾸려면 결정을 먼저 바꾸고 네 곳(`application.yml`, `SourceDataPolicyDecisionTests`, `allowlist.sql`, `ai/app/source_policy.py`)을 같이 고친다. 목록을 적은 문서도 함께 고친다: 이 문서의 등급 표, `infra/source-db/README.md`의 등급 표, `ai/docs/dataset.md`의 금지 데이터 줄.
+
+### 원천 직접 읽기 고정 시험 (`SourceTableReaderBoundaryTests`)
+
+원천 DB의 업무 행을 읽는 `SourceTableReader`는 정책을 읽는 쪽이 직접 적용해야 한다. 그래서 쓰는 파일을 목록으로 고정하고, 목록 밖의 파일이 쓰거나 목록의 파일이 더는 쓰지 않으면 실패한다. 목록에는 파일마다 정책을 지키는 방법을 적는다. 주석을 지운 소스에서 이름이 단어로 나오면 쓰는 것으로 본다(import·필드·제네릭·`.class`·메서드 참조).
+
+| 파일 | 정책을 지키는 방법 |
+|---|---|
+| `SyncRunJob` | 전체 읽기. `FullLoadPlanner`가 금지 표를 막고 금지 컬럼을 뺀 계획만 읽는다 |
+| `SourceSampleJob` | 원천 표본. 금지 표는 읽지 않고 금지·민감 컬럼은 뺀다 |
+| `CandidateCheckJob` | 후보 시험. 금지 표·컬럼이면 읽지 않고 `FAILED`, 민감 값은 비운다(400) |
+| `MappingPreviewJob` | 매핑 미리보기. `MappingPreviewPlanner`가 금지 표·컬럼을 거절한 계획만 읽는다 |
+| `CdcStartReference` | CDC 시작 기준(`currentXmax`). 업무 행을 읽지 않는다 |
+
+이 도구를 거치지 않고 원천에 직접 접속하는 곳도 `SourceTableReader`, `SourceCatalogReader`(시스템 카탈로그만 읽음), `SourceEndpoint`(접속 주소만 만듦)로 고정한다. 원천 접속 주소는 `SourceEndpoint.jdbcUrl()`에서만 나오므로 그 호출을 보고, 주소를 손으로 만들거나(`jdbc:postgresql`) 드라이버·데이터소스를 직접 다루는 코드(`DriverManager`·`DriverManagerDataSource`·`SimpleDriverDataSource`·`SingleConnectionDataSource`·`PGSimpleDataSource`·`DataSourceBuilder`·`Hikari*`·`org.postgresql.`·`java.sql.Driver`)도 본다. 소스는 문자열·주석을 구분해 읽는다. 플랫폼 DB는 Spring이 만든 데이터소스로만 접속한다.
 ## Agent가 읽는 값 (MODEL 용도)
 
 Agent 도구 결과는 외부 언어 모델의 입력이 된다. 그래서 Agent는 같은 조회 서비스를 `DataPurpose.MODEL`로 부른다. 민감 값을 볼 수 있는 역할이 물어도 모델에는 가린 값이 간다.
@@ -110,6 +160,7 @@ Agent 도구 결과는 외부 언어 모델의 입력이 된다. 그래서 Agent
 
 - 용도를 받지 않는 기존 메서드는 화면(VIEW)과 같다. 두 메서드 모두 트랜잭션을 건다(프록시를 거치지 않는 위임으로 트랜잭션이 빠지지 않게).
 - `DataAccessPolicy.of(actor, purpose)`는 VIEW·MODEL만 받는다. 정의 조회 범위는 `forDefinitions()`로만 만든다.
+- 통합 시험 `ObjectQueryModelPurposeTests`는 민감 값을 볼 수 있는 역할로 같은 조회를 두 용도로 불러 차이를 본다. 상세, 값으로 찾기, 검색 조건(민감 속성 조건은 MODEL에서 FORBIDDEN 오류), 건수(조건 건수는 FORBIDDEN, 민감 식별 값 검색어는 0건), 주변 탐색의 상대 객체 조건, 연결 근거(문서 근거 문장은 MODEL에서 `evidenceRestricted`, 관계 목록에 딸린 근거도 같음), ID로 읽기(Object Set), 조건 값 종류(MODEL이면 민감 속성을 넣지 않음)를 확인한다(405).
 - Agent의 실행 이력 조회(감사)와 Agent가 실행한 Action의 문구는 김산이 담당 범위다(아래).
 
 ## Action·재배정·감사 응답 (390·404)

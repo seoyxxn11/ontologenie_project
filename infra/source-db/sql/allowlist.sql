@@ -14,6 +14,9 @@ create temp table axcore_policy (
 insert into axcore_policy (entry, grade) values
     ('erp.attendance.*', 'FORBIDDEN'),
     ('erp.fixed_asset.*', 'FORBIDDEN'),
+    -- change_log는 근태 키(사번|근무일)를 담는 동기화 기록이다. CDC가 있어 쓰지 않으므로 표 전체를 금지한다(405, 결정 D3).
+    ('erp.change_log.*', 'FORBIDDEN'),
+    ('mes.change_log.*', 'FORBIDDEN'),
     ('erp.employee.emp_name', 'FORBIDDEN'),
     ('erp.employee.position', 'FORBIDDEN'),
     ('erp.employee.hire_date', 'FORBIDDEN'),
@@ -52,8 +55,6 @@ insert into axcore_allow (schema_name, table_name, ro_columns, ai_columns, cdc) 
     ('erp', 'shipment', null, null, true),
     ('erp', 'employee', '{emp_no,dept_code}', null, true),
     ('erp', 'department', null, null, true),
-    -- 원천 변경 이력 표. CDC를 쓰면 필요 없어 publication에서 뺀다.
-    ('erp', 'change_log', null, null, false),
     -- MES
     ('mes', 'equipment', null, null, true),
     ('mes', 'worker', '{id,shift,line,skill_level,active_yn}', '{id,shift,line,active_yn}', true),
@@ -69,8 +70,7 @@ insert into axcore_allow (schema_name, table_name, ro_columns, ai_columns, cdc) 
     ('mes', 'die', null, null, true),
     ('mes', 'maintenance_order', null,
         '{mo_no,target_type,target_code,mo_type,status,planned_date,completed_at,parts_cost,note}', true),
-    ('mes', 'handover_note', null, null, true),
-    ('mes', 'change_log', null, null, false);
+    ('mes', 'handover_note', null, null, true);
 
 -- 3. 정책 밖의 이유로 일부러 뺀 표. 권한은 위 허용 목록이 정하고, 이 표는 "결정 안 된 표" 알림에서 빼는 데만 쓴다.
 create temp table axcore_excluded (

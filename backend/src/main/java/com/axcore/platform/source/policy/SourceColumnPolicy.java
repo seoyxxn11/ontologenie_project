@@ -5,13 +5,17 @@ import com.axcore.platform.global.error.CommonErrorCode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -35,9 +39,51 @@ public class SourceColumnPolicy {
     private final Set<String> forbidden;
     private final Set<String> restricted;
 
+    /**
+     * 항목 형식: {@code 스키마.표.컬럼} 또는 {@code 스키마.표.*}. PostgreSQL의 따옴표 없는 이름처럼 영문자·밑줄로 시작한다. 대소문자는 보지
+     * 않는다.
+     */
+    private static final Pattern ENTRY =
+            Pattern.compile("[a-z_][a-z0-9_$]*\\.[a-z_][a-z0-9_$]*\\.(\\*|[a-z_][a-z0-9_$]*)");
+
+    /**
+     * 민감 항목 형식: {@code 스키마.표.컬럼}만. 민감은 컬럼 단위로만 판단하므로({@link #gradeOf}) {@code 스키마.표.*}를 받으면 어떤 컬럼에도
+     * 맞지 않아 조용히 열린다.
+     */
+    private static final Pattern COLUMN_ENTRY =
+            Pattern.compile("[a-z_][a-z0-9_$]*\\.[a-z_][a-z0-9_$]*\\.[a-z_][a-z0-9_$]*");
+
+    /**
+     * 금지 목록이 비었거나 형식이 틀린 항목이 있으면 만들지 않는다(405). 금지 목록이 비면 민감 목록이 남아 있어도 금지 표·컬럼이 모두 NORMAL로 열리고,
+     * {@code 스키마.표}처럼 {@code .*}를 빠뜨린 항목은 어떤 컬럼에도 맞지 않아 조용히 열린다. 그래서 기동을 멈추고, 금지 목록이 빈 정책은 {@code
+     * allow-empty: true}로만 허용한다.
+     */
     public SourceColumnPolicy(SourceDataPolicyProperties properties) {
+        List<String> invalid = new ArrayList<>();
+        invalid.addAll(malformed("forbidden", properties.forbidden(), ENTRY));
+        invalid.addAll(malformed("restricted", properties.restricted(), COLUMN_ENTRY));
+        if (!invalid.isEmpty()) {
+            throw new IllegalStateException(
+                    "axcore.source-data-policy 항목 형식이 틀렸습니다(금지는 스키마.표.컬럼 또는 스키마.표.*, 민감은 스키마.표.컬럼): "
+                            + String.join(", ", invalid));
+        }
         this.forbidden = normalized(properties.forbidden());
         this.restricted = normalized(properties.restricted());
+        if (forbidden.isEmpty() && !properties.allowEmpty()) {
+            throw new IllegalStateException(
+                    "axcore.source-data-policy의 금지 목록(forbidden)이 없거나 비어 있습니다. 금지 원천 데이터가 모두 열리므로 기동하지 않습니다."
+                            + " 정책 없이 띄워야 하면 axcore.source-data-policy.allow-empty=true로 명시하세요.");
+        }
+    }
+
+    /** 표 전체 금지를 포함한 금지 항목(소문자, 이름순). 기동 때 원천 카탈로그와 견주는 데 쓴다. */
+    public SortedSet<String> forbiddenEntries() {
+        return Collections.unmodifiableSortedSet(new TreeSet<>(forbidden));
+    }
+
+    /** 민감 항목(소문자, 이름순). 금지 목록에도 있는 항목은 금지가 이기지만 여기에는 그대로 남는다. */
+    public SortedSet<String> restrictedEntries() {
+        return Collections.unmodifiableSortedSet(new TreeSet<>(restricted));
     }
 
     /** 표 전체가 금지인가. resourceKey는 {@code 스키마.표}다. */
@@ -146,8 +192,18 @@ public class SourceColumnPolicy {
     private static Set<String> normalized(List<String> entries) {
         return entries.stream()
                 .map(String::strip)
-                .filter(entry -> !entry.isEmpty())
                 .map(entry -> entry.toLowerCase(Locale.ROOT))
                 .collect(Collectors.toUnmodifiableSet());
+    }
+
+    private static List<String> malformed(String list, List<String> entries, Pattern format) {
+        return entries.stream()
+                .filter(
+                        entry ->
+                                entry == null
+                                        || !format.matcher(entry.strip().toLowerCase(Locale.ROOT))
+                                                .matches())
+                .map(entry -> list + "[" + (entry == null ? "" : entry.strip()) + "]")
+                .toList();
     }
 }

@@ -19,7 +19,14 @@ import sys
 args = sys.argv[1:]
 if Path(sys.argv[0]).name == 'git':
     if args[0] == 'cat-file':
-        sys.exit(0 if os.environ['TRACKED_CI'] == '1' else 1)
+        path = args[-1]
+        tracked = (
+            'TRACKED_POLICY' if 'test_source_allowlist' in path
+            else 'TRACKED_AI_POLICY' if 'source_policy.py' in path
+            else 'TRACKED_MOUNTS' if 'test_jenkins_mounts' in path
+            else 'TRACKED_CI'
+        )
+        sys.exit(0 if os.environ.get(tracked) == '1' else 1)
     if args[0] in ('rev-parse', 'hash-object'):
         print('a' * 40)
         sys.exit(0)
@@ -104,6 +111,26 @@ class JenkinsMountTests(unittest.TestCase):
             (folder / name).write_text("# fixture\n")
         self.environment["TRACKED_CI"] = "1"
 
+    POLICY_FILES = (
+        "infra/tests/test_source_allowlist.py",
+        "infra/source-db/sql/allowlist.sql",
+        "backend/src/main/resources/application.yml",
+    )
+    AI_POLICY = "ai/app/source_policy.py"
+
+    def add_policy(self, ai=True):
+        for name in self.POLICY_FILES + ((self.AI_POLICY,) if ai else ()):
+            path = self.workspace / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("# fixture\n")
+        self.environment["TRACKED_POLICY"] = "1"
+        self.environment["TRACKED_AI_POLICY"] = "1" if ai else "0"
+
+    def policy_mounts(self, call):
+        mounts = [call[i + 1] for i, argument in enumerate(call) if argument == "--mount"]
+        self.assertTrue(all(mount.endswith(",readonly") for mount in mounts))
+        return [next(item for item in mount.split(",") if item.startswith("dst=")) for mount in mounts]
+
     def docker_calls(self):
         return [json.loads(line) for line in self.calls.read_text().splitlines()] if self.calls.exists() else []
 
@@ -130,6 +157,99 @@ class JenkinsMountTests(unittest.TestCase):
     def test_missing_tracked_test_is_an_error(self):
         self.add_ci()
         (self.workspace / "infra/ci/test_result_cache.py").unlink()
+        result = self.run_shell("stage('Infra check')")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(len(self.docker_calls()), 1)
+
+    def test_policy_comparison_mounts_only_its_files_read_only(self):
+        self.add_ci()
+        self.add_policy()
+        result = self.run_shell("stage('Infra check')")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = self.docker_calls()
+        self.assertEqual(len(calls), 3)
+        policy = calls[-1]
+        options = policy[: policy.index("python:3.11-slim")]
+        self.assertIn("none", options)
+        self.assertNotIn("-v", options)
+        self.assertEqual(
+            [f"dst=/repo/{name}" for name in self.POLICY_FILES + (self.AI_POLICY,)],
+            self.policy_mounts(policy),
+        )
+        self.assertIn("test_source_allowlist.py", policy)
+
+    def test_commit_without_ai_copy_compares_without_it(self):
+        self.add_policy(ai=False)
+        result = self.run_shell("stage('Infra check')")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            [f"dst=/repo/{name}" for name in self.POLICY_FILES],
+            self.policy_mounts(self.docker_calls()[-1]),
+        )
+
+    def test_commit_without_policy_test_skips_comparison(self):
+        result = self.run_shell("stage('Infra check')")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("395 이전 코드", result.stdout)
+
+    def test_missing_policy_file_is_an_error(self):
+        self.add_policy()
+        (self.workspace / "infra/source-db/sql/allowlist.sql").unlink()
+        result = self.run_shell("stage('Infra check')")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(len(self.docker_calls()), 1)
+
+    def test_linked_policy_file_is_not_mounted(self):
+        # MR이 정책 파일을 작업 폴더 밖 파일로 가는 링크로 바꾸면 붙이지 않고 멈춘다.
+        self.add_policy()
+        outside = self.base / "secret"
+        outside.write_text("secret\n")
+        target = self.workspace / "backend/src/main/resources/application.yml"
+        target.unlink()
+        target.symlink_to(outside)
+        result = self.run_shell("stage('Infra check')")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(len(self.docker_calls()), 1)
+
+    def add_mount_tests(self):
+        folder = self.workspace / "infra/tests"
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "test_jenkins_mounts.py").write_text("# fixture\n")
+        self.environment["TRACKED_MOUNTS"] = "1"
+
+    def test_mount_tests_run_with_pipeline_and_test_file_only(self):
+        self.add_mount_tests()
+        result = self.run_shell("stage('Infra check')")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = self.docker_calls()
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(
+            ["dst=/repo/Jenkinsfile", "dst=/repo/infra/tests/test_jenkins_mounts.py"],
+            self.policy_mounts(calls[-1]),
+        )
+        self.assertIn("test_jenkins_mounts.py", calls[-1])
+        self.assertIn("none", calls[-1][: calls[-1].index("python:3.11-slim")])
+
+    def test_linked_pipeline_is_not_mounted(self):
+        self.add_mount_tests()
+        outside = self.base / "pipeline"
+        outside.write_text("# outside\n")
+        pipeline = self.workspace / "Jenkinsfile"
+        pipeline.unlink()
+        pipeline.symlink_to(outside)
+        result = self.run_shell("stage('Infra check')")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(len(self.docker_calls()), 1)
+
+    def test_linked_policy_directory_is_not_mounted(self):
+        self.add_policy()
+        outside = self.base / "elsewhere"
+        outside.mkdir()
+        (outside / "allowlist.sql").write_text("# fixture\n")
+        sql = self.workspace / "infra/source-db/sql"
+        (sql / "allowlist.sql").unlink()
+        sql.rmdir()
+        sql.symlink_to(outside)
         result = self.run_shell("stage('Infra check')")
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(len(self.docker_calls()), 1)
@@ -161,6 +281,15 @@ class JenkinsMountTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertNotIn("-v", calls[0])
         self.assertEqual(calls[0].count("--mount"), 3)
+
+
+class ShellTestsRequiredTests(unittest.TestCase):
+    """CI(Infra check)는 AXCORE_REQUIRE_SHELL_TESTS=1로 돌린다. 그때 bash가 없어 위 시험이 모두 건너뛰어지면 통과가 아니라 실패다."""
+
+    def test_shell_tests_can_run_where_required(self):
+        if os.environ.get("AXCORE_REQUIRE_SHELL_TESTS") != "1":
+            self.skipTest("로컬 실행")
+        self.assertTrue(os.name != "nt" and shutil.which("bash"), "Jenkins 셸 시험을 돌릴 bash가 없습니다")
 
 
 if __name__ == "__main__":

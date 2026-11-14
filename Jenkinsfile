@@ -113,7 +113,8 @@ pipeline {
                             env.CHECK_BACKEND = (changed('backend') || sharedCasesChanged) ? 'true' : 'false'
                             env.CHECK_FRONTEND = changed('frontend') ? 'true' : 'false'
                             env.CHECK_AI = changed('ai') ? 'true' : 'false'
-                            env.CHECK_INFRA = (changed('infra') || sh(returnStatus: true, script: 'git diff --quiet origin/develop...HEAD -- Jenkinsfile') != 0) ? 'true' : 'false'
+                            // 원천 정책 비교 시험(405)이 백엔드 application.yml과 AI 사본의 정책을 읽으므로, 그 파일만 바뀐 MR도 Infra check를 돌린다.
+                            env.CHECK_INFRA = (changed('infra') || sh(returnStatus: true, script: 'git diff --quiet origin/develop...HEAD -- Jenkinsfile backend/src/main/resources/application.yml ai/app/source_policy.py') != 0) ? 'true' : 'false'
                         }
                         echo "검사 대상 서비스: backend=${env.CHECK_BACKEND}, frontend=${env.CHECK_FRONTEND}, ai=${env.CHECK_AI} (true = 실행, false = 건너뜀)"
                     }
@@ -198,6 +199,41 @@ pipeline {
                             python:3.11-slim python -m unittest discover -p 'test_*.py' -v
                     else
                         echo '검사 커밋에 infra/ci가 없습니다. 캐시 도입 전 코드이므로 캐시 회귀 검사는 대상이 아닙니다.'
+                    fi
+                    # 원천 허용 목록(infra/source-db)·AI 사본(ai/app/source_policy.py)이 백엔드 정책(application.yml)과 같은지 본다(S15P31C106-405).
+                    # 필요한 파일만 읽기 전용으로 저장소와 같은 경로에 붙인다. 시험 파일이 없는 예전 커밋(395 이전)은 대상이 아니고,
+                    # AI 사본이 없는 커밋(406 이전)은 그 비교만 건너뛴다.
+                    # 붙이기 전에 링크가 아닌 작업 폴더 안의 파일인지 본다. MR이 링크로 바꿔 작업 폴더 밖 파일(Jenkins 비밀값 등)을 붙이지 못하게 한다.
+                    if git cat-file -e HEAD:infra/tests/test_source_allowlist.py 2>/dev/null; then
+                        POLICY_FILES='infra/tests/test_source_allowlist.py infra/source-db/sql/allowlist.sql backend/src/main/resources/application.yml'
+                        if git cat-file -e HEAD:ai/app/source_policy.py 2>/dev/null; then
+                            POLICY_FILES="$POLICY_FILES ai/app/source_policy.py"
+                        fi
+                        set --
+                        for f in $POLICY_FILES; do
+                            test -f "$f"
+                            test "$(realpath "$f")" = "$(pwd -P)/$f"
+                            set -- "$@" --mount "type=bind,src=$HOST_WS/$f,dst=/repo/$f,readonly"
+                        done
+                        docker run --rm --network none --memory 256m \
+                            -e PYTHONDONTWRITEBYTECODE=1 "$@" \
+                            -w /repo python:3.11-slim python -m unittest discover -s infra/tests -p 'test_source_allowlist.py' -v
+                    else
+                        echo '검사 커밋에 원천 정책 비교 시험이 없습니다. 395 이전 코드이므로 대상이 아닙니다.'
+                    fi
+                    # 이 단계의 셸 회귀 시험(링크 거절·붙이는 파일, 405). 가짜 git·docker로 위 셸을 실행하므로 Jenkinsfile과 시험 파일만 읽기 전용으로 붙인다.
+                    if git cat-file -e HEAD:infra/tests/test_jenkins_mounts.py 2>/dev/null; then
+                        set --
+                        for f in Jenkinsfile infra/tests/test_jenkins_mounts.py; do
+                            test -f "$f"
+                            test "$(realpath "$f")" = "$(pwd -P)/$f"
+                            set -- "$@" --mount "type=bind,src=$HOST_WS/$f,dst=/repo/$f,readonly"
+                        done
+                        docker run --rm --network none --memory 256m \
+                            -e PYTHONDONTWRITEBYTECODE=1 -e AXCORE_REQUIRE_SHELL_TESTS=1 "$@" \
+                            -w /repo python:3.11-slim python -m unittest discover -s infra/tests -p 'test_jenkins_mounts.py' -v
+                    else
+                        echo '검사 커밋에 Jenkins 셸 회귀 시험이 없습니다. 대상이 아닙니다.'
                     fi
                 '''
             }
