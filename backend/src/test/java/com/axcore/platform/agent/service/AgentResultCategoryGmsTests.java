@@ -236,6 +236,7 @@ class AgentResultCategoryGmsTests {
                 propertyValues,
                 Clock.systemUTC(),
                 reasoningEffort,
+                false,
                 false);
     }
 

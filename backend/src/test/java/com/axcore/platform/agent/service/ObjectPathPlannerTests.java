@@ -1,6 +1,7 @@
 package com.axcore.platform.agent.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.mock;
 
@@ -212,6 +213,21 @@ class ObjectPathPlannerTests {
         assertThat(candidates(withoutOperation, EQUIPMENT, SALES_ORDER))
                 .extracting(ObjectPathPlannerTests::linkIds)
                 .containsExactly(List.of(13L, 14L, 12L));
+    }
+
+    @Test
+    void suggestsSimilarTypeNamesWhenTypeIsUnknown() {
+        List<ObjectTypeSummary> types = s4Model().objectTypes();
+
+        assertThat(ObjectPathPlanner.similarTypeNames(types, "공정")).containsExactly("작업지시 공정(#2)");
+        assertThat(ObjectPathPlanner.similarTypeNames(types, "수주 목록")).containsExactly("수주(#4)");
+        assertThat(ObjectPathPlanner.similarTypeNames(types, "order"))
+                .containsExactly("수주(#4)", "작업지시 공정(#2)", "작업지시(#3)");
+        assertThat(ObjectPathPlanner.similarTypeNames(types, "창고")).isEmpty();
+        assertThatThrownBy(() -> ObjectPathPlanner.resolve(types, "공정", "targetType"))
+                .hasMessageContaining("이름이 비슷한 유형: 작업지시 공정(#2)");
+        assertThatThrownBy(() -> ObjectPathPlanner.resolve(types, "창고", "targetType"))
+                .hasMessageNotContaining("비슷한");
     }
 
     @Test

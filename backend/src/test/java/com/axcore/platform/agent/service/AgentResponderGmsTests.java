@@ -206,6 +206,7 @@ class AgentResponderGmsTests {
                 propertyValues,
                 Clock.systemUTC(),
                 reasoningEffort,
+                false,
                 false);
     }
 

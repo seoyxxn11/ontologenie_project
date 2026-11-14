@@ -20,6 +20,8 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -60,6 +62,22 @@ public class ObjectSearchFilterValidator {
             String from,
             String to,
             DataAccess access) {
+        Map<String, List<String>> single = new LinkedHashMap<>();
+        propertyValues.forEach((code, value) -> single.put(code, Collections.singletonList(value)));
+        return validateAny(typeId, single, dateProperty, from, to, access);
+    }
+
+    /**
+     * {@link #validate(long, Map, String, String, String, DataAccess)}와 같고 속성마다 값을 여럿 받는다. 값이 여럿이면
+     * 그중 하나와 같으면 된다. Agent 목표 유형 찾기(OBJECT_SET_FIND)가 끝나지 않은 상태 값 여러 개를 한 번에 걸 때 쓴다.
+     */
+    SearchFilters validateAny(
+            long typeId,
+            Map<String, List<String>> propertyValues,
+            String dateProperty,
+            String from,
+            String to,
+            DataAccess access) {
         if (propertyValues.isEmpty() && dateProperty == null && from == null && to == null) {
             return new SearchFilters(List.of(), null);
         }
@@ -70,16 +88,19 @@ public class ObjectSearchFilterValidator {
                                 Collectors.toMap(PropertyDefinition::getCode, Function.identity()));
         var values = new ArrayList<PropertyFilter>();
         propertyValues.forEach(
-                (code, value) -> {
+                (code, given) -> {
                     String field = "propertyValues[" + code + "]";
                     PropertyDefinition property =
                             requireProperty(
                                     definitions, code, typeId, access, field, UNKNOWN_PROPERTY);
-                    values.add(
-                            new PropertyFilter(
-                                    code,
-                                    property.getDataType(),
-                                    normalize(property.getDataType(), value, field)));
+                    if (given == null || given.isEmpty()) {
+                        throw BusinessException.invalidField(field, "값을 하나 이상 넣어 주세요.");
+                    }
+                    List<String> normalized = new ArrayList<>();
+                    for (String value : given) {
+                        normalized.add(normalize(property.getDataType(), value, field));
+                    }
+                    values.add(new PropertyFilter(code, property.getDataType(), normalized));
                 });
 
         PeriodFilter period = null;

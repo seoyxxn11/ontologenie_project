@@ -37,6 +37,7 @@ class AgentResponderTests {
     private final ChatModel chatModel = mock(ChatModel.class);
     private final StaticListableBeanFactory beans = new StaticListableBeanFactory();
     private boolean objectSetsEnabled;
+    private boolean objectSetFindEnabled;
     private String answer;
 
     @Test
@@ -237,6 +238,44 @@ class AgentResponderTests {
                 .doesNotContain(AgentResponder.PATHS_RULE);
     }
 
+    /** 목표 유형 찾기 도구는 객체 집합 도구와 함께 켰을 때만 주고, 그때만 지시에 사용 규칙을 넣는다. */
+    @Test
+    void givesFindToolAndRuleOnlyWhenObjectSetsAndFindAreBothOn() {
+        objectSetsEnabled = true;
+        objectSetFindEnabled = true;
+        beans.addBean("objectDetailQuery", mock(ObjectDetailQuery.class));
+
+        Prompt prompt = askAboutPr03();
+
+        assertThat(toolNames(prompt))
+                .contains(AgentObjectSetTools.OBJECT_SET_FIND, AgentObjectSetTools.OBJECT_SET_LIST);
+        assertThat(prompt.getSystemMessage().getText())
+                .contains(AgentResponder.MULTI_HOP_RULES, AgentResponder.FIND_RULE);
+    }
+
+    @Test
+    void leavesFindToolOutWhenOnlyObjectSetsAreOn() {
+        objectSetsEnabled = true;
+        beans.addBean("objectDetailQuery", mock(ObjectDetailQuery.class));
+
+        Prompt prompt = askAboutPr03();
+
+        assertThat(toolNames(prompt)).doesNotContain(AgentObjectSetTools.OBJECT_SET_FIND);
+        assertThat(prompt.getSystemMessage().getText()).doesNotContain(AgentResponder.FIND_RULE);
+    }
+
+    /** 객체 집합 도구가 꺼져 있으면 찾기 설정을 켜도 도구를 주지 않고 지시도 develop과 같다. */
+    @Test
+    void ignoresFindSettingWhenObjectSetsAreOff() {
+        objectSetFindEnabled = true;
+        beans.addBean("objectDetailQuery", mock(ObjectDetailQuery.class));
+
+        Prompt prompt = askAboutPr03();
+
+        assertThat(toolNames(prompt)).doesNotContain(AgentObjectSetTools.OBJECT_SET_FIND);
+        assertThat(prompt.getSystemMessage().getText()).isEqualTo(AgentResponder.SYSTEM_PROMPT);
+    }
+
     @Test
     void addsThePathRuleOnlyWhenObjectSetsAndPathsAreBothGiven() {
         objectSetsEnabled = true;
@@ -321,7 +360,8 @@ class AgentResponderTests {
                         mock(PropertyValueSampleService.class),
                         CLOCK,
                         reasoningEffort,
-                        objectSetsEnabled);
+                        objectSetsEnabled,
+                        objectSetFindEnabled);
 
         answer =
                 responder.answer(

@@ -117,16 +117,20 @@ public class AgentResponder {
     static final String MULTI_HOP_RULES =
             """
             - 참고 객체에서 관계를 두 번 이상 거쳐야 닿는 정보와, 연결된 기록 중 상태·기간 같은 조건에 맞는 것만 찾는 질문은(한 단계라도)
-              객체 집합 도구로 찾는다. 예: "P103에 배정된 작업지시"는 설비 ← 작업지시 공정 → 작업지시, "설비가 멈춰서 납기가 위험한 수주"는
+              객체 집합 도구로 찾는다. 예: "설비에 배정된 작업지시"는 설비 ← 작업지시 공정 → 작업지시, "설비가 멈춰서 납기가 위험한 수주"는
               설비 → 비가동 → 작업지시 → 수주다.
               객체 집합을 objectIds로 시작할 때는 참고 객체 ID만 넣는다(관계 조회로 받은 일부 객체로 시작하지 않는다). 관계 따라가기를 단계마다 한 번씩 부른 뒤,
               객체 집합 목록으로 마지막 객체를 본다.
               관계 조회 결과의 연결 상대를 하나씩 상세 조회해 조건을 확인하거나 관계를 다시 조회하며 따라가지 않는다.
             - 연결 상대의 유형이 찾는 정보의 유형과 다르면(예: 작업지시 공정은 작업지시가 아니다) 그 객체를 답으로 쓰지 않고 한 단계 더 건넌다.
             - 다음 단계의 관계 유형은 객체 집합 결과의 linkTypes에서 찾는 정보 쪽 유형으로 가는 것을 골라 그 linkTypeId·direction으로 건넌다.
-            - 상태·기간 같은 조건은 질문이 묻는 객체(예: "진행 중인 작업지시"면 작업지시)가 나오는 단계의 관계 따라가기에만 넣는다. 중간 단계 객체에
-              같은 이름의 속성(status 등)이 있어도 거기에 넣지 않는다. 속성 코드와 값은 그 단계 결과의 properties·values에서 고른다. 모르면 조건 없이
-              건너 properties를 받은 뒤, 같은 출발 객체 집합에서 조건을 넣어 다시 건넌다.
+            - 상태·기간 같은 조건은 질문이 묻는 객체가 나오는 단계의 관계 따라가기에만 넣는다. "X인 C"에서 X는 C의 속성이다. A → B → C로 건너면
+              조건은 B → C로 건널 때 넣고, B에 같은 이름의 속성(status 등)이 있어도 A → B에는 넣지 않는다. 속성 코드와 값은 그 단계 결과의
+              properties·values에서 고른다. 모르면 조건 없이 건너 properties를 받은 뒤, 그 단계를 처음 건넌 출발 집합에서 같은 관계 유형·방향으로
+              조건을 넣어 다시 건넌다. 도착한 집합에서 거꾸로 건너지 않는다.
+            - 멈춤·고장·영향·위험·지연처럼 지금 진행 중인 일에 미치는 영향을 물으면 이미 끝난 기록은 답에 넣지 않는다. 질문이 묻는 객체 단계의
+                            values에서 일이 끝났음을 뜻하는 값(완료·종료·취소·마감·출하 같은 상태)을 빼고 남은 값으로 조건을 넣어 건넌다. 남은 값이 여럿이면
+              값마다 같은 출발 집합에서 건너 합쳐 답한다. 건너기는 한 답변에 5번까지이므로, 넘으면 확인한 값까지만 답하고 나머지 값은 확인하지 못했다고 말한다.
             - 관계 따라가기가 5000건을 넘는다고 하면 조건을 더해 다시 부른다.
             - 조건 없이 건넌 결과가 0건(UNLINKED)이면 그 단계에서 연결된 정보가 없다는 뜻이다. 조건을 넣고 0건(NO_DATA)이면 없다고 답하기 전에,
               조건을 건 단계가 질문이 묻는 객체의 유형인지와 넣은 값이 그 단계 결과의 values에 있는지 확인하고, 틀렸으면 고쳐 다시 건넌다.
@@ -135,6 +139,20 @@ public class AgentResponder {
             - 관계 조회의 groups나 객체 집합 결과의 linkTypes에 찾는 정보의 유형이 없으면 직접 연결이 없는 것이다. 연결된 유형을 거쳐 닿는지
               linkTypes로 확인해 닿으면 객체 집합으로 건넌다(예: 설비의 linkTypes에 작업지시가 없으면 작업지시 공정을 거친다).
               거쳐서도 닿지 않을 때만 연결된 정보가 없다고 말한다.
+            """;
+
+    /**
+     * 목표 유형 찾기 도구(OBJECT_SET_FIND)를 줄 때만 더한다. 경로·방향을 서버가 정하므로 AI는 찾는 유형과 그 유형의 조건만 고른다. 끝난 값은 저장하지
+     * 않고 결과의 값별 건수·후보를 보고 AI가 판단한다(구조 개선 검토 라운드 3).
+     */
+    static final String FIND_RULE =
+            """
+            - 참고 객체에서 다른 유형의 정보를 찾을 때는 먼저 목표 유형 찾기(OBJECT_SET_FIND)에 참고 객체 ID와 찾는 유형만 넣어 부른다.
+              경로와 방향은 서버가 정하고, 조건은 찾는 유형에만 걸린다. 결과의 valueCounts로 찾은 객체의 값 분포를 본다.
+              멈춤·고장·영향·위험·지연처럼 지금 진행 중인 일을 물으면 끝난 값(finishedLike와 같은 뜻의 값)을 뺀 나머지 값들을 propertyValues에
+                            목록으로 넣어 다시 부른다. 결과가 있는 경로가 여럿이면 질문의 말(배정·비가동·실적 등)과 route의 유형 이름을 맞춰 경로를 고른다.
+              그다음 objectSetId로 객체 집합 목록을 본다.
+              중간 단계 객체에 조건이 필요할 때만 관계 따라가기로 단계마다 건넌다.
             """;
 
     /** 경로 후보 도구를 줄 때만 더한다(381·382). */
@@ -170,6 +188,11 @@ public class AgentResponder {
 
     /** 줄 도구에 맞춘 지시. 객체 집합 도구가 없으면 기존 지시 그대로다. */
     static String systemPrompt(boolean objectSets, boolean paths) {
+        return systemPrompt(objectSets, paths, false);
+    }
+
+    /** find는 목표 유형 찾기 도구를 줄 때다. 객체 집합 도구를 줄 때만 쓴다. */
+    static String systemPrompt(boolean objectSets, boolean paths, boolean find) {
         if (!objectSets) {
             return SYSTEM_PROMPT;
         }
@@ -183,7 +206,9 @@ public class AgentResponder {
                 .replace(LINKED_INFO_LINKS_RULE, LINKED_INFO_RULE)
                 .replace(NO_GROUP_RULE, NO_GROUP_RULE_WITH_SETS)
                 .replace(NO_DATA_RULE, NO_DATA_RULE_WITH_SETS)
-                .replace(FOLLOW_LINKS_RULE, MULTI_HOP_RULES + (paths ? PATHS_RULE : ""));
+                .replace(
+                        FOLLOW_LINKS_RULE,
+                        MULTI_HOP_RULES + (find ? FIND_RULE : "") + (paths ? PATHS_RULE : ""));
     }
 
     /** "지금" 같은 표현은 사용자 기준 시각으로 계산한다. */
@@ -217,6 +242,9 @@ public class AgentResponder {
      */
     private final boolean objectSetsEnabled;
 
+    /** 목표 유형 찾기 도구를 줄지. 객체 집합 도구를 줄 때만 쓴다. 효과를 켬·끔으로 비교하려고 따로 둔다(GMS 문서). */
+    private final boolean objectSetFindEnabled;
+
     public AgentResponder(
             ObjectProvider<ChatModel> chatModels,
             AuditExecutionQueryService executions,
@@ -232,7 +260,8 @@ public class AgentResponder {
             PropertyValueSampleService propertyValues,
             Clock clock,
             @Value("${axcore.agent.reasoning-effort:none}") String reasoningEffort,
-            @Value("${axcore.agent.object-sets.enabled:false}") boolean objectSetsEnabled) {
+            @Value("${axcore.agent.object-sets.enabled:false}") boolean objectSetsEnabled,
+            @Value("${axcore.agent.object-set-find.enabled:false}") boolean objectSetFindEnabled) {
         this.chatModels = chatModels;
         this.executions = executions;
         this.objectSearch = objectSearch;
@@ -248,6 +277,7 @@ public class AgentResponder {
         this.clock = clock;
         this.reasoningEffort = reasoningEffort;
         this.objectSetsEnabled = objectSetsEnabled;
+        this.objectSetFindEnabled = objectSetFindEnabled;
     }
 
     /**
@@ -270,7 +300,8 @@ public class AgentResponder {
                         .system(
                                 systemPrompt(
                                         objectSetsEnabled && objectDetails.getIfAvailable() != null,
-                                        objectPaths.getIfAvailable() != null))
+                                        objectPaths.getIfAvailable() != null,
+                                        objectSetFindEnabled))
                         .user(userPrompt(question, interpretation, askedClarification))
                         .options(options)
                         .tools(tools(session))
@@ -300,14 +331,18 @@ public class AgentResponder {
                     if (!objectSetsEnabled) {
                         return;
                     }
-                    tools.add(
+                    AgentObjectSetTools sets =
                             new AgentObjectSetTools(
                                     session,
                                     objectSearch,
                                     query,
                                     modelSummary,
                                     dataAccess,
-                                    propertyValues));
+                                    propertyValues);
+                    tools.add(sets);
+                    if (objectSetFindEnabled) {
+                        tools.add(new AgentObjectSetFindTools(sets));
+                    }
                 });
         objectEvidence.ifAvailable(
                 query -> tools.add(new AgentObjectEvidenceTools(session, query)));

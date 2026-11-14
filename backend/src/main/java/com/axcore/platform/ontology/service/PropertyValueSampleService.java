@@ -9,6 +9,7 @@ import com.axcore.platform.ontology.domain.PropertyDefinition;
 import com.axcore.platform.ontology.domain.PropertySensitivity;
 import com.axcore.platform.ontology.repository.PropertyDefinitionRepository;
 import com.axcore.platform.ontology.repository.PropertyValueSampleRepository;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,5 +57,33 @@ public class PropertyValueSampleService {
             }
         }
         return result;
+    }
+
+    /**
+     * 주어진 객체(한 유형)에서 요청한 문자 속성마다 값별 건수를 돌려준다. 볼 수 없는 유형이면 빈 결과다. 문자가 아닌 속성과 민감 속성은 {@link
+     * #stringValues}와 같은 기준으로 뺀다. 값 종류를 유형 전체에서 다시 세지 않도록 부르는 쪽이 범주 값 속성 코드를 넘긴다.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Map<String, Long>> stringValueCounts(
+            LoginAccount actor,
+            DataPurpose purpose,
+            long objectTypeId,
+            Collection<Long> objectIds,
+            Collection<String> propertyCodes) {
+        DataAccess access = dataAccessPolicy.of(actor, purpose);
+        if (!access.canView(objectTypeId) || propertyCodes.isEmpty()) {
+            return Map.of();
+        }
+        List<String> codes =
+                properties.findByObjectTypeIdOrderById(objectTypeId).stream()
+                        .filter(property -> property.getDataType() == PropertyDataType.STRING)
+                        .filter(
+                                property ->
+                                        property.getSensitivity() != PropertySensitivity.RESTRICTED
+                                                || access.canViewRestricted(objectTypeId))
+                        .map(PropertyDefinition::getCode)
+                        .filter(propertyCodes::contains)
+                        .toList();
+        return samples.countValues(objectIds, codes);
     }
 }

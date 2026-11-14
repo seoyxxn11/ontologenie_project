@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.support.SqlArrayValue;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -61,5 +62,42 @@ public class PropertyValueSampleRepository {
                                 Map.Entry::getKey,
                                 LinkedHashMap::new,
                                 Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
+    }
+
+    /**
+     * 주어진 객체에서 속성별 값마다 건수를 센다. 많은 값부터 돌려준다. null·빈 값은 세지 않는다. 볼 수 있는 객체·속성인지는 부르는 쪽이 정한다. Agent 목표
+     * 유형 찾기(OBJECT_SET_FIND)가 도착 객체의 상태 값 분포(예: 출하완료 56, 생산중 1)를 보여 줄 때 쓴다.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Map<String, Long>> countValues(
+            Collection<Long> objectIds, Collection<String> propertyCodes) {
+        if (objectIds.isEmpty() || propertyCodes.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Map<String, Long>> counts = new LinkedHashMap<>();
+        jdbc.sql(
+                        """
+                        select e.key as code, e.value, count(*) as cnt
+                        from object_instance oi
+                        cross join lateral jsonb_each_text(oi.properties) e
+                        where oi.id = any(:ids)
+                          and oi.status = 'ACTIVE'
+                          and e.key in (:codes)
+                          and e.value is not null
+                          and e.value <> ''
+                        group by e.key, e.value
+                        order by e.key, cnt desc, e.value
+                        """)
+                .param("ids", new SqlArrayValue("bigint", objectIds.toArray()))
+                .param("codes", propertyCodes)
+                .query(
+                        (rs, rowNum) -> {
+                            counts.computeIfAbsent(
+                                            rs.getString("code"), code -> new LinkedHashMap<>())
+                                    .put(rs.getString("value"), rs.getLong("cnt"));
+                            return null;
+                        })
+                .list();
+        return counts;
     }
 }

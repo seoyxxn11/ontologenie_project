@@ -439,6 +439,240 @@ class AgentObjectSetToolsIntegrationTests {
                 .hasEntrySatisfying("error", error -> assertThat((String) error).contains("20개"));
     }
 
+    /** 목표 유형 찾기: 서버가 경로를 찾아 건너고, 도착 객체의 값별 건수와 끝난 값 후보를 준다. 민감 속성은 세지 않는다. */
+    @Test
+    @SuppressWarnings("unchecked")
+    void findsTargetTypeThroughPathAndShowsValueCounts() {
+        AgentQuerySession session = session();
+        session.allowObjects(List.of(p103), true);
+        AgentObjectSetTools tools = tools(session);
+
+        Map<String, Object> found =
+                tools.find(List.of(p103), tag + "-order", null, null, null, null, null);
+
+        assertThat(found).containsEntry("resultCategory", "FOUND");
+        Map<String, Object> data = (Map<String, Object>) found.get("data");
+        assertThat(data)
+                .containsEntry("targetTypeId", workOrder)
+                .containsEntry("chosenPathIndex", 1)
+                .containsEntry("objectSetId", "S1")
+                .containsEntry("count", 3);
+        List<Map<String, Object>> paths = (List<Map<String, Object>>) data.get("paths");
+        assertThat(paths).hasSize(1);
+        assertThat(paths.getFirst())
+                .containsEntry(
+                        "route", tag + "-equipment → " + tag + "-operation → " + tag + "-order")
+                .containsEntry("count", 3)
+                .containsEntry("valueCounts", Map.of("state", Map.of("진행", 2L, "완료", 1L)))
+                .containsEntry("finishedLike", Map.of("state", List.of("완료")));
+        assertThat(session.objectsAllowed(List.of(w1)))
+                .as("찾은 객체는 목록으로 받기 전에는 허용 객체가 아니다")
+                .isFalse();
+
+        Map<String, Object> listed =
+                (Map<String, Object>) tools.objectSetList("S1", null).get("data");
+        assertThat(listed).containsEntry("total", 3);
+        assertThat(session.objectsAllowed(List.of(w1, w2, w3))).isTrue();
+    }
+
+    /** 조건은 도착 유형에만 걸리고, 값이 여럿이면 그중 하나와 같으면 된다. 없는 값은 unmatchedValues로 알린다. */
+    @Test
+    @SuppressWarnings("unchecked")
+    void appliesConditionsOnlyToTargetAndAcceptsSeveralValues() {
+        AgentQuerySession session = session();
+        session.allowObjects(List.of(p103), true);
+        AgentObjectSetTools tools = tools(session);
+
+        Map<String, Object> running =
+                (Map<String, Object>)
+                        tools.find(
+                                        List.of(p103),
+                                        tag + "-order",
+                                        Map.of("state", List.of("진행")),
+                                        null,
+                                        null,
+                                        null,
+                                        null)
+                                .get("data");
+        assertThat(running).containsEntry("count", 2);
+
+        Map<String, Object> both =
+                (Map<String, Object>)
+                        tools.find(
+                                        List.of(p103),
+                                        tag + "-order",
+                                        Map.of("state", List.of("진행", "완료")),
+                                        null,
+                                        null,
+                                        null,
+                                        null)
+                                .get("data");
+        assertThat(both).containsEntry("count", 3);
+
+        // 한 답변에서 찾기는 3번까지라 아래는 새 답변(세션)으로 본다.
+        AgentQuerySession next = session();
+        next.allowObjects(List.of(p103), true);
+        AgentObjectSetTools fresh = tools(next);
+        // 저장 값에 없는 값은 0건으로 끝내지 않고 저장 값을 알려 다시 부르게 한다("진행 중"으로 0건을 받고 "없다"고 답하던 실수, GMS M1).
+        assertThat(
+                        fresh.find(
+                                List.of(p103),
+                                tag + "-order",
+                                Map.of("state", List.of("진행 중")),
+                                null,
+                                null,
+                                null,
+                                null))
+                .hasEntrySatisfying(
+                        "error", error -> assertThat((String) error).contains("저장된 값", "[완료, 진행]"));
+        // 띄어쓰기만 다르면 저장 값으로 맞춘다(378과 같은 기준).
+        Map<String, Object> spaced =
+                (Map<String, Object>)
+                        fresh.find(
+                                        List.of(p103),
+                                        tag + "-order",
+                                        Map.of("state", List.of(" 진 행")),
+                                        null,
+                                        null,
+                                        null,
+                                        null)
+                                .get("data");
+        assertThat(spaced).containsEntry("count", 2);
+        assertThat(
+                        fresh.find(
+                                List.of(p103),
+                                tag + "-order",
+                                Map.of("nothing", List.of("x")),
+                                null,
+                                null,
+                                null,
+                                null))
+                .hasEntrySatisfying(
+                        "error", error -> assertThat((String) error).contains("nothing"));
+    }
+
+    /** 민감 문자 속성은 값별 건수에 넣지 않는다. 숫자 속성에도 여러 값 조건을 건다(text[] → numeric[]). */
+    @Test
+    @SuppressWarnings("unchecked")
+    void keepsRestrictedStringsOutOfCountsAndFiltersNumbersWithSeveralValues() {
+        property(workOrder, "secret", "STRING", "RESTRICTED");
+        property(workOrder, "qty", "INTEGER", "NORMAL");
+        setProperties(w1, "{\"state\":\"진행\",\"secret\":\"A\",\"qty\":1}");
+        setProperties(w2, "{\"state\":\"완료\",\"secret\":\"B\",\"qty\":2}");
+        setProperties(w3, "{\"state\":\"진행\",\"secret\":\"A\",\"qty\":3}");
+        AgentQuerySession session = session();
+        session.allowObjects(List.of(p103), true);
+        AgentObjectSetTools tools = tools(session);
+
+        Map<String, Object> all =
+                (Map<String, Object>)
+                        tools.find(List.of(p103), tag + "-order", null, null, null, null, null)
+                                .get("data");
+        Map<String, Object> path = ((List<Map<String, Object>>) all.get("paths")).getFirst();
+        assertThat((Map<String, Object>) path.get("valueCounts"))
+                .containsKey("state")
+                .doesNotContainKey("secret");
+
+        Map<String, Object> some =
+                (Map<String, Object>)
+                        tools.find(
+                                        List.of(p103),
+                                        tag + "-order",
+                                        Map.of("qty", List.of("1", "3")),
+                                        null,
+                                        null,
+                                        null,
+                                        null)
+                                .get("data");
+        assertThat(some).containsEntry("count", 2);
+    }
+
+    /** 가장 짧은 경로가 여럿이고 둘 다 결과가 있으면 고르지 않고 경로별 건수를 준다. pathIndex로 하나만 다시 본다. */
+    @Test
+    @SuppressWarnings("unchecked")
+    void listsSeveralShortestPathsWithoutChoosingAndAllowsPathIndex() {
+        long downtime = type(tag + "-downtime", tag);
+        long downtimeEquipment = linkType(tag + "-dt-equipment", downtime, equipment);
+        long downtimeOrder = linkType(tag + "-dt-order", downtime, workOrder);
+        long d1 = object(downtime, "DT-1", "{}");
+        link(downtimeEquipment, d1, p103);
+        link(downtimeOrder, d1, w1);
+        AgentQuerySession session = session();
+        session.allowObjects(List.of(p103), true);
+        AgentObjectSetTools tools = tools(session);
+
+        Map<String, Object> both =
+                (Map<String, Object>)
+                        tools.find(List.of(p103), tag + "-order", null, null, null, null, null)
+                                .get("data");
+        assertThat(both).doesNotContainKey("chosenPathIndex").containsKey("next");
+        assertThat((List<Map<String, Object>>) both.get("paths"))
+                .extracting(item -> item.get("count"))
+                .containsExactlyInAnyOrder(3, 1);
+
+        Map<String, Object> one =
+                (Map<String, Object>)
+                        tools.find(List.of(p103), tag + "-order", null, null, null, null, 2)
+                                .get("data");
+        assertThat(one).containsEntry("chosenPathIndex", 2);
+        assertThat((List<?>) one.get("paths")).hasSize(1);
+
+        tools.find(List.of(p103), tag + "-order", null, null, null, null, null);
+        assertThat(tools.find(List.of(p103), tag + "-order", null, null, null, null, null))
+                .as("한 답변에서 목표 유형 찾기는 3번까지")
+                .hasEntrySatisfying("error", error -> assertThat((String) error).contains("3번까지"));
+    }
+
+    @Test
+    void rejectsStartObjectsThatAreNotTargetsAndSameTypeTarget() {
+        AgentQuerySession session = session();
+        session.allowObjects(List.of(p103), true);
+        AgentObjectSetTools tools = tools(session);
+
+        assertThat(tools.find(List.of(w1), tag + "-order", null, null, null, null, null))
+                .containsEntry("error", AgentQuerySession.NOT_TARGET);
+        assertThat(tools.find(List.of(p103), tag + "-equipment", null, null, null, null, null))
+                .hasEntrySatisfying("error", error -> assertThat((String) error).contains("이미"));
+        assertThat(tools.find(List.of(p103), tag + "-order", null, null, null, null, 2))
+                .hasEntrySatisfying(
+                        "error", error -> assertThat((String) error).contains("pathIndex"));
+    }
+
+    /** 없는 유형 이름에는 비슷한 이름을 알리고, 찾기 결과를 관계 따라가기로 거르다 실패하면 찾기를 다시 부르라고 알린다. */
+    @Test
+    void suggestsSimilarTypesAndPointsFoundSetsBackToFind() {
+        AgentQuerySession session = session();
+        session.allowObjects(List.of(p103), true);
+        AgentObjectSetTools tools = tools(session);
+
+        assertThat(tools.find(List.of(p103), "order", null, null, null, null, null))
+                .hasEntrySatisfying(
+                        "error",
+                        error ->
+                                assertThat((String) error)
+                                        .contains(
+                                                "이름이 비슷한 유형", tag + "-order(#" + workOrder + ")"));
+
+        tools.find(List.of(p103), tag + "-order", null, null, null, null, null);
+        assertThat(tools.objectSetSearchAround("S1", 999_999_999L, null, null, null, null, null))
+                .hasEntrySatisfying(
+                        "error",
+                        error ->
+                                assertThat((String) error)
+                                        .contains("#999999999")
+                                        .endsWith(AgentObjectSetTools.FOUND_SET_HINT));
+
+        tools.objectSetStart(List.of(p103), null, null, null, null, null);
+        String started = "S2";
+        assertThat(tools.objectSetSearchAround(started, 999_999_999L, null, null, null, null, null))
+                .as("찾기가 만들지 않은 집합에는 안내를 붙이지 않는다")
+                .hasEntrySatisfying(
+                        "error",
+                        error ->
+                                assertThat((String) error)
+                                        .doesNotContain(AgentObjectSetTools.OBJECT_SET_FIND));
+    }
+
     private AgentQuerySession session() {
         return new AgentQuerySession(VIEWER, 11L, recorder, Clock.systemUTC(), dataAsOf);
     }
@@ -479,6 +713,14 @@ class AgentObjectSetToolsIntegrationTests {
                 .param("code", code)
                 .param("dataType", dataType)
                 .param("sensitivity", sensitivity)
+                .update();
+    }
+
+    private void setProperties(long id, String properties) {
+        jdbc.sql(
+                        "update object_instance set properties = cast(:properties as jsonb) where id = :id")
+                .param("properties", properties)
+                .param("id", id)
                 .update();
     }
 
