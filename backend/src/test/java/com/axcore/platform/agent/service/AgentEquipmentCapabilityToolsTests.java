@@ -66,6 +66,39 @@ class AgentEquipmentCapabilityToolsTests {
                 .isEqualTo(AgentEquipmentCapabilityTools.COMPARE_EQUIPMENT_CAPABILITY);
         assertThat(recorded.sources())
                 .containsExactly(Map.of("objectId", 141L), Map.of("objectId", 2210L));
+        assertThat(session.assignedEquipment(141L)).as("비교한 작업지시는 기록한다").isEmpty();
+        assertThat(session.assignedEquipment(999L)).isNull();
+    }
+
+    /** 비교한 공정이 배정된 설비를 이번 답변에 남긴다. 재배정 계획 저장에서 정지 설비를 확인한다. */
+    @Test
+    void remembersEquipmentTheComparedOperationsAreOn() {
+        Result result =
+                new Result(
+                        "JB2610-0141",
+                        "BRK-210R",
+                        "진행",
+                        List.of(
+                                new EquipmentCapabilityComparer.OperationRequirement(
+                                        "20", "중단", "P103", 2212L, true, "PRS", null),
+                                new EquipmentCapabilityComparer.OperationRequirement(
+                                        "30", "중단", "P103", 2212L, true, "PRS", null),
+                                new EquipmentCapabilityComparer.OperationRequirement(
+                                        "40", "대기", null, null, true, "INS", null)),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of());
+        when(comparer.compare(eq(ASKER), anyLong(), any(), any()))
+                .thenReturn(
+                        new Comparison(
+                                AgentResultCategory.FOUND,
+                                result,
+                                new LinkedHashSet<>(List.of(141L))));
+
+        tools.compareEquipmentCapability(141L, List.of(2210L), null);
+
+        assertThat(session.assignedEquipment(141L)).containsExactly(2212L);
     }
 
     /** 이번 답변의 대상이 아닌 객체면 비교하지 않는다. 빈 설비 목록·중복은 비교하지 않고 실패로 돌려준다. */

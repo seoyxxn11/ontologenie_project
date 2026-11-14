@@ -142,6 +142,53 @@ class AgentActionToolTests {
                                 "CREATE_REASSIGNMENT_PLAN", "재배정 계획 생성", AgentActionTool.NOT_RUN));
     }
 
+    /**
+     * 재배정 계획은 이번 답변에서 비교한 작업지시이고, 정지 설비가 비교한 공정의 현재 설비일 때만 실행기로 보낸다. 대체 설비를 정지 설비로도 넣던 실수(P101 →
+     * P101)와 비교 없이 짐작한 정지 설비를 막는다(2026-11-14 대화 95).
+     */
+    @Test
+    void savesPlanOnlyFromEquipmentTheComparedOperationsAreOn() {
+        String toP101 =
+                "{\"fromEquipmentId\":5,\"items\":[{\"workOrderId\":731,\"toEquipmentId\":2}],"
+                        + "\"dataAsOf\":\"2026-11-14T19:31:40+09:00\"}";
+
+        String notCompared = new AgentActionTool(PLAN, session, executions, json).call(toP101);
+        assertThat(notCompared).contains(AgentActionTool.NOT_RUN, "#731", "assignedEquipmentId");
+
+        session.recordAssignments(731L, List.of(3L));
+        String wrongFrom = new AgentActionTool(PLAN, session, executions, json).call(toP101);
+        assertThat(wrongFrom).contains(AgentActionTool.NOT_RUN, "fromEquipmentId #5", "#3");
+        verifyNoInteractions(executions);
+
+        ActionExecutionResponse response = mock(ActionExecutionResponse.class);
+        when(response.id()).thenReturn(513L);
+        when(response.status()).thenReturn(ExecutionStatus.SUCCEEDED);
+        when(response.result()).thenReturn(Map.of("planId", 4));
+        when(executions.execute(any())).thenReturn(response);
+        new AgentActionTool(PLAN, session, executions, json)
+                .call(toP101.replace("\"fromEquipmentId\":5", "\"fromEquipmentId\":3"));
+
+        verify(executions).execute(any());
+        assertThat(session.actions())
+                .extracting(AgentActionOutcome::status)
+                .containsExactly(AgentActionTool.NOT_RUN, AgentActionTool.NOT_RUN, "SUCCEEDED");
+    }
+
+    /** 정지 설비와 대체 설비가 같으면 비교한 배정 설비에 들어 있어도 실행하지 않는다(리뷰 Minor 3: 다른 공정이 그 설비에 남은 경우). */
+    @Test
+    void doesNotSavePlanFromAndToTheSameEquipment() {
+        session.recordAssignments(731L, List.of(2L, 3L));
+
+        String reply =
+                new AgentActionTool(PLAN, session, executions, json)
+                        .call(
+                                "{\"fromEquipmentId\":2,\"items\":[{\"workOrderId\":731,\"toEquipmentId\":2}],"
+                                        + "\"dataAsOf\":\"2026-11-14T19:31:40+09:00\"}");
+
+        assertThat(reply).contains(AgentActionTool.NOT_RUN, "모두 #2");
+        verifyNoInteractions(executions);
+    }
+
     @Test
     void keepsExecutedActionOnceEvenIfReplyCannotBeWritten() {
         ActionExecutionResponse response = mock(ActionExecutionResponse.class);

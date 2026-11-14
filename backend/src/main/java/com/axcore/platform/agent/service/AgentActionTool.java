@@ -6,7 +6,10 @@ import com.axcore.platform.action.service.ActionExecutionService;
 import com.axcore.platform.action.service.ExecutableAction;
 import com.axcore.platform.audit.domain.EntryPoint;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.ToolCallback;
@@ -27,6 +30,7 @@ import tools.jackson.databind.json.JsonMapper;
 public class AgentActionTool implements ToolCallback {
     static final String CONFIRMATION_REQUIRED = "CONFIRMATION_REQUIRED";
     static final String NOT_RUN = "NOT_RUN";
+    static final String REASSIGNMENT_PLAN = "CREATE_REASSIGNMENT_PLAN";
 
     private static final TypeReference<Map<String, Object>> INPUT_TYPE = new TypeReference<>() {};
     private static final String EMPTY_OBJECT_SCHEMA = "{\"type\":\"object\",\"properties\":{}}";
@@ -70,6 +74,10 @@ public class AgentActionTool implements ToolCallback {
         } catch (JacksonException ex) {
             return notRun(NOT_RUN, "입력을 읽지 못해 실행하지 않았습니다.");
         }
+        String unchecked = REASSIGNMENT_PLAN.equals(action.code()) ? uncheckedPlan(input) : null;
+        if (unchecked != null) {
+            return notRun(NOT_RUN, unchecked);
+        }
         ActionExecutionResponse response;
         try {
             response =
@@ -102,6 +110,56 @@ public class AgentActionTool implements ToolCallback {
         reply.put("blockedReason", response.blockedReason());
         reply.put("result", response.result());
         return json.writeValueAsString(reply);
+    }
+
+    /**
+     * 재배정 계획을 저장하기 전에, 이번 답변에서 그 작업지시를 설비 조건 비교로 확인했고 정지 설비가 비교한 공정의 현재 설비인지 본다. 아니면 실행하지 않고 고칠 방법을
+     * 돌려준다. 대체 설비만 말한 요청에서 그 설비를 정지 설비로도 넣거나(P101 → P101), 조회 없이 정지 설비를 짐작한 일이 있었다(2026-11-14 대화
+     * 95). 실행기의 업무 검증(같은 설비, 배정, 설비 조건)은 그대로 다시 한다. 입력 형식 오류는 실행기의 입력 검증에 맡긴다.
+     */
+    private String uncheckedPlan(Map<String, Object> input) {
+        if (input == null || !(input.get("items") instanceof List<?> items)) {
+            return null;
+        }
+        Long from =
+                input.get("fromEquipmentId") instanceof Number number ? number.longValue() : null;
+        Set<Long> orders = new LinkedHashSet<>();
+        for (Object item : items) {
+            if (!(item instanceof Map<?, ?> map)) {
+                continue;
+            }
+            if (map.get("workOrderId") instanceof Number id) {
+                orders.add(id.longValue());
+            }
+            if (from != null
+                    && map.get("toEquipmentId") instanceof Number to
+                    && to.longValue() == from) {
+                return ("fromEquipmentId와 toEquipmentId가 모두 #%d입니다. fromEquipmentId는 옮길 공정이 지금 배정된 설비(멈춘 설비),"
+                                + " toEquipmentId는 옮겨 갈 대체 설비입니다. 설비 조건 비교 결과 operations의 assignedEquipmentId를"
+                                + " fromEquipmentId로 넣어 다시 부르세요.")
+                        .formatted(from);
+            }
+        }
+        Set<Long> assigned = new LinkedHashSet<>();
+        for (Long order : orders) {
+            Set<Long> equipment = session.assignedEquipment(order);
+            if (equipment == null) {
+                return ("작업지시 #%d를 이번 답변에서 설비 조건 비교(COMPARE_EQUIPMENT_CAPABILITY)로 확인하지 않아 저장하지 않았습니다."
+                                + " 먼저 작업지시와 대체 설비를 비교하고, 결과 operations의 assignedEquipmentId(옮길 공정이 지금 배정된 설비)를"
+                                + " fromEquipmentId로 넣어 다시 부르세요.")
+                        .formatted(order);
+            }
+            assigned.addAll(equipment);
+        }
+        if (assigned.isEmpty() || from == null) {
+            return null;
+        }
+        if (!assigned.contains(from)) {
+            return ("fromEquipmentId #%d는 옮길 공정이 지금 배정된 설비가 아닙니다. 배정된 설비: %s. fromEquipmentId는 옮길 공정이 지금 배정된"
+                            + " 설비(멈춘 설비), toEquipmentId는 옮겨 갈 대체 설비입니다. 공정마다 배정 설비가 다르면 설비마다 나눠 저장하거나 사용자에게 물으세요.")
+                    .formatted(from, assigned.stream().map(id -> "#" + id).toList());
+        }
+        return null;
     }
 
     /** 실행기를 부르지 않았다. 답변에도 실행하지 않았다고 남겨, 화면이 성공으로 보여 주지 않게 한다. */

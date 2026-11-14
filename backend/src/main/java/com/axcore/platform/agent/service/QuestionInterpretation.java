@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -155,6 +156,85 @@ public record QuestionInterpretation(
                 newSubject ? kinds : previous.kinds,
                 QuestionScope.BUSINESS,
                 newSubject || !propertyValues.isEmpty() ? propertyValues : previous.propertyValues);
+    }
+
+    /**
+     * 새 대상을 말한 후속 질문에서, 질문 글에 그대로 다시 쓴 이전 대상을 targets에 되살린다. 새 대상이 대상 전체를 바꾸므로 해석이 이전 대상을 빼면 그 대상을
+     * 잃는다(재배정 계획 재질문에서 작업지시·대체 설비가 빠지고 정지 설비만 남은 일, 2026-11-14 대화 95). 코드 앞뒤가 영문·숫자로 이어지면 같은 말로 보지
+     * 않는다 (P10과 P103). 대상을 새로 말하지 않았으면 이전 대상을 그대로 잇는 continueFrom에 맡긴다.
+     */
+    public QuestionInterpretation withRepeatedTargets(
+            String question, QuestionInterpretation previous) {
+        if (previous == null || targets.isEmpty() || question == null) {
+            return this;
+        }
+        List<String> merged = new ArrayList<>(targets);
+        for (String target : previous.targets) {
+            boolean listed = merged.stream().anyMatch(kept -> kept.equalsIgnoreCase(target));
+            // 이번에 속성값으로 쓴 말은 대상으로 되살리지 않는다(해석기 verify와 같은 기준).
+            boolean property =
+                    propertyValues.stream().anyMatch(value -> value.equalsIgnoreCase(target));
+            if (!listed
+                    && !property
+                    && merged.size() < QuestionInterpreter.MAX_TARGETS
+                    && mentions(question, target)) {
+                merged.add(target);
+            }
+        }
+        return merged.size() == targets.size()
+                ? this
+                : new QuestionInterpretation(
+                        purpose,
+                        merged,
+                        from,
+                        to,
+                        referenceObjects,
+                        vaguePeriod,
+                        kinds,
+                        scope,
+                        propertyValues);
+    }
+
+    private static boolean mentions(String question, String target) {
+        if (target == null || target.isBlank()) {
+            return false;
+        }
+        String text = question.toLowerCase(Locale.ROOT);
+        String word = target.strip().toLowerCase(Locale.ROOT);
+        for (int at = text.indexOf(word); at >= 0; at = text.indexOf(word, at + 1)) {
+            int end = at + word.length();
+            if (!asciiAlnum(text, at - 1)
+                    && !asciiAlnum(text, end)
+                    && !excluded(text.substring(end))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** "P103 말고", "P103은 빼고", "P103 대신"처럼 그 대상을 빼는 말이 바로 뒤에 오면 다시 쓴 대상으로 보지 않는다. */
+    private static boolean excluded(String after) {
+        String rest = after.stripLeading();
+        if (!rest.isEmpty() && "은는이가을를".indexOf(rest.charAt(0)) >= 0) {
+            rest = rest.substring(1).stripLeading();
+        }
+        for (String word : EXCLUDING_WORDS) {
+            if (rest.startsWith(word)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static final List<String> EXCLUDING_WORDS =
+            List.of("말고", "대신", "아니라", "아닌", "빼고", "제외", "외에", "외의");
+
+    private static boolean asciiAlnum(String text, int index) {
+        if (index < 0 || index >= text.length()) {
+            return false;
+        }
+        char c = text.charAt(index);
+        return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
     }
 
     /** 서버가 찾은 대상 객체로 바꾼다(147). */
