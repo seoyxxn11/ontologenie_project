@@ -426,13 +426,6 @@ export default function SourceSyncRuns({
             />
           ) : (
             <>
-              <p>
-                CDC 마지막 반영: {time(history.data.meta?.cdcLastAppliedAt)}
-              </p>
-              <p className="text-slate-500">
-                마지막으로 반영한 원천 트랜잭션의 커밋 시각입니다. 원천에 변경이
-                없으면 이전 시각이 유지될 수 있습니다.
-              </p>
               {history.data.data.length ? (
                 <ul className="space-y-2">
                   {history.data.data.map((run) => (

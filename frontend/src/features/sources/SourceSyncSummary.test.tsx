@@ -58,16 +58,14 @@ function open(ids = [1]) {
   clients.push(client)
   render(
     <QueryClientProvider client={client}>
-      <table>
-        <tbody>
-          {ids.map((id) => (
-            <tr key={id}>
-              <th>원천 {id}</th>
-              <SourceSyncSummary sourceId={id} sourceName={`원천 ${id}`} />
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {ids.map((id) => (
+        <SourceSyncSummary
+          key={id}
+          sourceId={id}
+          sourceName={'원천 ' + id}
+          connectionStatus="CONNECTED"
+        />
+      ))}
     </QueryClientProvider>,
   )
   return client
@@ -89,22 +87,62 @@ test('074를 원천별 1건 조회하고 최근 전체 읽기 상태·완료와 
     }),
   )
   open([1, 2])
-  const first = within(screen.getByRole('row', { name: /원천 1/ }))
-  const second = within(screen.getByRole('row', { name: /원천 2/ }))
+  const first = within(screen.getByRole('region', { name: '원천 1 상태 요약' }))
+  const second = within(
+    screen.getByRole('region', { name: '원천 2 상태 요약' }),
+  )
   expect(await first.findByText('전체 읽기 · 완료')).toBeInTheDocument()
   expect(await second.findByText('전체 읽기 · 실패')).toBeInTheDocument()
-  expect(first.getByText(/전체 읽기 완료:/)).toHaveTextContent(
-    formatKstDateTime(finished),
+  expect(first.getByText(formatKstDateTime(finished))).toHaveAttribute(
+    'dateTime',
+    finished,
   )
-  expect(first.getByText(/CDC 반영:/)).toHaveTextContent(formatKstDateTime(cdc))
+  expect(first.getByText('CDC 마지막 반영').parentElement).toHaveTextContent(
+    formatKstDateTime(cdc),
+  )
   expect(second.getByText(/최근 실행 종료:/)).toHaveTextContent(
     formatKstDateTime(finished),
   )
-  expect(second.queryByText(/전체 읽기 완료:/)).not.toBeInTheDocument()
+  expect(first.queryByText(/전체 읽기 완료:/)).not.toBeInTheDocument()
+  expect(second.queryByText('완료 시각:')).not.toBeInTheDocument()
   expect(requests.sort()).toEqual([
     '/api/v1/sources/1/sync-runs',
     '/api/v1/sources/2/sync-runs',
   ])
+})
+
+test('실패 안내와 이력 이동은 상태 기준을 펼치지 않아도 보인다', async () => {
+  server.use(
+    http.get('/api/v1/sources/1/sync-runs', () =>
+      HttpResponse.json(page([run(1, 'FAILED')])),
+    ),
+  )
+  const onViewHistory = vi.fn()
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  clients.push(client)
+  render(
+    <QueryClientProvider client={client}>
+      <SourceSyncSummary
+        sourceId={1}
+        sourceName="ERP 운영 DB"
+        connectionStatus="CONNECTED"
+        onViewHistory={onViewHistory}
+      />
+    </QueryClientProvider>,
+  )
+  const alert = await screen.findByRole('alert')
+  expect(alert).toBeVisible()
+  expect(alert).toHaveTextContent('최근 전체 읽기가 실패했습니다.')
+  expect(alert.closest('details')).toBeNull()
+  expect(
+    screen.getByText('상태·시각 기준').closest('details'),
+  ).not.toHaveAttribute('open')
+  await userEvent
+    .setup()
+    .click(screen.getByRole('button', { name: '수집 이력 보기' }))
+  expect(onViewHistory).toHaveBeenCalledOnce()
 })
 
 test('전체 읽기 이력이 없어도 CDC 반영 시각은 표시하고 미수집으로 단정하지 않는다', async () => {
@@ -115,7 +153,7 @@ test('전체 읽기 이력이 없어도 CDC 반영 시각은 표시하고 미수
   )
   open()
   expect(await screen.findByText('전체 읽기 이력 없음')).toBeInTheDocument()
-  expect(screen.getByText(/CDC 반영:/)).toHaveTextContent(
+  expect(screen.getByText('CDC 마지막 반영').parentElement).toHaveTextContent(
     formatKstDateTime(cdc),
   )
   expect(screen.queryByText('미수집')).not.toBeInTheDocument()
@@ -159,8 +197,10 @@ test('한 원천의 조회 실패가 다른 원천을 가리지 않고 다시 �
   )
   const user = userEvent.setup()
   open([1, 2])
-  const first = within(screen.getByRole('row', { name: /원천 1/ }))
-  const second = within(screen.getByRole('row', { name: /원천 2/ }))
+  const first = within(screen.getByRole('region', { name: '원천 1 상태 요약' }))
+  const second = within(
+    screen.getByRole('region', { name: '원천 2 상태 요약' }),
+  )
   await first.findByText('요약 조회 실패')
   expect(await second.findByText('전체 읽기 · 완료')).toBeInTheDocument()
   failed = false
@@ -181,6 +221,9 @@ test('대기·실행 중인 최근 실행을 자동 조회해 완료 시각으�
   )
   open()
   expect(await screen.findByText('전체 읽기 · 대기')).toBeInTheDocument()
+  const announcement = screen.getByRole('status')
+  expect(announcement).toHaveAttribute('aria-live', 'polite')
+  expect(announcement).toHaveAttribute('aria-atomic', 'true')
   await waitFor(
     () => expect(screen.getByText('전체 읽기 · 실행 중')).toBeInTheDocument(),
     { timeout: 5000 },
@@ -189,8 +232,11 @@ test('대기·실행 중인 최근 실행을 자동 조회해 완료 시각으�
     () => expect(screen.getByText('전체 읽기 · 완료')).toBeInTheDocument(),
     { timeout: 5000 },
   )
-  expect(screen.getByText(/전체 읽기 완료:/)).toHaveTextContent(
-    formatKstDateTime(finished),
+  expect(screen.getByRole('status')).toBe(announcement)
+  expect(announcement).toHaveTextContent('전체 읽기 · 완료')
+  expect(screen.getByText(formatKstDateTime(finished))).toHaveAttribute(
+    'dateTime',
+    finished,
   )
 })
 

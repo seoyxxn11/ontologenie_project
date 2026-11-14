@@ -55,13 +55,13 @@ async function openFromSource(user: ReturnType<typeof userEvent.setup>) {
   renderAt('/admin/sources?source=2')
   await user.click(
     await screen.findByRole('button', {
-      name: '이 원천으로 AI 관계 제안 받기',
+      name: 'AI 관계 제안 받기',
     }),
   )
   return screen.getByRole('dialog', { name: '분석 대상 선택' })
 }
 
-test('원천 상세에서 열면 그 원천의 표와 첫 표의 컬럼을 보여준다', async () => {
+test('데이터 연결에서 열면 선택 원천의 표와 첫 표의 컬럼을 보여준다', async () => {
   const user = userEvent.setup()
   const dialog = await openFromSource(user)
 
