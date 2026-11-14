@@ -1,8 +1,5 @@
 package com.axcore.platform.mapping.service;
 
-import com.axcore.platform.mapping.domain.ObjectSourceMapping;
-import com.axcore.platform.mapping.domain.PropertySourceMapping;
-import com.axcore.platform.mapping.repository.ObjectSourceMappingRepository;
 import com.axcore.platform.mapping.repository.PropertySourceMappingRepository;
 import com.axcore.platform.source.domain.SourceResource;
 import com.axcore.platform.source.service.SourceCatalogService;
@@ -12,7 +9,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -32,7 +28,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class MappedResourceReload {
 
     private final PropertySourceMappingRepository propertyMappingRepository;
-    private final ObjectSourceMappingRepository objectMappingRepository;
     private final SourceCatalogService catalogService;
 
     /**
@@ -69,24 +64,9 @@ public class MappedResourceReload {
         }
     }
 
-    /** 속성을 담는 켜진 매핑의 원천 자원 ID(오름차순). 잠그지 않고 읽는다. */
+    /** 속성을 담는 켜진 매핑의 원천 자원 ID(오름차순). 잠그지 않고, 매핑 엔티티도 불러오지 않는다(429). */
     public Set<Long> activeResourceIds(long propertyId) {
-        List<PropertySourceMapping> mappings =
-                propertyMappingRepository.findByPropertyDefinitionId(propertyId);
-        Set<Long> activeParents =
-                objectMappingRepository
-                        .findAllById(
-                                mappings.stream()
-                                        .map(PropertySourceMapping::getSourceMappingId)
-                                        .collect(Collectors.toSet()))
-                        .stream()
-                        .filter(ObjectSourceMapping::isActive)
-                        .map(ObjectSourceMapping::getId)
-                        .collect(Collectors.toSet());
-        return mappings.stream()
-                .filter(m -> activeParents.contains(m.getSourceMappingId()))
-                .map(PropertySourceMapping::getSourceResourceId)
-                .collect(Collectors.toCollection(TreeSet::new));
+        return new TreeSet<>(propertyMappingRepository.findActiveSourceResourceIds(propertyId));
     }
 
     /** 잠근 자원들을 다시 읽기 대상으로 표시한다. */

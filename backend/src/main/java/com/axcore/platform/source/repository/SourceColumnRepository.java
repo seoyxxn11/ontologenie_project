@@ -16,4 +16,13 @@ public interface SourceColumnRepository extends JpaRepository<SourceColumn, Long
 
     Optional<SourceColumn> findBySourceResourceIdAndColumnName(
             Long sourceResourceId, String columnName);
+
+    /** 컬럼의 원천 자원과 이름만. 잠그기 전에 읽을 때 엔티티를 불러오지 않는다(429). */
+    Optional<ColumnLocation> findLocationById(Long id);
+
+    interface ColumnLocation {
+        Long getSourceResourceId();
+
+        String getColumnName();
+    }
 }
