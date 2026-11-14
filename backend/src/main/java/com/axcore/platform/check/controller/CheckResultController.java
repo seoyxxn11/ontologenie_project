@@ -46,7 +46,7 @@ public class CheckResultController {
         // 앞서 작성한 DB 테스트와 같이 결과 ID 오름차순으로 조회한다.
         PageRequest pageable = PageRequest.of(page, size, Sort.by("id").ascending());
 
-        return ApiResponse.ofPage(checkResultService.search(id, request, pageable));
+        return ApiResponse.ofPage(checkResultService.search(loginAccount, id, request, pageable));
     }
 
     private static void requireAdmin(LoginAccount loginAccount) {

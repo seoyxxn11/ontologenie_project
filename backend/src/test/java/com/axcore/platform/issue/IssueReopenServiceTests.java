@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.axcore.platform.TestcontainersConfiguration;
 import com.axcore.platform.check.CheckRunTestFixtures;
+import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.issue.dto.IssueStatusChangeRequest;
 import com.axcore.platform.issue.service.IssueStatusService;
 import java.time.Instant;
@@ -161,9 +162,7 @@ class IssueReopenServiceTests {
                 fixtures.insertRun("REVERIFY", "SUCCEEDED", AFTER_FIX, detectedRunId, accountId);
         fixtures.insertVerification(issueId, passedId, "PASSED");
         statusService.change(
-                issueId,
-                new IssueStatusChangeRequest("RESOLVED", "통과 확인", passedId, 1L),
-                accountId);
+                issueId, new IssueStatusChangeRequest("RESOLVED", "통과 확인", passedId, 1L), admin());
         long laterRunId = failedReverification(issueId, AFTER_FIX.plusSeconds(600));
 
         assertThat(statusService.reopenAfterFailedReverification(issueId, laterRunId)).isFalse();
@@ -198,7 +197,7 @@ class IssueReopenServiceTests {
         statusService.change(
                 issueId,
                 new IssueStatusChangeRequest("FIXED_PENDING_REVERIFY", "다시 수정함", null, 2L),
-                accountId);
+                admin());
         long passedId =
                 fixtures.insertRun(
                         "REVERIFY",
@@ -208,9 +207,7 @@ class IssueReopenServiceTests {
                         accountId);
         fixtures.insertVerification(issueId, passedId, "PASSED");
         statusService.change(
-                issueId,
-                new IssueStatusChangeRequest("RESOLVED", "재검증 통과", passedId, 3L),
-                accountId);
+                issueId, new IssueStatusChangeRequest("RESOLVED", "재검증 통과", passedId, 3L), admin());
 
         assertThat(issueRow(issueId))
                 .containsEntry("status", "RESOLVED")
@@ -297,5 +294,9 @@ class IssueReopenServiceTests {
                 .param("id", issueId)
                 .query(Long.class)
                 .single();
+    }
+
+    private LoginAccount admin() {
+        return new LoginAccount(accountId, "admin", "ADMIN", false);
     }
 }

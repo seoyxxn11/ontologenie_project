@@ -38,14 +38,22 @@ class ObjectInstanceReadBoundaryTests {
                     "audit/repository/AuditExecutionQueryRepository.java",
                             "실행 이력의 대상 표시 이름. 볼 수 있는 유형만, ObjectDisplaySql로 가린다(390)");
 
-    /** 사용자 응답에 객체 값을 내보내지 않는 곳(쓰기, 내부 작업, ID·유형·건수만 읽는 확인). */
+    /**
+     * 사용자 요청 없이 돌거나 객체 값을 바로 응답에 담지 않는 곳(쓰기, 내부 작업, ID·유형·건수만 읽는 확인). 검사 배치처럼 읽은 값을 사본으로 저장해 뒤에
+     * 응답으로 내보내는 곳은 그 사본을 돌려주는 쪽이 범위를 다시 적용한다. 설명에 그 위치를 적는다.
+     */
     private static final Map<String, String> INTERNAL =
             Map.ofEntries(
                     Map.entry(
                             "action/repository/ActionReferenceRepository.java", "범위 검사용 객체 유형 ID"),
                     Map.entry("agent/repository/DataAsOfRepository.java", "결과 객체의 원천 수집 상태(값 없음)"),
-                    Map.entry("check/repository/CheckJudgmentReader.java", "정합성 검사 배치"),
-                    Map.entry("check/repository/CheckObjectReader.java", "정합성 검사 배치"),
+                    Map.entry(
+                            "check/repository/CheckJudgmentReader.java",
+                            "정합성 검사 배치(수집 실패·삭제 여부만, 값 없음)"),
+                    Map.entry(
+                            "check/repository/CheckObjectReader.java",
+                            "정합성 검사 배치. 읽은 값의 사본이 문제(065~068)·검사 결과 표본(062)·재검증 기록(070)·재검증 비교로"
+                                    + " 나간다. 응답 때 StoredCheckValues가 규칙의 지금 정의와 보는 사람의 범위로 가린다(403)"),
                     Map.entry(
                             "mapping/repository/ObjectSourceMappingRepository.java",
                             "매핑을 쓰는 객체가 있는지"),

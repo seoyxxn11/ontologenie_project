@@ -2,25 +2,32 @@ package com.axcore.platform.review.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
+import com.axcore.platform.audit.service.RestrictedViewRecorder;
+import com.axcore.platform.auth.service.DataAccessPolicy;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
+import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.review.domain.ProposalItem;
 import com.axcore.platform.review.dto.LatestCheckResponse;
 import com.axcore.platform.review.dto.ProposalResponse;
 import com.axcore.platform.review.dto.ProposalSearchRequest;
 import com.axcore.platform.review.repository.ProposalItemRepository;
 import com.axcore.platform.review.repository.ProposalLatestCheckRepository;
+import com.axcore.platform.review.service.ProposalEvidenceScope.Shown;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatchers;
@@ -40,7 +47,27 @@ class ProposalServiceTests {
 
     @Mock ProposalLatestCheckRepository proposalLatestCheckRepository;
 
+    @Mock DataAccessPolicy dataAccessPolicy;
+
+    @Mock ProposalEvidenceScope evidenceScope;
+
+    @Mock RestrictedViewRecorder restrictedViews;
+
+    private static final LoginAccount ADMIN = new LoginAccount(1L, "admin", "ADMIN", false);
+
     @InjectMocks ProposalService proposalService;
+
+    // 근거 가림은 StoredCopyScopeApiTests(실제 DB·보안 설정)에서 본다. 여기서는 근거를 그대로 넘긴다.
+    @BeforeEach
+    void passEvidenceThrough() {
+        lenient()
+                .when(evidenceScope.show(any(), any()))
+                .thenAnswer(
+                        invocation -> {
+                            List<Map<String, Object>> evidences = invocation.getArgument(1);
+                            return evidences.stream().map(e -> new Shown(e, List.of())).toList();
+                        });
+    }
 
     @Test
     void returnsProposalAsResponse() {
@@ -48,7 +75,7 @@ class ProposalServiceTests {
 
         given(proposalItemRepository.findById(10L)).willReturn(Optional.of(proposal));
 
-        ProposalResponse response = proposalService.getProposal(10L);
+        ProposalResponse response = proposalService.getProposal(ADMIN, 10L);
 
         assertThat(response.id()).isEqualTo(10L);
         assertThat(response.analysisRunId()).isEqualTo(12L);
@@ -71,7 +98,7 @@ class ProposalServiceTests {
     void throwsNotFoundWhenProposalDoesNotExist() {
         given(proposalItemRepository.findById(999L)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> proposalService.getProposal(999L))
+        assertThatThrownBy(() -> proposalService.getProposal(ADMIN, 999L))
                 .isInstanceOfSatisfying(
                         BusinessException.class,
                         exception -> {
@@ -101,7 +128,7 @@ class ProposalServiceTests {
                                 ArgumentMatchers.<Specification<ProposalItem>>any(), eq(pageable)))
                 .willReturn(repositoryResult);
 
-        Page<ProposalResponse> result = proposalService.search(request, pageable);
+        Page<ProposalResponse> result = proposalService.search(ADMIN, request, pageable);
 
         assertThat(result.getContent()).extracting(ProposalResponse::id).containsExactly(10L);
         assertThat(result.getContent().getFirst().origin()).isEqualTo("AI");
@@ -127,7 +154,7 @@ class ProposalServiceTests {
                                 ArgumentMatchers.<Specification<ProposalItem>>any(), eq(pageable)))
                 .willReturn(Page.<ProposalItem>empty(pageable));
 
-        Page<ProposalResponse> result = proposalService.search(request, pageable);
+        Page<ProposalResponse> result = proposalService.search(ADMIN, request, pageable);
 
         assertThat(result.getContent()).isEmpty();
         assertThat(result.getNumber()).isZero();
@@ -150,7 +177,7 @@ class ProposalServiceTests {
         given(proposalLatestCheckRepository.findLatestByProposalRevisions(Map.of(10L, 3)))
                 .willReturn(Map.of(10L, check));
 
-        ProposalResponse result = proposalService.getProposal(10L);
+        ProposalResponse result = proposalService.getProposal(ADMIN, 10L);
 
         assertThat(result.revision()).isEqualTo(3);
         assertThat(result.latestCheck()).isEqualTo(check);
@@ -179,7 +206,7 @@ class ProposalServiceTests {
         given(proposalLatestCheckRepository.findLatestByProposalRevisions(Map.of(10L, 3, 11L, 2)))
                 .willReturn(Map.of(10L, firstCheck, 11L, secondCheck));
 
-        Page<ProposalResponse> result = proposalService.search(request, pageable);
+        Page<ProposalResponse> result = proposalService.search(ADMIN, request, pageable);
 
         assertThat(result.getContent())
                 .extracting(ProposalResponse::latestCheck)
@@ -210,7 +237,7 @@ class ProposalServiceTests {
         given(proposalLatestCheckRepository.findLatestByProposalRevisions(Map.of(10L, 3, 11L, 2)))
                 .willReturn(Map.of(10L, check));
 
-        Page<ProposalResponse> result = proposalService.search(request, pageable);
+        Page<ProposalResponse> result = proposalService.search(ADMIN, request, pageable);
 
         assertThat(result.getContent().get(0).latestCheck()).isEqualTo(check);
         assertThat(result.getContent().get(1).latestCheck()).isNull();

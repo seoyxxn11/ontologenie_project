@@ -1,6 +1,7 @@
 package com.axcore.platform.check.controller;
 
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -57,7 +58,8 @@ class CheckResultControllerTests {
 
         Page<CheckResultResponse> result = new PageImpl<>(List.of(sampleResponse()), pageable, 3);
 
-        given(checkResultService.search(eq(10L), eq(request), eq(pageable))).willReturn(result);
+        given(checkResultService.search(any(), eq(10L), eq(request), eq(pageable)))
+                .willReturn(result);
 
         mockMvc.perform(
                         get(PATH)
@@ -97,7 +99,7 @@ class CheckResultControllerTests {
 
         PageRequest pageable = PageRequest.of(0, 20, Sort.by("id").ascending());
 
-        given(checkResultService.search(eq(10L), eq(request), eq(pageable)))
+        given(checkResultService.search(any(), eq(10L), eq(request), eq(pageable)))
                 .willReturn(Page.empty(pageable));
 
         mockMvc.perform(get(PATH).with(loggedIn("ADMIN")).param("linkMappingId", "600"))
@@ -113,7 +115,7 @@ class CheckResultControllerTests {
 
         PageRequest pageable = PageRequest.of(0, 20, Sort.by("id").ascending());
 
-        given(checkResultService.search(eq(10L), eq(request), eq(pageable)))
+        given(checkResultService.search(any(), eq(10L), eq(request), eq(pageable)))
                 .willReturn(Page.empty(pageable));
 
         mockMvc.perform(get(PATH).with(loggedIn("ADMIN")))
@@ -136,7 +138,7 @@ class CheckResultControllerTests {
                 new CheckResultResponse(
                         21L, 10L, null, 30L, 2, null, 0, 0, 0, 0, 0, 0, null, List.of());
 
-        given(checkResultService.search(eq(10L), eq(request), eq(pageable)))
+        given(checkResultService.search(any(), eq(10L), eq(request), eq(pageable)))
                 .willReturn(new PageImpl<>(List.of(response), pageable, 1));
 
         mockMvc.perform(get(PATH).with(loggedIn("ADMIN")))
@@ -154,7 +156,7 @@ class CheckResultControllerTests {
 
         PageRequest pageable = PageRequest.of(0, 20, Sort.by("id").ascending());
 
-        given(checkResultService.search(eq(999L), eq(request), eq(pageable)))
+        given(checkResultService.search(any(), eq(999L), eq(request), eq(pageable)))
                 .willThrow(
                         new BusinessException(
                                 CommonErrorCode.RESOURCE_NOT_FOUND,

@@ -2,6 +2,7 @@ package com.axcore.platform.issue.service;
 
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
+import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.issue.domain.Issue;
 import com.axcore.platform.issue.domain.IssueErrorCode;
 import com.axcore.platform.issue.domain.IssueStatus;
@@ -32,9 +33,12 @@ public class IssueStatusService {
     private final IssueRepository issueRepository;
     private final IssueStatusRepository issueStatusRepository;
     private final Clock clock;
+    private final IssueResponses responses;
 
     @Transactional
-    public IssueResponse change(long issueId, IssueStatusChangeRequest request, long accountId) {
+    public IssueResponse change(
+            long issueId, IssueStatusChangeRequest request, LoginAccount actor) {
+        long accountId = actor.id();
         IssueStatus target = IssueStatus.valueOf(request.status());
         requireRunOnlyForResolution(target, request.resolvedCheckRunId());
 
@@ -92,7 +96,7 @@ public class IssueStatusService {
                 request.resolvedCheckRunId(),
                 accountId,
                 now);
-        return IssueResponse.from(issue);
+        return responses.of(actor, "ISSUE_STATUS", issue);
     }
 
     /**

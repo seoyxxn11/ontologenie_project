@@ -26,9 +26,13 @@ public record CheckRunTestFixtures(JdbcClient jdbc) {
                 .single();
     }
 
-    /** 코드 앞에 붙일 이름을 받아 겹치지 않는 객체 유형을 만든다. 실제 코드는 {@link #typeCode}로 읽는다. */
+    /**
+     * 코드 앞에 붙일 이름을 받아 겹치지 않는 객체 유형을 만든다. 실제 코드는 {@link #typeCode}로 읽는다. ADMIN이 보는 그룹(PRODUCTION)에
+     * 둔다. 검사 결과·문제 응답은 보는 사람의 조회 범위로 값을 가리므로(403), 그룹이 없으면 값이 응답에 나오지 않는다.
+     */
     public long insertObjectType(String prefix) {
-        return jdbc.sql("insert into object_type (code, name) values (:code, :code) returning id")
+        return jdbc.sql(
+                        "insert into object_type (code, name, access_group) values (:code, :code, 'PRODUCTION') returning id")
                 .param("code", prefix + "_" + UUID.randomUUID().toString().substring(0, 8))
                 .query(Long.class)
                 .single();

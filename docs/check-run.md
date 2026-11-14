@@ -10,7 +10,7 @@ FN-CHK-01·02의 검사 실행 목록·상태 조회, 수동 검사·재검증 �
 | 060 | `POST /api/v1/checks/runs` | 새 접수·합류 202. 끝난 결과는 다시 쓰지 않는다(389). `data`는 검사 실행에 `joined`·`reused`(늘 false)를 더한 것 |
 | 061 | `GET /api/v1/checks/runs/{id}` | `data` 객체(059 항목과 같은 형식) |
 
-062 결과 조회는 정유림 담당(`CheckResultController`)이다.
+062 결과 조회는 정유림 담당(`CheckResultController`)이다. 062의 판정 표본(`sampleRows`)은 저장된 그대로 내보내지 않고, 그 결과를 낸 규칙(승인 규칙 개정본, 후보 시험이면 그 후보 개정본)의 지금 정의와 보는 사람의 조회 범위로 가린다(403). 가린 칸은 표본의 `restrictedFields`에 더한다. 기준은 [data-access.md](data-access.md) "저장된 사본 (403)"이다.
 
 **실행기(191-2):** 접수된 MANUAL·REVERIFY·SYNC 검사는 batch의 `CheckRunJob`이 돌린다(아래 "실행기"). 원천이 아니라 수집한 플랫폼 객체(`object_instance`)를 읽어 판정한다(결정 문서 `2026-11-05-cdc-initial-load.md` 9.1: 수집·연결 계산과 같은 데이터를 본다). 원천을 읽는 것은 승인 전 후보 시험(CANDIDATE)뿐이고, 이 실행기는 CANDIDATE를 가져가지 않는다.
 
@@ -182,7 +182,7 @@ batch 프로필의 작업 표 처리기(`QueuedJobHandler`, `CHECK_RUN`)다. `tr
 `GET /api/v1/checks/runs/{id}/comparison?page=0&size=20`은 관리자 전용이다. 재검증 실행에 저장된 `comparedToRunId`가 비교 기준이다. `page`는 0 이상, `size`는 1~100이며, 행은 규칙 코드와 출발 객체 ID 오름차순이다.
 
 - `data`에는 `comparedToRunId`, `coverage`, `hasBaselinePassEvidence`, `rows`가 있다. `hasBaselinePassEvidence`는 비교 결과를 조회할 때 이전 실행에 정상 판정 근거가 하나라도 남아 있는지 나타낸다. 진행 중이거나 실패한 실행은 `false`를 반환한다. `coverage`는 확인 가능한 행이 있는 `PARTIAL`, 또는 확인 가능한 행이 없는 `UNAVAILABLE`이다. 진행 중이거나 실패한 실행도 `UNAVAILABLE`과 빈 목록을 반환한다. `meta`는 페이지 정보다.
-- 행마다 `ruleCode`, `objectInstanceId`, `category`, `before`, `after`를 반환한다. 근거에는 각 실행에서 사용한 규칙 개정본 ID(`linkMappingId`), 판정(`classification`), 저장된 원본·변환 값과 사유가 포함된다.
+- 행마다 `ruleCode`, `objectInstanceId`, `category`, `before`, `after`를 반환한다. 근거에는 각 실행에서 사용한 규칙 개정본 ID(`linkMappingId`), 판정(`classification`), 저장된 원본·변환 값과 사유가 포함된다. 원본·변환 값은 그 개정본과 보는 사람의 조회 범위로 가리고(403), 가린 칸은 근거의 `restrictedFields`에 있다. 분류(`category`)는 가리기 전 값으로 정한다.
 - 두 실행에 저장된 이상 행 표본과 문제별 판정을 같은 규칙 코드 및 출발 객체 ID로 대조한다. 이상→정상은 `RESOLVED`, 이상→이상은 `REMAINING`, 정상→이상은 `NEW`다. 이전 정상 판정은 저장된 통과 기록으로 확인해야 한다. 이전 실행에 정상 판정이 저장되지 않은 경우 화면에 신규 문제 확인 불가를 표시한다.
 - 삭제, 행 조건 제외, 표본 상한 또는 검증 대상 차이로 한쪽 판정이 없으면 그 행은 분류하지 않는다. 비교의 `RESOLVED`는 두 실행에서 관찰한 결과다. 문제 상태의 해결 처리는 API 067이 통과 이력과 상태를 다시 확인해 별도로 처리한다.
 - 구현이 없으면 부르지 않고 규칙별 결과만 저장한다. 범위가 ALL·LINK_MAPPINGS인 재검증도 부르지 않는다.

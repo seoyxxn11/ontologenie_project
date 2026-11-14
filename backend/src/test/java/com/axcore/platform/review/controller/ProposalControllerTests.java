@@ -1,5 +1,6 @@
 package com.axcore.platform.review.controller;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -55,7 +56,7 @@ class ProposalControllerTests {
 
         Page<ProposalResponse> result = new PageImpl<>(List.of(sampleResponse()), pageable, 3);
 
-        given(proposalService.search(eq(request), eq(pageable))).willReturn(result);
+        given(proposalService.search(any(), eq(request), eq(pageable))).willReturn(result);
 
         mockMvc.perform(
                         get("/api/v1/proposals")
@@ -82,7 +83,8 @@ class ProposalControllerTests {
 
         PageRequest pageable = PageRequest.of(0, 20, Sort.by("id").descending());
 
-        given(proposalService.search(eq(request), eq(pageable))).willReturn(Page.empty(pageable));
+        given(proposalService.search(any(), eq(request), eq(pageable)))
+                .willReturn(Page.empty(pageable));
 
         mockMvc.perform(get("/api/v1/proposals").with(loggedIn("ADMIN")))
                 .andExpect(status().isOk())
@@ -95,7 +97,7 @@ class ProposalControllerTests {
 
     @Test
     void returnsDetailWithLatestCheckForAdmin() throws Exception {
-        given(proposalService.getProposal(10L)).willReturn(sampleResponse());
+        given(proposalService.getProposal(any(), eq(10L))).willReturn(sampleResponse());
 
         mockMvc.perform(get("/api/v1/proposals/10").with(loggedIn("ADMIN")))
                 .andExpect(status().isOk())
@@ -112,7 +114,7 @@ class ProposalControllerTests {
 
     @Test
     void returnsNotFoundForUnknownProposal() throws Exception {
-        given(proposalService.getProposal(999L))
+        given(proposalService.getProposal(any(), eq(999L)))
                 .willThrow(
                         new BusinessException(
                                 CommonErrorCode.RESOURCE_NOT_FOUND,

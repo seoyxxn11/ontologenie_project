@@ -58,7 +58,8 @@ public class IssueController {
         requireAdmin(account);
         int page = request.page() == null ? 0 : request.page();
         int size = request.size() == null ? 20 : request.size();
-        return ApiResponse.ofPage(issueQueryService.search(request, PageRequest.of(page, size)));
+        return ApiResponse.ofPage(
+                issueQueryService.search(account, request, PageRequest.of(page, size)));
     }
 
     @GetMapping("/{id}")
@@ -66,7 +67,7 @@ public class IssueController {
             @PathVariable("id") @Min(value = 1, message = "id는 1 이상이어야 합니다.") long id,
             @AuthenticationPrincipal LoginAccount account) {
         requireAdmin(account);
-        return ApiResponse.of(issueQueryService.getIssue(id));
+        return ApiResponse.of(issueQueryService.getIssue(account, id));
     }
 
     @PatchMapping("/{id}/status")
@@ -75,7 +76,7 @@ public class IssueController {
             @Valid @RequestBody IssueStatusChangeRequest request,
             @AuthenticationPrincipal LoginAccount account) {
         requireAdmin(account);
-        return ApiResponse.of(issueStatusService.change(id, request, account.id()));
+        return ApiResponse.of(issueStatusService.change(id, request, account));
     }
 
     @PostMapping("/{id}/forward")
@@ -84,7 +85,7 @@ public class IssueController {
             @Valid @RequestBody IssueForwardRequest request,
             @AuthenticationPrincipal LoginAccount account) {
         requireAdmin(account);
-        return ApiResponse.of(issueForwardService.forward(id, request, account.id()));
+        return ApiResponse.of(issueForwardService.forward(id, request, account));
     }
 
     @PostMapping("/{issueId}/manual-links")
@@ -117,7 +118,7 @@ public class IssueController {
         int page = request.page() == null ? 0 : request.page();
         int size = request.size() == null ? 20 : request.size();
         return ApiResponse.ofPage(
-                issueVerificationQueryService.search(id, PageRequest.of(page, size)));
+                issueVerificationQueryService.search(account, id, PageRequest.of(page, size)));
     }
 
     private static void requireAdmin(LoginAccount account) {

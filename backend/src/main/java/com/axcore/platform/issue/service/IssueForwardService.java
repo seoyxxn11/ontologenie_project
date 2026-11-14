@@ -2,6 +2,7 @@ package com.axcore.platform.issue.service;
 
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
+import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.issue.domain.Issue;
 import com.axcore.platform.issue.domain.IssueErrorCode;
 import com.axcore.platform.issue.domain.IssueStatus;
@@ -27,9 +28,10 @@ public class IssueForwardService {
 
     private final IssueRepository issueRepository;
     private final Clock clock;
+    private final IssueResponses responses;
 
     @Transactional
-    public IssueResponse forward(long issueId, IssueForwardRequest request, long accountId) {
+    public IssueResponse forward(long issueId, IssueForwardRequest request, LoginAccount actor) {
         Issue issue =
                 issueRepository
                         .findForUpdate(issueId)
@@ -52,8 +54,8 @@ public class IssueForwardService {
                     IssueErrorCode.ISSUE_ALREADY_RESOLVED,
                     Map.of("currentStatus", issue.getStatus().name()));
         }
-        issue.forward(accountId, Instant.now(clock));
+        issue.forward(actor.id(), Instant.now(clock));
         issueRepository.flush();
-        return IssueResponse.from(issue);
+        return responses.of(actor, "ISSUE_FORWARD", issue);
     }
 }
