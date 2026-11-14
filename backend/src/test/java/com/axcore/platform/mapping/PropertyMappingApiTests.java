@@ -345,6 +345,211 @@ class PropertyMappingApiTests {
     }
 
     /**
+     * 401: 매핑을 끄고 지운 뒤 민감 속성을 일반으로 내리는 우회를 막는다. 꺼진 매핑의 객체에는 값이 남고, 그 값이 남아 있는 동안은 지우기를 명시해야만 내릴 수
+     * 있다(속성 지우기는 원래부터 막힌다). 지우기를 명시하면 남은 값을 지우고 내린다.
+     */
+    @Test
+    void remainingRestrictedValuesBlockLoweringAfterMappingIsGone() throws Exception {
+        LoginSession admin = loginAs("ADMIN");
+        Fixture f = fixture(4096L, true);
+        renameResource(f, "mes.worker");
+        long skill = f.columns.get("emp_name");
+        jdbcClient
+                .sql("update source_column set column_name = 'skill_level' where id = :id")
+                .param("id", skill)
+                .update();
+        long property = f.properties.get("emp_name");
+        long mapping = createMapping(admin, f, property, skill, "", true);
+        long object = storeObject(f, "{\"emp_no\": \"W1\", \"emp_name\": \"A등급\"}");
+
+        // 객체 매핑을 끄고(036) 속성 매핑을 지운다(101). 부모가 꺼져 있어 다시 읽기가 없으니 값은 객체에 남는다.
+        send(
+                        admin,
+                        patch("/api/v1/ontology/object-mappings/" + f.mapping),
+                        objectMappingBody(f, "\"emp_no\"", false))
+                .andExpect(status().isOk());
+        send(admin, delete(BASE_PATH + "/" + mapping), null).andExpect(status().isOk());
+
+        send(
+                        admin,
+                        patch("/api/v1/ontology/properties/" + property),
+                        sensitivityBody(property, "NORMAL", ""))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.details.reason").value("RESTRICTED_VALUES_REMAIN"))
+                .andExpect(jsonPath("$.error.details.objectCount").value(1))
+                .andExpect(jsonPath("$.error.details.objectIds", contains((int) object)));
+        // 지우기(029)는 값이 남은 객체를 참조로 보고 원래부터 막는다.
+        send(admin, delete("/api/v1/ontology/properties/" + property), null)
+                .andExpect(status().isConflict());
+
+        // 남은 값을 지우고 내리기를 명시하면 객체에서 값을 지우고 내린다. 다시 읽기로는 꺼진 매핑의 값을 비울 수 없다.
+        send(
+                        admin,
+                        patch("/api/v1/ontology/properties/" + property),
+                        sensitivityBody(property, "NORMAL", ", \"clearRestrictedValues\": true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.sensitivity").value("NORMAL"));
+        assertThat(
+                        jdbcClient
+                                .sql(
+                                        "select jsonb_exists(properties, 'emp_name') from object_instance where id = :id")
+                                .param("id", object)
+                                .query(Boolean.class)
+                                .single())
+                .isFalse();
+    }
+
+    /** 401: 사람이 지정한 민감 속성도 값이 남아 있으면 일반으로 내릴 수 없다. 매핑이 없어도 같다. 남은 것이 JSON null뿐이면 내릴 수 있다. */
+    @Test
+    void manuallyRestrictedPropertyWithValuesCannotBeLowered() throws Exception {
+        LoginSession admin = loginAs("ADMIN");
+        Fixture f = fixture(4096L, true);
+        long property = f.properties.get("hire_date");
+        jdbcClient
+                .sql("update property_definition set sensitivity = 'RESTRICTED' where id = :id")
+                .param("id", property)
+                .update();
+        long filled = storeObject(f, "{\"emp_no\": \"E1\", \"hire_date\": \"2020-01-01\"}");
+        storeObject(f, "{\"emp_no\": \"E2\", \"hire_date\": null}");
+
+        send(
+                        admin,
+                        patch("/api/v1/ontology/properties/" + property),
+                        sensitivityBody(property, "NORMAL", ""))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.details.reason").value("RESTRICTED_VALUES_REMAIN"))
+                .andExpect(jsonPath("$.error.details.objectCount").value(1));
+
+        jdbcClient
+                .sql(
+                        "update object_instance set properties = jsonb_set(properties, '{hire_date}', 'null') where id = :id")
+                .param("id", filled)
+                .update();
+        send(
+                        admin,
+                        patch("/api/v1/ontology/properties/" + property),
+                        sensitivityBody(property, "NORMAL", ""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.sensitivity").value("NORMAL"));
+    }
+
+    /** 401: 매핑을 일반 컬럼으로 옮겨도 다시 읽기 전에는 예전 민감 값이 객체에 남아 있어 내릴 수 없다. */
+    @Test
+    void movingTheMappingDoesNotLowerBeforeTheValuesAreReloaded() throws Exception {
+        LoginSession admin = loginAs("ADMIN");
+        Fixture f = fixture(4096L, true);
+        long property = f.properties.get("emp_name");
+        jdbcClient
+                .sql("update property_definition set sensitivity = 'RESTRICTED' where id = :id")
+                .param("id", property)
+                .update();
+        long mapping = createMapping(admin, f, property, f.columns.get("emp_name"), "", true);
+        storeObject(f, "{\"emp_no\": \"E1\", \"emp_name\": \"홍길동\"}");
+
+        send(
+                        admin,
+                        patch(BASE_PATH + "/" + mapping),
+                        updateBody(f, property, f.columns.get("hire_date"), "", 0))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.reloadRequired").value(true));
+        send(
+                        admin,
+                        patch("/api/v1/ontology/properties/" + property),
+                        sensitivityBody(property, "NORMAL", ""))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.details.reason").value("RESTRICTED_VALUES_REMAIN"));
+    }
+
+    /**
+     * 401: 민감 속성은 객체 매핑의 키 컬럼에 매핑할 수 없다. 키 값은 원천 키·표시 이름으로 남고, 원천 키 가림은 그 컬럼에 민감 속성이 매핑돼 있을 때만
+     * 동작하므로 매핑을 바꾸는 순간 드러난다. 매핑할 때, 민감으로 올릴 때, 객체 매핑의 키를 바꿀 때 모두 막는다.
+     */
+    @Test
+    void restrictedPropertiesStayOffKeyColumns() throws Exception {
+        LoginSession admin = loginAs("ADMIN");
+        Fixture f = fixture(4096L, true);
+        long restricted = f.properties.get("hire_date");
+        jdbcClient
+                .sql("update property_definition set sensitivity = 'RESTRICTED' where id = :id")
+                .param("id", restricted)
+                .update();
+        send(admin, post(BASE_PATH), body(f, restricted, f.columns.get("emp_no"), ""))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.details.reason").value("RESTRICTED_KEY"));
+
+        long normal = f.properties.get("emp_name");
+        createMapping(admin, f, normal, f.columns.get("emp_no"), "", true);
+        send(
+                        admin,
+                        patch("/api/v1/ontology/properties/" + normal),
+                        sensitivityBody(normal, "RESTRICTED", ""))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.details.reason").value("RESTRICTED_KEY"));
+
+        createMapping(admin, f, restricted, f.columns.get("hire_date"), "", true);
+        send(
+                        admin,
+                        patch("/api/v1/ontology/object-mappings/" + f.mapping),
+                        objectMappingBody(f, "\"emp_no\", \"hire_date\"", true))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.details.reason").value("RESTRICTED_KEY"));
+    }
+
+    private long storeObject(Fixture f, String properties) {
+        return jdbcClient
+                .sql(
+                        """
+                        insert into object_instance (object_type_id, source_mapping_id, source_key, display_name, properties)
+                        select p.object_type_id, :mapping, cast(:key as jsonb), 'obj', cast(:properties as jsonb)
+                        from property_definition p where p.id = :property
+                        returning id
+                        """)
+                .param("mapping", f.mapping)
+                .param("key", "{\"emp_no\": \"" + UUID.randomUUID() + "\"}")
+                .param("properties", properties)
+                .param("property", f.properties.get("emp_no"))
+                .query(Long.class)
+                .single();
+    }
+
+    private String sensitivityBody(long property, String sensitivity, String extra) {
+        PropertyRow row =
+                jdbcClient
+                        .sql(
+                                "select code, data_type, row_version from property_definition where id = :id")
+                        .param("id", property)
+                        .query(PropertyRow.class)
+                        .single();
+        return """
+                {"name": "%s", "dataType": "%s", "isRequired": false, "sensitivity": "%s",
+                 "rowVersion": %d%s}
+                """
+                .formatted(row.code(), row.dataType(), sensitivity, row.rowVersion(), extra);
+    }
+
+    private String objectMappingBody(Fixture f, String keys, boolean active) {
+        Map<String, Object> row =
+                jdbcClient
+                        .sql(
+                                "select object_type_id, row_version from object_source_mapping where id = :id")
+                        .param("id", f.mapping)
+                        .query()
+                        .singleRow();
+        return """
+                {"sourceResourceId": %d, "objectTypeId": %d, "keyColumns": [%s], "rowFilter": {},
+                 "isActive": %s, "rowVersion": %d}
+                """
+                .formatted(
+                        f.resource,
+                        ((Number) row.get("object_type_id")).longValue(),
+                        keys,
+                        active,
+                        ((Number) row.get("row_version")).longValue());
+    }
+
+    private record PropertyRow(String code, String dataType, long rowVersion) {}
+
+    /**
      * 민감 컬럼을 매핑하면 속성을 민감으로 올리고, 대표 속성이었으면 대표를 비운다. 그 뒤 속성을 일반으로 내리면 거절한다. 식별 속성에는 민감 컬럼을 매핑할 수
      * 없다(391).
      */

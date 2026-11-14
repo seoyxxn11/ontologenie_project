@@ -5,6 +5,7 @@ import com.axcore.platform.global.error.CommonErrorCode;
 import com.axcore.platform.mapping.domain.PropertySourceMapping;
 import com.axcore.platform.mapping.repository.PropertySourceMappingRepository;
 import com.axcore.platform.mapping.service.MappedResourceReload;
+import com.axcore.platform.mapping.service.RestrictedKeyGuard;
 import com.axcore.platform.ontology.domain.DefinitionSource;
 import com.axcore.platform.ontology.domain.PropertyConstraints;
 import com.axcore.platform.ontology.domain.PropertyDataType;
@@ -50,6 +51,7 @@ public class PropertyService {
     private final SourceColumnPolicy sourceColumnPolicy;
     private final LinkKeyUsage linkKeyUsage;
     private final MappedResourceReload mappedResourceReload;
+    private final RestrictedKeyGuard restrictedKeyGuard;
 
     /** API 026. 등록 순서로 돌려준다. */
     public List<PropertyResponse> findProperties(Long objectTypeId) {
@@ -106,11 +108,20 @@ public class PropertyService {
         if (request.hasCode()) {
             throw BusinessException.invalidField("code", "속성 코드는 바꿀 수 없습니다. 새 속성을 등록하세요.");
         }
-        // 민감으로 올리면 이 속성이 매핑된 표를 다시 읽는다(391, MappedResourceReload). 매핑 변경·수집과 같은 순서(원천 자원 → 정의)로
-        // 잠그려고
-        // 속성 행보다 먼저 원천 자원을 잠근다.
+        // 민감도를 바꾸면 이 속성이 매핑된 표를 잠근다. 올리면 다시 읽어 CDC가 건너뛴 변경을 되찾고(391), 내리며 값을 지우면 다시 읽어 일반 값으로
+        // 채운다(401). 잠그는 동안 수집이 이 속성 값을 쓰지 못한다. 매핑 변경·수집과 같은 순서(원천 자원 → 정의)로 속성 행보다 먼저 잠근다.
+        PropertySensitivity requested =
+                request.getSensitivity() == null
+                        ? null
+                        : PropertySensitivity.valueOf(request.getSensitivity());
+        boolean changesSensitivity =
+                requested != null
+                        && propertyDefinitionRepository
+                                .findSensitivity(id)
+                                .map(current -> current != requested)
+                                .orElse(false);
         List<SourceResource> mappedResources =
-                PropertySensitivity.RESTRICTED.name().equals(request.getSensitivity())
+                changesSensitivity
                         ? mappedResourceReload.lockMappedResources(id, Set.of())
                         : List.of();
         // 024(대표 속성 지정)와 같은 행 잠금을 잡는다. 대표 지정과 민감 전환이 동시에 와도 뒤의 요청이 최신 값을 보고 거절된다.
@@ -142,6 +153,17 @@ public class PropertyService {
                         : PropertySensitivity.valueOf(request.getSensitivity());
         rejectRestrictedDisplayProperty(property, sensitivity);
         rejectBelowSourcePolicy(property, sensitivity);
+        boolean clearValues =
+                before == PropertySensitivity.RESTRICTED
+                        && sensitivity != PropertySensitivity.RESTRICTED
+                        && requireClearableRestrictedValues(
+                                property, Boolean.TRUE.equals(request.getClearRestrictedValues()));
+        boolean raised =
+                before != PropertySensitivity.RESTRICTED
+                        && sensitivity == PropertySensitivity.RESTRICTED;
+        if (raised) {
+            restrictedKeyGuard.requireNoKeyMapping(property.getId(), "sensitivity");
+        }
         rejectRestrictedKey(
                 property,
                 request.getIsIdentifier() == null
@@ -161,9 +183,11 @@ public class PropertyService {
                 constraints,
                 sensitivity,
                 temporalRole);
-        // 391 이전 매핑 때문에 적재 계획이 실패해 CDC가 건너뛴 변경을 되찾는다. 이미 민감이었으면 다시 읽지 않는다.
-        if (before != PropertySensitivity.RESTRICTED
-                && sensitivity == PropertySensitivity.RESTRICTED) {
+        if (clearValues) {
+            propertyValueRepository.clearValues(property.getObjectTypeId(), property.getCode());
+        }
+        // 올리면 391 이전 매핑 때문에 CDC가 건너뛴 변경을 되찾고, 내리며 값을 지웠으면 켜진 매핑의 값을 일반 값으로 다시 채운다.
+        if (raised || clearValues) {
             mappedResourceReload.requireFullReload(mappedResources);
         }
         // 응답의 rowVersion·수정 시각이 이번 변경을 반영하도록 먼저 DB에 쓴다.
@@ -281,6 +305,38 @@ public class PropertyService {
                                 column.getColumnName()));
             }
         }
+    }
+
+    /**
+     * 민감 속성을 일반으로 내릴 때 객체에 남은 값을 본다(384·401). 매핑을 끄거나 지운 뒤에도 객체에는 값이 남고, 그 상태로 내리면 저장된 민감 값이 모든 역할과
+     * 외부 모델에 나간다. 사람이 지정한 민감 속성도 같다. 값이 남아 있으면 요청이 지우기({@code clearRestrictedValues})를 명시했을 때만 그 값을
+     * 지우고 내린다. 다시 읽기로는 비울 수 없는 값(원천에서 지워진 객체, 꺼진 매핑의 객체)이 있어 서버가 직접 지운다. 지우기(029)는 값이 남은 객체를 참조로 보고
+     * 이미 막는다.
+     *
+     * @return 값을 지워야 하면 true
+     */
+    private boolean requireClearableRestrictedValues(PropertyDefinition property, boolean clear) {
+        ValueConflict remaining =
+                propertyValueRepository.findPresentValues(
+                        property.getObjectTypeId(), property.getCode());
+        if (!remaining.exists()) {
+            return false;
+        }
+        if (clear) {
+            return true;
+        }
+        throw new BusinessException(
+                CommonErrorCode.BUSINESS_RULE_VIOLATION,
+                "민감 값이 객체에 남아 있습니다. 남은 값을 지우고 내리려면 clearRestrictedValues를 true로 보내세요.",
+                Map.of(
+                        "field",
+                        "sensitivity",
+                        "reason",
+                        "RESTRICTED_VALUES_REMAIN",
+                        "objectCount",
+                        remaining.count(),
+                        "objectIds",
+                        remaining.objectIds()));
     }
 
     /**

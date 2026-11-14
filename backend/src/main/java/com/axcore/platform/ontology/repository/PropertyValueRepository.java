@@ -36,6 +36,29 @@ public class PropertyValueRepository {
                 Map.of());
     }
 
+    /** 값(null 아님)이 남아 있는 객체. 민감 속성을 일반으로 내리기 전에 확인한다(384·401). 매핑이 없어도 객체에 남은 값은 민감 값이다. */
+    public ValueConflict findPresentValues(Long objectTypeId, String code) {
+        return find(objectTypeId, code, "not (" + MISSING + ")", Map.of());
+    }
+
+    /**
+     * 그 유형의 모든 객체(상태와 관계없이)에서 이 속성의 값을 지운다. 값이 null인 키는 남겨 다시 쓰는 행과 잠금 시간을 줄인다. 민감 속성을 일반으로 내리며 남은
+     * 값을 지울 때 쓴다(401). object_instance는 Entity가 없는 표라 JdbcClient로 바꾼다. 지운 객체 수를 돌려준다.
+     */
+    public int clearValues(Long objectTypeId, String code) {
+        return jdbcClient
+                .sql(
+                        """
+                        update object_instance o set properties = o.properties - :code
+                        where o.object_type_id = :objectTypeId
+                          and jsonb_typeof(o.properties -> :code) is distinct from 'null'
+                          and jsonb_exists(o.properties, :code)
+                        """)
+                .param("objectTypeId", objectTypeId)
+                .param("code", code)
+                .update();
+    }
+
     /** 값이 없거나 null인 객체. 필수로 바꿀 때 확인한다. */
     public ValueConflict findMissingValues(Long objectTypeId, String code) {
         return find(objectTypeId, code, MISSING, Map.of());

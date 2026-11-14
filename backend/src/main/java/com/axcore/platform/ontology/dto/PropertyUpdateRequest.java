@@ -46,6 +46,12 @@ public class PropertyUpdateRequest {
 
     @NotNull @PositiveOrZero private Long rowVersion;
 
+    /**
+     * 민감 속성을 일반으로 내릴 때 객체에 남은 값을 지우고 내리려면 true(401). 없거나 false면 값이 남아 있을 때 422다. 지운 값은 켜진 매핑이 있으면
+     * 다시 읽기로 일반 값으로 다시 채워진다.
+     */
+    private Boolean clearRestrictedValues;
+
     // getter를 만들면 Jackson이 이 칸도 요청 JSON으로 채울 수 있어 bean 이름이 아닌 has* 메서드로만 읽는다.
     @Getter(AccessLevel.NONE)
     private boolean codeSent;
@@ -121,5 +127,9 @@ public class PropertyUpdateRequest {
 
     public void setRowVersion(Long rowVersion) {
         this.rowVersion = rowVersion;
+    }
+
+    public void setClearRestrictedValues(Boolean clearRestrictedValues) {
+        this.clearRestrictedValues = clearRestrictedValues;
     }
 }

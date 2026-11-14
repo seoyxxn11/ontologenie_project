@@ -258,7 +258,7 @@ class ObjectSearchApiTests {
                         get(PATH)
                                 .param("objectTypeId", Long.toString(typeId))
                                 .param("propertyValues[cost]", "1200")
-                                .with(actor("ADMIN")))
+                                .with(actor("PLANNER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.meta.totalElements").value(1));
         jdbc.sql(
@@ -357,7 +357,7 @@ class ObjectSearchApiTests {
                         get(PATH)
                                 .param("objectTypeId", Long.toString(typeId))
                                 .param("from", "2026-10-01")
-                                .with(actor("ADMIN")))
+                                .with(actor("PLANNER")))
                 .andExpect(status().isBadRequest())
                 .andExpect(
                         jsonPath("$.error.details.reason")
@@ -370,7 +370,7 @@ class ObjectSearchApiTests {
                                 .param("objectTypeId", Long.toString(noPeriod))
                                 .param("dateProperty", "state")
                                 .param("from", "2026-10-01")
-                                .with(actor("ADMIN")))
+                                .with(actor("PLANNER")))
                 .andExpect(status().isBadRequest())
                 .andExpect(
                         jsonPath("$.error.details.reason")
@@ -589,7 +589,7 @@ class ObjectSearchApiTests {
                 .andExpect(jsonPath("$.meta.size").value(20))
                 .andExpect(jsonPath("$.meta.totalElements").value(0));
 
-        mvc.perform(get(PATH).param("q", tag + " press").with(actor("ADMIN")))
+        mvc.perform(get(PATH).param("q", tag + " press").with(actor("PLANNER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.meta.totalElements").value(4))
                 .andExpect(jsonPath("$.data[0].properties.cost").value(1200))
@@ -775,7 +775,7 @@ class ObjectSearchApiTests {
                 .andExpect(status().isOk())
                 .andExpect(
                         jsonPath("$.data[*].displayName", contains(firstPartial, restrictedExact)));
-        mvc.perform(get(PATH).param("q", tag).with(actor("ADMIN")))
+        mvc.perform(get(PATH).param("q", tag).with(actor("PLANNER")))
                 .andExpect(status().isOk())
                 .andExpect(
                         jsonPath("$.data[*].displayName", contains(restrictedExact, firstPartial)));
@@ -801,18 +801,29 @@ class ObjectSearchApiTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.meta.totalElements").value(0));
 
-        mvc.perform(get(PATH).param("q", tag).with(actor("ADMIN")))
+        mvc.perform(get(PATH).param("q", tag).with(actor("PLANNER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.meta.totalElements").value(1))
                 .andExpect(jsonPath("$.data[0].sourceKey.serial").value(tag + "-active"));
+        // 원천에서 지워진 객체는 ADMIN만 찾는다(258 전까지 역할 이름 검사). ADMIN은 민감 값을 볼 수 없어(V21, 401) 그 객체의 민감 키는
+        // 가려지고,
+        // 민감 키 값으로는 찾지 못한다.
+        mvc.perform(
+                        get(PATH)
+                                .param("objectTypeId", Long.toString(type))
+                                .param("status", "DELETED_AT_SOURCE")
+                                .with(actor("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.meta.totalElements").value(1))
+                .andExpect(jsonPath("$.data[0].status").value("DELETED_AT_SOURCE"))
+                .andExpect(jsonPath("$.data[0].sourceKey.serial").value(nullValue()));
         mvc.perform(
                         get(PATH)
                                 .param("q", tag)
                                 .param("status", "DELETED_AT_SOURCE")
                                 .with(actor("ADMIN")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.meta.totalElements").value(1))
-                .andExpect(jsonPath("$.data[0].status").value("DELETED_AT_SOURCE"));
+                .andExpect(jsonPath("$.meta.totalElements").value(0));
     }
 
     @Test
@@ -872,7 +883,7 @@ class ObjectSearchApiTests {
         mvc.perform(get(PATH).param("q", tag + "-private").with(actor("VIEWER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.meta.totalElements").value(0));
-        mvc.perform(get(PATH).param("q", tag + "-private").with(actor("ADMIN")))
+        mvc.perform(get(PATH).param("q", tag + "-private").with(actor("PLANNER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.meta.totalElements").value(1));
     }
@@ -932,7 +943,7 @@ class ObjectSearchApiTests {
                 .param("id", keyOnly)
                 .update();
         LoginAccount viewer = account("VIEWER");
-        LoginAccount admin = account("ADMIN");
+        LoginAccount admin = account("PLANNER");
         var search = searchQuery.getObject();
 
         assertThat(search.findByPropertyValue(viewer, tag + "-active", 100))
@@ -984,7 +995,7 @@ class ObjectSearchApiTests {
                 .andExpect(jsonPath("$.data.sourceResourceKey").value("public.equipment"))
                 .andExpect(jsonPath("$.data.sourceKey.serial").value(nullValue()));
 
-        mvc.perform(get(PATH + "/{id}", id).with(actor("ADMIN")))
+        mvc.perform(get(PATH + "/{id}", id).with(actor("PLANNER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.properties.serial").value("secret-serial"))
                 .andExpect(jsonPath("$.data.sourceKey.serial").value("secret-serial"))
@@ -1156,7 +1167,7 @@ class ObjectSearchApiTests {
                 .andExpect(jsonPath("$.data[0].evidence.quote").doesNotHaveJsonPath())
                 .andExpect(jsonPath("$.data[0].evidence.event").doesNotHaveJsonPath())
                 .andExpect(jsonPath("$.data[0].evidence.timeExpression").doesNotHaveJsonPath());
-        mvc.perform(get(PATH + "/{id}/links", target).with(actor("ADMIN")))
+        mvc.perform(get(PATH + "/{id}/links", target).with(actor("PLANNER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].evidence.evidenceRestricted").value(false))
                 .andExpect(jsonPath("$.data[0].evidence.quote").value("private document text"))
@@ -1218,7 +1229,7 @@ class ObjectSearchApiTests {
                     .andExpect(jsonPath("$.meta.totalElements").value(1));
         }
 
-        LoginAccount admin = new LoginAccount(testerId, "tester", "ADMIN", false);
+        LoginAccount admin = new LoginAccount(testerId, "tester", "PLANNER", false);
         var evidence = evidenceQuery.getObject().linkEvidence(admin, target, link);
         assertThat(evidence.evidenceRestricted()).isFalse();
         assertThat(evidence.sourceKey()).containsEntry("serial", "private-serial");
@@ -1264,7 +1275,7 @@ class ObjectSearchApiTests {
                 .param("id", link)
                 .update();
 
-        mvc.perform(get(PATH + "/{id}/links", source).with(actor("ADMIN")))
+        mvc.perform(get(PATH + "/{id}/links", source).with(actor("PLANNER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].evidence.rawValue['1']").value("old raw"))
                 .andExpect(jsonPath("$.data[0].evidence.rawValue['2']").value("private serial"))
@@ -1308,7 +1319,7 @@ class ObjectSearchApiTests {
                         """)
                 .param("id", link)
                 .update();
-        mvc.perform(get(PATH + "/{id}/links", source).with(actor("ADMIN")))
+        mvc.perform(get(PATH + "/{id}/links", source).with(actor("PLANNER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].evidence.rawValue").doesNotHaveJsonPath())
                 .andExpect(jsonPath("$.data[0].evidence.comparisons").doesNotHaveJsonPath());
@@ -1324,7 +1335,7 @@ class ObjectSearchApiTests {
                         """)
                 .param("id", link)
                 .update();
-        mvc.perform(get(PATH + "/{id}/links", source).with(actor("ADMIN")))
+        mvc.perform(get(PATH + "/{id}/links", source).with(actor("PLANNER")))
                 .andExpect(status().isOk())
                 .andExpect(
                         jsonPath("$.data[0].evidence.comparisons[0].matchedValue").value("MATCH"));
@@ -1447,13 +1458,46 @@ class ObjectSearchApiTests {
                 .update();
     }
 
+    /**
+     * 401: 마이그레이션(V21)이 넣은 운영 그룹 행 그대로면 ADMIN은 민감 값을 보지 못하고 PLANNER만 본다. 시험 도우미({@link #type})가 행을
+     * 넣지 않는 운영 그룹(PRODUCTION)으로 확인한다.
+     */
+    @Test
+    void seededAdminCannotSeeRestrictedValues() throws Exception {
+        String tag = UUID.randomUUID().toString();
+        long type =
+                jdbc.sql(
+                                "insert into object_type (code, name, access_group) values (:code, :code, 'PRODUCTION') returning id")
+                        .param("code", "SEEDED_" + tag.substring(0, 8))
+                        .query(Long.class)
+                        .single();
+        property(type, "technician", "STRING", "RESTRICTED", null);
+        long id = object(type, tag + " mo", "{\"technician\":\"T-" + tag.substring(0, 6) + "\"}");
+
+        mvc.perform(get(PATH + "/" + id).with(actor("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.properties.technician").value(nullValue()))
+                .andExpect(jsonPath("$.data.restrictedPropertyCodes", contains("technician")));
+        mvc.perform(
+                        get(PATH)
+                                .param("objectTypeId", Long.toString(type))
+                                .param("propertyValues[technician]", "T-" + tag.substring(0, 6))
+                                .with(actor("ADMIN")))
+                .andExpect(status().isForbidden());
+        mvc.perform(get(PATH + "/" + id).with(actor("PLANNER")))
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$.data.properties.technician").value("T-" + tag.substring(0, 6)));
+    }
+
     private RequestPostProcessor actor(String role) {
         return authentication(new LoginAccount(testerId, "tester", role, false).toAuthentication());
     }
 
     /**
-     * 시험용 유형. ADMIN에게 그 그룹을 민감 값까지 열어 준다. 384부터 ADMIN도 허용 행으로만 보고 그룹 없는 유형은 아무도 못 보므로, 이 시험의 ADMIN을
-     * "전부 보는 역할"로 쓰려고 행을 넣는다. accessGroup이 null이면 ADMIN만 허용한 그룹을 따로 만든다(예전 "그룹 없어 ADMIN만 봄").
+     * 시험용 유형. ADMIN에게는 그 그룹을 민감 값 없이, PLANNER에게는 민감 값까지 열어 준다(V21과 같다, 401). 384부터 모든 역할이 허용 행으로만
+     * 보고 그룹 없는 유형은 아무도 못 보므로 두 역할의 행을 넣는다. 민감 값을 보는 쪽은 PLANNER로 시험한다. accessGroup이 null이면 이 두 역할만
+     * 허용한 그룹을 따로 만든다.
      */
     private long type(String name, String accessGroup) {
         String group = accessGroup == null ? "admin-only-" + name : accessGroup;
@@ -1470,7 +1514,7 @@ class ObjectSearchApiTests {
         jdbc.sql(
                         """
                         insert into role_data_scope (role_id, access_group, can_view_restricted)
-                        select id, :group, true from role where code = 'ADMIN'
+                        select id, :group, code = 'PLANNER' from role where code in ('ADMIN', 'PLANNER')
                         on conflict (role_id, access_group) do nothing
                         """)
                 .param("group", group)

@@ -60,6 +60,7 @@ public class PropertyMappingService {
     private final SourceResourceRepository resourceRepository;
     private final DefinitionSideEffects sideEffects;
     private final MappedResourceReload mappedResourceReload;
+    private final RestrictedKeyGuard restrictedKeyGuard;
 
     /** API 037. */
     public Page<PropertyMappingResponse> search(Long sourceMappingId, Pageable pageable) {
@@ -89,6 +90,8 @@ public class PropertyMappingService {
                         request.sourceResourceId(),
                         steps);
         boolean raised = applySourcePolicy(resource, target);
+        restrictedKeyGuard.requireNotKey(
+                target.property(), parent, target.column().getColumnName(), "sourceColumnId");
         if (propertyMappingRepository.existsForProperty(
                 parent.getId(), request.propertyDefinitionId(), null)) {
             throw duplicateProperty();
@@ -144,6 +147,8 @@ public class PropertyMappingService {
                         request.sourceResourceId(),
                         steps);
         boolean raised = applySourcePolicy(locked.get(request.sourceResourceId()), target);
+        restrictedKeyGuard.requireNotKey(
+                target.property(), parent, target.column().getColumnName(), "sourceColumnId");
         if (propertyMappingRepository.existsForProperty(
                 parent.getId(), request.propertyDefinitionId(), id)) {
             throw duplicateProperty();
@@ -272,6 +277,9 @@ public class PropertyMappingService {
                     "원천 데이터 정책상 민감 컬럼이라 연결 규칙의 조건에 쓰는 속성에 매핑할 수 없습니다.",
                     Map.of("field", "sourceColumnId", "column", column, "reason", "LINK_KEY"));
         }
+        // 다른 객체 매핑에서 이 속성이 키 컬럼을 담고 있으면 민감으로 올릴 수 없다. 올리면 그 키 값이 원천 키로 남아 가려지지 않는다(401).
+        // 지금 만드는 매핑의 컬럼은 호출한 쪽이 requireNotKey로 본다.
+        restrictedKeyGuard.requireNoKeyMapping(property.getId(), "sourceColumnId");
         // 요청 대상(속성 매핑) 밖의 정의 행을 바꾸므로 감사 기록에 함께 남긴다.
         sideEffects.beforeUpdate("property_definition", property.getId());
         property.restrictBySourcePolicy();
@@ -344,9 +352,11 @@ public class PropertyMappingService {
             Long sourceColumnId,
             Long resourceId,
             List<TransformStep> steps) {
+        // 속성 행을 잠근다. 028이 민감으로 올리며 키 컬럼 매핑이 없는지 본 직후 이 요청이 키 컬럼에 매핑해, 둘 다 커밋되어 민감 속성이 키에 놓이는
+        // 일을 막는다(401). 원천 자원을 먼저 잠근 뒤라 매핑 변경·수집·028과 같은 순서다.
         PropertyDefinition property =
                 propertyRepository
-                        .findById(propertyDefinitionId)
+                        .findForUpdate(propertyDefinitionId)
                         .filter(found -> found.getObjectTypeId().equals(parent.getObjectTypeId()))
                         .orElseThrow(
                                 () ->
