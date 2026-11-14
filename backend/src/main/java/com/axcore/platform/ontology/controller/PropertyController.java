@@ -1,6 +1,7 @@
 package com.axcore.platform.ontology.controller;
 
 import com.axcore.platform.account.domain.RoleCode;
+import com.axcore.platform.auth.service.DataAccessPolicy;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
 import com.axcore.platform.global.response.ApiResponse;
@@ -38,13 +39,22 @@ public class PropertyController {
 
     private final PropertyService propertyService;
     private final DefinitionEditRecorder editRecorder;
+    private final DataAccessPolicy dataAccessPolicy;
 
+    /**
+     * API 026. 관리자는 정의를 관리하므로 모든 속성을 본다. 다른 역할은 객체 조회(076~078)와 같은 범위로, 볼 수 있는 유형의 볼 수 있는 속성만 받는다.
+     * 탐색 화면의 속성 조건 검색과 속성 이름·단위 표시에 쓴다.
+     */
     @GetMapping("/object-types/{id}/properties")
     public ApiResponse<List<PropertyResponse>> findProperties(
             @PathVariable("id") @Min(1) long objectTypeId,
             @AuthenticationPrincipal LoginAccount loginAccount) {
-        requireAdmin(loginAccount);
-        return ApiResponse.of(propertyService.findProperties(objectTypeId));
+        if (isAdmin(loginAccount)) {
+            return ApiResponse.of(propertyService.findProperties(objectTypeId));
+        }
+        return ApiResponse.of(
+                propertyService.findViewableProperties(
+                        objectTypeId, dataAccessPolicy.of(loginAccount)));
     }
 
     @PostMapping("/object-types/{id}/properties")
@@ -95,8 +105,12 @@ public class PropertyController {
                 });
     }
 
+    private static boolean isAdmin(LoginAccount loginAccount) {
+        return RoleCode.ADMIN.name().equals(loginAccount.roleCode());
+    }
+
     private static void requireAdmin(LoginAccount loginAccount) {
-        if (!RoleCode.ADMIN.name().equals(loginAccount.roleCode())) {
+        if (!isAdmin(loginAccount)) {
             throw new BusinessException(
                     CommonErrorCode.FORBIDDEN, Map.of("requiredPermission", RoleCode.ADMIN.name()));
         }

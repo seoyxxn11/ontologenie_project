@@ -1,5 +1,6 @@
 package com.axcore.platform.ontology.service;
 
+import com.axcore.platform.auth.service.DataAccess;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
 import com.axcore.platform.mapping.domain.PropertySourceMapping;
@@ -57,6 +58,23 @@ public class PropertyService {
     public List<PropertyResponse> findProperties(Long objectTypeId) {
         requireObjectType(objectTypeId);
         return propertyDefinitionRepository.findByObjectTypeIdOrderById(objectTypeId).stream()
+                .map(PropertyResponse::from)
+                .toList();
+    }
+
+    /**
+     * 관리자가 아닌 사용자의 속성 목록(API 026). 볼 수 없는 유형은 없는 유형처럼 404다. 민감 값을 볼 수 없으면 민감 속성은 목록에서 뺀다. 그 속성으로는
+     * 검색할 수도 없고(076) 값도 받지 못하기 때문이다.
+     */
+    public List<PropertyResponse> findViewableProperties(Long objectTypeId, DataAccess access) {
+        access.requireVisible(objectTypeId, "object_type", objectTypeId);
+        boolean restrictedVisible = access.canViewRestricted(objectTypeId);
+        return propertyDefinitionRepository.findByObjectTypeIdOrderById(objectTypeId).stream()
+                .filter(
+                        property ->
+                                restrictedVisible
+                                        || property.getSensitivity()
+                                                != PropertySensitivity.RESTRICTED)
                 .map(PropertyResponse::from)
                 .toList();
     }

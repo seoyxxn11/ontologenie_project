@@ -41,7 +41,31 @@ type PropertyInput = Pick<
 
 type Reload = { reloadRequired: boolean; reloadReason: string | null }
 
-export type Definition = { id: number; name: string; code: string }
+export type Definition = {
+  id: number
+  name: string
+  code: string
+  // 민감 속성은 변환 미리보기에서 값을 읽지 않는다(384). 없으면 일반으로 본다.
+  sensitivity?: 'NORMAL' | 'RESTRICTED'
+}
+
+/**
+ * 변환 미리보기에 보낼 속성 매핑. 민감 속성의 매핑은 뺀다.
+ * 서버는 민감 속성이 하나라도 섞이면 요청 전체를 거절한다. 저장된 매핑을 모두 보내면
+ * 민감 속성이 있는 유형은 일반 속성도 미리볼 수 없다.
+ */
+export function previewableMappings<
+  T extends Pick<PropertyMapping, 'propertyDefinitionId'>,
+>(mappings: T[], definitions: Definition[]) {
+  const restricted = new Set(
+    definitions
+      .filter((definition) => definition.sensitivity === 'RESTRICTED')
+      .map((definition) => definition.id),
+  )
+  return mappings.filter(
+    (mapping) => !restricted.has(mapping.propertyDefinitionId),
+  )
+}
 
 export type TransformFunction = {
   op: string

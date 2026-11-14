@@ -14,6 +14,8 @@ import type { SourceResource } from '../sources/types'
 import {
   mappingSaveMessage,
   fetchAllPropertyMappings,
+  fetchPropertyDefinitions,
+  previewableMappings,
   saveObjectMapping,
   type Definition,
   type ObjectMapping,
@@ -137,7 +139,13 @@ export default function ObjectMappingDialog({
 
   async function preparePreview(): Promise<MappingPreviewDraft> {
     const draft = currentDraft()
-    const saved = existing ? await fetchAllPropertyMappings(existing.id) : []
+    // 민감 속성의 매핑은 미리보기에서 뺀다(서버가 민감 속성이 섞인 요청 전체를 거절한다)
+    const saved = existing
+      ? previewableMappings(
+          await fetchAllPropertyMappings(existing.id),
+          await fetchPropertyDefinitions(draft.objectTypeId),
+        )
+      : []
     return {
       ...draft,
       sourceMappingId: existing?.id,

@@ -46,11 +46,6 @@ const MAINTENANCE_EQUIPMENT: SuggestedQuestion = {
   label: '정비 중 설비',
   text: '지금 정비 중인 설비 있어?',
 }
-// 고정자산은 재무(FINANCE) 데이터라 관리자만 본다(V13, 역할별 조회 범위). 다른 역할에는 추천하지 않는다.
-const FIXED_ASSET_VALUE: SuggestedQuestion = {
-  label: '고정자산 장부가',
-  text: 'FA-0006 장부가와 취득가 알려줘',
-}
 const REASSIGNMENT_PLAN: SuggestedQuestion = {
   label: '재배정 계획',
   text: 'P103에 배정된 남은 작업을 다른 설비로 옮기는 재배정 계획을 만들어줘',
@@ -76,11 +71,12 @@ const GENERAL_QUESTIONS: Record<RoleCode, SuggestedQuestion[]> = {
     IN_PROGRESS_WORK_ORDERS,
     REASSIGNMENT_PLAN,
   ],
+  // 고정자산은 원천 데이터 정책상 들이지 않는 표라 추천하지 않는다(397)
   ADMIN: [
     DOWNTIME_RECORDS,
     LINKED_OBJECTS,
+    WORK_ORDER_PROGRESS,
     IN_PROGRESS_WORK_ORDERS,
-    FIXED_ASSET_VALUE,
     REASSIGNMENT_PLAN,
   ],
 }
