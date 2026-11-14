@@ -64,6 +64,12 @@ public class ActionExecutionQueryService {
         DataAccess access = dataAccessPolicy.of(viewer);
         Masked<Map<String, Object>> input =
                 masker.maskInput(execution.getActionDefinitionId(), execution.getInput(), access);
+        Masked<Map<String, Object>> result =
+                masker.maskResult(
+                        execution.getActionDefinitionId(),
+                        execution.getStatus(),
+                        execution.getResult(),
+                        access);
         Masked<List<AuditEntityChangeResponse>> changed =
                 masker.maskChanges(
                         changes.findByActionExecutionIdOrderByIdAsc(id).stream()
@@ -71,8 +77,10 @@ public class ActionExecutionQueryService {
                                 .toList(),
                         access);
         TreeSet<String> restricted = new TreeSet<>(input.restrictedPropertyCodes());
+        restricted.addAll(result.restrictedPropertyCodes());
         restricted.addAll(changed.restrictedPropertyCodes());
         TreeSet<String> revealed = new TreeSet<>(input.revealedPropertyCodes());
+        revealed.addAll(result.revealedPropertyCodes());
         revealed.addAll(changed.revealedPropertyCodes());
         restrictedViews.record(
                 viewer,
@@ -81,6 +89,13 @@ public class ActionExecutionQueryService {
         return ActionExecutionDetailResponse.of(
                 execution,
                 input.value(),
+                result.value(),
+                masker.maskBlockedReason(
+                        execution.getActionDefinitionId(),
+                        execution.getStatus(),
+                        execution.getBlockedReason(),
+                        execution.getResult(),
+                        access),
                 changed.value().stream()
                         .map(
                                 change ->

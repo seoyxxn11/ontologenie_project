@@ -23,6 +23,7 @@ import com.axcore.platform.global.security.LoginAccount;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -89,23 +90,40 @@ public class AuditExecutionQueryService {
     }
 
     /**
-     * 097. 실행 하나의 입력·결과·막힌 이유·실패 이유. ADMIN은 전체 기록, 그 밖의 역할은 096과 같은 본인 실행 범위만 연다. 입력값의 민감 속성 값은 역할의
-     * 허용 행대로 가린다(ADMIN 포함, 384).
+     * 097. 실행 하나의 입력·결과·막힌 이유·실패 이유. ADMIN은 전체 기록, 그 밖의 역할은 096과 같은 본인 실행 범위만 연다. 입력값과 Handler 결과는
+     * Handler가 알린 자리만 보여 주고, 민감 속성 값은 역할의 허용 행대로 가린다(ADMIN 포함, 384·404).
      */
     public AuditExecutionDetailResponse get(LoginAccount viewer, long id) {
         ActionExecution execution = visibleExecution(viewer, id);
         // ADMIN도 role_data_scope 허용 행대로 가린다(384: 정의·시스템 관리와 값 열람을 나눈다).
+        DataAccess access = dataAccessPolicy.of(viewer);
         Masked<Map<String, Object>> input =
-                masker.maskInput(
+                masker.maskInput(execution.getActionDefinitionId(), execution.getInput(), access);
+        Masked<Map<String, Object>> result =
+                masker.maskResult(
                         execution.getActionDefinitionId(),
-                        execution.getInput(),
-                        dataAccessPolicy.of(viewer));
+                        execution.getStatus(),
+                        execution.getResult(),
+                        access);
+        TreeSet<String> restricted = new TreeSet<>(input.restrictedPropertyCodes());
+        restricted.addAll(result.restrictedPropertyCodes());
+        TreeSet<String> revealed = new TreeSet<>(input.revealedPropertyCodes());
+        revealed.addAll(result.revealedPropertyCodes());
         restrictedViews.record(
                 viewer,
                 "AUDIT_DETAIL",
-                List.of(new Seen("action_execution", id, input.revealedPropertyCodes())));
+                List.of(new Seen("action_execution", id, List.copyOf(revealed))));
         return AuditExecutionDetailResponse.of(
-                execution, input.value(), input.restrictedPropertyCodes());
+                execution,
+                input.value(),
+                result.value(),
+                masker.maskBlockedReason(
+                        execution.getActionDefinitionId(),
+                        execution.getStatus(),
+                        execution.getBlockedReason(),
+                        execution.getResult(),
+                        access),
+                List.copyOf(restricted));
     }
 
     /** 098. 실행 하나가 바꾼 행 전체. 열람 범위는 097과 같고, 변경 내역의 민감 속성 값은 역할의 허용 행대로 가린다(ADMIN 포함, 384). */

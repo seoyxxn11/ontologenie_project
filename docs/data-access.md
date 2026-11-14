@@ -10,9 +10,11 @@
 |---|---|---|---|---|
 | `VIEW` | `DataAccessPolicy.of(actor)` | 역할 범위(`role_data_scope`) | 허용 행이 열어 줄 때만 | 가능 |
 | `MODEL` | `DataAccessPolicy.forModel(actor)` | `VIEW`와 같음 | **항상 가림** | 가능 |
+| `CHECK` | `DataAccessPolicy.forCheck(actor)` | `VIEW`와 같음 | **가리지 않음**(표시 이름은 가림) | 가능. 업무 조건 검사·근거 저장만(404) |
 | `DEFINITIONS` | `DataAccessPolicy.forDefinitions()` | 전부 | 정의는 봄 | **불가**(`requireObjectValues`가 막음) |
 
 - 외부 언어 모델에 들어가는 값(Agent 도구 결과, Agent가 실행한 Action의 문구)은 `MODEL`로 읽는다.
+- `CHECK`는 지금 재배정 검사(091)만 쓴다. 이 범위로 읽은 값은 사람·모델에게 그대로 내보내지 않는다. 문구에 쓰이는 표시 이름은 모델 용도처럼 늘 가린 이름이고, 문구에 넣을 값이 민감 속성인지는 `DataAccess.isRestricted`로 본다. `of(actor, purpose)`는 `CHECK`를 받지 않는다.
 - `DEFINITIONS`는 내부 서비스 토큰으로 부르는 모델 요약(API 043)만 쓴다. 이름이 정의 조회라 객체 값을 읽으려 하면 예외다. 예전 `internalService()`가 이것으로 바뀌었다.
 
 ## 공통 읽기 진입점 (`ScopedObjectReader`)
@@ -110,18 +112,51 @@ Agent 도구 결과는 외부 언어 모델의 입력이 된다. 그래서 Agent
 - `DataAccessPolicy.of(actor, purpose)`는 VIEW·MODEL만 받는다. 정의 조회 범위는 `forDefinitions()`로만 만든다.
 - Agent의 실행 이력 조회(감사)와 Agent가 실행한 Action의 문구는 김산이 담당 범위다(아래).
 
-## Action·재배정·감사 응답 (390)
+## Action·재배정·감사 응답 (390·404)
 
 | 경로 | 범위 | 가림 |
 |---|---|---|
-| 091 실행(재배정 Handler) | 대상 객체는 공통 실행기가, 검사가 더 읽는 작업지시·공정·공정 표준은 Handler가 실행자의 범위로 읽는다(`ReassignmentObjectRepository` → `ScopedObjectReader`) | Agent가 실행하면 `ActionContext.dataPurpose()`가 `MODEL`이라 차단 문구에 민감 값이 들어가지 않는다 |
-| 092 Action 결과 | 실행자 본인·ADMIN | input·변경 내용을 097·098과 같은 `AuditValueMasker`로 가리고 `restrictedPropertyCodes`를 준다. result는 Handler가 만든 ID·건수다 |
-| 093~095 재배정 계획 | 설비·작업지시·공정 유형을 모두 볼 수 있어야 계획이 보인다(아니면 목록은 비고 한 건은 404) | 항목의 공정 코드와 스냅샷을 Handler가 변경 기록에 알린 자리로 가린다(`AuditValueMasker.maskRow`) |
+| 091 실행(재배정 Handler) | 대상 객체는 공통 실행기가 실행자의 범위로 확인한다. 검사가 더 읽는 설비·작업지시·공정·공정 표준은 Handler가 검사 범위(`forCheck`)로 읽는다(`ReassignmentObjectRepository` → `ScopedObjectReader`). 볼 수 없는 유형은 "찾을 수 없음"이고, 민감 값은 원래 값으로 검사한다 | 스냅샷에는 원래 값을 저장한다. 차단 문구는 저장되어 실행자·ADMIN·Agent(모델)가 보므로 누가 실행했든 민감 값 대신 `(민감 값)`, 객체 이름은 가린 표시 이름을 쓴다. 문구를 보여 줄 때는 아래 "차단 이유" 규칙을 따른다. 응답의 result는 아래 허용 목록으로 가린다(Agent가 실행하면 모델 용도) |
+| 092 Action 결과 | 실행자 본인·ADMIN | input·result·변경 내용을 097·098과 같은 `AuditValueMasker`로 가리고 `restrictedPropertyCodes`를 준다 |
+| 093~095 재배정 계획 | 설비·작업지시·공정 유형을 모두 볼 수 있어야 계획이 보인다(아니면 목록은 비고 한 건은 404) | 스냅샷은 정한 필드(`ReassignmentSnapshot`: 작업지시 번호·상태, 공정별 객체 ID·순서·설비 코드·상태)만 내보내고, 공정 코드와 그 필드를 Handler가 알린 자리로 가린다(`AuditValueMasker.maskRow`). `selectionBasis`는 이유 문장(`reason`)만 내보낸다 |
 | 096·080 실행 이력 목록 | 기존과 같음 | 대상 표시 이름을 볼 수 있는 유형만, `ObjectDisplaySql`로 가린다. Agent는 080을 `MODEL`로 부른다 |
 | 097·098 실행 상세·변경 | 기존과 같음 | ADMIN도 허용 행대로 가린다(예전엔 ADMIN은 원본) |
 
-- 재배정 검사에 필요한 값이 보는 사람에게 가려져 있으면 그 검사는 "속성이 없음"으로 막힌다. 값을 알려 주지 않고 실패하는 쪽을 택했다.
-- 스냅샷에 들어가는 자리는 Handler가 정한 것(작업지시 번호·상태, 공정 순서·설비 코드·상태)뿐이고, 그 자리는 `recordedPropertyPaths`로 알린다. 새 자리를 스냅샷에 넣으면 같이 알려야 가려진다.
+### 감사 가림은 허용 목록이다 (404)
+
+091 응답의 result와 092·093~095·097·098은 기록을 남기는 쪽이 `RecordedPropertyPaths`로 알린 자리만 보여 준다(`AuditValueMasker`).
+
+| 자리 | 동작 |
+|---|---|
+| 속성 자리(`Path.input`·`Path.result`·`Path.change`) | 보는 사람이 그 유형을 볼 수 없거나(모르는 유형 포함) 민감 값을 볼 수 없으면 가리고 코드를 `restrictedPropertyCodes`에 담는다. 볼 수 있는 민감 값이면 `revealedPropertyCodes`(394 열람 기록)에 담는다 |
+| 속성이 아닌 자리(`Path.plainInput`·`Path.plainResult`·`Path.plainChange`) | 그대로 둔다. 키가 빈 `plainChange`는 행 전체다. 그 안에 알린 속성 자리는 위 규칙을 따른다 |
+| 알리지 않은 Handler의 입력·결과(성공한 실행), 알리지 않은 표의 변경, 알린 기록 안의 알리지 않은 자리 | 키는 남기고 값을 null로 가린다. 어느 속성인지 모르므로 코드는 담지 않는다 |
+| Handler 없이 기록만 남기는 관리 Action(`action_mode` RECORD)과 정의가 없는 기록의 입력·결과, 실패한 실행의 결과(실행기가 남긴 고정 문구) | 그대로 둔다 |
+
+- 재배정 Handler는 입력(`fromEquipmentId`, 항목의 `workOrderId`·`toEquipmentId`, `selectionBasis.reason`, `dataAsOf`)과 `reassignment_plan`·`reassignment_plan_item` 행의 자리를 모두 알린다. 선정 근거의 다른 필드는 정해진 모양이 없어 가려진다.
+- 관리 기능의 표 중 객체 속성 값이 없는 표(계정, Action 정의, 수집 주기, 온톨로지 정의·매핑·관계 규칙, 후보 검토, 관계 상태 `object_link`)는 `ManagementRecordedTables`가 행 전체로 알린다. 표에 속성 값을 담기 시작하면 목록에서 빼고 그 쪽에서 자리를 알린다.
+- 새 Handler나 새 변경 표를 만들면 자리를 알려야 감사 조회에 값이 보인다. 같은 자리를 두 번 알리거나 속성 자리 아래에 다른 자리를 알리면 서버가 시작하지 않는다.
+- `selectionBasis`를 이유 문장만 내보내는 이유: 계획을 만든 사람(또는 모델 용도로 읽은 Agent)이 쓴 문장이라 속성 자리로 가릴 수 없고, 화면은 `reason`만 쓴다. 다른 필드는 무엇이 들었는지 알 수 없어 내보내지 않는다(저장은 그대로 한다).
+- 한계: 재배정 검사의 통과·차단 여부와 차단 이유는 민감 값에 따라 달라진다. 민감 값을 볼 수 없는 실행자도 "옮길 수 없는 상태", "그 공정이 없음/배정되지 않음"(공정 순서를 바꿔 넣어 보면 있는 값을 알아낼 수 있음), 능력이 최소 톤수보다 작다는 비교 결과, 값이 비었다는 사실(`(없음)`)은 안다. 값 자체는 문구에 나가지 않는다.
+  - 결정(2026-11-14): 404 이전에는 가린 값(null)으로 검사해 검사가 건너뛰어지거나 "속성 없음"으로 막혔으므로 이런 추측은 덜 됐다. 대신 민감 속성이 낀 재배정이 조건을 어긴 채 저장될 수 있었다. 쓰기의 정확성을 우선해 원래 값으로 검사하고, 추측 가능성은 한계로 받아들인다. 반복 시도는 실행 기록(091 BLOCKED)에 모두 남는다.
+- 한계: 가림은 실행 당시가 아니라 지금 정의의 Handler 키를 따른다. 090으로 정의의 `handler_key`를 바꾸면 지난 실행의 입력·결과도 새 Handler가 알린 자리로 가려진다(실행 시점 키 보존은 후속).
+- 한계: `selectionBasis.reason`은 사람·Agent가 쓴 자유 문장이라 그대로 나간다. 민감 값을 볼 수 있는 사람이 웹에서 쓴 문장에 민감 값을 적으면 다른 사람에게도 보인다.
+- 한계: 화면은 알리지 않아 가린 값(null)과 원래 빈 값을 구분해 보여 주지 못한다. 권한으로 가린 속성 자리만 `restrictedPropertyCodes`로 "(권한으로 가림)" 표시가 된다.
+- `restrictedPropertyCodes`(092·097)는 입력값·결과(092는 변경 내용까지)에서 권한으로 가린 속성 코드다. 민감 속성이 대부분이지만, 보는 사람이 볼 수 없는 유형의 속성이면 일반 속성도 들어간다. 알리지 않아 가린 자리는 어느 속성인지 몰라 들어가지 않는다. 화면 문구도 "입력값·처리 결과 중 권한으로 가린 속성"이다.
+
+### 차단 이유 (404)
+
+차단 이유는 저장된 한 줄이라 자리별로 가릴 수 없다. 그래서 통째로 보여 주거나 `차단 이유에 볼 수 없는 객체 정보가 있을 수 있어 가렸습니다.`로 바꾼다(`AuditValueMasker.maskBlockedReason`, 091·092·097).
+
+| 기록 | 보여 주는 조건 |
+|---|---|
+| 관리 Action(Handler 없음), 정의가 없는 기록 | 늘 |
+| 실행기가 막은 기록(`result.blockedBy` = `GATE`: 권한·비활성·Handler 없음·대상 없음·확인 필요) | 늘. 실행기의 고정 문구라 객체 값이 없다 |
+| Handler가 막은 기록(`blockedBy` = `HANDLER`) | Handler가 `blockedReasonObjectTypes`로 알린 유형을 모두 볼 수 있을 때. 문구에 그 유형의 객체 이름·일반 속성 값이 들어가기 때문이다(092·098의 `canView` 가림과 같은 기준). 유형을 알리지 않은 Handler면 가린다 |
+| 차단 주체가 없는 기록(404 이전) | 위 유형을 모두 보고, 그 유형의 민감 값까지 볼 수 있을 때. 404 이전에는 사람이 실행하면 민감 값이 문구에 들어갔다 |
+
+- `blockedBy`는 차단 기록의 `result`에 남기는 내부 표시라 응답의 `result`에서는 뺀다. 저장된 기록을 고치는 마이그레이션은 하지 않았다(감사 기록 원본 유지). 404 이전의 관리 실행기 차단(권한 없음 등)도 차단 주체가 없어 같은 기준으로 가려질 수 있다(넘치게 가리는 쪽).
+- 재배정 Handler는 설비·작업지시·공정·공정 표준 유형을 알린다. 그 유형 중 하나라도 못 보는 실행자는 자기 차단 이유도 정한 문구로 받는다.
 
 ## 역할별 범위 (V21)
 
@@ -145,7 +180,7 @@ Agent 도구 결과는 외부 언어 모델의 입력이 된다. 그래서 Agent
 | 항목 | 내용 |
 |---|---|
 | 언제 | 응답에 가리지 않은 민감 값(null 아님)이 하나라도 있을 때, 응답 한 번에 한 행. 가렸거나 값이 비었으면 남기지 않는다 |
-| 경로(`input.view`) | 077 `OBJECT_DETAIL`, 076 `OBJECT_SEARCH`, 값으로 찾기 `OBJECT_VALUE_SEARCH`, ID로 읽기 `OBJECT_BY_IDS`, 092 `ACTION_RESULT`, 093~095 `REASSIGNMENT_PLAN`, 097 `AUDIT_DETAIL`, 098 `AUDIT_CHANGES`. 저장된 사본(403): 065 `ISSUE_SEARCH`, 066 `ISSUE_DETAIL`, 067 `ISSUE_STATUS`, 068 `ISSUE_FORWARD`, 070 `ISSUE_VERIFICATIONS`, 062 `CHECK_RESULTS`, 재검증 비교 `CHECK_COMPARISON`, 제안 목록 `PROPOSAL_SEARCH`, 049 `PROPOSAL_DETAIL`, 선택지 `PROPOSAL_OPTIONS`, 개정 이력 `PROPOSAL_REVISIONS`, 020 `ANALYSIS_PROPOSALS` |
+| 경로(`input.view`) | 077 `OBJECT_DETAIL`, 076 `OBJECT_SEARCH`, 값으로 찾기 `OBJECT_VALUE_SEARCH`, ID로 읽기 `OBJECT_BY_IDS`, 091 `ACTION_EXECUTE`(웹 실행의 result), 092 `ACTION_RESULT`, 093~095 `REASSIGNMENT_PLAN`, 097 `AUDIT_DETAIL`, 098 `AUDIT_CHANGES`. 저장된 사본(403): 065 `ISSUE_SEARCH`, 066 `ISSUE_DETAIL`, 067 `ISSUE_STATUS`, 068 `ISSUE_FORWARD`, 070 `ISSUE_VERIFICATIONS`, 062 `CHECK_RESULTS`, 재검증 비교 `CHECK_COMPARISON`, 제안 목록 `PROPOSAL_SEARCH`, 049 `PROPOSAL_DETAIL`, 선택지 `PROPOSAL_OPTIONS`, 개정 이력 `PROPOSAL_REVISIONS`, 020 `ANALYSIS_PROPOSALS` |
 | 남기는 것 | 요청자와 역할 스냅샷, 진입 경로(WEB), `result.seen`(대상 종류·ID·필드 코드), `result.policyVersion`(원천 데이터 정책 목록 지문). 대상이 하나면 `target_type`·`target_id`에도 둔다 |
 | 남기지 않는 것 | 값 원문 |
 | 실패 | 기록이 실패하면 응답도 실패한다. 접속 기록 없이 민감 값을 내보내지 않는다. 기록은 응답 트랜잭션과 따로 커밋한다 |

@@ -129,6 +129,10 @@ class AuditExecutionApiTests {
         allowGroup("PLANNER", plannerGroup);
         // 384부터 ADMIN도 허용 행으로만 본다.
         allowGroup("ADMIN", plannerGroup);
+        // 404: Handler가 막은 차단 이유는 그 Handler가 읽는 유형을 모두 볼 수 있어야 보인다.
+        for (String type : List.of("EQUIPMENT", "WORK_ORDER", "WORK_ORDER_OPERATION", "ROUTING")) {
+            allowAdminToSeeType(type);
+        }
         object = createObject("프레스 3호기", plannerGroup);
         long planDefinition = definitionId("CREATE_REASSIGNMENT_PLAN");
 
@@ -159,6 +163,7 @@ class AuditExecutionApiTests {
                 record(
                         action(plannerB, EntryPoint.WEB, planDefinition, ExecutionStatus.BLOCKED)
                                 .blockedReason("대체 설비 능력이 부족합니다.")
+                                .result(Map.of("blockedBy", "HANDLER"))
                                 .targetType("object_instance")
                                 .targetId(object));
         analysisResultOfA = record(analysisResult(createAnalysisRun(plannerA.id())));
@@ -615,6 +620,30 @@ class AuditExecutionApiTests {
 
     private static int intValue(long id) {
         return Math.toIntExact(id);
+    }
+
+    /** 유형이 없으면 만들고, 그룹이 없으면 시험용 그룹을 붙여 ADMIN에게 연다. 다른 시험이 붙인 그룹이면 그 그룹을 연다. */
+    private void allowAdminToSeeType(String code) {
+        jdbcClient
+                .sql(
+                        "insert into object_type (code, name) values (:code, :code) on conflict (code) do nothing")
+                .param("code", code)
+                .update();
+        jdbcClient
+                .sql(
+                        "update object_type set access_group = 'AUDIT_TEST_' || code where code = :code and access_group is null")
+                .param("code", code)
+                .update();
+        jdbcClient
+                .sql(
+                        """
+                        insert into role_data_scope (role_id, access_group)
+                        select r.id, t.access_group from role r, object_type t
+                        where r.code = 'ADMIN' and t.code = :code
+                        on conflict do nothing
+                        """)
+                .param("code", code)
+                .update();
     }
 
     private void allowGroup(String roleCode, String accessGroup) {

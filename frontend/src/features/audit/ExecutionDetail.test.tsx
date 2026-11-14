@@ -105,7 +105,7 @@ test.each(['/api/v1/audit/actions', '/api/v1/objects/301/executions'])(
     )
     expect(screen.queryByText(/"reason"/)).not.toBeInTheDocument()
     expect(
-      screen.getByText('입력값 중 권한으로 가린 속성이 있습니다.'),
+      screen.getByText('입력값·처리 결과 중 권한으로 가린 속성이 있습니다.'),
     ).toBeVisible()
     expect(calls).toEqual({ detail: 1, changes: 0 })
 

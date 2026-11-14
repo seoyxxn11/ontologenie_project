@@ -10,7 +10,7 @@ import java.util.Objects;
 /**
  * 실행 하나의 내용 (API 097). 실행자·동작·대상 이름과 변경 내역은 넣지 않는다(목록 096·080과 098이 준다). failureReason은 FAILED일 때
  * result의 errorMessage, 없거나 비어 있으면 reason을 준다. 둘 다 없거나 비어 있으면 null이다. restrictedPropertyCodes는
- * input에서 값을 가린 민감 속성 코드다.
+ * input·result에서 값을 가린 속성 코드다(404).
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record AuditExecutionDetailResponse(
@@ -28,14 +28,16 @@ public record AuditExecutionDetailResponse(
     public static AuditExecutionDetailResponse of(
             ActionExecution execution,
             Map<String, Object> input,
+            Map<String, Object> maskedResult,
+            String maskedBlockedReason,
             List<String> restrictedPropertyCodes) {
-        Map<String, Object> result = orEmpty(execution.getResult());
+        Map<String, Object> result = orEmpty(maskedResult);
         return new AuditExecutionDetailResponse(
                 execution.getId(),
                 execution.getStatus(),
                 orEmpty(input),
                 result,
-                execution.getBlockedReason(),
+                maskedBlockedReason,
                 execution.getStatus() == ExecutionStatus.FAILED ? failureReason(result) : null,
                 restrictedPropertyCodes);
     }

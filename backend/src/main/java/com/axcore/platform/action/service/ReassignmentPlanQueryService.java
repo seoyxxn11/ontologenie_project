@@ -5,6 +5,7 @@ import com.axcore.platform.action.domain.ReassignmentPlanItem;
 import com.axcore.platform.action.dto.ReassignmentPlanItemResponse;
 import com.axcore.platform.action.dto.ReassignmentPlanResponse;
 import com.axcore.platform.action.handler.ReassignmentProperties;
+import com.axcore.platform.action.handler.ReassignmentSnapshot;
 import com.axcore.platform.action.repository.ReassignmentPlanItemRepository;
 import com.axcore.platform.action.repository.ReassignmentPlanQueryRepository;
 import com.axcore.platform.action.repository.ReassignmentPlanSpecifications;
@@ -43,8 +44,10 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li>설비·작업지시·공정 유형 중 하나라도 볼 수 없으면 계획이 없는 것처럼 다룬다(목록은 비고, 한 건은 404).
- *   <li>항목의 공정 코드와 스냅샷은 Handler가 변경 기록에 알린 자리({@link AuditValueMasker#maskRow})로 민감 값을 가린다. 감사 098과
- *       같은 규칙이다. 스냅샷에 들어가는 자리는 Handler가 정한 것뿐이다.
+ *   <li>항목의 스냅샷은 정한 필드({@link ReassignmentSnapshot#explicit})만 내보낸다. 공정 코드와 그 필드는 Handler가 변경 기록에
+ *       알린 자리({@link AuditValueMasker#maskRow})로 민감 값을 가린다. 감사 098과 같은 규칙이다. 스냅샷에는 원래 값이 저장돼
+ *       있다(404).
+ *   <li>선정 근거(selectionBasis)는 이유 문장(reason)만 내보낸다({@link ReassignmentPlanResponse#from}).
  * </ul>
  */
 @Service
@@ -142,13 +145,14 @@ public class ReassignmentPlanQueryService {
                 .toList();
     }
 
-    /** 공정 코드와 스냅샷을 저장된 행 모양으로 묶어 Handler가 알린 자리로 가린다. */
+    /** 공정 코드와 정한 스냅샷 필드를 저장된 행 모양으로 묶어 Handler가 알린 자리로 가린다. */
     @SuppressWarnings("unchecked")
     private ReassignmentPlanItemResponse masked(
             ReassignmentPlanItem item, DataAccess access, Map<Long, Set<String>> revealedByPlan) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put(OPERATION_CODE, item.getOperationCode());
-        row.put(SNAPSHOT, item.getSourceSnapshot() == null ? Map.of() : item.getSourceSnapshot());
+        // 저장된 스냅샷에 다른 필드가 있어도 정한 필드만 내보낸다(404).
+        row.put(SNAPSHOT, ReassignmentSnapshot.explicit(item.getSourceSnapshot()));
         Masked<Map<String, Object>> masked = masker.maskRow(ITEM_TABLE, row, access);
         if (!masked.revealedPropertyCodes().isEmpty()) {
             revealedByPlan

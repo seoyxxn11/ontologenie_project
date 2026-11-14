@@ -19,6 +19,8 @@ import com.axcore.platform.action.service.ActionExecutionCommand;
 import com.axcore.platform.action.service.ActionExecutionService;
 import com.axcore.platform.audit.domain.ChangeEntry;
 import com.axcore.platform.audit.domain.EntryPoint;
+import com.axcore.platform.audit.service.RecordedPropertyPaths;
+import com.axcore.platform.audit.service.RecordedPropertyPaths.Path;
 import com.axcore.platform.global.security.LoginAccount;
 import jakarta.servlet.http.Cookie;
 import java.util.ArrayList;
@@ -295,6 +297,141 @@ class ActionExecutionApiTests {
                 .contains("400톤");
         assertThat(countPlans()).isEqualTo(plansBefore);
         assertThat(changesOf(longAt(result, "id"))).isEmpty();
+    }
+
+    /**
+     * 404: 검사에 쓰는 속성이 민감이어도, 민감 값을 늘 가리는 Agent(모델 용도) 실행이 원래 값으로 검사하고 스냅샷에 원래 값을 남긴다. 예전에는 가린 작업지시
+     * 상태(null)로 막혔다.
+     */
+    @Test
+    void agentChecksWithOriginalRestrictedValuesAndKeepsThemInSnapshot() {
+        TestAccount plannerAccount = createAccount("PLANNER");
+        long messageId = createAgentMessage(plannerAccount.id());
+        List<Runnable> restore =
+                List.of(
+                        restrict("WORK_ORDER", "status"),
+                        restrict("WORK_ORDER_OPERATION", "equipment_code"),
+                        restrict("WORK_ORDER_OPERATION", "status"));
+        try {
+            ActionExecutionResponse response =
+                    actionExecutionService.execute(
+                            agentCommand(plannerAccount, UUID.randomUUID(), s4.p101, messageId));
+
+            assertThat(response.status().name()).isEqualTo("SUCCEEDED");
+            long planId = ((Number) response.result().get("planId")).longValue();
+            assertThat(itemsOf(planId).getFirst().get("source_snapshot").toString())
+                    .contains("진행")
+                    .contains("중단")
+                    .contains(s4.p103Code);
+        } finally {
+            restore.forEach(Runnable::run);
+        }
+    }
+
+    /**
+     * 404: 차단 문구는 저장되어 다른 사람과 모델이 보므로, 웹(사람 용도)으로 실행해도 민감 속성 값을 넣지 않는다. 사용자가 입력한 공정 코드도 그 속성의 값이므로
+     * 같게 다룬다. 예전에는 입력한 공정 코드를 그대로 넣었다.
+     */
+    @Test
+    void webBlockedReasonLeavesOutRestrictedValuesEvenWhenTyped() throws Exception {
+        LoginSession planner = login(createAccount("PLANNER"));
+        Runnable restore = restrict("WORK_ORDER_OPERATION", "op_seq");
+        try {
+            MvcResult result =
+                    execute(PLAN, planner, singleItem(UUID.randomUUID(), s4.p103, "40", s4.p101))
+                            .andExpect(status().isOk())
+                            .andExpect(jsonPath("$.data.status").value("BLOCKED"))
+                            .andReturn();
+
+            assertThat(stringAt(result, "blockedReason"))
+                    .contains("(민감 값) 공정이 없습니다")
+                    .doesNotContain("40 공정");
+        } finally {
+            restore.run();
+        }
+    }
+
+    /** 404: 작업지시 번호가 민감이면 문구의 작업지시 이름은 표시 이름이고, 민감한 상태 값은 정한 말로 바꾼다. 검사는 원래 상태(완료)로 막는다. */
+    @Test
+    void blockedReasonUsesDisplayNameAndHidesRestrictedStatus() throws Exception {
+        LoginSession planner = login(createAccount("PLANNER"));
+        long order =
+                s4.object(
+                        s4.typeId("WORK_ORDER"),
+                        "표시이름-" + s4.suffix,
+                        Map.of(
+                                "wo_no",
+                                "JB-SECRET-" + s4.suffix,
+                                "product_code",
+                                "BRK-" + s4.suffix,
+                                "status",
+                                "완료"));
+        List<Runnable> restore =
+                List.of(restrict("WORK_ORDER", "wo_no"), restrict("WORK_ORDER", "status"));
+        try {
+            MvcResult result =
+                    execute(
+                                    PLAN,
+                                    planner,
+                                    singleItem(UUID.randomUUID(), s4.p103, "20", s4.p101, order))
+                            .andExpect(jsonPath("$.data.status").value("BLOCKED"))
+                            .andReturn();
+
+            assertThat(stringAt(result, "blockedReason"))
+                    .contains("작업지시 표시이름-" + s4.suffix + "는 (민감 값) 상태라")
+                    .doesNotContain("JB-SECRET")
+                    .doesNotContain("완료");
+        } finally {
+            restore.forEach(Runnable::run);
+        }
+    }
+
+    /** 404: 설비 종류가 민감이면 대체 설비 종류 자리를 정한 말로 바꾸고, 공정 표준이 요구하는 종류(일반 속성)는 그대로 둔다. */
+    @Test
+    void blockedReasonHidesRestrictedEquipmentKind() throws Exception {
+        LoginSession planner = login(createAccount("PLANNER"));
+        Runnable restore = restrict("EQUIPMENT", "kind");
+        try {
+            MvcResult result =
+                    execute(PLAN, planner, singleItem(UUID.randomUUID(), s4.p103, "20", s4.cnc))
+                            .andExpect(jsonPath("$.data.status").value("BLOCKED"))
+                            .andReturn();
+
+            assertThat(stringAt(result, "blockedReason"))
+                    .contains("((민감 값))는")
+                    .contains("(필요: PRS)")
+                    .doesNotContain("CNC");
+        } finally {
+            restore.run();
+        }
+    }
+
+    /**
+     * 404: 최소 톤수와 설비 능력이 민감이어도 검사를 건너뛰지 않고 막는다. 차단 문구는 저장되어 모델과 다른 사람이 보므로 민감 값 대신 정한 말을 쓴다. 예전에는
+     * 가린 최소 톤수(null)를 조건 없음으로 보고 계획을 만들었다.
+     */
+    @Test
+    void agentStillBlocksBelowRestrictedMinimumWithoutNamingTheValues() {
+        TestAccount plannerAccount = createAccount("PLANNER");
+        long messageId = createAgentMessage(plannerAccount.id());
+        long plansBefore = countPlans();
+        List<Runnable> restore =
+                List.of(restrict("ROUTING", "min_tonnage"), restrict("EQUIPMENT", "capacity_ton"));
+        try {
+            ActionExecutionResponse response =
+                    actionExecutionService.execute(
+                            agentCommand(plannerAccount, UUID.randomUUID(), s4.p201, messageId));
+
+            assertThat(response.status().name()).isEqualTo("BLOCKED");
+            assertThat(response.blockedReason())
+                    .contains(s4.p201Code)
+                    .contains("(민감 값)톤")
+                    .doesNotContain("300톤")
+                    .doesNotContain("400톤");
+            assertThat(countPlans()).isEqualTo(plansBefore);
+        } finally {
+            restore.forEach(Runnable::run);
+        }
     }
 
     @Test
@@ -1078,6 +1215,129 @@ class ActionExecutionApiTests {
                 }
             };
         }
+
+        static final String RESULT_KEY = "TEST_RESULT_HANDLER";
+
+        /** 결과에 설비의 민감 속성 값(result_manager)과 건수를 담는 Handler(404 결과 가림 시험). */
+        @Bean
+        ActionHandler resultHandler() {
+            return new ActionHandler() {
+                @Override
+                public String key() {
+                    return RESULT_KEY;
+                }
+
+                @Override
+                public ActionPreparation prepare(ActionContext context) {
+                    return new ActionPreparation.Ready(
+                            Map.of(
+                                    "manager",
+                                    String.valueOf(context.input().get("manager")),
+                                    "count",
+                                    1),
+                            List.of(),
+                            executionId -> {});
+                }
+            };
+        }
+
+        @Bean
+        RecordedPropertyPaths resultHandlerPaths() {
+            return () ->
+                    List.of(
+                            Path.result(
+                                    RESULT_KEY, List.of("manager"), "EQUIPMENT", "result_manager"),
+                            Path.plainResult(RESULT_KEY, List.of("count")));
+        }
+    }
+
+    /**
+     * 404: 091 응답의 result도 허용 목록으로 가린다. 민감 값을 볼 수 있는 사람의 웹 실행은 값을 보여 주고 열람 기록(ACTION_EXECUTE)을 남기며,
+     * 같은 requestId로 다시 받아도 새 응답이라 다시 남긴다. Agent 실행은 모델 용도라 가린다.
+     */
+    @Test
+    void masksExecuteResultByPurposeAndRecordsRestrictedView() throws Exception {
+        TestAccount plannerAccount = createAccount("PLANNER");
+        LoginSession planner = login(plannerAccount);
+        String code = createDefinition(FailingHandlerConfig.RESULT_KEY);
+        String path = "/api/v1/actions/%s/executions".formatted(code);
+        String body =
+                "{\"requestId\": \"%s\", \"input\": {\"manager\": \"T-KIM\"}}"
+                        .formatted(UUID.randomUUID());
+        Runnable restore = restrict("EQUIPMENT", "result_manager");
+        boolean before = plannerSeesRestrictedEquipment();
+        setPlannerSeesRestrictedEquipment(true);
+        try {
+            execute(path, planner, body)
+                    .andExpect(jsonPath("$.data.status").value("SUCCEEDED"))
+                    .andExpect(jsonPath("$.data.result.manager").value("T-KIM"))
+                    .andExpect(jsonPath("$.data.result.count").value(1));
+            assertThat(restrictedViewsOf(plannerAccount.id())).isEqualTo(1);
+            execute(path, planner, body)
+                    .andExpect(jsonPath("$.data.result.manager").value("T-KIM"));
+            assertThat(restrictedViewsOf(plannerAccount.id())).isEqualTo(2);
+
+            ActionExecutionResponse agent =
+                    actionExecutionService.execute(
+                            new ActionExecutionCommand(
+                                    new LoginAccount(
+                                            plannerAccount.id(),
+                                            plannerAccount.loginId(),
+                                            "PLANNER",
+                                            false),
+                                    code,
+                                    UUID.randomUUID(),
+                                    null,
+                                    null,
+                                    Map.of("manager", "T-KIM"),
+                                    false,
+                                    EntryPoint.AGENT,
+                                    createAgentMessage(plannerAccount.id())));
+            assertThat(agent.result()).containsEntry("manager", null).containsEntry("count", 1);
+            assertThat(restrictedViewsOf(plannerAccount.id())).isEqualTo(2);
+        } finally {
+            setPlannerSeesRestrictedEquipment(before);
+            restore.run();
+        }
+    }
+
+    private long restrictedViewsOf(long accountId) {
+        return jdbcClient
+                .sql(
+                        """
+                        select count(*) from action_execution
+                        where event_kind = 'RESTRICTED_VIEW' and actor_id = :id
+                          and input ->> 'view' = 'ACTION_EXECUTE'
+                        """)
+                .param("id", accountId)
+                .query(Long.class)
+                .single();
+    }
+
+    private boolean plannerSeesRestrictedEquipment() {
+        return jdbcClient
+                .sql(
+                        """
+                        select coalesce(bool_or(s.can_view_restricted), false) from role_data_scope s
+                        join role r on r.id = s.role_id
+                        join object_type t on t.access_group = s.access_group
+                        where r.code = 'PLANNER' and t.code = 'EQUIPMENT'
+                        """)
+                .query(Boolean.class)
+                .single();
+    }
+
+    private void setPlannerSeesRestrictedEquipment(boolean value) {
+        jdbcClient
+                .sql(
+                        """
+                        update role_data_scope s set can_view_restricted = :value
+                        from role r, object_type t
+                        where r.id = s.role_id and r.code = 'PLANNER'
+                          and t.access_group = s.access_group and t.code = 'EQUIPMENT'
+                        """)
+                .param("value", value)
+                .update();
     }
 
     private ActionExecutionCommand agentCommand(
@@ -1353,6 +1613,47 @@ class ActionExecutionApiTests {
                 .param("id", fromEquipmentId)
                 .query(Long.class)
                 .single();
+    }
+
+    /** 속성을 민감으로 지정하고 되돌리는 함수를 돌려준다. 없던 속성이면 만들었다가 지운다. */
+    private Runnable restrict(String typeCode, String propertyCode) {
+        String before =
+                jdbcClient
+                        .sql(
+                                """
+                                select p.sensitivity from property_definition p
+                                join object_type t on t.id = p.object_type_id
+                                where t.code = :type and p.code = :property
+                                """)
+                        .param("type", typeCode)
+                        .param("property", propertyCode)
+                        .query(String.class)
+                        .optional()
+                        .orElse(null);
+        if (before == null) {
+            long id = restrictProperty(typeCode, propertyCode);
+            return () ->
+                    jdbcClient
+                            .sql("delete from property_definition where id = :id")
+                            .param("id", id)
+                            .update();
+        }
+        setSensitivity(typeCode, propertyCode, "RESTRICTED");
+        return () -> setSensitivity(typeCode, propertyCode, before);
+    }
+
+    private void setSensitivity(String typeCode, String propertyCode, String sensitivity) {
+        jdbcClient
+                .sql(
+                        """
+                        update property_definition p set sensitivity = :sensitivity
+                        from object_type t
+                        where t.id = p.object_type_id and t.code = :type and p.code = :property
+                        """)
+                .param("sensitivity", sensitivity)
+                .param("type", typeCode)
+                .param("property", propertyCode)
+                .update();
     }
 
     private long restrictProperty(String typeCode, String propertyCode) {

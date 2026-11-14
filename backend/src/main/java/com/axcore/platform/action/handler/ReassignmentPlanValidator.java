@@ -28,8 +28,11 @@ import org.springframework.stereotype.Component;
  *   <li>대체 설비가 공정 표준의 설비 종류와 최소 능력(톤)을 만족하는가
  * </ol>
  *
- * <p>객체는 실행자의 조회 범위로 읽는다(384·390). 볼 수 없는 유형의 객체는 "찾을 수 없음"으로, 볼 수 없는 민감 값은 "속성이 없음"으로 막힌다. 차단 문구에
- * 나가는 값은 범위를 적용한 값이고, Agent가 실행하면 모델 용도로 읽어 민감 값은 늘 가린다.
+ * <p>객체는 검사 범위({@link com.axcore.platform.auth.service.DataPurpose#CHECK})로 읽는다(404). 실행자가 볼 수 없는
+ * 유형의 객체는 "찾을 수 없음"으로 막히고, 민감 값은 가리지 않은 원래 값으로 검사한다. 가린 값(null)을 "조건 없음"으로 보고 검사를 건너뛰지 않게 하려는 것이다.
+ *
+ * <p>차단 문구는 실행 기록(blocked_reason)에 저장되어 실행자·ADMIN·Agent(모델)가 본다. 보는 사람마다 가릴 수 없으므로 민감 속성 값은 누가 실행했든
+ * 문구에 넣지 않는다. 그 자리에는 {@link #HIDDEN}을, 객체 이름 자리에는 가린 표시 이름을 쓴다.
  *
  * <p>공정 표준은 관계가 아니라 작업지시의 제품 코드와 공정 순서 속성으로 찾는다. 정답 온톨로지에서 공정→공정 표준 관계는 작업지시를 거쳐 이어지는데, 관계
  * 규칙(link_mapping_condition)은 양 끝 속성을 직접 비교하는 조건만 담을 수 있어 그 관계가 만들어지지 않을 수 있다.
@@ -38,6 +41,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class ReassignmentPlanValidator {
 
+    /** 차단 문구에서 민감 값 대신 쓰는 말. */
+    static final String HIDDEN = "(민감 값)";
+
     private final ReassignmentObjectRepository objects;
     private final ReassignmentProperties properties;
 
@@ -45,6 +51,7 @@ class ReassignmentPlanValidator {
         ReassignmentProperties.Equipment equipment = properties.equipment();
         ReassignmentProperties.WorkOrder workOrder = properties.workOrder();
         ReassignmentProperties.Operation operation = properties.operation();
+        Words words = new Words(access);
 
         Set<Long> ids = new LinkedHashSet<>();
         ids.add(input.fromEquipmentId());
@@ -78,16 +85,20 @@ class ReassignmentPlanValidator {
                     "정지 설비 %s에 설비 코드(%s) 속성이 없어 배정을 확인할 수 없습니다."
                             .formatted(from.displayName(), equipment.code()));
         }
+        String fromLabel = words.label(from, equipment.type(), equipment.code());
         for (ReassignmentPlanInput.Item item : input.items()) {
             if (item.toEquipmentId().equals(input.fromEquipmentId())) {
                 return Result.blocked(
                         "대체 설비가 정지 설비 %s와 같습니다(작업지시 %s)."
                                 .formatted(
-                                        fromCode,
-                                        label(rows.get(item.workOrderId()), workOrder.number())));
+                                        fromLabel,
+                                        words.label(
+                                                rows.get(item.workOrderId()),
+                                                workOrder.type(),
+                                                workOrder.number())));
             }
         }
-        String duplicate = duplicateItem(input.items(), rows);
+        String duplicate = duplicateItem(input.items(), rows, words);
         if (duplicate != null) {
             return Result.blocked(duplicate);
         }
@@ -108,7 +119,9 @@ class ReassignmentPlanValidator {
             if (status == null || !workOrder.movableStatuses().contains(status)) {
                 return Result.blocked(
                         "작업지시 %s는 %s 상태라 옮길 수 없습니다."
-                                .formatted(label(order, workOrder.number()), status));
+                                .formatted(
+                                        words.label(order, workOrder.type(), workOrder.number()),
+                                        words.value(workOrder.type(), workOrder.status(), status)));
             }
         }
 
@@ -126,6 +139,9 @@ class ReassignmentPlanValidator {
         for (ReassignmentPlanInput.Item item : input.items()) {
             ObjectRow order = rows.get(item.workOrderId());
             String orderNo = order.text(workOrder.number());
+            String orderLabel = words.label(order, workOrder.type(), workOrder.number());
+            String operationLabel =
+                    words.value(operation.type(), operation.sequence(), item.operationCode());
             List<ObjectRow> ofOrder =
                     operations.stream()
                             .filter(op -> Objects.equals(op.text(operation.workOrder()), orderNo))
@@ -141,7 +157,7 @@ class ReassignmentPlanValidator {
                                 .toList();
                 if (sameSequence.isEmpty()) {
                     return Result.blocked(
-                            "작업지시 %s에 %s 공정이 없습니다.".formatted(orderNo, item.operationCode()));
+                            "작업지시 %s에 %s 공정이 없습니다.".formatted(orderLabel, operationLabel));
                 }
                 List<ObjectRow> assigned =
                         sameSequence.stream()
@@ -150,13 +166,13 @@ class ReassignmentPlanValidator {
                 if (assigned.isEmpty()) {
                     return Result.blocked(
                             "작업지시 %s의 %s 공정은 정지 설비 %s에 배정돼 있지 않습니다."
-                                    .formatted(orderNo, item.operationCode(), fromCode));
+                                    .formatted(orderLabel, operationLabel, fromLabel));
                 }
                 // 같은 공정 행이 여러 개면 끝나지 않은 것만 옮긴다.
                 targets = assigned.stream().filter(op -> !isFinished(op)).toList();
                 if (targets.isEmpty()) {
                     return Result.blocked(
-                            "작업지시 %s의 %s 공정은 이미 끝났습니다.".formatted(orderNo, item.operationCode()));
+                            "작업지시 %s의 %s 공정은 이미 끝났습니다.".formatted(orderLabel, operationLabel));
                 }
             } else {
                 targets =
@@ -166,13 +182,13 @@ class ReassignmentPlanValidator {
                                 .toList();
                 if (targets.isEmpty()) {
                     return Result.blocked(
-                            "작업지시 %s에 정지 설비 %s에 배정된 남은 공정이 없습니다.".formatted(orderNo, fromCode));
+                            "작업지시 %s에 정지 설비 %s에 배정된 남은 공정이 없습니다.".formatted(orderLabel, fromLabel));
                 }
             }
             validated.add(new ValidatedItem(item, order, rows.get(item.toEquipmentId()), targets));
         }
 
-        String capability = capabilityViolation(validated, access);
+        String capability = capabilityViolation(validated, access, words);
         if (capability != null) {
             return Result.blocked(capability);
         }
@@ -180,7 +196,7 @@ class ReassignmentPlanValidator {
     }
 
     /** 공정 표준이 요구하는 설비 종류와 최소 능력을 대체 설비가 만족하지 않으면 이유를 돌려준다. */
-    private String capabilityViolation(List<ValidatedItem> items, DataAccess access) {
+    private String capabilityViolation(List<ValidatedItem> items, DataAccess access, Words words) {
         ReassignmentProperties.Equipment equipment = properties.equipment();
         ReassignmentProperties.WorkOrder workOrder = properties.workOrder();
         ReassignmentProperties.Operation operation = properties.operation();
@@ -192,12 +208,14 @@ class ReassignmentPlanValidator {
                 objects.findActiveByProperty(access, routing.type(), routing.product(), products);
 
         for (ValidatedItem item : items) {
-            String orderNo = item.workOrder().text(workOrder.number());
+            String orderLabel = words.label(item.workOrder(), workOrder.type(), workOrder.number());
             String product = item.workOrder().text(workOrder.product());
             ObjectRow to = item.toEquipment();
-            String toCode = label(to, equipment.code());
+            String toLabel = words.label(to, equipment.type(), equipment.code());
             for (ObjectRow op : item.operations()) {
                 String sequence = op.text(operation.sequence());
+                String sequenceLabel =
+                        words.value(operation.type(), operation.sequence(), sequence);
                 ObjectRow standard =
                         routings.stream()
                                 .filter(r -> Objects.equals(r.text(routing.product()), product))
@@ -206,17 +224,24 @@ class ReassignmentPlanValidator {
                                 .orElse(null);
                 if (standard == null) {
                     return "작업지시 %s의 %s 공정 표준(제품 %s)을 찾을 수 없습니다."
-                            .formatted(orderNo, sequence, product);
+                            .formatted(
+                                    orderLabel,
+                                    sequenceLabel,
+                                    words.value(workOrder.type(), workOrder.product(), product));
                 }
                 String requiredKind = standard.text(routing.equipmentKind());
                 if (requiredKind != null && !requiredKind.equals(to.text(equipment.kind()))) {
                     return "대체 설비 %s(%s)는 작업지시 %s의 %s 공정에 쓸 수 없는 종류입니다(필요: %s)."
                             .formatted(
-                                    toCode,
-                                    to.text(equipment.kind()),
-                                    orderNo,
-                                    sequence,
-                                    requiredKind);
+                                    toLabel,
+                                    words.value(
+                                            equipment.type(),
+                                            equipment.kind(),
+                                            to.text(equipment.kind())),
+                                    orderLabel,
+                                    sequenceLabel,
+                                    words.value(
+                                            routing.type(), routing.equipmentKind(), requiredKind));
                 }
                 BigDecimal minimum = standard.number(routing.minCapacity());
                 if (minimum != null) {
@@ -224,11 +249,19 @@ class ReassignmentPlanValidator {
                     if (capacity == null || capacity.compareTo(minimum) < 0) {
                         return "대체 설비 %s의 능력 %s톤이 작업지시 %s의 %s 공정 최소 %s톤보다 작습니다."
                                 .formatted(
-                                        toCode,
-                                        capacity == null ? "(없음)" : capacity.toPlainString(),
-                                        orderNo,
-                                        sequence,
-                                        minimum.toPlainString());
+                                        toLabel,
+                                        capacity == null
+                                                ? "(없음)"
+                                                : words.value(
+                                                        equipment.type(),
+                                                        equipment.capacity(),
+                                                        capacity.toPlainString()),
+                                        orderLabel,
+                                        sequenceLabel,
+                                        words.value(
+                                                routing.type(),
+                                                routing.minCapacity(),
+                                                minimum.toPlainString()));
                     }
                 }
             }
@@ -238,21 +271,30 @@ class ReassignmentPlanValidator {
 
     /** 같은 작업지시·공정이 두 번 있거나, 작업지시 전체와 그 작업지시의 개별 공정이 함께 있으면 이유를 돌려준다. */
     private String duplicateItem(
-            List<ReassignmentPlanInput.Item> items, Map<Long, ObjectRow> rows) {
+            List<ReassignmentPlanInput.Item> items, Map<Long, ObjectRow> rows, Words words) {
+        ReassignmentProperties.WorkOrder workOrder = properties.workOrder();
+        ReassignmentProperties.Operation operation = properties.operation();
         Set<String> seen = new HashSet<>();
         Set<Long> whole = new HashSet<>();
         Set<Long> partial = new HashSet<>();
         for (ReassignmentPlanInput.Item item : items) {
-            String orderNo = label(rows.get(item.workOrderId()), properties.workOrder().number());
+            String orderLabel =
+                    words.label(rows.get(item.workOrderId()), workOrder.type(), workOrder.number());
             String key = item.workOrderId() + "/" + item.operationCode();
             if (!seen.add(key)) {
                 return item.operationCode() == null
-                        ? "작업지시 %s 전체가 두 번 들어 있습니다.".formatted(orderNo)
-                        : "작업지시 %s의 %s 공정이 두 번 들어 있습니다.".formatted(orderNo, item.operationCode());
+                        ? "작업지시 %s 전체가 두 번 들어 있습니다.".formatted(orderLabel)
+                        : "작업지시 %s의 %s 공정이 두 번 들어 있습니다."
+                                .formatted(
+                                        orderLabel,
+                                        words.value(
+                                                operation.type(),
+                                                operation.sequence(),
+                                                item.operationCode()));
             }
             (item.operationCode() == null ? whole : partial).add(item.workOrderId());
             if (whole.contains(item.workOrderId()) && partial.contains(item.workOrderId())) {
-                return "작업지시 %s 전체와 개별 공정을 함께 옮길 수 없습니다.".formatted(orderNo);
+                return "작업지시 %s 전체와 개별 공정을 함께 옮길 수 없습니다.".formatted(orderLabel);
             }
         }
         return null;
@@ -267,10 +309,19 @@ class ReassignmentPlanValidator {
         return row != null && row.isActive() && typeCode.equals(row.typeCode());
     }
 
-    /** 메시지에 쓸 객체 이름. 코드 속성이 없으면 표시 이름이다. */
-    private static String label(ObjectRow row, String key) {
-        String code = row.text(key);
-        return code == null ? row.displayName() : code;
+    /** 차단 문구에 넣는 말. 민감 속성 값은 보는 사람과 관계없이 넣지 않는다(404). */
+    private record Words(DataAccess access) {
+
+        /** 속성 값. 민감 속성이면 {@link #HIDDEN}이다. 사용자가 입력한 값(공정 코드)도 그 속성의 값이면 같게 다룬다. */
+        String value(String typeCode, String propertyCode, String value) {
+            return access.isRestricted(typeCode, propertyCode) ? HIDDEN : value;
+        }
+
+        /** 객체 이름. 코드 속성이 민감 속성이거나 없으면 표시 이름이다. 표시 이름은 검사 범위가 가린 이름이다. */
+        String label(ObjectRow row, String typeCode, String key) {
+            String code = row.text(key);
+            return code == null || access.isRestricted(typeCode, key) ? row.displayName() : code;
+        }
     }
 
     /** blockedReason이 있으면 막힌 것이고, 없으면 검사를 통과한 객체가 들어 있다. */

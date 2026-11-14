@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
  *   <li>민감(RESTRICTED) 값은 그 허용 행의 can_view_restricted가 true일 때만 본다.
  *   <li>읽는 용도({@link DataPurpose})가 모델이면 민감 값은 역할과 관계없이 가린다(S15P31C106-384). 정의 조회 용도로는 객체 값을 읽지
  *       않는다.
+ *   <li>검사 용도({@link DataPurpose#CHECK})는 보이는 유형이 같고 민감 값을 가리지 않는다. 업무 조건 검사와 그 근거 저장에만 쓴다(404).
  * </ul>
  */
 public final class DataAccess {
@@ -92,19 +93,28 @@ public final class DataAccess {
         return scopesByCode.containsKey(objectTypeCode);
     }
 
-    /** 유형 코드로 확인한다. 저장된 사본처럼 유형 코드만 아는 기록이 쓴다(403). 없는 유형이면 false다. */
+    /** 볼 수 없는 유형이면 false다. 모델 용도면 항상 false, 검사 용도면 보이는 유형은 항상 true다. */
+    public boolean canViewRestricted(long objectTypeId) {
+        ObjectTypeScope scope = scopes.get(objectTypeId);
+        if (purpose == DataPurpose.MODEL || scope == null || !scope.visible()) {
+            return false;
+        }
+        return purpose == DataPurpose.CHECK || scope.canViewRestricted();
+    }
+
+    /** 유형 코드로 확인한다. 유형 코드만 아는 기록이 쓴다(403 저장된 사본, 404 차단 문구 가림). 없는 유형이면 false다. */
     public boolean canViewRestricted(String objectTypeCode) {
         ObjectTypeScope scope = scopesByCode.get(objectTypeCode);
         return scope != null && canViewRestricted(scope.objectTypeId());
     }
 
-    /** 볼 수 없는 유형이면 false다. 모델 용도면 항상 false다. */
-    public boolean canViewRestricted(long objectTypeId) {
-        ObjectTypeScope scope = scopes.get(objectTypeId);
-        return purpose != DataPurpose.MODEL
-                && scope != null
-                && scope.visible()
-                && scope.canViewRestricted();
+    /**
+     * 그 유형의 그 속성이 민감(RESTRICTED) 속성인가. 보는 사람과 관계없다. 저장되어 여러 사람·모델이 보는 문구(재배정 차단 이유 등)에 값을 넣을지 정할 때
+     * 쓴다(404). 없는 유형이면 false다.
+     */
+    public boolean isRestricted(String objectTypeCode, String propertyCode) {
+        ObjectTypeScope scope = scopesByCode.get(objectTypeCode);
+        return scope != null && scope.restrictedPropertyCodes().contains(propertyCode);
     }
 
     /** 이 범위를 만든 용도. */
@@ -112,8 +122,14 @@ public final class DataAccess {
         return purpose;
     }
 
-    /** 볼 수 있는 유형 중 민감 값을 가려야 하는 유형 ID. 객체 SQL이 표시 이름·원천 키를 가릴 때 쓴다. */
+    /**
+     * 볼 수 있는 유형 중 민감 값을 가려야 하는 유형 ID. 객체 SQL이 표시 이름·원천 키를 가릴 때 쓴다. 검사 용도는 속성 값을 가리지 않지만 표시 이름이 저장되는
+     * 문구에 쓰이므로, 모델 용도처럼 보이는 유형을 모두 넣는다(404). 수집 때의 표시 이름이 매핑되지 않은 원천 컬럼에서 왔을 수 있어서다.
+     */
     public Set<Long> maskedObjectTypeIds() {
+        if (purpose == DataPurpose.CHECK) {
+            return visibleObjectTypeIds();
+        }
         return scopes.values().stream()
                 .filter(ObjectTypeScope::visible)
                 .map(ObjectTypeScope::objectTypeId)

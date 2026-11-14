@@ -42,7 +42,12 @@ function DetailContent({
     delete resultValues.reason
   }
   const input = formatJson(detail.input, detail.restrictedPropertyCodes)
-  const result = formatJson(resultValues)
+  // restrictedPropertyCodes는 입력값과 성공한 실행의 처리 결과에서 가린 속성을 함께 담는다(404).
+  // 실패·차단 기록의 결과는 서버가 가리지 않는 고정 내용이라 가림 표시를 붙이지 않는다.
+  const result = formatJson(
+    resultValues,
+    detail.status === 'SUCCEEDED' ? detail.restrictedPropertyCodes : [],
+  )
   return (
     <>
       <p className="mt-2 font-semibold text-slate-900">
@@ -56,7 +61,7 @@ function DetailContent({
       <p className="mt-2 font-semibold text-slate-700">입력값</p>
       {detail.restrictedPropertyCodes.length > 0 && (
         <p className="text-slate-500">
-          입력값 중 권한으로 가린 속성이 있습니다.
+          입력값·처리 결과 중 권한으로 가린 속성이 있습니다.
         </p>
       )}
       <ExecutionValues

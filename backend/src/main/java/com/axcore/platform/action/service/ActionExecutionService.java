@@ -19,10 +19,16 @@ import com.axcore.platform.audit.domain.ExecutionStatus;
 import com.axcore.platform.audit.repository.ActionExecutionRepository;
 import com.axcore.platform.audit.service.AuditRecorder;
 import com.axcore.platform.audit.service.AuditSanitizer;
+import com.axcore.platform.audit.service.AuditValueMasker;
+import com.axcore.platform.audit.service.AuditValueMasker.Masked;
+import com.axcore.platform.audit.service.RestrictedViewRecorder;
+import com.axcore.platform.audit.service.RestrictedViewRecorder.Seen;
+import com.axcore.platform.auth.service.DataAccess;
 import com.axcore.platform.auth.service.DataAccessPolicy;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -66,6 +72,8 @@ public class ActionExecutionService {
     private final ActionExecutionRepository executions;
     private final AuditRecorder audits;
     private final DataAccessPolicy dataAccessPolicy;
+    private final AuditValueMasker masker;
+    private final RestrictedViewRecorder restrictedViews;
     private final JsonMapper json;
     private final TransactionTemplate transactionTemplate;
 
@@ -77,6 +85,8 @@ public class ActionExecutionService {
             ActionExecutionRepository executions,
             AuditRecorder audits,
             DataAccessPolicy dataAccessPolicy,
+            AuditValueMasker masker,
+            RestrictedViewRecorder restrictedViews,
             JsonMapper json,
             PlatformTransactionManager transactionManager) {
         this.definitions = definitions;
@@ -86,11 +96,51 @@ public class ActionExecutionService {
         this.executions = executions;
         this.audits = audits;
         this.dataAccessPolicy = dataAccessPolicy;
+        this.masker = masker;
+        this.restrictedViews = restrictedViews;
         this.json = json;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
+    /**
+     * 실행하고 기록을 돌려준다. 결과(result)와 차단 이유는 092·097과 같은 규칙으로 가린다(404). Agent가 실행하면 외부 모델로 가므로 모델 용도로, 그
+     * 밖에는 실행자가 보는 용도로 가리고, 가리지 않은 민감 값이 있으면 열람 기록을 남긴다(394). 같은 requestId로 다시 받은 응답도 새 응답이므로 다시
+     * 남긴다.
+     */
     public ActionExecutionResponse execute(ActionExecutionCommand command) {
+        ActionExecutionResponse response = run(command);
+        boolean agent = command.entryPoint() == EntryPoint.AGENT;
+        DataAccess access =
+                agent
+                        ? dataAccessPolicy.forModel(command.actor())
+                        : dataAccessPolicy.of(command.actor());
+        Masked<Map<String, Object>> result =
+                masker.maskResult(
+                        response.actionDefinitionId(),
+                        response.status(),
+                        response.result(),
+                        access);
+        String blockedReason =
+                masker.maskBlockedReason(
+                        response.actionDefinitionId(),
+                        response.status(),
+                        response.blockedReason(),
+                        response.result(),
+                        access);
+        if (!agent) {
+            restrictedViews.record(
+                    command.actor(),
+                    "ACTION_EXECUTE",
+                    List.of(
+                            new Seen(
+                                    "action_execution",
+                                    response.id(),
+                                    result.revealedPropertyCodes())));
+        }
+        return response.masked(result.value(), blockedReason);
+    }
+
+    private ActionExecutionResponse run(ActionExecutionCommand command) {
         if ((command.entryPoint() == EntryPoint.AGENT) != (command.agentMessageId() != null)) {
             throw new IllegalArgumentException("Agent 실행에만 agentMessageId가 있어야 합니다.");
         }
@@ -121,7 +171,12 @@ public class ActionExecutionService {
         Optional<String> gate = gateReason(definition, handler, command, target);
         if (gate.isPresent()) {
             return recordSeparately(
-                    definition, command, target, ExecutionStatus.BLOCKED, gate.get());
+                    definition,
+                    command,
+                    target,
+                    ExecutionStatus.BLOCKED,
+                    gate.get(),
+                    AuditValueMasker.BLOCKED_BY_GATE);
         }
 
         ActionContext context =
@@ -140,7 +195,12 @@ public class ActionExecutionService {
             return ActionExecutionResponse.from(executions.findById(executionId).orElseThrow());
         } catch (Blocked blocked) {
             return recordSeparately(
-                    definition, command, target, ExecutionStatus.BLOCKED, blocked.getMessage());
+                    definition,
+                    command,
+                    target,
+                    ExecutionStatus.BLOCKED,
+                    blocked.getMessage(),
+                    AuditValueMasker.BLOCKED_BY_HANDLER);
         } catch (DataIntegrityViolationException ex) {
             Optional<ActionExecution> concurrent = executions.findByRequestId(command.requestId());
             if (concurrent.isPresent()) {
@@ -148,11 +208,11 @@ public class ActionExecutionService {
             }
             log.error("Action 실행 실패 code={}", definition.getCode(), ex);
             return recordSeparately(
-                    definition, command, target, ExecutionStatus.FAILED, FAILED_MESSAGE);
+                    definition, command, target, ExecutionStatus.FAILED, FAILED_MESSAGE, null);
         } catch (RuntimeException ex) {
             log.error("Action 실행 실패 code={}", definition.getCode(), ex);
             return recordSeparately(
-                    definition, command, target, ExecutionStatus.FAILED, FAILED_MESSAGE);
+                    definition, command, target, ExecutionStatus.FAILED, FAILED_MESSAGE, null);
         }
     }
 
@@ -282,16 +342,23 @@ public class ActionExecutionService {
         return json.readTree(json.writeValueAsString(value));
     }
 
-    /** 차단·실패를 업무와 따로 커밋한다. 같은 requestId가 동시에 저장됐으면 그 기록을 돌려준다. */
+    /**
+     * 차단·실패를 업무와 따로 커밋한다. 같은 requestId가 동시에 저장됐으면 그 기록을 돌려준다. 차단이면 누가 막았는지(실행기·Handler)를 result에
+     * 남긴다. 조회는 이 표시로 차단 이유를 누구에게 보여 줄지 정한다(404, {@link AuditValueMasker#maskBlockedReason}).
+     */
     private ActionExecutionResponse recordSeparately(
             ActionDefinition definition,
             ActionExecutionCommand command,
             ActionTarget target,
             ExecutionStatus status,
-            String reason) {
+            String reason,
+            String blockedBy) {
         AuditEntry.AuditEntryBuilder entry = entry(definition, command, target, status, reason);
         if (status == ExecutionStatus.FAILED) {
             entry.result(Map.of("errorMessage", reason));
+        }
+        if (blockedBy != null) {
+            entry.result(Map.of(AuditValueMasker.BLOCKED_BY, blockedBy));
         }
         try {
             Long id = audits.recordSeparately(entry.build());

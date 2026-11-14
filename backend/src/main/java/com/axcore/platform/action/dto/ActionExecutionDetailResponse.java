@@ -13,9 +13,9 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 실행 기록 하나와 그 실행이 바꾼 행 (API 092). input·result·변경 내용은 기록할 때 이미 비밀값을 뺀 값이다. input과 변경 내용의 민감 속성 값은
- * 보는 사람의 범위로 가리고, 가린 속성 코드는 restrictedPropertyCodes에 담는다(감사 097·098과 같은 규칙, 384·390). result는
- * Handler가 만든 ID·건수라 객체 값이 없다.
+ * 실행 기록 하나와 그 실행이 바꾼 행 (API 092). input·result·변경 내용은 기록할 때 이미 비밀값을 뺀 값이다. input·result·변경 내용은
+ * Handler가 알린 자리만 보여 주고 민감 속성 값은 보는 사람의 범위로 가리며, 가린 속성 코드는 restrictedPropertyCodes에 담는다(감사 097·098과
+ * 같은 규칙, 384·390·404).
  */
 public record ActionExecutionDetailResponse(
         Long id,
@@ -38,10 +38,12 @@ public record ActionExecutionDetailResponse(
         List<EntityChangeResponse> entityChanges,
         List<String> restrictedPropertyCodes) {
 
-    /** 가린 input과 변경 내용으로 만든다. */
+    /** 가린 input·result와 변경 내용으로 만든다. */
     public static ActionExecutionDetailResponse of(
             ActionExecution execution,
             Map<String, Object> maskedInput,
+            Map<String, Object> maskedResult,
+            String maskedBlockedReason,
             List<EntityChangeResponse> maskedChanges,
             List<String> restrictedPropertyCodes) {
         return new ActionExecutionDetailResponse(
@@ -58,8 +60,8 @@ public record ActionExecutionDetailResponse(
                 execution.getTargetId(),
                 orEmpty(maskedInput),
                 execution.getStatus(),
-                execution.getBlockedReason(),
-                orEmpty(execution.getResult()),
+                maskedBlockedReason,
+                orEmpty(maskedResult),
                 execution.getRequestedAt(),
                 execution.getFinishedAt(),
                 List.copyOf(maskedChanges),

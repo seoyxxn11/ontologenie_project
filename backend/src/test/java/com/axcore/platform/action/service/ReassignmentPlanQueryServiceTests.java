@@ -108,8 +108,9 @@ class ReassignmentPlanQueryServiceTests {
         assertThat(withFourPlans).isEqualTo(withOnePlan);
     }
 
+    /** 저장된 값은 그대로 두되, 스냅샷은 정한 필드만, 선정 근거는 이유 문장만 내보낸다(404). */
     @Test
-    void sortsNewestFirstAndKeepsStoredValues() {
+    void sortsNewestFirstAndExportsOnlyDecidedFields() {
         long oldest = insertPlan("2026-10-30T01:00:00Z");
         long newerLowId = insertPlan("2026-10-30T02:00:00Z");
         long newerHighId = insertPlan("2026-10-30T02:00:00Z");
@@ -130,15 +131,7 @@ class ReassignmentPlanQueryServiceTests {
 
         ReassignmentPlanResponse plan = service.get(ADMIN, newerHighId);
         assertThat(plan.status()).isEqualTo("CREATED");
-        assertThat(plan.selectionBasis())
-                .isEqualTo(
-                        Map.of(
-                                "reason",
-                                "톤수 충족",
-                                "score",
-                                0.85,
-                                "candidates",
-                                List.of(Map.of("code", "P101", "capacity", 300))));
+        assertThat(plan.selectionBasis()).isEqualTo(Map.of("reason", "톤수 충족"));
         assertThat(plan.dataAsOf()).isEqualTo(Instant.parse("2026-10-30T00:30:00Z"));
         assertThat(plan.createdAt()).isEqualTo(Instant.parse("2026-10-30T02:00:00Z"));
         assertThat(plan.agentConversationId()).isNull();
@@ -148,7 +141,30 @@ class ReassignmentPlanQueryServiceTests {
         assertThat(item.workOrderId()).isEqualTo(workOrder);
         assertThat(item.fromEquipmentId()).isEqualTo(fromEquipment);
         assertThat(item.toEquipmentId()).isEqualTo(toEquipment);
-        assertThat(item.sourceSnapshot()).isEqualTo(Map.of("status", "중단"));
+        assertThat(item.sourceSnapshot())
+                .isEqualTo(
+                        Map.of(
+                                "workOrderNo",
+                                "JB-1",
+                                "operations",
+                                List.of(
+                                        Map.of(
+                                                "objectId",
+                                                11,
+                                                "sequence",
+                                                "20",
+                                                "equipmentCode",
+                                                "P103",
+                                                "status",
+                                                "중단"))));
+        assertThat(
+                        jdbcClient
+                                .sql(
+                                        "select selection_basis::text from reassignment_plan where id = :id")
+                                .param("id", newerHighId)
+                                .query(String.class)
+                                .single())
+                .contains("candidates");
         assertThat(service.items(ADMIN, newerLowId)).isEmpty();
     }
 
@@ -215,7 +231,10 @@ class ReassignmentPlanQueryServiceTests {
                         insert into reassignment_plan_item (plan_id, work_order_id, operation_code,
                                                             from_equipment_id, to_equipment_id, source_snapshot)
                         values (:planId, :workOrder, :operationCode, :from, :to,
-                                '{"status": "중단"}'::jsonb)
+                                '{"workOrderNo": "JB-1", "note": "저장만 된 필드",
+                                  "operations": [{"objectId": 11, "sequence": "20",
+                                                  "equipmentCode": "P103", "status": "중단",
+                                                  "remainingQty": 3200}]}'::jsonb)
                         """)
                 .param("planId", planId)
                 .param("workOrder", workOrder)
