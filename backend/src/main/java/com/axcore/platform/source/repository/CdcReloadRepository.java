@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -27,9 +28,15 @@ public class CdcReloadRepository {
      * 다른 테이블 때문에 함께 실패할 수 있어서다. 수동 실행의 실패도 다시 넣기를 미루는 데는 쓴다.
      *
      * @param excludedFailurePattern 실패로 세지 않을 error_message의 LIKE 패턴(escape 문자는 백슬래시)
+     * @param policyBlockedPattern 멈춤 횟수에만 세지 않을 패턴(원천 데이터 정책 때문에 계획을 만들지 못한 실패, 402). 고칠 때까지 같은
+     *     사유로는 다시 넣지 않으므로 횟수를 올릴 까닭이 없고, 세면 다른 실패와 합쳐 3번이 되어 고친 뒤에도 자동으로 넣지 않는다
      */
     public List<DueResource> findDue(
-            Instant retryAfter, int maxFailures, String excludedFailurePattern, int limit) {
+            Instant retryAfter,
+            int maxFailures,
+            String excludedFailurePattern,
+            String policyBlockedPattern,
+            int limit) {
         return jdbc.sql(
                         """
                         select r.id, r.data_source_id,
@@ -42,7 +49,9 @@ public class CdcReloadRepository {
                                end as reason
                         from source_resource r
                         cross join lateral (
-                            select count(*) filter (where fr.trigger_kind = 'RECOVERY') as failures,
+                            select count(*) filter (where fr.trigger_kind = 'RECOVERY'
+                                                      and f.error_message not like :policyBlocked escape '\\')
+                                       as failures,
                                    max(f.finished_at) as last_failed_at
                             from sync_run_resource f
                             join sync_run fr on fr.id = f.sync_run_id
@@ -69,6 +78,7 @@ public class CdcReloadRepository {
                         limit :limit
                         """)
                 .param("excluded", excludedFailurePattern)
+                .param("policyBlocked", policyBlockedPattern)
                 .param("maxFailures", maxFailures)
                 .param("retryAfter", toTimestamp(retryAfter))
                 .param("limit", limit)
@@ -79,6 +89,30 @@ public class CdcReloadRepository {
                                         rs.getLong("data_source_id"),
                                         AutoReloadReason.valueOf(rs.getString("reason"))))
                 .list();
+    }
+
+    /**
+     * 이 테이블의 마지막 전체 읽기 시도가 실패였으면 그 사유. 마지막 시도가 성공이거나 시도가 없으면 빈 값이다. 적재 계획을 만들 수 없는 테이블을 같은 사유로 거듭
+     * 넣지 않는 데 쓴다(402).
+     */
+    public Optional<String> lastFullFailure(long resourceId) {
+        return jdbc.sql(
+                        """
+                        select status, coalesce(error_message, '') as error_message
+                        from sync_run_resource
+                        where source_resource_id = :resource and mode = 'FULL'
+                          and status in ('SUCCEEDED', 'FAILED')
+                        order by finished_at desc nulls last, sync_run_id desc
+                        limit 1
+                        """)
+                .param("resource", resourceId)
+                .query(
+                        (rs, row) ->
+                                new FullAttempt(
+                                        rs.getString("status"), rs.getString("error_message")))
+                .optional()
+                .filter(attempt -> "FAILED".equals(attempt.status()))
+                .map(FullAttempt::errorMessage);
     }
 
     /** trigger_kind RECOVERY의 빈 실행을 QUEUED로 넣는다. 요청자는 없다. */
@@ -122,6 +156,8 @@ public class CdcReloadRepository {
     private static OffsetDateTime toTimestamp(Instant instant) {
         return instant.atOffset(ZoneOffset.UTC);
     }
+
+    private record FullAttempt(String status, String errorMessage) {}
 
     public record DueResource(long resourceId, long dataSourceId, AutoReloadReason reason) {}
 }

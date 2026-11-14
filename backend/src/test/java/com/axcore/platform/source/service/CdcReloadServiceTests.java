@@ -3,6 +3,7 @@ package com.axcore.platform.source.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.axcore.platform.TestcontainersConfiguration;
+import com.axcore.platform.batch.service.QueuedJobFailure;
 import com.axcore.platform.batch.service.QueuedJobPoller;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,7 @@ class CdcReloadServiceTests {
     @MockitoBean CdcReloadJob cdcReloadJob;
 
     @Autowired CdcReloadService service;
+    @Autowired FullLoadPlanner planner;
     @Autowired JdbcClient jdbc;
     @Autowired JsonMapper json;
 
@@ -272,6 +274,117 @@ class CdcReloadServiceTests {
         assertThat(activeRuns(table)).isOne();
     }
 
+    /**
+     * 적재 계획을 만들 수 없는 테이블(402)은 한 번 넣어 실행이 사유를 수집 실패로 남기게 한다. 같은 사유로 막혀 있는 동안은 다시 넣지 않아 실패 기록이 쌓이지
+     * 않고 멈춤 횟수도 오르지 않는다. 매핑을 고치면 다음 주기에 넣는다.
+     */
+    @Test
+    void queuesBlockedTableOnceThenWaitsUntilMappingIsFixed() {
+        long table = cdcTable("erp.employee");
+        long mapping = mappingWithKey(table, "emp_name");
+
+        service.queueDueReloads();
+        assertThat(activeRuns(table)).as("처음에는 넣어 사유를 남긴다").isOne();
+
+        removeQueuedRuns();
+        failedRun(table, "6 minutes", planFailure(table));
+        service.queueDueReloads();
+        assertThat(activeRuns(table)).as("같은 사유로 막혀 있으면 넣지 않는다").isZero();
+
+        jdbc.sql(
+                        "update object_source_mapping set key_columns = '[\"emp_no\"]'::jsonb where id = :id")
+                .param("id", mapping)
+                .update();
+        service.queueDueReloads();
+        assertThat(activeRuns(table)).as("고치면 넣는다").isOne();
+    }
+
+    /**
+     * 원천 데이터 정책 때문에 계획을 만들지 못한 실패는 멈춤 횟수에 세지 않는다(402). 세면 다른 실패와 합쳐 3번이 되어, 매핑을 고친 뒤에도 자동으로 넣지
+     * 않는다(복구 중이면 원천 전체 CDC가 관리자 실행 전까지 멈춘다). 재시도 대기에는 쓴다.
+     */
+    @Test
+    void policyBlockedFailuresDoNotStopAutoReloadAfterFix() {
+        long table = cdcTable("erp.employee");
+        long mapping = mappingWithKey(table, "emp_name");
+        String reason = planFailure(table);
+        failedRun(table, "20 minutes", "원천에 접속하지 못했습니다.");
+        failedRun(table, "15 minutes", reason);
+        failedRun(table, "10 minutes", reason.replace("emp_name", "emp_name, position"));
+        jdbc.sql(
+                        "update object_source_mapping set key_columns = '[\"emp_no\"]'::jsonb where id = :id")
+                .param("id", mapping)
+                .update();
+
+        service.queueDueReloads();
+
+        assertThat(activeRuns(table)).isOne();
+    }
+
+    /** 사유가 바뀌면(다른 위반, 전에는 다른 이유로 실패) 다시 한 번 넣어 새 사유를 남긴다. */
+    @Test
+    void queuesBlockedTableAgainWhenReasonDiffers() {
+        long table = cdcTable("erp.employee");
+        mappingWithKey(table, "emp_name");
+        failedRun(table, "6 minutes", "원천에 접속하지 못했습니다.");
+
+        service.queueDueReloads();
+
+        assertThat(activeRuns(table)).isOne();
+    }
+
+    /**
+     * 복구 중인 원천은 적재 계획을 만들 수 없는 테이블을 기다리지 않고 푼다(402). 기다리면 그 테이블의 다시 읽기가 끝나지 않아 원천 전체의 CDC가 멈춘다. 막힌
+     * 테이블은 다시 읽기 표시가 남는다.
+     */
+    @Test
+    void releasesRecoveryWithoutWaitingForBlockedTable() {
+        recovery("SLOT_LOST");
+        long loaded = cdcTable("erp.work_order");
+        mapping(loaded, true);
+        long runAfterRecovery = finishedRun(loaded, "-1 minute", "SUCCEEDED", null, null);
+        jdbc.sql(
+                        "update source_resource set loaded_lsn = 10, full_load_done_gen = :gen where id = :id")
+                .param("gen", runAfterRecovery)
+                .param("id", loaded)
+                .update();
+        long blocked = cdcTable("erp.employee");
+        mappingWithKey(blocked, "emp_name");
+
+        service.queueDueReloads();
+
+        assertThat(recoveryReason()).isNull();
+        assertThat(
+                        jdbc.sql("select loaded_lsn is null from source_resource where id = :id")
+                                .param("id", blocked)
+                                .query(Boolean.class)
+                                .single())
+                .isTrue();
+    }
+
+    /** 막힌 테이블이 없으면 이 경로로 풀지 않는다. 다시 읽기가 끝나지 않은 테이블이 있는 동안은 복구가 남는다. */
+    @Test
+    void keepsRecoveryWhileLoadableTableIsNotReloaded() {
+        recovery("SLOT_LOST");
+        long pending = cdcTable("erp.work_order");
+        mapping(pending, true);
+
+        service.queueDueReloads();
+
+        assertThat(recoveryReason()).isEqualTo("SLOT_LOST");
+    }
+
+    @Test
+    void policyBlockedPatternMatchesEveryPolicyMessage() {
+        assertThat(
+                        jdbc.sql("select :m like :p escape '\'")
+                                .param("m", "원천 데이터 정책상 민감 컬럼을 매핑 키로 씁니다: mes.x [a_b]")
+                                .param("p", CdcReloadService.POLICY_BLOCKED_PATTERN)
+                                .query(Boolean.class)
+                                .single())
+                .isTrue();
+    }
+
     @Test
     void likePatternKeepsTextLiteralAndMatchesOnlyTablePart() {
         String pattern = CdcReloadService.likePattern("a_b %s 100%");
@@ -323,6 +436,37 @@ class CdcReloadServiceTests {
                 .param("t", typeId)
                 .param("active", active)
                 .update();
+    }
+
+    private long mappingWithKey(long resourceId, String key) {
+        return jdbc.sql(
+                        """
+                        insert into object_source_mapping (source_resource_id, object_type_id, key_columns,
+                                                           is_active)
+                        values (:r, :t, jsonb_build_array(:key), true) returning id
+                        """)
+                .param("r", resourceId)
+                .param("t", typeId)
+                .param("key", key)
+                .query(Long.class)
+                .single();
+    }
+
+    private String planFailure(long resourceId) {
+        try {
+            planner.plan(resourceId);
+        } catch (QueuedJobFailure e) {
+            return e.getMessage();
+        }
+        throw new AssertionError("적재 계획이 만들어졌습니다: " + resourceId);
+    }
+
+    private String recoveryReason() {
+        return jdbc.sql("select recovery_reason from cdc_offset where data_source_id = :s")
+                .param("s", sourceId)
+                .query((rs, row) -> rs.getString(1))
+                .list()
+                .getFirst();
     }
 
     /** 예전에 전체 읽기가 끝났고, 그 뒤 다시 읽기 표시가 붙은 상태. */

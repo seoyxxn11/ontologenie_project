@@ -1,6 +1,5 @@
 package com.axcore.platform.source.cdc;
 
-import com.axcore.platform.batch.service.QueuedJobFailure;
 import com.axcore.platform.ontology.domain.SourceChange;
 import com.axcore.platform.ontology.dto.LinkRecomputeResult;
 import com.axcore.platform.ontology.service.LinkRecomputeService;
@@ -28,6 +27,7 @@ import com.axcore.platform.source.service.DebeziumRowDecoder.Decoded;
 import com.axcore.platform.source.service.DebeziumRowDecoder.Field;
 import com.axcore.platform.source.service.DebeziumRowDecoder.UnsupportedValueException;
 import com.axcore.platform.source.service.FullLoadPlanner;
+import com.axcore.platform.source.service.FullLoadPlanner.PlanAttempt;
 import com.axcore.platform.source.service.SourceRowConverter;
 import com.axcore.platform.source.service.SourceRowConverter.Conversion;
 import java.time.Instant;
@@ -182,8 +182,9 @@ public class CdcTransactionApplier {
     }
 
     /**
-     * 이 트랜잭션의 변경이 걸린 표를 찾아 공유 잠금하고 매핑 계획을 만든다. 없는 표, CDC가 아닌 표, 켜진 매핑이 없는 표, 지금 적재할 수 없는 매핑(행 조건
-     * 등)이 있는 표는 빠진다. 적재할 수 없는 매핑은 전체 읽기도 실패하므로 같은 상태가 된다. 매핑을 고치면 다시 읽기로 맞춘다.
+     * 이 트랜잭션의 변경이 걸린 표를 찾아 공유 잠금하고 매핑 계획을 만든다. 없는 표, CDC가 아닌 표, 켜진 매핑이 없는 표, 지금 적재할 수 없는 매핑(정책 위반,
+     * 행 조건 등)이 있는 표는 빠진다. 적재할 수 없는 매핑은 전체 읽기도 실패하므로 같은 상태가 된다. 빠진 표는 다시 읽기를 표시해(402), 매핑을 고치면 다시
+     * 읽기로 맞춘다. 표시는 TRUNCATE와 같이 공유 잠금 안에서 쓴다.
      */
     private Map<String, Table> resolveTables(long dataSourceId, List<ChangeEvent> events) {
         Map<Long, SourceResource> resources = new TreeMap<>();
@@ -199,16 +200,18 @@ public class CdcTransactionApplier {
         resourceRepository.lockAllShared(resources.keySet());
         Map<String, Table> tables = new LinkedHashMap<>();
         for (SourceResource resource : resources.values()) {
-            FullLoadPlan plan;
-            try {
-                plan = planner.plan(resource.getId());
-            } catch (QueuedJobFailure e) {
-                log.warn(
-                        "CDC 이벤트를 반영할 수 없는 매핑이라 건너뜀 resourceId={} reason={}",
-                        resource.getId(),
-                        e.getMessage());
+            PlanAttempt attempt = planner.tryPlan(resource.getId());
+            if (attempt.blocked()) {
+                // 건너뛴 변경을 잃지 않게 다시 읽기를 표시한다(402). 감시 작업이 한 번 넣어 사유를 수집 실패로 남기고, 매핑을 고치면 다시 읽어 맞춘다.
+                if (resourceRepository.requireFullReload(resource.getId()) > 0) {
+                    log.warn(
+                            "CDC 이벤트를 반영할 수 없는 매핑이라 건너뛰고 다시 읽기를 표시함 resourceId={} reason={}",
+                            resource.getId(),
+                            attempt.failure());
+                }
                 continue;
             }
+            FullLoadPlan plan = attempt.plan();
             if (plan.mappings().isEmpty()) {
                 continue;
             }

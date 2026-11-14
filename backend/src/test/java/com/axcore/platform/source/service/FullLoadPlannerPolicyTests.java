@@ -116,6 +116,7 @@ class FullLoadPlannerPolicyTests {
         for (String name : mappedColumns) {
             long columnId = id++;
             PropertySourceMapping propertyMapping = mock(PropertySourceMapping.class);
+            when(propertyMapping.getSourceMappingId()).thenReturn(11L);
             when(propertyMapping.getSourceColumnId()).thenReturn(columnId);
             when(propertyMapping.getPropertyDefinitionId()).thenReturn(columnId + 1000);
             mapped.add(propertyMapping);
