@@ -10,7 +10,8 @@ import {
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { createMemoryRouter, RouterProvider } from 'react-router'
-import { afterEach, expect, test, vi, onTestFinished } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi, onTestFinished } from 'vitest'
+import { demoAccount, setMockAccount } from '../../mocks/auth'
 import { server } from '../../mocks/node'
 import { resetSourceMocks } from '../../mocks/sourceHandlers'
 import { CHECK_POLL_LIMIT_MS, CHECK_POLL_MS } from './ConnectionInfo'
@@ -22,6 +23,10 @@ import type {
   SourceUpdateRequest,
 } from './types'
 import type { SyncRun } from './syncApi'
+
+beforeEach(() => {
+  setMockAccount({ ...demoAccount, roleCode: 'ADMIN' })
+})
 
 afterEach(() => {
   resetSourceMocks()

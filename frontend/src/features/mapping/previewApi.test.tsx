@@ -5,6 +5,7 @@ import { http, HttpResponse } from 'msw'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { resetMappingMocks } from '../../mocks/mappingHandlers'
+import { demoAccount, setMockAccount } from '../../mocks/auth'
 import { server } from '../../mocks/node'
 import SourcesPage from '../sources/SourcesPage'
 import { mappingPreviewApi } from './previewApi'
@@ -78,7 +79,10 @@ const result = () => ({
   errorMessage: null,
 })
 
-beforeEach(resetMappingMocks)
+beforeEach(() => {
+  resetMappingMocks()
+  setMockAccount({ ...demoAccount, roleCode: 'ADMIN' })
+})
 
 test('040은 편집 초안을 계약 필드로 보내고 CSRF 헤더를 포함한다', async () => {
   let body: unknown

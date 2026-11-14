@@ -5,11 +5,15 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { resetMappingMocks } from '../../mocks/mappingHandlers'
+import { demoAccount, setMockAccount } from '../../mocks/auth'
 import { server } from '../../mocks/node'
 import MappingPanel from './MappingPanel'
 import type { MappingPreviewAccess, MappingPreviewResult } from './previewModel'
 
-beforeEach(resetMappingMocks)
+beforeEach(() => {
+  resetMappingMocks()
+  setMockAccount({ ...demoAccount, roleCode: 'ADMIN' })
+})
 const result = (): MappingPreviewResult => ({
   status: 'SUCCEEDED',
   rows: [],

@@ -801,13 +801,6 @@ function ruleSummaries(): RuleSummary[] {
 }
 
 export const handlers = [
-  ...(denseDemo
-    ? [
-        http.get('/api/v1/ontology/object-types/:typeId/properties', () =>
-          HttpResponse.json({ data: denseDemoProperties }),
-        ),
-      ]
-    : []),
   ...accountHandlers,
   ...actionHandlers,
   ...checkHandlers,
