@@ -4,9 +4,9 @@
 }
 .agent-workspace {
   display: grid;
-  grid-template-columns: 248px minmax(0, 1fr);
+  grid-template-columns: 288px minmax(0, 1fr);
   gap: 12px;
-  height: max(640px, calc(100dvh - 96px));
+  height: max(480px, calc(100dvh - 96px));
 }
 .agent-workspace[data-sidebar-collapsed='true'] {
   grid-template-columns: minmax(0, 1fr);
@@ -44,7 +44,7 @@
   justify-content: space-between;
   gap: 8px;
   border-bottom: 1px solid var(--ui-border);
-  padding: 8px 12px;
+  padding: 8px 2px 8px 16px;
 }
 .agent-sidebar-heading h2 {
   font-size: 16px;
@@ -110,7 +110,27 @@
 .agent-sidebar-footer {
   flex-shrink: 0;
   border-top: 1px solid var(--ui-border);
-  padding: 0 8px;
+}
+.agent-sidebar-footer .ui-pagination {
+  padding: 8px;
+}
+.agent-sidebar-footer .ui-pagination-controls {
+  flex-wrap: nowrap;
+  gap: 2px;
+}
+.agent-sidebar-footer .ui-pagination button {
+  min-width: 28px;
+  min-height: 32px;
+  height: 32px;
+  padding: 4px 2px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 21px;
+  font-variant-numeric: tabular-nums;
+}
+.agent-sidebar-footer[data-long-page-numbers='true'] .ui-pagination button {
+  padding-inline: 0;
+  font-size: 12px;
 }
 .agent-conversation-heading {
   min-width: 0;
@@ -292,6 +312,14 @@
 .agent-evidence-notice {
   color: var(--ui-text-secondary);
   font-weight: 400;
+}
+.agent-evidence-asof {
+  color: var(--ui-text-secondary);
+}
+.agent-evidence-notice {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
 }
 .agent-evidence-warning,
 .agent-result-status[data-caution='true'] {
@@ -573,11 +601,24 @@
 
 @media (max-width: 1000px) {
   .agent-workspace {
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: 272px minmax(0, 1fr);
   }
   .agent-composer,
   .agent-message-log {
     padding: 16px;
+  }
+}
+@media (max-width: 1200px) {
+  .agent-sidebar-footer
+    .ui-pagination
+    button:is(:first-child, :last-child, :nth-child(2), :nth-last-child(2)) {
+    min-width: 24px;
+    padding-inline: 2px;
+  }
+}
+@media (max-width: 600px) {
+  .agent-sidebar-footer .ui-pagination button {
+    font-size: 12px;
   }
 }
 @media (max-width: 650px) {
@@ -596,5 +637,10 @@
   }
   .agent-empty-panel {
     min-height: 160px;
+  }
+}
+@media (min-width: 651px) and (max-height: 735px) {
+  .agent-question-shortcuts ul {
+    max-height: 40px;
   }
 }

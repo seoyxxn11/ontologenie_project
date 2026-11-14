@@ -208,7 +208,7 @@ function MessageItem({ message }: { message: AgentMessage }) {
                         {result.estimated ? ' · 추정' : ''}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-slate-500">
+                    <td className="px-3 py-2 agent-evidence-asof">
                       {result.dataAsOf
                         ? formatAsOf(result.dataAsOf)
                         : DATA_AS_OF_UNKNOWN}
