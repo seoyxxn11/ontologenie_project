@@ -20,6 +20,10 @@ services:
       # 소비자(Debezium)가 멈춰도 WAL이 30GB 디스크를 채우지 않게 상한을 둔다. 넘으면 슬롯이 깨지고 플랫폼이 전체 다시 읽기로 복구한다.
       - -c
       - max_slot_wal_keep_size=2GB
+      # 논리 디코딩 출력 플러그인은 Debezium이 쓰는 pgoutput만 허용한다. platform_cdc(REPLICATION)가 test_decoding 같은 다른 플러그인으로
+      # 슬롯을 만들면 publication 컬럼 목록과 상관없이 금지 컬럼의 변경까지 읽을 수 있기 때문이다(S15P31C106-415).
+      - -c
+      - output_plugin_libraries=pgoutput
       - -c
       - shared_buffers=256MB
       - -c

@@ -17,7 +17,7 @@
 |---|---|
 | 이미지 | `postgres:18.6` (메인 서버와 같음), 컨테이너 `source-db`, 볼륨 `source-pg-data` |
 | 포트 | 호스트 `15432` → 5432. AWS 보안 그룹은 메인 서버(`13.125.73.49`)만 허용 |
-| CDC 설정 | `wal_level=logical`, `max_wal_senders=4`, `max_replication_slots=4`, `max_slot_wal_keep_size=2GB` |
+| CDC 설정 | `wal_level=logical`, `max_wal_senders=4`, `max_replication_slots=4`, `max_slot_wal_keep_size=2GB`, `output_plugin_libraries=pgoutput`(아래 "REPLICATION 권한의 한계") |
 | 접속 | `pg_hba.conf`: 메인 서버 IP에서 오는 `platform_ro`·`platform_ai`·`platform_cdc`만 SSL(scram-sha-256)로 허용. 관리자 `source_admin`은 컨테이너 안에서만 |
 | 계정 | `platform_ro` 배치용 조회 전용(읽기 전용 트랜잭션), `platform_ai` FastAPI 분석용 조회 전용(읽기 전용, `statement_timeout` 30초, 접속 5개까지), `platform_cdc` 복제(REPLICATION, superuser 아님). 세 계정 모두 쓰기 권한이 없고, 읽는 표·컬럼은 허용 목록대로다 |
 | publication | `axcore_cdc`: 허용 목록에서 CDC로 표시한 표. 금지 컬럼이 있는 표는 컬럼 목록을 붙여 그 컬럼을 뺀다. 복제 슬롯은 Debezium 커넥터를 등록할 때 만들어진다 |
@@ -110,6 +110,8 @@ python -m unittest discover -s infra/tests -p 'test_source_allowlist.py' -v
 ## REPLICATION 권한의 한계
 
 publication과 컬럼 목록은 **Debezium이 쓰는 pgoutput 출력**만 거릅니다. `platform_cdc`는 REPLICATION 권한이 있어 다른 출력 플러그인(`test_decoding` 등)으로 슬롯을 직접 만들면 publication과 상관없이 DB 전체의 변경(금지 표 포함)을 WAL에서 읽을 수 있습니다. 로컬 시험에서 `platform_cdc`로 `test_decoding` 슬롯을 만들어 `erp.attendance` 변경이 보이는 것을 확인했습니다. PostgreSQL에는 슬롯·표 단위로 복제를 묶는 권한이 없어서, CDC 경로는 강한 경계가 아니고 아래로 보완합니다.
+
+**출력 플러그인 제한(2026-11-14, S15P31C106-415):** 두 원천의 `output_plugin_libraries`를 `pgoutput`만으로 바꿨습니다(`compose.yaml`의 `-c`, 운영은 `ALTER SYSTEM` + 설정 다시 읽기로 재시작 없이 적용). 이제 `test_decoding` 등 다른 플러그인으로는 슬롯을 만들 수 없어(관리자 계정도 "may not be used as an output plugin") 위 우회가 막힙니다. pgoutput 슬롯은 publication 컬럼 목록을 따르므로 `platform_cdc`가 새 슬롯을 만들어도 금지 컬럼은 나오지 않습니다. 남는 한계: pgoutput으로도 publication에 든 표의 허용 컬럼은 읽을 수 있고(원래 CDC가 읽는 범위), 아래 보완은 그대로 둡니다.
 
 - **자격 증명 보호**: `PLATFORM_CDC_PASSWORD`는 원천 `~/source-db/.env`(권한 600)와 메인 서버 `~/axcore/cdc/.env`(Kafka Connect)에만 둔다. 화면·로그·저장소에 내보내지 않고, 샜다고 의심되면 바로 바꾼다(`setup_roles.sql`의 `ALTER ROLE ... PASSWORD`).
 - **접속 제한**: `pg_hba.conf`와 AWS 보안 그룹이 메인 서버 IP에서 SSL로 오는 접속만 받는다. 노트북 등 다른 곳에서는 `platform_cdc`로 접속할 수 없다.
