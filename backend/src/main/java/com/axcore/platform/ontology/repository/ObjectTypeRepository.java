@@ -53,4 +53,8 @@ public interface ObjectTypeRepository extends JpaRepository<ObjectType, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from ObjectType t where t.id = :id")
     Optional<ObjectType> findForUpdate(@Param("id") Long id);
+
+    /** 잠그기 전에 대표 속성 ID만 읽는다. 대표 속성이 없으면 비어 있다(430). */
+    @Query("select t.displayPropertyId from ObjectType t where t.id = :id")
+    Optional<Long> findDisplayPropertyId(@Param("id") Long id);
 }
