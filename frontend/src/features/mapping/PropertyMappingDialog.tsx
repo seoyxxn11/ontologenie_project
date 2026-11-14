@@ -20,6 +20,7 @@ import {
   fetchTransformFunctions,
   fetchAllPropertyMappings,
   mappingSaveMessage,
+  previewableMappings,
   savePropertyMapping,
   type Definition,
   type ObjectMapping,
@@ -152,7 +153,18 @@ export default function PropertyMappingDialog({
 
   async function preparePreview(): Promise<MappingPreviewDraft> {
     const transformSteps = currentTransforms()
-    const saved = await fetchAllPropertyMappings(parent.id)
+    if (
+      properties.find((property) => property.id === propertyId)?.sensitivity ===
+      'RESTRICTED'
+    )
+      throw new PreviewDraftError(
+        '민감 속성은 변환 미리보기에서 값을 읽지 않습니다. 저장하면 민감 속성으로 적재됩니다.',
+      )
+    // 다른 민감 속성의 매핑은 미리보기에서 뺀다(서버가 민감 속성이 섞인 요청 전체를 거절한다)
+    const saved = previewableMappings(
+      await fetchAllPropertyMappings(parent.id),
+      properties,
+    )
     const { sourceResourceId, objectTypeId, keyColumns, rowFilter, isActive } =
       parent
     return {

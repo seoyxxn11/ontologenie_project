@@ -111,17 +111,50 @@ class PropertyApiTests {
     }
 
     @Test
-    void allowsOnlyAdmin() throws Exception {
+    void allowsOnlyAdminToManage() throws Exception {
         LoginSession viewer = loginAs("VIEWER");
         long typeId = insertObjectType();
 
+        // 그룹이 없는 유형은 조회 사용자에게 없는 유형과 같다
         mockMvc.perform(get(propertiesPath(typeId)).cookie(viewer.session()))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isNotFound());
         send(
                         viewer,
                         post(propertiesPath(typeId)),
                         "{\"code\": \"status\", \"name\": \"상태\", \"dataType\": \"STRING\", \"isRequired\": false}")
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void listsViewablePropertiesForNonAdmin() throws Exception {
+        LoginSession admin = loginAs("ADMIN");
+        LoginSession viewer = loginAs("VIEWER");
+        LoginSession planner = loginAs("PLANNER");
+        long typeId = insertObjectType();
+        jdbcClient
+                .sql("update object_type set access_group = 'PRODUCTION' where id = :id")
+                .param("id", typeId)
+                .update();
+        createProperty(admin, typeId, "status", "STRING");
+        long restrictedId = createProperty(admin, typeId, "technician", "STRING");
+        jdbcClient
+                .sql("update property_definition set sensitivity = 'RESTRICTED' where id = :id")
+                .param("id", restrictedId)
+                .update();
+
+        // 관리자는 정의를 관리하므로 민감 속성도 목록에 있다
+        mockMvc.perform(get(propertiesPath(typeId)).cookie(admin.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2));
+        // 민감 값을 볼 수 없는 역할은 민감 속성을 받지 않는다(그 속성으로 검색할 수 없다)
+        mockMvc.perform(get(propertiesPath(typeId)).cookie(viewer.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].code").value("status"));
+        // 민감 값을 볼 수 있는 역할은 모두 받는다
+        mockMvc.perform(get(propertiesPath(typeId)).cookie(planner.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2));
     }
 
     @Test

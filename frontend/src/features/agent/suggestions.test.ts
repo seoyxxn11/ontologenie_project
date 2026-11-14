@@ -39,8 +39,8 @@ test('참고 객체가 없으면 계획 권한이 있는 역할에는 재배정 
   ])
   expect(suggestedQuestions(null, 'ADMIN').map((q) => q.text)).toEqual([
     ...COMMON,
+    WORK_ORDER_PROGRESS,
     IN_PROGRESS_WORK_ORDERS,
-    'FA-0006 장부가와 취득가 알려줘',
     REASSIGNMENT_PLAN,
   ])
 })
@@ -59,11 +59,17 @@ test('모든 역할에 목록 질문을 하나 이상 추천한다', () => {
   }
 })
 
-test('고정자산(재무) 질문은 그 데이터를 볼 수 있는 관리자에게만 추천한다', () => {
-  for (const role of ['VIEWER', 'MAINTENANCE', 'PLANNER', null] as const) {
-    expect(suggestedQuestions(null, role).map((q) => q.text)).not.toContain(
-      'FA-0006 장부가와 취득가 알려줘',
-    )
+test('고정자산 질문은 어느 역할에도 추천하지 않는다(들이지 않는 데이터)', () => {
+  for (const role of [
+    'VIEWER',
+    'MAINTENANCE',
+    'PLANNER',
+    'ADMIN',
+    null,
+  ] as const) {
+    for (const question of suggestedQuestions(null, role)) {
+      expect(question.text).not.toMatch(/FA-d{4}|고정자산|장부가|취득가/)
+    }
   }
 })
 

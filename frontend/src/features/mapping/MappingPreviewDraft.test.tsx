@@ -278,3 +278,82 @@ test.each([
     await waitFor(() => expect(save).toHaveBeenCalledTimes(1))
   },
 )
+
+function restrictedSpec(restrictedIds: number[]) {
+  server.use(
+    http.get('/api/v1/ontology/object-types/:id/properties', () =>
+      HttpResponse.json({
+        data: [
+          { id: 601, code: 'ITEM_NAME', name: '품목명' },
+          { id: 602, code: 'SPEC', name: '규격' },
+        ].map((property) => ({
+          ...property,
+          sensitivity: restrictedIds.includes(property.id)
+            ? 'RESTRICTED'
+            : 'NORMAL',
+        })),
+      }),
+    ),
+    http.get('/api/v1/ontology/property-mappings', () =>
+      HttpResponse.json({
+        data: [601, 602].map((propertyDefinitionId, index) => ({
+          id: 801 + index,
+          sourceMappingId: 701,
+          sourceResourceId: 11,
+          propertyDefinitionId,
+          sourceColumnId: 1002 + index,
+          sourcePath: null,
+          transformSteps: [],
+          rowVersion: 1,
+        })),
+        meta: { page: 0, size: 20, totalElements: 2, hasNext: false },
+      }),
+    ),
+  )
+}
+
+test('민감 속성의 매핑은 빼고 일반 속성만으로 미리보기를 접수한다', async () => {
+  restrictedSpec([602])
+  const api = service()
+  const user = open(api)
+  await user.click(
+    await screen.findByRole('button', { name: '품목 #701 객체 매핑 편집' }),
+  )
+  const objectDialog = within(
+    screen.getByRole('dialog', { name: '객체 매핑 편집' }),
+  )
+  await objectDialog.findByRole('checkbox', { name: 'item_code' })
+  await user.click(
+    objectDialog.getByRole('button', { name: '변환 미리보기 요청' }),
+  )
+  await objectDialog.findByText('변환된 객체가 없습니다.')
+  expect(api.request).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      properties: [expect.objectContaining({ propertyDefinitionId: 601 })],
+    }),
+    20,
+  )
+  await user.click(screen.getByRole('button', { name: '닫기' }))
+
+  const dialog = await property(user)
+  await user.click(dialog.getByRole('button', { name: '변환 미리보기 요청' }))
+  await dialog.findByText('변환된 객체가 없습니다.')
+  expect(api.request).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      properties: [expect.objectContaining({ propertyDefinitionId: 601 })],
+    }),
+    20,
+  )
+})
+
+test('민감 속성 자체의 매핑은 미리보기를 접수하지 않고 이유를 알린다', async () => {
+  restrictedSpec([601])
+  const api = service()
+  const user = open(api)
+  const dialog = await property(user)
+  await user.click(dialog.getByRole('button', { name: '변환 미리보기 요청' }))
+  expect(await dialog.findByRole('alert')).toHaveTextContent(
+    '민감 속성은 변환 미리보기에서 값을 읽지 않습니다',
+  )
+  expect(api.request).not.toHaveBeenCalled()
+})
