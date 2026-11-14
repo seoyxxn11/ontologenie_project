@@ -46,11 +46,11 @@ docker exec kafka-connect curl -s localhost:8083/connectors           # 등록�
 docker exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
 ```
 
-## 현재 상태 (2026-11-10)
+## 현재 상태 (2026-11-14)
 
-**커넥터·복제 슬롯·원천 토픽이 없습니다.** 11-02~05 시험 때 만든 커넥터(아래 316 라우팅을 적용하기 전 설정), 원천의 슬롯 `axcore_erp`·`axcore_mes`, 표별 토픽·heartbeat 토픽을 지웠습니다(아래 "초기화"). 남은 것은 원천의 publication `axcore_cdc`, Kafka 내부 토픽(`__consumer_offsets`, `connect_*`), 켜져 있는 컨테이너 셋입니다. batch의 CDC 소비자와 수집 뒤 검사(SYNC) 주기 요청도 꺼져 있습니다(compose 기본값 `AXCORE_CDC_CONSUMER_ENABLED=false`, `AXCORE_CHECK_SYNC_ENABLED=false`).
+두 커넥터 `cdc-erp`·`cdc-mes`가 RUNNING이고 원천 슬롯 `axcore_erp`·`axcore_mes`가 쓰이는 중입니다(2026-11-11 315 운영 연결). 원천 토픽은 `ERP_MAIN.all`·`MES_MAIN.all` 두 개이고, batch의 CDC 소비자와 수집 뒤 검사(SYNC)가 켜져 있습니다. 플랫폼 `cdc_offset`에 원천마다 한 행이 있습니다.
 
-플랫폼에는 원천 `ERP_MAIN`·`MES_MAIN`과 CDC 표 27개가 등록돼 있고, 켜진 매핑·`cdc_offset`·적재 기록은 없습니다.
+원천에는 아직 허용 목록(395)이 적용되지 않아 publication이 예전 정의입니다(ERP에 `attendance`·`fixed_asset`, 컬럼 목록 없음). 허용 목록을 적용하려면 슬롯을 지워야 하므로 아래 "허용 목록 적용 때 다시 붙이기" 순서를 따릅니다(S15P31C106-397).
 
 ## 운영 연결 순서 (S15P31C106-315)
 
@@ -65,6 +65,18 @@ docker exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:90
 - 순서를 어겨 커넥터 없이 첫 적재가 먼저 돌았으면, 커넥터를 등록한 뒤 그 표들을 다시 읽습니다(073 수동 다시 읽기).
 - 적재 뒤 소비자가 토픽 보관 기간(7일)보다 오래 멈추면 소비자가 그 원천을 복구(`OFFSET_EXPIRED`)로 돌립니다. 전체 다시 읽기로 맞춥니다(199).
 - 원천 접속 정보가 바뀌면(`SOURCE_CHANGED`) 커넥터를 새 DB에 맞춘 뒤에야 다시 읽습니다. 감시 작업도 그동안은 그 원천을 건너뜁니다.
+
+### 허용 목록 적용 때 다시 붙이기 (S15P31C106-397)
+
+원천의 publication 정의를 바꿀 때는 슬롯이 없어야 합니다. 슬롯이 있으면 바꾸기 전에 쌓인 WAL이 예전 정의로 풀려 금지 컬럼이 나갈 수 있고, 허용 목록 스크립트도 확정을 멈춥니다(`infra/source-db/README.md` "슬롯 확인"). 토픽과 플랫폼 `cdc_offset`은 그대로 둡니다. 새 슬롯의 변경이 같은 토픽 뒤에 이어 붙으므로 소비자는 하던 위치에서 계속 읽습니다.
+
+1. 커넥터 멈춤 → Connect가 저장한 읽은 위치 삭제 → 커넥터 삭제(아래 "초기화"의 앞 세 줄). 위치를 지우지 않으면 새 슬롯에 예전 LSN을 요청한다.
+2. 원천 서버마다 슬롯 삭제(`pg_drop_replication_slot`). publication은 남긴다(허용 목록 스크립트가 바꾼다).
+3. 원천에 허용 목록 적용(`infra/source-db/README.md` "기존 서버에 적용", 시험 실행 → 확정).
+4. 저장소의 `connectors/*.json`을 서버에 올리고 `register-connectors.sh`로 다시 등록한다. 새 슬롯이 만들어지고(`snapshot.mode=no_data`) 지금부터의 변경을 보낸다.
+5. 플랫폼에서 원천마다 연결 검사(카탈로그 다시 받기) → CDC 표 전체 다시 읽기(073). 1~4 사이 원천 변경은 슬롯이 없어 오지 않으므로 다시 읽기로 메운다.
+
+커넥터 설정의 `table.exclude.list`·`column.exclude.list`는 금지 표·컬럼을 한 번 더 뺀다(2차 방어, 397). 1차는 원천 publication 컬럼 목록이다. 정책 목록을 바꾸면 이 두 칸도 같이 고친다.
 
 ### 초기화 (2026-11-10에 한 순서)
 

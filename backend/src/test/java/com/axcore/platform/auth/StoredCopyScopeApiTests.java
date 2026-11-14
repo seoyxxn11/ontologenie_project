@@ -355,6 +355,41 @@ class StoredCopyScopeApiTests {
         assertThat(revisions).doesNotContain("SECRET-V", "HIDDEN-V");
     }
 
+    /**
+     * 원천 데이터 정책상 금지·민감 위치의 예시 값은 매핑이 없어도 가린다(397). 399 전에 저장된 근거와, 398에서 매핑을 지운 직원 직급 같은 컬럼의 예시 값이
+     * 남아 있어서다. 매핑이 없는 일반 컬럼은 그대로 보인다.
+     */
+    @Test
+    void storedEvidenceOfPolicyGovernedLocationsIsWithheldEvenWithoutMapping() throws Exception {
+        long proposal =
+                // 다른 시험이 세는 대기 중인 수동 연결 규칙과 겹치지 않게 거절한 속성 후보로 둔다
+                proposal(
+                        "PROPERTY",
+                        "REJECTED",
+                        """
+                        {"reason": "직급 예: 대리",
+                         "items": [
+                           {"locator": "erp.employee.position", "values": ["대리", "과장"], "snippet": "대리, 과장"},
+                           {"locator": "erp.attendance.work_type", "values": ["NORMAL"]},
+                           {"locator": "mes.maintenance_order.technician", "values": ["T-KIM"]},
+                           {"locator": "erp.employee.dept_code", "values": ["D10"]}
+                         ]}
+                        """);
+        Cookie session = login(admin);
+
+        String body =
+                mockMvc.perform(get("/api/v1/proposals/" + proposal).cookie(session))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.data.evidence.items[0].values").isEmpty())
+                        .andExpect(jsonPath("$.data.evidence.items[1].values").isEmpty())
+                        .andExpect(jsonPath("$.data.evidence.items[2].values").isEmpty())
+                        .andExpect(jsonPath("$.data.evidence.items[3].values[0]").value("D10"))
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+        assertThat(body).doesNotContain("과장", "NORMAL", "T-KIM", "직급 예: 대리");
+    }
+
     @Test
     void viewerCannotUseStoredCopyApis() throws Exception {
         Cookie session = login(viewer);

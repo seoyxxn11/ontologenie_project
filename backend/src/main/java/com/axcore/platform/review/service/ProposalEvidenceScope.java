@@ -26,7 +26,9 @@ import org.springframework.stereotype.Component;
  *   <li>근거 항목(근거 어디에 있든 {@code locator}를 가진 객체)의 위치({@code 스키마.표}, {@code 스키마.표.컬럼}, {@code
  *       스키마.표.a+b})가 볼 수 없는 유형이 담는 표이거나, 가려야 하는 민감 속성이 담는 컬럼이면 {@code values}를 비우고 {@code snippet}을
  *       고정 문구로 바꾼다. 위치는 남긴다(105 수신 때의 원천 정책 가림과 같은 모양, 399).
- *   <li>꺼진 매핑도 본다. 아직 어느 유형에도 매핑되지 않은 표·컬럼은 원천 데이터 정책(105 수신 때 가림)만 따른다. 원천 표본(225)과 같은 수준이다.
+ *   <li>꺼진 매핑도 본다. 아직 어느 유형에도 매핑되지 않은 표·컬럼은 원천 데이터 정책만 따른다. 원천 표본(225)과 같은 수준이다.
+ *   <li>원천 데이터 정책상 금지 표이거나 금지·민감 컬럼이면 매핑·보는 사람과 관계없이 가린다(397). 105 수신 때도 같은 판단으로 가리지만(399), 그 전에
+ *       저장된 근거와, 매핑을 지워 위 판단에서 빠진 컬럼(398에서 지운 직원 직급 등)의 예시 값이 남아 있어서다.
  *   <li>가리지 않은 예시 값이 민감 속성을 담는 컬럼에서 왔으면 그 속성({@code 유형코드.속성코드})을 revealed로 알린다. 응답을 만드는 서비스가 열람
  *       기록(394)을 남긴다.
  * </ul>
@@ -57,6 +59,7 @@ public class ProposalEvidenceScope {
 
     private final ObjectSourceMappingRepository objectMappings;
     private final PropertySourceMappingRepository propertyMappings;
+    private final AiProposalSourcePolicy sourcePolicy;
 
     /**
      * 가린 근거.
@@ -80,7 +83,8 @@ public class ProposalEvidenceScope {
                     evidence == null
                             ? null
                             : (Map<String, Object>)
-                                    mask(evidence, access, mappings, revealed).value();
+                                    mask(evidence, access, mappings, sourcePolicy, revealed)
+                                            .value();
             shown.add(new Shown(copy, List.copyOf(revealed)));
         }
         return shown;
@@ -204,18 +208,23 @@ public class ProposalEvidenceScope {
      * 바꾼다. AI는 이 문장에 원천 값 예시를 넣기도 해서(예: "불일치 예: ..."), 항목만 가리면 같은 값이 문장으로 나간다.
      */
     private static Masked mask(
-            Object value, DataAccess access, Mappings mappings, Set<String> revealed) {
+            Object value,
+            DataAccess access,
+            Mappings mappings,
+            AiProposalSourcePolicy policy,
+            Set<String> revealed) {
         if (value instanceof Map<?, ?> map) {
             Map<String, Object> copy = new LinkedHashMap<>();
             boolean withheld = false;
             for (Map.Entry<?, ?> entry : map.entrySet()) {
-                Masked child = mask(entry.getValue(), access, mappings, revealed);
+                Masked child = mask(entry.getValue(), access, mappings, policy, revealed);
                 copy.put(String.valueOf(entry.getKey()), child.value());
                 withheld |= child.withheld();
             }
             if (copy.get("locator") instanceof String locator && hasExample(copy)) {
                 Set<String> shownRestricted = new TreeSet<>();
-                if (withheld(locator, access, mappings, shownRestricted)) {
+                if (policy.governed(locator)
+                        || withheld(locator, access, mappings, shownRestricted)) {
                     if (copy.containsKey("values")) {
                         copy.put("values", List.of());
                     }
@@ -236,7 +245,7 @@ public class ProposalEvidenceScope {
             List<Object> copy = new ArrayList<>(list.size());
             boolean withheld = false;
             for (Object item : list) {
-                Masked child = mask(item, access, mappings, revealed);
+                Masked child = mask(item, access, mappings, policy, revealed);
                 copy.add(child.value());
                 withheld |= child.withheld();
             }

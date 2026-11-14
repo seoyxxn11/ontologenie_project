@@ -128,8 +128,11 @@ public class AiProposalSourcePolicy {
         return value;
     }
 
-    /** 위치가 금지 표이거나 금지·민감 컬럼(묶은 컬럼 {@code a+b}는 하나라도)을 가리키는가. 컬럼 이름에 마침표가 있을 수 있어 표 뒤는 더 쪼개지 않는다. */
-    private boolean governed(String locator) {
+    /**
+     * 위치가 금지 표이거나 금지·민감 컬럼(묶은 컬럼 {@code a+b}는 하나라도)을 가리키는가. 컬럼 이름에 마침표가 있을 수 있어 표 뒤는 더 쪼개지 않는다. 저장된
+     * 근거를 읽을 때도 같은 판단을 쓴다(397, {@link ProposalEvidenceScope}).
+     */
+    boolean governed(String locator) {
         String[] parts = locator.split("\\.", 3);
         if (parts.length < 2) {
             return false;
