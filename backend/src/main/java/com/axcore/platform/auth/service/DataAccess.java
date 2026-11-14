@@ -3,6 +3,8 @@ package com.axcore.platform.auth.service;
 import com.axcore.platform.auth.repository.DataScopeRepository.ObjectTypeScope;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -33,8 +35,24 @@ public final class DataAccess {
     private final Map<String, ObjectTypeScope> scopesByCode;
     private final DataPurpose purpose;
 
+    /** 사본을 만든 시각(앱 시계)과 내린 시각(DB 시계)이 어긋나도 내리기 직전 사본을 놓치지 않게 두는 여유. 넘치게 가리는 쪽이다(431). */
+    private static final Duration CLOCK_SKEW = Duration.ofMinutes(1);
+
+    /** 유형 ID → 민감에서 내린 속성 코드 → 마지막으로 내린 시각(431). 저장된 사본을 가릴 때만 쓴다({@link #asOf}). */
+    private final Map<Long, Map<String, Instant>> restrictedUntil;
+
     DataAccess(List<ObjectTypeScope> scopes, DataPurpose purpose) {
+        this(scopes, purpose, Map.of());
+    }
+
+    DataAccess(
+            List<ObjectTypeScope> scopes,
+            DataPurpose purpose,
+            Map<Long, Map<String, Instant>> restrictedUntil) {
         this.purpose = purpose;
+        Map<Long, Map<String, Instant>> copy = new java.util.HashMap<>();
+        restrictedUntil.forEach((type, codes) -> copy.put(type, Map.copyOf(codes)));
+        this.restrictedUntil = Map.copyOf(copy);
         this.scopes =
                 scopes.stream()
                         .collect(
@@ -45,6 +63,42 @@ public final class DataAccess {
                         .collect(
                                 Collectors.toUnmodifiableMap(
                                         ObjectTypeScope::objectTypeCode, Function.identity()));
+    }
+
+    /**
+     * 저장된 사본(재배정 계획 스냅샷·실행 감사·검사 결과)을 가릴 범위(S15P31C106-431). 사본은 만들 때의 값을 담으므로, 그 뒤 민감에서 내린 속성도 사본을
+     * 만든 때({@code storedAt})에 민감이었으면 민감으로 보고 가린다. 만든 때를 모르면({@code null}) 한 번이라도 민감에서 내린 속성을 모두
+     * 민감으로 본다(넘치게 가리는 쪽). 내린 속성이 없으면 이 범위를 그대로 돌려준다.
+     */
+    public DataAccess asOf(Instant storedAt) {
+        if (restrictedUntil.isEmpty()) {
+            return this;
+        }
+        List<ObjectTypeScope> adjusted = new ArrayList<>(scopes.size());
+        for (ObjectTypeScope scope : scopes.values()) {
+            Set<String> earlier = new TreeSet<>();
+            restrictedUntil
+                    .getOrDefault(scope.objectTypeId(), Map.of())
+                    .forEach(
+                            (code, until) -> {
+                                if (storedAt == null || storedAt.isBefore(until.plus(CLOCK_SKEW))) {
+                                    earlier.add(code);
+                                }
+                            });
+            if (earlier.isEmpty() || scope.restrictedPropertyCodes().containsAll(earlier)) {
+                adjusted.add(scope);
+                continue;
+            }
+            earlier.addAll(scope.restrictedPropertyCodes());
+            adjusted.add(
+                    new ObjectTypeScope(
+                            scope.objectTypeId(),
+                            scope.objectTypeCode(),
+                            scope.visible(),
+                            scope.canViewRestricted(),
+                            Set.copyOf(earlier)));
+        }
+        return new DataAccess(adjusted, purpose, restrictedUntil);
     }
 
     /**

@@ -70,8 +70,10 @@ public class ProposalEvidenceScope {
     public record Shown(Map<String, Object> evidence, List<String> revealed) {}
 
     /** 근거 여러 개를 한 번에 가린다. 표·컬럼 매핑은 한 번만 읽는다. 순서는 받은 순서다. */
-    public List<Shown> show(DataAccess access, List<Map<String, Object>> evidences) {
-        access.requireObjectValues();
+    public List<Shown> show(DataAccess current, List<Map<String, Object>> evidences) {
+        current.requireObjectValues();
+        // 근거는 분석 때 저장한 사본이라, 한 번이라도 민감에서 내린 속성은 민감으로 보고 가린다(431, 넘치게 가리는 쪽)
+        DataAccess access = current.asOf(null);
         Set<String> tables = new TreeSet<>();
         evidences.forEach(evidence -> collectTables(evidence, tables));
         Mappings mappings = tables.isEmpty() ? Mappings.EMPTY : load(tables);

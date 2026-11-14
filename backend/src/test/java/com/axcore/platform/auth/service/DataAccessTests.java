@@ -112,4 +112,38 @@ class DataAccessTests {
         values.put("technician", "홍길동");
         return values;
     }
+
+    /** 저장된 사본은 만든 때 민감이었다가 내린 속성도 민감으로 보고 가린다(431). */
+    @Test
+    void storedCopiesKeepPropertiesThatWereRestrictedWhenTheyWereMade() {
+        java.time.Instant downgraded = java.time.Instant.parse("2026-11-15T00:00:00Z");
+        DataAccess access =
+                new DataAccess(
+                        SCOPES,
+                        DataPurpose.VIEW,
+                        Map.of(
+                                2L,
+                                Map.of("vendor_phone", downgraded),
+                                1L,
+                                Map.of("crew", downgraded)));
+
+        // 지금 사람이 보는 값은 지금 민감도대로
+        assertThat(access.hidesValue("Vendor", "vendor_phone")).isFalse();
+        // 내리기 전에 만든 사본: 민감 값을 볼 수 없는 유형이면 가린다. 볼 수 있는 유형은 그대로
+        DataAccess before = access.asOf(downgraded.minusSeconds(60));
+        assertThat(before.hidesValue("Vendor", "vendor_phone")).isTrue();
+        assertThat(before.hidesValue("Vendor", "contact_name")).isTrue();
+        assertThat(before.hidesValue("WorkOrder", "crew")).isFalse();
+        // 앱·DB 시계가 조금 어긋나도 내린 직후(1분 안) 사본은 가린다
+        assertThat(access.asOf(downgraded.plusSeconds(30)).hidesValue("Vendor", "vendor_phone"))
+                .isTrue();
+        // 내린 뒤에 만든 사본은 지금과 같다
+        assertThat(access.asOf(downgraded.plusSeconds(120)).hidesValue("Vendor", "vendor_phone"))
+                .isFalse();
+        // 만든 때를 모르면 한 번이라도 민감이었던 속성은 가린다
+        assertThat(access.asOf(null).hidesValue("Vendor", "vendor_phone")).isTrue();
+        // 내린 속성이 없으면 같은 범위
+        DataAccess plain = new DataAccess(SCOPES, DataPurpose.VIEW);
+        assertThat(plain.asOf(null)).isSameAs(plain);
+    }
 }

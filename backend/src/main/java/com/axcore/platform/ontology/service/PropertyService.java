@@ -20,6 +20,7 @@ import com.axcore.platform.ontology.dto.PropertyUpdateRequest;
 import com.axcore.platform.ontology.repository.DefinitionReferenceRepository;
 import com.axcore.platform.ontology.repository.ObjectTypeRepository;
 import com.axcore.platform.ontology.repository.PropertyDefinitionRepository;
+import com.axcore.platform.ontology.repository.PropertyRestrictionHistoryRepository;
 import com.axcore.platform.ontology.repository.PropertyValueRepository;
 import com.axcore.platform.ontology.repository.PropertyValueRepository.ValueConflict;
 import com.axcore.platform.source.domain.SourceColumn;
@@ -45,6 +46,7 @@ public class PropertyService {
     private final ObjectTypeRepository objectTypeRepository;
     private final PropertyDefinitionRepository propertyDefinitionRepository;
     private final PropertyValueRepository propertyValueRepository;
+    private final PropertyRestrictionHistoryRepository restrictionHistory;
     private final DefinitionReferenceRepository referenceRepository;
     private final PropertySourceMappingRepository propertyMappingRepository;
     private final SourceColumnRepository sourceColumnRepository;
@@ -204,6 +206,11 @@ public class PropertyService {
         if (clearValues) {
             propertyValueRepository.clearValues(property.getObjectTypeId(), property.getCode());
         }
+        // 내린 시각을 남긴다. 그 전에 만든 저장된 사본(계획·감사·검사)은 이 속성을 민감으로 보고 계속 가린다(431)
+        if (before == PropertySensitivity.RESTRICTED
+                && sensitivity != PropertySensitivity.RESTRICTED) {
+            restrictionHistory.recordDowngrade(property.getObjectTypeId(), property.getCode());
+        }
         // 올리면 391 이전 매핑 때문에 CDC가 건너뛴 변경을 되찾고, 내리며 값을 지웠으면 켜진 매핑의 값을 일반 값으로 다시 채운다.
         if (raised || clearValues) {
             mappedResourceReload.requireFullReload(mappedResources);
@@ -221,6 +228,10 @@ public class PropertyService {
         List<DefinitionReference> references = referenceRepository.findPropertyReferences(id);
         if (!references.isEmpty()) {
             throw new BusinessException(CommonErrorCode.IN_USE, Map.of("references", references));
+        }
+        // 민감 속성을 지우고 같은 코드로 일반 속성을 다시 만들어도 그 전 사본의 값은 가린다(431)
+        if (property.getSensitivity() == PropertySensitivity.RESTRICTED) {
+            restrictionHistory.recordDowngrade(property.getObjectTypeId(), property.getCode());
         }
         propertyDefinitionRepository.delete(property);
     }

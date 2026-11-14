@@ -2,6 +2,7 @@ package com.axcore.platform.auth.service;
 
 import com.axcore.platform.auth.repository.DataScopeRepository;
 import com.axcore.platform.global.security.LoginAccount;
+import com.axcore.platform.ontology.repository.PropertyRestrictionHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DataAccessPolicy {
 
     private final DataScopeRepository dataScopeRepository;
+    private final PropertyRestrictionHistoryRepository restrictionHistory;
 
     /** 사람이 화면·API 응답으로 볼 범위({@link DataPurpose#VIEW}). */
     @Transactional(readOnly = true)
@@ -69,6 +71,9 @@ public class DataAccessPolicy {
     }
 
     private DataAccess scope(LoginAccount actor, DataPurpose purpose) {
-        return new DataAccess(dataScopeRepository.findAll(actor.roleCode()), purpose);
+        return new DataAccess(
+                dataScopeRepository.findAll(actor.roleCode()),
+                purpose,
+                restrictionHistory.findAll());
     }
 }

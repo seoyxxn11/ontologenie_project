@@ -63,10 +63,13 @@ public class StoredCheckValues {
     private final ObjectTypeRepository objectTypes;
     private final PropertySourceMappingRepository propertyMappings;
 
-    /** 요청 하나 동안 쓰는 판정기. 같은 규칙과 유형은 한 번만 읽는다. */
+    /**
+     * 요청 하나 동안 쓰는 판정기. 같은 규칙과 유형은 한 번만 읽는다. 저장된 검사 값은 만든 때를 하나로 정할 수 없어, 한 번이라도 민감에서 내린 속성은 민감으로 보고
+     * 가린다(431, 넘치게 가리는 쪽).
+     */
     public Viewer viewer(DataAccess access) {
         access.requireObjectValues();
-        return new Viewer(access);
+        return new Viewer(access.asOf(null));
     }
 
     /**

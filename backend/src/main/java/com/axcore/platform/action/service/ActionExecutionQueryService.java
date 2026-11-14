@@ -61,7 +61,8 @@ public class ActionExecutionQueryService {
             throw new BusinessException(
                     CommonErrorCode.FORBIDDEN, Map.of("requiredPermission", ADMIN));
         }
-        DataAccess access = dataAccessPolicy.of(viewer);
+        // 입력·결과·변경은 실행 때의 값이라, 그 뒤 민감에서 내린 속성도 그때 민감이었으면 가린다(431)
+        DataAccess access = dataAccessPolicy.of(viewer).asOf(execution.getRequestedAt());
         Masked<Map<String, Object>> input =
                 masker.maskInput(execution.getActionDefinitionId(), execution.getInput(), access);
         Masked<Map<String, Object>> result =
