@@ -28,11 +28,18 @@ def _relation_columns(rel: schema.Relation) -> list[str]:
 
 
 def allowed_relations() -> list[schema.Relation]:
-    """원천 정책의 금지 표·컬럼에 한쪽이라도 걸친 관계는 정답에서 뺀다."""
+    """원천 정책의 금지 표·컬럼에 한쪽이라도 걸친 관계는 정답에서 뺀다.
+
+    민감 컬럼을 연결 조건으로 쓰는 관계도 뺀다. 플랫폼은 민감 속성을 연결 규칙의 조건에 쓰는 승인을
+    거절하므로(백엔드 LinkRuleApplier), 정답에 두면 맞힌 후보가 승인되지 않는다(S15P31C106-417).
+    """
     return [
         rel
         for rel in schema.RELATIONS
-        if not any(source_policy.is_forbidden(c) for c in _relation_columns(rel))
+        if not any(
+            source_policy.is_forbidden(c) or source_policy.is_restricted(c)
+            for c in _relation_columns(rel)
+        )
     ]
 
 

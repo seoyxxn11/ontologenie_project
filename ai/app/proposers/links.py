@@ -49,6 +49,7 @@ from app.rules.transforms import (
     apply_steps,
     describe_steps,
 )
+from app.source_policy import is_restricted
 from app.sources.csv_reader import CsvSourceReader
 
 MIN_ROWS_FOR_SMALL = 20  # 값 종류가 적어도 이만큼 행이 모두 이어지면 보류 후보로 낸다
@@ -191,8 +192,17 @@ class Tables:
 
 
 def is_identifier_like(col: Column) -> bool:
-    """식별자로 비교해 볼 컬럼: 문자형이거나 정수형. 시각·소수·개인정보(사람 이름 포함)는 뺀다."""
-    if col.analysis.is_personal or col.personal or len(col.values) == 0:
+    """식별자로 비교해 볼 컬럼: 문자형이거나 정수형. 시각·소수·개인정보(사람 이름 포함)는 뺀다.
+
+    원천 정책의 민감 컬럼도 뺀다. 플랫폼은 민감 속성을 연결 규칙 조건으로 받지 않아
+    (LinkRuleApplier) 제안해도 승인되지 않는다(S15P31C106-417).
+    """
+    if (
+        col.analysis.is_personal
+        or col.personal
+        or is_restricted(col.ref)
+        or len(col.values) == 0
+    ):
         return False
     d = col.declared
     if d.startswith((*TIME_TYPES, "numeric", "decimal", "float", "double")):

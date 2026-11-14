@@ -254,7 +254,8 @@ def test_link_rules_cover_name_key_category_and_via(result):
 
 def test_link_evaluation_counts_pending_and_held_separately(data, result):
     links = evaluate(result["candidates"], data / "gold-t3")["links"]
-    assert links["gold"] == 54  # 원천 정책의 금지 표에 걸친 관계 2개는 정답에 없다
+    # 원천 정책의 금지 표에 걸친 관계 2개와 민감 컬럼을 연결 조건으로 쓰는 관계 1개(417)는 정답에 없다
+    assert links["gold"] == 53
     assert links["found_pending"] + links["found_held"] <= links["gold"]
     assert links["proposed_pending"] + links["proposed_held"] == len(_rules(result))
 
@@ -270,7 +271,7 @@ def test_excluded_tables_leave_both_gold_and_candidates(data, result):
     scoped = evaluate(result["candidates"], data / "gold-t3", accounting)
 
     assert scoped["object_types"]["gold"] == full["object_types"]["gold"] - 4
-    assert scoped["links"]["gold"] == 50
+    assert scoped["links"]["gold"] == 49
     assert not any(t in accounting for t in scoped["object_types"]["false_positive"])
     assert not any(
         ".".join(c.split(".")[:2]) in accounting
@@ -869,11 +870,10 @@ def test_column_that_is_only_part_of_its_own_key_points_many_to_one(result):
     assert types["stock_item_code_to_item"]["cardinality"] == "MANY_TO_ONE"
 
 
-def test_unmatched_examples_that_are_all_hidden_names_are_not_shown_as_stars(result):
+def test_restricted_source_columns_are_not_proposed_as_link_conditions(result):
+    # 정비지시 담당자는 원천 정책의 민감 컬럼이라 플랫폼이 연결 조건으로 받지 않는다(417)
     rules = _rules(result)
-    reason = rules["maintenance_order_technician_to_department"]["reason"]
-    assert "***" not in reason
-    assert "불일치 값은 개인정보라 표시하지 않음" in reason
+    assert "maintenance_order_technician_to_department" not in rules
 
 
 def test_english_property_name_is_replaced_by_llm_label_only_when_not_korean():

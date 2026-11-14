@@ -222,7 +222,7 @@ def unlinked_columns(
         if col.ref in linked or not is_identifier_like(col):
             continue
         if is_restricted(col.ref):
-            continue  # 원천 정책의 민감 컬럼 값은 LLM에 보내지 않는다(2차 방어)
+            continue  # 민감 컬럼 값은 LLM에 보내지 않는다. is_identifier_like가 이미 빼지만(417) 값이 나가는 길이라 한 번 더 막는다
         if tables.pk.get(col.table) == [col.name]:
             continue  # 자기 표의 키
         if col.values.nunique() < MIN_DISTINCT:

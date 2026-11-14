@@ -3061,7 +3061,7 @@
       "value_map": null,
       "is_identifier": false,
       "is_required": null,
-      "is_reference": true,
+      "is_reference": false,
       "is_personal": true,
       "level": "must"
     },
@@ -4002,27 +4002,6 @@
       "mapping_rule": null,
       "derived_from": "column",
       "level": "must"
-    },
-    {
-      "code": "maintenance_order_technician",
-      "name": "mes.maintenance_order.technician → erp.department.dept_name",
-      "source_type": "MaintenanceOrder",
-      "target_type": "Department",
-      "cardinality": "MANY_TO_ONE",
-      "via": {
-        "from": "mes.maintenance_order.technician",
-        "to": "erp.department.dept_name",
-        "key": "alternate"
-      },
-      "mapping_rule": null,
-      "derived_from": "column",
-      "level": "must",
-      "known_unmatched": [
-        {
-          "value": "홍보람",
-          "reason": "팀 대신 담당 직원 이름으로 적힘"
-        }
-      ]
     },
     {
       "code": "handover_note_author_id",
