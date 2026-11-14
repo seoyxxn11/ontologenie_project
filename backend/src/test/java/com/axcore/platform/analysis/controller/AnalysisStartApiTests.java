@@ -147,7 +147,8 @@ class AnalysisStartApiTests {
 
     /**
      * 원천 데이터 정책(399): 금지·민감 컬럼은 고른 컬럼에서도, 컬럼을 고르지 않은 표에서도 빠진다. 등록 메타데이터의 컬럼 설명도 빠진다. AI는 받은 컬럼만
-     * 읽으므로 프롬프트와 근거에도 들어가지 않는다.
+     * 읽으므로 프롬프트와 근거에도 들어가지 않는다. 민감 컬럼은 값 없이 이름·자료형만 {@code structureOnlyColumns}로 넘겨 속성 후보는 만들게
+     * 한다(416). 금지 컬럼은 이름도 넘기지 않는다.
      */
     @Test
     void sendsOnlyNormalColumnsOfPolicyTablesToAi() throws Exception {
@@ -177,8 +178,12 @@ class AnalysisStartApiTests {
         JsonNode second = body.path("targets").get(1);
         assertThat(second.path("resourceKey").asString()).isEqualTo("mes.maintenance_order");
         assertThat(second.path("columns").toString()).isEqualTo("[\"code\",\"name\"]");
-        assertThat(AI.requests.peek().body())
-                .doesNotContain("skill_level", "technician", "작업자 성명", "숙련 등급");
+        // 작업자는 이름·코드만 골랐으므로 숙련도는 구조로도 넘기지 않는다
+        assertThat(first.has("structureOnlyColumns")).isFalse();
+        assertThat(second.path("structureOnlyColumns").toString())
+                .isEqualTo(
+                        "[{\"name\":\"technician\",\"dataType\":\"text\",\"nullable\":true,\"grade\":\"RESTRICTED\"}]");
+        assertThat(AI.requests.peek().body()).doesNotContain("skill_level", "작업자 성명", "숙련 등급");
     }
 
     /** 정책 이전에 접수돼 QUEUED로 남은 실행도 시작 알림 때 정책을 다시 본다. 금지 표가 있으면 AI에 보내지 않고 FAILED다. */

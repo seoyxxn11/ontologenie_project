@@ -195,6 +195,11 @@ def _snapshot(
                     {t.table: t.columns or None for t in chosen},
                     {t.table: t.source_metadata for t in chosen},
                     name=prefix,
+                    structure_only={
+                        t.table: t.structure_only_columns
+                        for t in chosen
+                        if t.structure_only_columns
+                    },
                 )
             except (SourceError, UnknownTableError) as error:
                 raise AnalysisFailure(f"{error} ({code})") from None

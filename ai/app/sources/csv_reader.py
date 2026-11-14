@@ -48,6 +48,8 @@ class CsvSourceReader:
                 name=name,
                 declared_type=column_meta.get(name, {}).get("type"),
                 comment=column_meta.get(name, {}).get("comment"),
+                values_read=column_meta.get(name, {}).get("values_read", True),
+                nullable=column_meta.get(name, {}).get("nullable"),
                 is_primary_key=name in primary_key,
             )
             for name in header

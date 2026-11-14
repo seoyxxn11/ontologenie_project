@@ -9,6 +9,7 @@ from pathlib import Path
 
 from app.sources.base import SourceReader
 from app.sources.csv_reader import SCHEMA_FILE
+from app.sources.postgres_reader import type_name
 
 # 표 하나에서 읽는 최대 행 수. AI 계정은 쿼리 30초 제한이 있어 큰 표는 기본키 순서로 앞에서 자른다.
 MAX_ROWS = 100_000
@@ -31,10 +32,12 @@ def write_snapshot(
     metadata: dict[str, dict] | None = None,
     name: str | None = None,
     max_rows: int = MAX_ROWS,
+    structure_only: dict[str, list] | None = None,
 ) -> SnapshotReport:
     """columns: {표: 고른 컬럼 또는 None(전체)}, metadata: {표: 등록한 원천 설명·동의어·메모}.
 
     name은 옮길 폴더 이름(기본 reader.source_id). 원천에 없는 컬럼은 빼고 report에 남긴다.
+    structure_only: {표: 이름·자료형만 받은 컬럼}. 값 없이 빈 컬럼으로 넣어 속성 후보만 만든다(416).
     """
     prefix = name or reader.source_id
     folder = Path(root) / prefix
@@ -59,13 +62,29 @@ def write_snapshot(
         if len(rows) > max_rows:
             rows = rows.iloc[:max_rows]
             report.sampled_tables[f"{prefix}.{table}"] = max_rows
+        valueless = [
+            c for c in (structure_only or {}).get(table, []) if c.name not in names
+        ]
+        for column in valueless:
+            rows[column.name] = None
         rows.to_csv(folder / f"{table}.csv", index=False, encoding="utf-8")
         meta[table] = {
             "description": schema.description or "",
             "primary_key": [c.name for c in keep if c.is_primary_key],
             "columns": {
-                c.name: {"type": c.declared_type or "", "comment": c.comment or ""}
-                for c in keep
+                **{
+                    c.name: {"type": c.declared_type or "", "comment": c.comment or ""}
+                    for c in keep
+                },
+                **{
+                    c.name: {
+                        "type": type_name(c.data_type),
+                        "comment": c.comment or "",
+                        "values_read": False,
+                        "nullable": c.nullable,
+                    }
+                    for c in valueless
+                },
             },
         }
         add_metadata(meta[table], (metadata or {}).get(table))

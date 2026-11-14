@@ -567,7 +567,9 @@ def _table_candidates(
                     data_type=dtype,
                     description=col.comment or "",
                     is_identifier=col.name in keys,
-                    is_required=stats.null_count == 0,
+                    is_required=(col.nullable is False)
+                    if not col.values_read
+                    else stats.null_count == 0,
                     sensitivity=Sensitivity.RESTRICTED
                     if personal
                     else Sensitivity.NORMAL,
@@ -580,7 +582,9 @@ def _table_candidates(
                 )
                 + (" · 식별 키" if col.name in keys else "")
                 + (
-                    " · 빈 값 없음"
+                    " · 값은 읽지 않음(이름·자료형만)"
+                    if not col.values_read
+                    else " · 빈 값 없음"
                     if stats.null_count == 0
                     else f" · 빈 값 {stats.null_count}행"
                 )
@@ -594,7 +598,11 @@ def _table_candidates(
                 confidence=score.build(
                     score.property_(
                         bool(col.declared_type),
-                        stats.null_count / stats.row_count if stats.row_count else 1.0,
+                        0.0
+                        if not col.values_read
+                        else stats.null_count / stats.row_count
+                        if stats.row_count
+                        else 1.0,
                     )
                 ),
             )

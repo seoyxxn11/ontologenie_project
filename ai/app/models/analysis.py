@@ -15,12 +15,28 @@ class _Wire(BaseModel):
     )
 
 
+class StructureOnlyColumn(_Wire):
+    """값을 읽지 않고 이름·자료형만 넘기는 컬럼(원천 정책의 민감 컬럼, S15P31C106-416).
+
+    AI 계정은 민감 컬럼을 SELECT할 수 없어 원천에서 보이지 않는다. 백엔드 카탈로그가 이름·자료형을 넘겨 속성·매핑 후보는 만들고, 예시 값·통계는 없다.
+    """
+
+    name: str
+    data_type: str = ""
+    comment: str | None = None  # 원천 주석(속성 이름에 쓴다). 값이 아니라 구조 정보다
+    nullable: bool | None = (
+        None  # 값을 못 보므로 필수 여부는 원천의 NULL 허용으로 정한다
+    )
+    grade: str = "RESTRICTED"  # 기록용. RESTRICTED 표시는 AI의 원천 정책 사본(source_policy)이 붙인다
+
+
 class AnalysisTarget(_Wire):
     source_resource_id: int
     data_source_code: str
     resource_key: str  # 스키마.테이블 (예: mes.work_order)
     columns: list[str] | None = None  # 없으면 전체 컬럼
     source_metadata: dict = Field(default_factory=dict)
+    structure_only_columns: list[StructureOnlyColumn] = Field(default_factory=list)
 
     @field_validator("resource_key")
     @classmethod
