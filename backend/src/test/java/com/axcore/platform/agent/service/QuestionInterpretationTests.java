@@ -55,6 +55,51 @@ class QuestionInterpretationTests {
         assertThat(continued.from()).isEqualTo(LocalDate.parse("2026-10-01"));
     }
 
+    /** 새 대상과 함께 질문에 다시 쓴 이전 대상은 잃지 않는다(2026-11-14 대화 95: 작업지시·P101이 빠지고 P103만 남음). */
+    @Test
+    void keepsPreviousTargetsWrittenAgainWithNewTarget() {
+        QuestionInterpretation previous =
+                new QuestionInterpretation(
+                        "재배정 계획 저장", List.of("JB2610-0141", "P101"), null, null, List.of(), null);
+        QuestionInterpretation asked =
+                new QuestionInterpretation(
+                        "재배정 계획 저장", List.of("P103"), null, null, List.of(), null);
+
+        QuestionInterpretation repeated =
+                asked.withRepeatedTargets(
+                        "JB2610-0141의 P103에 배정된 중단 공정을 P103에서 P101로 옮기는 재배정 계획을 저장해 줘.", previous);
+
+        assertThat(repeated.targets()).containsExactly("P103", "JB2610-0141", "P101");
+        assertThat(asked.withRepeatedTargets("P1010에서 옮겨 줘. jb2610-0141도", previous).targets())
+                .as("코드 뒤에 숫자가 이어지면 다른 코드다. 대소문자는 가리지 않는다")
+                .containsExactly("P103", "JB2610-0141");
+        assertThat(asked.withRepeatedTargets("P103 비가동 이력은?", previous)).isSameAs(asked);
+        assertThat(
+                        asked.withRepeatedTargets("JB2610-0141 말고 P101은 빼고 P103만 보여줘", previous)
+                                .targets())
+                .as("빼는 말이 바로 뒤에 오는 이전 대상은 되살리지 않는다(리뷰 M1)")
+                .containsExactly("P103");
+        QuestionInterpretation lineAsValue =
+                new QuestionInterpretation(
+                        null,
+                        List.of("P103"),
+                        null,
+                        null,
+                        List.of(),
+                        null,
+                        List.of(),
+                        QuestionScope.BUSINESS,
+                        List.of("P101"));
+        assertThat(lineAsValue.withRepeatedTargets("P103에서 P101 조건으로", previous).targets())
+                .as("이번에 속성값으로 쓴 말은 대상으로 되살리지 않는다")
+                .containsExactly("P103");
+        QuestionInterpretation none =
+                new QuestionInterpretation(null, List.of(), null, null, List.of(), null);
+        assertThat(none.withRepeatedTargets("JB2610-0141은?", previous))
+                .as("대상을 새로 말하지 않았으면 이전 대상은 continueFrom이 잇는다")
+                .isSameAs(none);
+    }
+
     @Test
     void followUpWithVaguePeriodAsksInsteadOfReusingPreviousPeriod() {
         QuestionInterpretation recent =

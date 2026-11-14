@@ -59,6 +59,91 @@ class QuestionInterpreterGmsTests {
         assertThat(continued.purpose()).contains("가이드 마모");
     }
 
+    /**
+     * 대상을 다시 말하지 않거나 "그거", "같은 설비"로만 가리키는 후속 질문은 대상을 비운다. 재배정 계획 재질문 때 "이름을 다시 쓴 이전 대상도 쓴다"를 넣은 뒤에도
+     * 그대로인지 본다(2026-11-14 !456).
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"그럼 지난달은?", "그거 사유별로 몇 건이야?", "같은 설비의 9월 이력도 보여줘"})
+    void keepsPreviousEquipmentWhenTargetIsOnlyPointedAt(String question) {
+        QuestionInterpretation asked = interpretFollowUp(question);
+        QuestionInterpretation continued = asked.continueFrom(PREVIOUS_DOWNTIME);
+
+        log.info("GMS 후속 해석: {} → {}", question, asked);
+        assertThat(asked.targets()).isEmpty();
+        assertThat(asked.kinds()).isEmpty();
+        assertThat(continued.referenceObjects()).isEqualTo(PREVIOUS_DOWNTIME.referenceObjects());
+    }
+
+    /** 이름을 다시 쓴 이전 대상과 새 대상을 함께 말하면 모두 targets에 쓴다(대화 95 재질문). */
+    @Test
+    void keepsPreviousTargetsWrittenAgainWithNewTarget() {
+        QuestionInterpretation previous =
+                new QuestionInterpretation(
+                        "JB2610-0141의 P101 재배정 계획 저장",
+                        List.of("JB2610-0141", "P101"),
+                        null,
+                        null,
+                        List.of(
+                                new AgentReferenceObject(731L, "JB2610-0141", "작업지시"),
+                                new AgentReferenceObject(2L, "1라인 1호 프레스", "설비")),
+                        null);
+        String question =
+                "JB2610-0141의 P103에 배정된 중단 공정을 P103에서 P101로 옮기는 재배정 계획을 저장해 줘. 기존 설비는 P103이고, 대체"
+                        + " 설비는 P101이야.";
+        QuestionInterpretation asked =
+                interpreter.interpret(
+                        question,
+                        Map.of(),
+                        null,
+                        previous,
+                        List.of(
+                                new ConversationTurn(
+                                        "JB2610-0141을 P101로 옮기는 재배정 계획을 저장해 줘.",
+                                        "재배정 계획을 저장하지 못했습니다.")),
+                        null);
+
+        log.info("GMS 재질문 해석: {}", asked);
+        assertThat(asked.targets()).contains("JB2610-0141", "P103", "P101");
+    }
+
+    /**
+     * 새 대상 없이 이전 대상만 다시 말하면 targets를 비워 이전 대상 전체(작업지시 포함)를 잇는다. 이름을 다시 쓴 대상을 쓰라는 규칙이 이 경우까지 넓어지면
+     * 작업지시를 잃는다(!456 리뷰 M2).
+     */
+    @Test
+    void keepsWorkOrderWhenOnlyPreviousTargetIsNamedAgain() {
+        QuestionInterpretation compared =
+                new QuestionInterpretation(
+                        "JB2610-0141 이어서 생산 가능 여부 비교",
+                        List.of("JB2610-0141", "P101", "P201"),
+                        null,
+                        null,
+                        List.of(
+                                new AgentReferenceObject(731L, "JB2610-0141", "작업지시"),
+                                new AgentReferenceObject(2L, "1라인 1호 프레스", "설비"),
+                                new AgentReferenceObject(5L, "2라인 1호 프레스", "설비")),
+                        null);
+        String question = "그럼 P101로 재배정 계획 저장해 줘.";
+        QuestionInterpretation asked =
+                interpreter
+                        .interpret(
+                                question,
+                                Map.of(),
+                                null,
+                                compared,
+                                List.of(
+                                        new ConversationTurn(
+                                                "JB2610-0141을 P101이나 P201에서 이어서 생산할 수 있어?",
+                                                "P101은 조건을 충족하고 P201은 충족하지 못합니다.")),
+                                null)
+                        .withRepeatedTargets(question, compared);
+        QuestionInterpretation continued = asked.continueFrom(compared);
+
+        log.info("GMS 이전 대상만 다시 말한 해석: {}", asked);
+        assertThat(continued.referenceObjectIds()).contains(731L);
+    }
+
     private QuestionInterpretation interpretFollowUp(String question) {
         return interpreter.interpret(
                 question,

@@ -14,7 +14,9 @@ import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.ontology.service.ObjectDetailQuery;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -79,6 +81,7 @@ public class EquipmentCapabilityComparer {
             String sequence,
             String status,
             String assignedEquipment,
+            Long assignedEquipmentId,
             boolean standardFound,
             String requiredKind,
             BigDecimal minimumCapacity) {}
@@ -121,6 +124,10 @@ public class EquipmentCapabilityComparer {
         Set<Long> ids = new LinkedHashSet<>(equipmentIds);
         ids.add(workOrderId);
         Map<Long, ObjectRow> rows = objects.findByIds(access, ids);
+        rejectOtherType(rows.get(workOrderId), workOrder.type(), "workOrderId", "작업지시", access);
+        for (Long id : equipmentIds) {
+            rejectOtherType(rows.get(id), equipment.type(), "equipmentIds", "설비", access);
+        }
         List<String> missing = new ArrayList<>();
         Set<Long> used = new LinkedHashSet<>();
         ObjectRow order = visible(rows.get(workOrderId), workOrder.type(), access);
@@ -297,6 +304,7 @@ public class EquipmentCapabilityComparer {
                             note));
         }
 
+        Map<String, Long> assignedIds = assignedEquipmentIds(compared.values(), access, visibility);
         List<OperationRequirement> requirements = new ArrayList<>();
         compared.values().stream()
                 .sorted(
@@ -308,14 +316,17 @@ public class EquipmentCapabilityComparer {
                             if (step.standard() != null) {
                                 used.add(step.standard().id());
                             }
+                            String assigned =
+                                    visibility.text(
+                                            step.operation(),
+                                            operation.type(),
+                                            operation.equipment());
                             requirements.add(
                                     new OperationRequirement(
                                             step.sequence(),
                                             step.operation().text(operation.status()),
-                                            visibility.text(
-                                                    step.operation(),
-                                                    operation.type(),
-                                                    operation.equipment()),
+                                            assigned,
+                                            assigned == null ? null : assignedIds.get(assigned),
                                             step.standard() != null,
                                             step.standard() == null
                                                     ? null
@@ -511,6 +522,54 @@ public class EquipmentCapabilityComparer {
     private boolean finished(ObjectRow operation) {
         String status = operation.text(properties.operation().status());
         return status != null && properties.operation().finishedStatuses().contains(status);
+    }
+
+    /**
+     * 비교한 공정이 지금 배정된 설비의 객체 ID(설비 코드 → ID). 재배정 계획의 정지 설비(fromEquipmentId)로 쓴다. 공정의 설비 코드가 가려졌거나 그
+     * 코드의 설비를 볼 수 없으면 빠진다.
+     */
+    private Map<String, Long> assignedEquipmentIds(
+            Collection<Step> steps, DataAccess access, Visibility visibility) {
+        ReassignmentProperties.Operation operation = properties.operation();
+        ReassignmentProperties.Equipment equipment = properties.equipment();
+        Set<String> codes = new LinkedHashSet<>();
+        for (Step step : steps) {
+            String code =
+                    visibility.text(step.operation(), operation.type(), operation.equipment());
+            if (code != null && !code.isBlank()) {
+                codes.add(code);
+            }
+        }
+        if (codes.isEmpty() || !access.canView(equipment.type())) {
+            return Map.of();
+        }
+        Map<String, Long> ids = new HashMap<>();
+        for (ObjectRow row :
+                objects.findActiveByProperty(access, equipment.type(), equipment.code(), codes)) {
+            String code = row.text(equipment.code());
+            if (code != null) {
+                ids.putIfAbsent(code, row.id());
+            }
+        }
+        return ids;
+    }
+
+    /**
+     * 볼 수 있는 다른 유형의 객체 ID를 넣었으면 "없음"이 아니라 입력 오류로 알려 AI가 고치게 한다. 공정 배정 ID를 작업지시 ID로 넣고 "작업지시를 찾을 수
+     * 없다"로 끝낸 일이 있었다(2026-11-14 대화 95). 볼 수 없는 유형이면 있다는 사실을 알리지 않고 기존처럼 없는 객체로 둔다(205).
+     */
+    private static void rejectOtherType(
+            ObjectRow row, String type, String field, String label, DataAccess access) {
+        if (row == null || !row.isActive() || type.equals(row.typeCode())) {
+            return;
+        }
+        if (!access.canView(row.typeCode())) {
+            return;
+        }
+        throw new AgentQuerySession.InvalidInput(
+                "%s #%d는 %s가 아니라 %s 유형 객체입니다. 이 객체와 연결된 %s를 관계 조회로 찾아 그 %s의 ID로 다시 부르세요."
+                        .formatted(field, row.id(), label, row.typeCode(), label, label),
+                null);
     }
 
     /** 활성이고 그 유형이며 사용자가 볼 수 있는 객체만 돌려준다. 아니면 null이다. */

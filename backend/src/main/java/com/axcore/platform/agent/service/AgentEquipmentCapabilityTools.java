@@ -1,5 +1,6 @@
 package com.axcore.platform.agent.service;
 
+import com.axcore.platform.audit.domain.AgentResultCategory;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -71,6 +72,17 @@ public class AgentEquipmentCapabilityTools {
                                     : CompletionEstimator.normalizeSequences(operationSequences);
                     EquipmentCapabilityComparer.Comparison comparison =
                             comparer.compare(session.asker(), workOrderId, machines, sequences);
+                    if (comparison.category() == AgentResultCategory.FOUND) {
+                        // 재배정 계획 저장에서 정지 설비를 이 값으로 확인한다(AgentActionTool).
+                        session.recordAssignments(
+                                workOrderId,
+                                comparison.result().operations().stream()
+                                        .map(
+                                                EquipmentCapabilityComparer.OperationRequirement
+                                                        ::assignedEquipmentId)
+                                        .filter(Objects::nonNull)
+                                        .toList());
+                    }
                     return new AgentQuerySession.Outcome(
                             comparison.result(),
                             comparison.category(),

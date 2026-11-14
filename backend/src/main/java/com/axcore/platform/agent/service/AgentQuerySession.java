@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -102,6 +103,21 @@ public class AgentQuerySession {
 
     synchronized boolean isFoundSet(String id) {
         return id != null && foundSetIds.contains(id.strip());
+    }
+
+    // 이번 답변에서 설비 조건을 비교한 작업지시와, 비교한 공정이 지금 배정된 설비 ID. 재배정 계획의 정지 설비를 이 값으로 확인한다.
+    private final Map<Long, Set<Long>> comparedAssignments = new LinkedHashMap<>();
+
+    synchronized void recordAssignments(long workOrderId, Collection<Long> equipmentIds) {
+        comparedAssignments
+                .computeIfAbsent(workOrderId, id -> new LinkedHashSet<>())
+                .addAll(equipmentIds);
+    }
+
+    /** 비교한 공정이 배정된 설비 ID. 이번 답변에서 그 작업지시를 비교하지 않았으면 null이다. */
+    synchronized Set<Long> assignedEquipment(long workOrderId) {
+        Set<Long> ids = comparedAssignments.get(workOrderId);
+        return ids == null ? null : Set.copyOf(ids);
     }
 
     /** 기준 시점을 구하지 않는 세션. 기준 시점과 관계없는 도구·기록 테스트가 쓴다. */

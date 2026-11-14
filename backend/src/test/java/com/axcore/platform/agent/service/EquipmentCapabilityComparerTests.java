@@ -1,6 +1,7 @@
 package com.axcore.platform.agent.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.groups.Tuple.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -124,6 +125,51 @@ class EquipmentCapabilityComparerTests {
         assertThat(check.reason()).contains("능력 300톤 < 최소 400톤");
         assertThat(comparison.result().notes()).anyMatch(note -> note.contains("저장하지 않았다"));
         assertThat(comparison.objectIds()).contains(WO, P101, P201, 1012L, 1013L, 5020L, 5030L);
+    }
+
+    /** 비교한 공정이 지금 배정된 설비의 ID를 준다. 재배정 계획의 정지 설비로 쓴다(2026-11-14 대화 95). */
+    @Test
+    void givesIdOfEquipmentTheOperationsAreAssignedTo() {
+        long p103 = 2212L;
+        byType.put("Equipment", List.of(equipment(p103, "P103", "PRS", 400)));
+
+        Comparison comparison = comparer.compare(ASKER, WO, List.of(P101), Set.of());
+
+        assertThat(comparison.result().operations())
+                .extracting(
+                        OperationRequirement::sequence,
+                        OperationRequirement::assignedEquipment,
+                        OperationRequirement::assignedEquipmentId)
+                .containsExactly(tuple("20", "P103", p103), tuple("30", "P103", p103));
+        byType.remove("Equipment");
+        assertThat(comparer.compare(ASKER, WO, List.of(P101), Set.of()).result().operations())
+                .as("배정 설비를 찾지 못하면 ID만 비운다")
+                .extracting(OperationRequirement::assignedEquipmentId)
+                .containsOnlyNulls();
+    }
+
+    /**
+     * 볼 수 있는 다른 유형의 객체 ID를 작업지시·설비 자리에 넣으면 "없음"이 아니라 입력 오류로 고칠 방법을 준다. 공정 배정 ID를 작업지시로 넣고 "찾을 수
+     * 없다"로 끝낸 일이 있었다(대화 95). 볼 수 없는 유형이면 있다는 사실을 알리지 않는다(205).
+     */
+    @Test
+    void rejectsObjectOfAnotherVisibleTypeAsInputError() {
+        long operation = 1012L;
+        rows.put(operation, operation(operation, 20, "P103", "중단"));
+
+        assertThatThrownBy(() -> comparer.compare(ASKER, operation, List.of(P101), Set.of()))
+                .isInstanceOf(AgentQuerySession.InvalidInput.class)
+                .hasMessageContaining("workOrderId #1012")
+                .hasMessageContaining("WorkOrderOperation")
+                .hasMessageContaining("연결된 작업지시");
+        assertThatThrownBy(() -> comparer.compare(ASKER, WO, List.of(operation), Set.of()))
+                .isInstanceOf(AgentQuerySession.InvalidInput.class)
+                .hasMessageContaining("equipmentIds #1012");
+
+        when(access.canView("WorkOrderOperation")).thenReturn(false);
+        Comparison hidden = comparer.compare(ASKER, operation, List.of(P101), Set.of());
+        assertThat(hidden.category()).isEqualTo(AgentResultCategory.NO_DATA);
+        assertThat(hidden.result().missingInputs()).containsExactly("작업지시(id=1012)를 찾을 수 없습니다.");
     }
 
     /** 종류가 다른 후보를 함께 넣어도 설비마다 자기 종류로 하는 공정만 비교한다(함께 넣은 후보 때문에 판정이 바뀌지 않는다). */

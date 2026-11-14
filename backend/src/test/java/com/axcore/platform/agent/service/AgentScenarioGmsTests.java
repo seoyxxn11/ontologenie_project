@@ -1,10 +1,17 @@
 package com.axcore.platform.agent.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockingDetails;
+import static org.mockito.Mockito.when;
 
 import com.axcore.platform.TestcontainersConfiguration;
+import com.axcore.platform.action.dto.ActionExecutionResponse;
+import com.axcore.platform.action.service.ActionExecutionCommand;
+import com.axcore.platform.action.service.ActionExecutionService;
+import com.axcore.platform.action.service.ExecutableAction;
+import com.axcore.platform.audit.domain.ExecutionStatus;
 import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.ontology.dto.ObjectSearchRequest;
 import com.axcore.platform.ontology.service.ObjectSearchQuery;
@@ -375,6 +382,97 @@ class AgentScenarioGmsTests {
         run.verify();
     }
 
+    /** 운영 대화 95(2026-11-14)의 앞 세 질문. 계획 저장 요청 전에 정지 공정·P101 작업·설비 조건 비교를 차례로 물었다. */
+    private static final List<String> PLAN_CONTEXT =
+            List.of(
+                    "P103에서 중단된 JB2610-0141의 공정과 잔량을 확인하고, 연결된 수주와 납기를 알려줘.",
+                    "P101에 배정된 진행·대기 작업을 확인해 줘. 특히 JB2610-0138과 JB2610-0145의 연결 수주, 납기, 계획 시작일을 비교해 줘.",
+                    "JB2610-0141을 P101이나 P201에서 이어서 생산할 수 있어? 각 설비의 능력이 이 작업에 필요한 조건을 충족하는지 비교해 줘.");
+
+    /**
+     * R2(재배정 계획 저장 실패, 대화 95): 대체 설비만 말한 저장 요청에서 정지 설비를 P101로도 넣어(P101 → P101) BLOCKED됐다. 정지 설비는
+     * 공정이 지금 배정된 P103이어야 한다. 실행기는 가짜라 계획을 저장하지 않고 입력만 본다.
+     */
+    @Test
+    void r2SavesPlanFromAssignedEquipmentWhenOnlyTargetIsNamed() {
+        expectPlanFromP103ToP101(
+                conversation(
+                        PLAN_CONTEXT.get(0),
+                        PLAN_CONTEXT.get(1),
+                        PLAN_CONTEXT.get(2),
+                        "JB2610-0141을 P101로 옮기는 재배정 계획을 저장해 줘."));
+    }
+
+    /**
+     * R3(대화 95 재질문): 작업지시·정지 설비·대체 설비를 모두 말했는데 해석이 P103만 남겨 작업지시를 잃고, 공정 배정 ID를 작업지시 ID로 넣어 비교가
+     * "없음"으로 끝났다. 세 대상을 모두 잇고 P103 → P101 계획을 저장해야 한다.
+     */
+    @Test
+    void r3SavesPlanWhenFromAndToAreBothNamed() {
+        expectPlanFromP103ToP101(
+                conversation(
+                        PLAN_CONTEXT.get(0),
+                        PLAN_CONTEXT.get(1),
+                        PLAN_CONTEXT.get(2),
+                        "JB2610-0141의 P103에 배정된 중단 공정을 P103에서 P101로 옮기는 재배정 계획을 저장해 줘. 기존 설비는"
+                                + " P103이고, 대체 설비는 P101이야."));
+    }
+
+    /** 대화의 마지막 질문에서만 계획을 저장하고, 그 입력이 P103 → P101(작업지시 JB2610-0141, 공정 20·30)인지 본다. */
+    private void expectPlanFromP103ToP101(PlanConversation conversation) {
+        long workOrder = data.object("WorkOrder", Map.of("wo_no", "JB2610-0141"));
+        long p103 = data.object("Equipment", Map.of("code", "P103"));
+        long p101 = data.object("Equipment", Map.of("code", "P101"));
+        Run last = conversation.runs().getLast();
+        List<String> failures = new ArrayList<>();
+        List<Map<String, Object>> executed = conversation.executed();
+        if (conversation.executedBeforeLast() > 0) {
+            failures.add("저장을 요청하기 전 질문에서 계획 저장을 부름");
+        }
+        if (executed.isEmpty()) {
+            failures.add("계획 저장 실행기를 부르지 않음. 답: " + last.answer);
+        }
+        for (Map<String, Object> input : executed) {
+            if (!(input.get("fromEquipmentId") instanceof Number from)
+                    || from.longValue() != p103) {
+                failures.add("정지 설비가 P103(" + p103 + ")이 아님: " + input.get("fromEquipmentId"));
+            }
+            List<?> items = input.get("items") instanceof List<?> list ? list : List.of();
+            Set<String> operations = new TreeSet<>();
+            for (Object item : items) {
+                Map<?, ?> map = (Map<?, ?>) item;
+                if (!(map.get("workOrderId") instanceof Number id) || id.longValue() != workOrder) {
+                    failures.add(
+                            "작업지시 ID가 JB2610-0141("
+                                    + workOrder
+                                    + ")이 아님: "
+                                    + map.get("workOrderId"));
+                }
+                if (!(map.get("toEquipmentId") instanceof Number to) || to.longValue() != p101) {
+                    failures.add("대체 설비가 P101(" + p101 + ")이 아님: " + map.get("toEquipmentId"));
+                }
+                if (map.get("operationCode") != null) {
+                    operations.add(String.valueOf(map.get("operationCode")));
+                }
+            }
+            if (!operations.isEmpty() && !operations.equals(Set.of("20", "30"))) {
+                failures.add("옮길 공정이 20·30이 아님: " + operations);
+            }
+        }
+        log.info(
+                "GMS 시나리오 판정: {}",
+                Map.of(
+                        "question",
+                        last.question,
+                        "notRun",
+                        conversation.notRun(),
+                        "executed",
+                        executed,
+                        "failures",
+                        failures));
+        assertThat(failures).as("재배정 계획 저장").isEmpty();
+    }
+
     /**
      * L1(359): 종류 전체·조건 질문을 객체 목록 조회로 답한다. 진행 중인 작업지시는 JB2610-0138·0141·0142 세 건이다. 값("진행")은 AI가 목록
      * 결과에서 골라야 한다.
@@ -423,6 +521,147 @@ class AgentScenarioGmsTests {
     private long press() {
         return data.object("Equipment", Map.of("code", "P103"));
     }
+
+    /** 대화 하나의 결과. executed는 계획 저장 실행기로 넘어간 입력, notRun은 저장 전 확인에서 실행하지 않은 횟수다. */
+    private record PlanConversation(
+            List<Run> runs,
+            List<Map<String, Object>> executed,
+            int executedBeforeLast,
+            int notRun) {}
+
+    /**
+     * 같은 대화에서 질문을 차례로 한다. 처리기처럼 직전 정상 답변의 조건을 잇고(continueFrom), 다시 쓴 이전 대상을
+     * 되살리고(withRepeatedTargets), 최근 대화 원문을 해석에 준다. 되물으면 거기서 멈춘다. 재배정 계획 저장은 진짜 Agent 도구(저장 전 확인
+     * 포함)로 부르되 실행기는 가짜라 입력만 모은다.
+     */
+    private PlanConversation conversation(String... questions) {
+        ActionExecutionService executions = mock(ActionExecutionService.class);
+        List<Map<String, Object>> executed = new ArrayList<>();
+        when(executions.execute(any()))
+                .thenAnswer(
+                        call -> {
+                            ActionExecutionCommand command = call.getArgument(0);
+                            executed.add(command.input());
+                            ActionExecutionResponse response = mock(ActionExecutionResponse.class);
+                            when(response.id()).thenReturn(9000L + executed.size());
+                            when(response.status()).thenReturn(ExecutionStatus.SUCCEEDED);
+                            when(response.result())
+                                    .thenReturn(Map.of("planId", executed.size(), "itemCount", 2));
+                            return response;
+                        });
+        List<AgentQuerySession> sessions = new ArrayList<>();
+        when(actionTools.forAnswer(any()))
+                .thenAnswer(
+                        call -> {
+                            AgentQuerySession session = call.getArgument(0);
+                            sessions.add(session);
+                            return List.of(
+                                    new AgentActionTool(PLAN_ACTION, session, executions, json));
+                        });
+        List<Run> runs = new ArrayList<>();
+        List<ConversationTurn> recent = new ArrayList<>();
+        QuestionInterpretation previous = null;
+        int executedBeforeLast = 0;
+        for (int i = 0; i < questions.length; i++) {
+            String question = questions[i];
+            AgentQueryRecorder recorder = mock(AgentQueryRecorder.class);
+            AgentQuerySession session =
+                    new AgentQuerySession(
+                            admin,
+                            questionIds.incrementAndGet(),
+                            recorder,
+                            Clock.systemUTC(),
+                            dataAsOfResolver);
+            QuestionInterpretation asked =
+                    interpreter
+                            .interpret(
+                                    question, Map.of(), null, previous, List.copyOf(recent), null)
+                            .withRepeatedTargets(question, previous);
+            QuestionInterpretation interpretation =
+                    previous == null ? asked : asked.continueFrom(previous);
+            List<AgentReferenceObject> known =
+                    previous == null ? List.of() : previous.referenceObjects();
+            List<String> toResolve = AgentAnswerProcessor.targetsToResolve(asked, interpretation);
+            List<AgentTargetResolver.TargetIssue> issues = List.of();
+            if (!toResolve.isEmpty()) {
+                AgentTargetResolver.Resolution resolution =
+                        targetResolver.resolve(toResolve, known, session);
+                interpretation = interpretation.withReferenceObjects(resolution.found());
+                issues = resolution.issues();
+            }
+            log.info("GMS 시나리오 질문: {}", question);
+            log.info("GMS 시나리오 해석: {}", interpretation);
+            if (!interpretation.missing().isEmpty() || !issues.isEmpty()) {
+                String clarifying = AgentAnswerService.clarifyingQuestion(interpretation, issues);
+                log.info("GMS 시나리오 되묻기: {}", clarifying);
+                runs.add(new Run(question, recorder, issues, null, clarifying, Map.of()));
+                break;
+            }
+            session.allowObjects(
+                    interpretation.referenceObjectIds(), interpretation.kinds().isEmpty());
+            String answer = responder.answer(question, interpretation, session, null);
+            runs.add(new Run(question, recorder, issues, answer, null, Map.of()));
+            if (i < questions.length - 1) {
+                executedBeforeLast = executed.size();
+            }
+            recent.add(new ConversationTurn(question, answer, i + 1));
+            previous = interpretation;
+        }
+        int notRun =
+                (int)
+                        sessions.stream()
+                                .flatMap(session -> session.actions().stream())
+                                .filter(action -> AgentActionTool.NOT_RUN.equals(action.status()))
+                                .count();
+        return new PlanConversation(runs, executed, executedBeforeLast, notRun);
+    }
+
+    /** 운영 V10의 재배정 계획 Action 정의와 같은 입력 형식이다. 이 시험은 실행기를 가짜로 둔다. */
+    private static final ExecutableAction PLAN_ACTION =
+            new ExecutableAction(
+                    AgentActionTool.REASSIGNMENT_PLAN,
+                    "재배정 계획 생성",
+                    "정지 설비의 작업지시·공정을 대체 설비로 옮기는 계획을 저장한다. 원천 MES 배정은 바꾸지 않는다.",
+                    Map.of(
+                            "type",
+                            "object",
+                            "required",
+                            List.of("fromEquipmentId", "items", "dataAsOf"),
+                            "properties",
+                            Map.of(
+                                    "fromEquipmentId",
+                                    Map.of("type", "integer", "minimum", 1),
+                                    "items",
+                                    Map.of(
+                                            "type",
+                                            "array",
+                                            "minItems",
+                                            1,
+                                            "items",
+                                            Map.of(
+                                                    "type",
+                                                    "object",
+                                                    "required",
+                                                    List.of("workOrderId", "toEquipmentId"),
+                                                    "properties",
+                                                    Map.of(
+                                                            "workOrderId",
+                                                            Map.of("type", "integer", "minimum", 1),
+                                                            "operationCode",
+                                                            Map.of(
+                                                                    "type",
+                                                                    List.of("string", "null"),
+                                                                    "maxLength",
+                                                                    50),
+                                                            "toEquipmentId",
+                                                            Map.of(
+                                                                    "type", "integer", "minimum",
+                                                                    1)))),
+                                    "selectionBasis",
+                                    Map.of("type", "object"),
+                                    "dataAsOf",
+                                    Map.of("type", "string", "format", "date-time"))),
+                    false);
 
     /**
      * 질문하고, 서버가 되물으면 reply로 한 번 답한다(2턴). 판정은 마지막 턴으로 한다. 대상 찾기가 바뀌어 첫 질문에 바로 답하면 reply는 쓰지 않는다.

@@ -89,6 +89,9 @@ public class AgentAnswerProcessor {
             PendingClarification pending = newQuestionAfterClarification ? null : event.pending();
             // 되묻기에 답하지 않고 새로 물었으면 그 질문만으로 답한다. 이전 답변의 조건과 합치지 않으므로 서버가 예전 답변의 기간 같은 조건을
             // 이어 쓰지 않는다(147). 다만 해석 AI는 최근 대화 원문을 보므로, 원문의 조건을 가져오지 않는 것은 해석 지시에 맡긴다.
+            if (pending == null) {
+                asked = asked.withRepeatedTargets(event.question(), event.previous());
+            }
             QuestionInterpretation interpretation =
                     newQuestionAfterClarification
                             ? asked
