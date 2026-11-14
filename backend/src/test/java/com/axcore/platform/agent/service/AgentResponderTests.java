@@ -189,7 +189,8 @@ class AgentResponderTests {
                         AgentQueryTools.OBJECT_SEARCH,
                         AgentModelSummaryTools.MODEL_SUMMARY,
                         AgentObjectListTools.OBJECT_LIST,
-                        AgentCompletionEstimateTools.ESTIMATE_COMPLETION);
+                        AgentCompletionEstimateTools.ESTIMATE_COMPLETION,
+                        AgentEquipmentCapabilityTools.COMPARE_EQUIPMENT_CAPABILITY);
     }
 
     @Test
@@ -208,7 +209,8 @@ class AgentResponderTests {
                         AgentObjectDetailTools.OBJECT_DETAIL,
                         AgentObjectDetailTools.OBJECT_LINKS,
                         AgentObjectEvidenceTools.OBJECT_LINK_EVIDENCE,
-                        AgentCompletionEstimateTools.ESTIMATE_COMPLETION);
+                        AgentCompletionEstimateTools.ESTIMATE_COMPLETION,
+                        AgentEquipmentCapabilityTools.COMPARE_EQUIPMENT_CAPABILITY);
     }
 
     /** Object Set 도구는 설정으로 켜고 관계 조회 구현이 있을 때만 준다(380). 꺼져 있을 때는 위 테스트가 확인한다. */
@@ -315,6 +317,7 @@ class AgentResponderTests {
                         mock(DataAccessPolicy.class),
                         actionTools,
                         mock(CompletionEstimator.class),
+                        mock(EquipmentCapabilityComparer.class),
                         mock(PropertyValueSampleService.class),
                         CLOCK,
                         reasoningEffort,

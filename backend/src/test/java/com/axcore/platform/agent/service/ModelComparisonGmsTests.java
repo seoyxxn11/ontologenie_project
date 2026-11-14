@@ -82,6 +82,7 @@ class ModelComparisonGmsTests {
     @Autowired ModelSummaryService modelSummary;
     @Autowired DataAccessPolicy dataAccess;
     @Autowired CompletionEstimator completionEstimator;
+    @Autowired EquipmentCapabilityComparer capabilityComparer;
     @Autowired PropertyValueSampleService propertyValues;
     @Autowired AgentTargetResolver targets;
     @Autowired DataAsOfResolver dataAsOf;
@@ -167,6 +168,7 @@ class ModelComparisonGmsTests {
                                                             dataAccess,
                                                             actions,
                                                             completionEstimator,
+                                                            capabilityComparer,
                                                             propertyValues,
                                                             clock,
                                                             reasoningEffort,

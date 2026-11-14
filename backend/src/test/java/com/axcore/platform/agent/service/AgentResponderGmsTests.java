@@ -66,6 +66,7 @@ class AgentResponderGmsTests {
     @Autowired JdbcClient jdbc;
     @MockitoBean AgentActionTools actionTools;
     @Autowired CompletionEstimator completionEstimator;
+    @Autowired EquipmentCapabilityComparer capabilityComparer;
 
     @Value("${axcore.agent.reasoning-effort:none}")
     String reasoningEffort;
@@ -201,6 +202,7 @@ class AgentResponderGmsTests {
                 dataAccess,
                 actionTools,
                 completionEstimator,
+                capabilityComparer,
                 propertyValues,
                 Clock.systemUTC(),
                 reasoningEffort,
