@@ -118,6 +118,9 @@ public class ReassignmentPlanQueryService {
         }
         Map<Long, List<ReassignmentPlanItemResponse>> itemsByPlan = new HashMap<>();
         Map<Long, Set<String>> revealedByPlan = new TreeMap<>();
+        // 스냅샷은 계획을 만든 때의 값이라, 그 뒤 민감에서 내린 속성도 그때 민감이었으면 가린다(431)
+        Map<Long, DataAccess> accessByPlan = new HashMap<>();
+        found.forEach(plan -> accessByPlan.put(plan.getId(), access.asOf(plan.getCreatedAt())));
         planItems
                 .findByPlanIdInOrderById(found.stream().map(ReassignmentPlan::getId).toList())
                 .forEach(
@@ -125,7 +128,11 @@ public class ReassignmentPlanQueryService {
                                 itemsByPlan
                                         .computeIfAbsent(
                                                 item.getPlanId(), planId -> new ArrayList<>())
-                                        .add(masked(item, access, revealedByPlan)));
+                                        .add(
+                                                masked(
+                                                        item,
+                                                        accessByPlan.get(item.getPlanId()),
+                                                        revealedByPlan)));
         restrictedViews.record(
                 viewer,
                 "REASSIGNMENT_PLAN",

@@ -95,8 +95,9 @@ public class AuditExecutionQueryService {
      */
     public AuditExecutionDetailResponse get(LoginAccount viewer, long id) {
         ActionExecution execution = visibleExecution(viewer, id);
-        // ADMIN도 role_data_scope 허용 행대로 가린다(384: 정의·시스템 관리와 값 열람을 나눈다).
-        DataAccess access = dataAccessPolicy.of(viewer);
+        // ADMIN도 role_data_scope 허용 행대로 가린다(384: 정의·시스템 관리와 값 열람을 나눈다). 실행 때 민감이었다가 내린 속성도
+        // 가린다(431).
+        DataAccess access = dataAccessPolicy.of(viewer).asOf(execution.getRequestedAt());
         Masked<Map<String, Object>> input =
                 masker.maskInput(execution.getActionDefinitionId(), execution.getInput(), access);
         Masked<Map<String, Object>> result =
@@ -128,13 +129,14 @@ public class AuditExecutionQueryService {
 
     /** 098. 실행 하나가 바꾼 행 전체. 열람 범위는 097과 같고, 변경 내역의 민감 속성 값은 역할의 허용 행대로 가린다(ADMIN 포함, 384). */
     public AuditExecutionChangesResponse changes(LoginAccount viewer, long id) {
-        visibleExecution(viewer, id);
+        ActionExecution execution = visibleExecution(viewer, id);
         List<AuditEntityChangeResponse> found =
                 changes.findByActionExecutionIdOrderByIdAsc(id).stream()
                         .map(AuditEntityChangeResponse::from)
                         .toList();
         Masked<List<AuditEntityChangeResponse>> masked =
-                masker.maskChanges(found, dataAccessPolicy.of(viewer));
+                masker.maskChanges(
+                        found, dataAccessPolicy.of(viewer).asOf(execution.getRequestedAt()));
         restrictedViews.record(
                 viewer,
                 "AUDIT_CHANGES",

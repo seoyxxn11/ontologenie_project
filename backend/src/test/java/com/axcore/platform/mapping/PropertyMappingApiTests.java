@@ -397,6 +397,20 @@ class PropertyMappingApiTests {
                                 .query(Boolean.class)
                                 .single())
                 .isFalse();
+        // 내린 시각을 남겨 그 전에 만든 저장된 사본은 계속 가린다(431)
+        assertThat(
+                        jdbcClient
+                                .sql(
+                                        """
+                                        select count(*) from property_restriction_history h
+                                        join property_definition p
+                                          on p.object_type_id = h.object_type_id and p.code = h.property_code
+                                        where p.id = :id
+                                        """)
+                                .param("id", property)
+                                .query(Long.class)
+                                .single())
+                .isEqualTo(1);
     }
 
     /** 401: 사람이 지정한 민감 속성도 값이 남아 있으면 일반으로 내릴 수 없다. 매핑이 없어도 같다. 남은 것이 JSON null뿐이면 내릴 수 있다. */
