@@ -122,3 +122,34 @@ def test_table_left_with_no_columns_is_skipped_not_failed(tmp_path):
 
     assert report.missing_columns == {"mes.v_open": ["gone"]}
     assert not (tmp_path / "mes" / "v_open.csv").exists()
+
+
+def test_structure_only_columns_are_added_without_values(tmp_path):
+    # 민감 컬럼은 AI 계정이 읽을 수 없어 백엔드가 이름·자료형만 넘긴다(416)
+    from app.models.analysis import StructureOnlyColumn
+
+    write_snapshot(
+        PostgresSourceReader("mes", FakeConn),
+        tmp_path,
+        {"work_order": ["qty"]},
+        structure_only={
+            "work_order": [
+                StructureOnlyColumn(
+                    name="planner",
+                    data_type="character varying(40)",
+                    comment="계획 담당",
+                    nullable=True,
+                )
+            ]
+        },
+    )
+    csv = CsvSourceReader("mes", tmp_path / "mes")
+    rows = csv.read_rows("work_order")
+    assert list(rows.columns) == ["wo_no", "qty", "planner"]
+    assert rows["planner"].isna().all()
+    planner = next(
+        c for c in csv.read_schema("work_order").columns if c.name == "planner"
+    )
+    assert planner.comment == "계획 담당"
+    assert planner.declared_type == "varchar(40)"  # PG 리더와 같은 표기
+    assert planner.values_read is False and planner.nullable is True

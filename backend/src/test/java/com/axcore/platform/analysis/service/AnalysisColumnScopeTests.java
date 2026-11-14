@@ -69,6 +69,21 @@ class AnalysisColumnScopeTests {
                 .containsExactly("order_no");
     }
 
+    /** 민감 컬럼만 값 없이 구조로 넘긴다(416). 금지 컬럼(작업자 이름)은 이름도 넘기지 않는다. */
+    @Test
+    void passesOnlyRestrictedColumnsAsStructure() {
+        assertThat(
+                        scope.structureOnlyColumns(
+                                "mes.worker", null, Set.of("name", "skill_level", "code")))
+                .containsExactly("skill_level");
+        assertThat(
+                        scope.structureOnlyColumns(
+                                "mes.maintenance_order",
+                                List.of("order_no"),
+                                Set.of("technician", "order_no")))
+                .isEmpty();
+    }
+
     /** 정책 항목이 없는 표에서 컬럼을 지정하지 않았으면 예전처럼 목록 없이(표 전체) 보낸다. */
     @Test
     void keepsWholeTableForTablesWithoutPolicyEntries() {

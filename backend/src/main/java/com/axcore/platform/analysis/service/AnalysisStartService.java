@@ -2,6 +2,7 @@ package com.axcore.platform.analysis.service;
 
 import com.axcore.platform.analysis.dto.AnalysisStartRequest;
 import com.axcore.platform.analysis.dto.AnalysisStartRequest.Source;
+import com.axcore.platform.analysis.dto.AnalysisStartRequest.StructureOnlyColumn;
 import com.axcore.platform.analysis.dto.AnalysisStartRequest.Target;
 import com.axcore.platform.analysis.repository.AnalysisRunRepository;
 import com.axcore.platform.analysis.repository.AnalysisStartRepository;
@@ -15,6 +16,7 @@ import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.source.domain.CredentialPurpose;
 import com.axcore.platform.source.domain.SourceAccount;
 import com.axcore.platform.source.domain.SourceColumn;
+import com.axcore.platform.source.policy.SourceColumnGrade;
 import com.axcore.platform.source.repository.SourceColumnRepository;
 import com.axcore.platform.source.service.SourceCredentialException;
 import com.axcore.platform.source.service.SourceCredentialService;
@@ -26,6 +28,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
@@ -61,7 +64,7 @@ public class AnalysisStartService {
         }
         Map<String, List<String>> columns = columns(run.get().analysisRange());
         List<AnalysisStartRepository.Target> found = repository.findTargets(runId);
-        Map<Long, Set<String>> catalog = catalog(found);
+        Map<Long, Map<String, SourceColumn>> catalog = catalog(found);
         List<Target> targets = new ArrayList<>();
         Map<String, List<AnalysisStartRepository.Target>> bySource = new TreeMap<>();
         for (var target : found) {
@@ -75,7 +78,11 @@ public class AnalysisStartService {
                                     columns.get(Long.toString(target.sourceResourceId())),
                                     catalog),
                             columnScope.metadataForModel(
-                                    target.resourceKey(), target.sourceMetadata())));
+                                    target.resourceKey(), target.sourceMetadata()),
+                            structureOnlyColumns(
+                                    target,
+                                    columns.get(Long.toString(target.sourceResourceId())),
+                                    catalog)));
             bySource.computeIfAbsent(target.dataSourceCode(), ignored -> new ArrayList<>())
                     .add(target);
         }
@@ -119,26 +126,49 @@ public class AnalysisStartService {
     private List<String> columnsForModel(
             AnalysisStartRepository.Target target,
             List<String> requested,
-            Map<Long, Set<String>> catalog) {
+            Map<Long, Map<String, SourceColumn>> catalog) {
         try {
             return columnScope.columnsForModel(
                     target.resourceKey(),
                     requested,
-                    catalog.getOrDefault(target.sourceResourceId(), Set.of()));
+                    catalog.getOrDefault(target.sourceResourceId(), Map.of()).keySet());
         } catch (BusinessException ex) {
             throw new AnalysisStartException(ex.getMessage() + " (" + target.resourceKey() + ")");
         }
     }
 
-    private Map<Long, Set<String>> catalog(List<AnalysisStartRepository.Target> targets) {
-        Map<Long, Set<String>> catalog = new HashMap<>();
+    /** 민감 컬럼의 이름·자료형·원천 주석(416). 카탈로그에 없는 컬럼은 자료형을 몰라 넘기지 않는다. */
+    private List<StructureOnlyColumn> structureOnlyColumns(
+            AnalysisStartRepository.Target target,
+            List<String> requested,
+            Map<Long, Map<String, SourceColumn>> catalog) {
+        Map<String, SourceColumn> known = catalog.getOrDefault(target.sourceResourceId(), Map.of());
+        return columnScope
+                .structureOnlyColumns(target.resourceKey(), requested, known.keySet())
+                .stream()
+                .map(known::get)
+                .filter(Objects::nonNull)
+                .map(
+                        column ->
+                                new StructureOnlyColumn(
+                                        column.getColumnName(),
+                                        column.getSourceDataType(),
+                                        column.getSourceComment(),
+                                        column.isNullable(),
+                                        SourceColumnGrade.RESTRICTED.name()))
+                .toList();
+    }
+
+    private Map<Long, Map<String, SourceColumn>> catalog(
+            List<AnalysisStartRepository.Target> targets) {
+        Map<Long, Map<String, SourceColumn>> catalog = new HashMap<>();
         for (SourceColumn column :
                 sourceColumns.findBySourceResourceIdInAndIsPresentTrue(
                         targets.stream()
                                 .map(AnalysisStartRepository.Target::sourceResourceId)
                                 .toList())) {
-            catalog.computeIfAbsent(column.getSourceResourceId(), ignored -> new HashSet<>())
-                    .add(column.getColumnName());
+            catalog.computeIfAbsent(column.getSourceResourceId(), ignored -> new HashMap<>())
+                    .put(column.getColumnName(), column);
         }
         return catalog;
     }

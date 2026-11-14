@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li>금지 표는 분석할 수 없다(422).
  *   <li>금지·민감 컬럼은 AI에 넘기는 컬럼 목록에서 뺀다. AI는 받은 컬럼(과 기본키)만 읽고, 목록이 없거나 비어 있으면 표 전체를 읽는다.
+ *   <li>민감 컬럼은 값 없이 이름·자료형만 따로 넘겨 속성 후보는 만들게 한다({@link #structureOnlyColumns}, 416).
  *   <li>그래서 정책 항목이 있는 표는 컬럼을 지정하지 않아도 카탈로그의 현재 컬럼에서 뺀 목록을 보낸다. 남는 컬럼이 없으면 422다.
  * </ul>
  */
@@ -71,6 +72,21 @@ public class AnalysisColumnScope {
                             "NO_ANALYZABLE_COLUMNS"));
         }
         return allowed;
+    }
+
+    /**
+     * 값 없이 이름·자료형만 AI에 넘길 민감 컬럼(이름순, S15P31C106-416). 요청한 컬럼(지정하지 않았으면 카탈로그의 현재 컬럼) 중 민감 등급인 것이다.
+     * 금지 표는 {@link #columnsForModel}이 먼저 막는다.
+     */
+    public List<String> structureOnlyColumns(
+            String resourceKey, List<String> requested, Collection<String> catalog) {
+        return new TreeSet<>(requested == null ? catalog : requested)
+                .stream()
+                        .filter(
+                                column ->
+                                        policy.gradeOf(resourceKey, column)
+                                                == SourceColumnGrade.RESTRICTED)
+                        .toList();
     }
 
     /**

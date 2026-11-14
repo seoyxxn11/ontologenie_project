@@ -28,13 +28,24 @@ public record AnalysisStartRequest(
 
     public record PreviousProposal(String candidateId, String fingerprint) {}
 
+    /**
+     * {@code structureOnlyColumns}: 값을 읽지 않고 이름·자료형·원천 주석만 넘기는 민감 컬럼(S15P31C106-416). AI 계정은 민감 컬럼을
+     * SELECT할 수 없어 원천에서 보이지 않으므로, 속성·매핑 후보를 만들 수 있게 카탈로그에서 넘긴다. 금지 컬럼은 넣지 않는다.
+     */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Target(
             long sourceResourceId,
             String dataSourceCode,
             String resourceKey,
             List<String> columns,
-            Map<String, Object> sourceMetadata) {}
+            Map<String, Object> sourceMetadata,
+            @JsonInclude(JsonInclude.Include.NON_EMPTY)
+                    List<StructureOnlyColumn> structureOnlyColumns) {}
+
+    /** 값 없이 구조만 넘기는 컬럼. nullable은 원천 컬럼의 NULL 허용(필수 여부를 값 대신 이것으로 정한다), grade는 원천 데이터 정책 등급. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record StructureOnlyColumn(
+            String name, String dataType, String comment, boolean nullable, String grade) {}
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Source(

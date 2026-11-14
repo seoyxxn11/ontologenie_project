@@ -19,6 +19,9 @@ class ColumnSchema(BaseModel):
     declared_type: str | None = None
     comment: str | None = None
     is_primary_key: bool = False
+    # 값을 읽지 않고 이름·자료형만 받은 컬럼(민감 컬럼, 416). 값 통계 대신 nullable로 필수 여부를 정한다
+    values_read: bool = True
+    nullable: bool | None = None
 
 
 class TableSchema(BaseModel):

@@ -107,12 +107,14 @@ DOCUMENT_LINK `payload`는 `name`, `linkTypeCode`, `documentId`, `spanStart`·`s
 | --- | --- | --- |
 | `runId` | O | `analysis_run.id` |
 | `runKind` | O | INITIAL · REANALYSIS |
-| `targets[]` | O | `{sourceResourceId, dataSourceCode, resourceKey(원천.표), columns, sourceMetadata}` |
+| `targets[]` | O | `{sourceResourceId, dataSourceCode, resourceKey(원천.표), columns, sourceMetadata, structureOnlyColumns}` |
 | `sources[]` | O | `{dataSourceCode, sourceKind(POSTGRES·CSV), connection, schema, path}`. 아래 `sources[].connection` |
 | `allowedTransforms` | 선택 | 041 허용 변환. 지금은 받아도 쓰지 않음(AI 안의 허용 변환 목록 FN-MAP-05를 씀) |
 | `pastDecisions` | 선택 | `[{candidateId, itemKind, revision, fingerprint 또는 payload, decision, reason}]`. `decision`은 APPROVE·REJECT·HOLD. 같은 지문이 승인·거절됐으면 다시 내지 않음, 보류였으면 이유에 적음. 같은 후보 ID가 거절·보류됐는데 내용이 바뀌었으면 이유에 이전 결정을 적고 냄 |
 | `previousProposals` | 재분석 | `[{candidateId, fingerprint}]`. 이전 후보 evidence에서 꺼낸 값. 보내면 `changeType`을 이전 후보 기준(같은 ID·지문 UNCHANGED, ID만 같음 CHANGED, 새 ID ADDED)으로 붙이고, 없으면 043 기준 |
 | `options.useLlm` | 선택 | 지금은 받아도 쓰지 않음. LLM 사용은 AI 서버 설정(`AI_ONTOLOGY_LLM_PROVIDER`)으로 정함 |
+
+**`targets[].structureOnlyColumns`** (선택, 416): `[{name, dataType, comment, nullable, grade}]`. 원천 정책의 민감 컬럼이라 AI 계정이 읽을 수 없는 컬럼의 이름·자료형·원천 주석·NULL 허용입니다. AI는 값 없이 빈 컬럼으로 넣어 속성·매핑 후보만 만들고, 예시 값·통계·연결 비교에는 쓰지 않습니다. 필수 여부는 값 대신 `nullable`로 정합니다. RESTRICTED 표시는 AI의 원천 정책 사본(`app/source_policy.py`)이 붙이고 `grade`는 기록용입니다. 원천 주석은 다른 컬럼처럼 속성 이름에 씁니다(지금 세 컬럼의 주석은 "담당 부서"·"담당자 이름(가명)"·"숙련도(1~5)"로 값이 없음). 금지 컬럼은 오지 않습니다.
 
 **`targets[].sourceMetadata`** (선택): `source_resource.source_metadata`를 그대로 보냅니다. 연동 구현은 #223입니다. AI는 아래 키만 읽고 나머지는 무시합니다.
 

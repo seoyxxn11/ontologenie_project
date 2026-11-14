@@ -111,6 +111,34 @@ def test_only_chosen_columns_and_registered_metadata_are_used(data):
     assert "동의어: 품번" in props["product_code"]["description"]
 
 
+def test_restricted_columns_sent_as_structure_only_become_restricted_properties(data):
+    # AI 계정은 민감 컬럼을 읽지 못해 백엔드가 이름·자료형만 넘긴다. 속성 후보는 RESTRICTED로 나오고 값은 없다(416)
+    columns = (data / "mes" / "maintenance_order.csv").read_text(encoding="utf-8")
+    header = columns.splitlines()[0].split(",")
+    target = {
+        "columns": [c for c in header if c != "technician"],
+        "structureOnlyColumns": [
+            {
+                "name": "technician",
+                "dataType": "character varying(40)",
+                "comment": "정비 담당",
+                "nullable": False,
+            }
+        ],
+    }
+    result = analyze(
+        request([("mes.maintenance_order", target)]), {"MES_MAIN": data / "mes"}
+    )
+
+    bundle = object_bundle(result, "MAINTENANCE_ORDER")
+    props = {p["code"]: p for p in bundle["payload"]["properties"]}
+    assert props["technician"]["sensitivity"] == "RESTRICTED"
+    assert props["technician"]["name"] == "정비 담당"
+    assert props["technician"]["sourceColumn"]["column"] == "technician"
+    # 값을 못 보므로 필수 여부는 원천의 NULL 허용으로 정한다
+    assert props["technician"]["isRequired"] is True
+
+
 def test_missing_table_fails_with_cause(data):
     with pytest.raises(AnalysisFailure):
         analyze(request([("mes.no_such_table", {})]), {"MES_MAIN": data / "mes"})
