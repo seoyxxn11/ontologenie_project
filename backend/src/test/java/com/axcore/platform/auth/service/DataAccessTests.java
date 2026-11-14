@@ -75,6 +75,29 @@ class DataAccessTests {
         assertThat(view.revealsValue("Vendor", "contact_name")).isFalse();
     }
 
+    /**
+     * 검사 용도는 보이는 유형이 같고 민감 값을 가리지 않는다(404). 표시 이름은 문구에 쓰이므로 보이는 유형 모두 가린 이름을 받는다. 민감 속성인지는 보는 사람과
+     * 관계없이 알 수 있다.
+     */
+    @Test
+    void checkReadsOriginalValuesOfVisibleTypesButMasksDisplayNames() {
+        DataAccess access = new DataAccess(SCOPES, DataPurpose.CHECK);
+
+        assertThat(access.visibleObjectTypeIds()).containsExactlyInAnyOrder(1L, 2L);
+        assertThat(access.canViewRestricted(2L)).isTrue();
+        assertThat(access.canViewRestricted(3L)).isFalse();
+        assertThat(access.mask(2L, Map.of("contact_name", "홍길동")).properties())
+                .containsEntry("contact_name", "홍길동");
+        assertThat(access.hidesValue("Vendor", "contact_name")).isFalse();
+        assertThat(access.maskedObjectTypeIds()).containsExactlyInAnyOrder(1L, 2L);
+        access.requireObjectValues();
+
+        DataAccess model = new DataAccess(SCOPES, DataPurpose.MODEL);
+        assertThat(model.isRestricted("Vendor", "contact_name")).isTrue();
+        assertThat(model.isRestricted("WorkOrder", "code")).isFalse();
+        assertThat(model.isRestricted("Unknown", "contact_name")).isFalse();
+    }
+
     @Test
     void definitionsCannotReadObjectValues() {
         DataAccess access = new DataAccess(SCOPES, DataPurpose.DEFINITIONS);

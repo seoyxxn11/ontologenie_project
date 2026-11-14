@@ -130,5 +130,8 @@ class ObjectQueryModelPurposeTests {
     void definitionsScopeIsNotForObjectQueries() {
         assertThatThrownBy(() -> policy.of(viewer(), DataPurpose.DEFINITIONS))
                 .isInstanceOf(IllegalArgumentException.class);
+        // 검사 범위는 민감 값을 가리지 않으므로 조회 서비스에 넘길 수 없다(404).
+        assertThatThrownBy(() -> policy.of(viewer(), DataPurpose.CHECK))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

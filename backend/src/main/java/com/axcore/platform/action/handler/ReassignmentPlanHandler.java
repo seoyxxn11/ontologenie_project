@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -35,12 +36,16 @@ public class ReassignmentPlanHandler implements ActionHandler, RecordedPropertyP
     private static final String ITEM_TABLE = "reassignment_plan_item";
     private static final String OPERATION_CODE = "operation_code";
     private static final String SNAPSHOT = "source_snapshot";
-    private static final String WORK_ORDER_NO = "workOrderNo";
-    private static final String WORK_ORDER_STATUS = "workOrderStatus";
-    private static final String OPERATIONS = "operations";
-    private static final String SEQUENCE = "sequence";
-    private static final String EQUIPMENT_CODE = "equipmentCode";
-    private static final String STATUS = "status";
+    private static final String WORK_ORDER_NO = ReassignmentSnapshot.WORK_ORDER_NO;
+    private static final String WORK_ORDER_STATUS = ReassignmentSnapshot.WORK_ORDER_STATUS;
+    private static final String OPERATIONS = ReassignmentSnapshot.OPERATIONS;
+    private static final String SEQUENCE = ReassignmentSnapshot.SEQUENCE;
+    private static final String EQUIPMENT_CODE = ReassignmentSnapshot.EQUIPMENT_CODE;
+    private static final String STATUS = ReassignmentSnapshot.STATUS;
+    private static final String OBJECT_ID = ReassignmentSnapshot.OBJECT_ID;
+    private static final String REASON = ReassignmentSnapshot.REASON;
+    private static final String PLAN_ID = "planId";
+    private static final String ITEM_COUNT = "itemCount";
 
     private final ReassignmentPlanValidator validator;
     private final DataAccessPolicy dataAccessPolicy;
@@ -73,10 +78,10 @@ public class ReassignmentPlanHandler implements ActionHandler, RecordedPropertyP
     public ActionPreparation prepare(ActionContext context) {
         ReassignmentPlanInput input =
                 json.convertValue(context.input(), ReassignmentPlanInput.class);
-        // 실행자의 조회 범위로 검사한다. Agent가 실행하면 문구가 모델로 가므로 모델 용도다(384·390).
+        // 실행자가 볼 수 있는 유형만 검사 범위에 넣되, 민감 값은 가리지 않은 원래 값으로 검사하고 스냅샷에 남긴다(404). 가린 값(null)을 "조건
+        // 없음"으로 보고 검사를 건너뛰지 않게 한다. 차단 문구는 저장되어 사람·모델에게 가므로 민감 값을 넣지 않는다(검사기가 맡는다).
         ReassignmentPlanValidator.Result validated =
-                validator.validate(
-                        input, dataAccessPolicy.of(context.actor(), context.dataPurpose()));
+                validator.validate(input, dataAccessPolicy.forCheck(context.actor()));
         if (validated.blockedReason() != null) {
             return ActionPreparation.blocked(validated.blockedReason());
         }
@@ -123,7 +128,7 @@ public class ReassignmentPlanHandler implements ActionHandler, RecordedPropertyP
             changes.add(ChangeEntry.insert(ITEM_TABLE, Map.of("id", itemIds.get(i)), row));
         }
 
-        Map<String, Object> result = Map.of("planId", planId, "itemCount", itemRows.size());
+        Map<String, Object> result = Map.of(PLAN_ID, planId, ITEM_COUNT, itemRows.size());
         return new ActionPreparation.Ready(
                 result,
                 changes,
@@ -157,7 +162,7 @@ public class ReassignmentPlanHandler implements ActionHandler, RecordedPropertyP
         List<Map<String, Object>> operations = new ArrayList<>();
         for (ObjectRow op : item.operations()) {
             Map<String, Object> value = new LinkedHashMap<>();
-            value.put("objectId", op.id());
+            value.put(OBJECT_ID, op.id());
             value.put(SEQUENCE, op.text(operation.sequence()));
             value.put(EQUIPMENT_CODE, op.text(operation.equipment()));
             value.put(STATUS, op.text(operation.status()));
@@ -170,12 +175,45 @@ public class ReassignmentPlanHandler implements ActionHandler, RecordedPropertyP
         return snapshot;
     }
 
-    /** 입력과 항목 행의 공정 코드, 항목 스냅샷에 든 작업지시·공정 속성 값의 자리. */
+    /** 차단 문구에 이름·일반 속성 값이 들어가는 유형. 검사가 읽는 설비·작업지시·공정·공정 표준이다(404). */
+    @Override
+    public Map<String, Set<String>> blockedReasonObjectTypes() {
+        return Map.of(
+                KEY,
+                Set.of(
+                        properties.equipment().type(),
+                        properties.workOrder().type(),
+                        properties.operation().type(),
+                        properties.routing().type()));
+    }
+
+    /**
+     * 이 Handler가 남기는 기록(입력·결과·변경 행)의 자리 전부(허용 목록, 404). 속성 값은 입력과 항목 행의 공정 코드, 스냅샷의 작업지시·공정 값이다.
+     * 나머지는 ID·건수·상태·시각과 선정 근거의 이유 문장이다. 선정 근거의 다른 필드와 여기 없는 자리는 감사 조회에서 가려진다.
+     */
     @Override
     public List<Path> recordedPropertyPaths() {
         ReassignmentProperties.WorkOrder workOrder = properties.workOrder();
         ReassignmentProperties.Operation operation = properties.operation();
         return List.of(
+                Path.plainInput(KEY, List.of("fromEquipmentId")),
+                Path.plainResult(KEY, List.of(PLAN_ID)),
+                Path.plainResult(KEY, List.of(ITEM_COUNT)),
+                Path.plainInput(KEY, List.of("items", "*", "workOrderId")),
+                Path.plainInput(KEY, List.of("items", "*", "toEquipmentId")),
+                Path.plainInput(KEY, List.of("selectionBasis", REASON)),
+                Path.plainInput(KEY, List.of("dataAsOf")),
+                Path.plainChange(PLAN_TABLE, List.of("status")),
+                Path.plainChange(PLAN_TABLE, List.of("from_equipment_id")),
+                Path.plainChange(PLAN_TABLE, List.of("selection_basis", REASON)),
+                Path.plainChange(PLAN_TABLE, List.of("data_as_of")),
+                Path.plainChange(PLAN_TABLE, List.of("agent_conversation_id")),
+                Path.plainChange(PLAN_TABLE, List.of("created_by")),
+                Path.plainChange(ITEM_TABLE, List.of("plan_id")),
+                Path.plainChange(ITEM_TABLE, List.of("work_order_id")),
+                Path.plainChange(ITEM_TABLE, List.of("from_equipment_id")),
+                Path.plainChange(ITEM_TABLE, List.of("to_equipment_id")),
+                Path.plainChange(ITEM_TABLE, List.of(SNAPSHOT, OPERATIONS, "*", OBJECT_ID)),
                 Path.input(
                         KEY,
                         List.of("items", "*", "operationCode"),

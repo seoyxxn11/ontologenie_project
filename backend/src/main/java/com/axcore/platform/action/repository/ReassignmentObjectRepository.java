@@ -15,8 +15,8 @@ import org.springframework.stereotype.Component;
  * 재배정 계획 검사와 Agent 완료 시각 계산이 읽는 온톨로지 객체. 객체 유형은 코드로, 속성은 properties의 키로 찾는다.
  *
  * <p>직접 SQL로 읽지 않고 공통 읽기 진입점({@link ScopedObjectReader})을 거친다(S15P31C106-384·390). 부르는 사람의 조회
- * 범위({@link DataAccess})를 받아, 볼 수 없는 유형의 객체는 없는 객체처럼 빠지고 볼 수 없는 민감 값은 null이다. 그래서 검사에 필요한 값이 가려지면 그
- * 검사는 "속성이 없음"으로 막힌다(값을 알려 주지 않고 실패하는 쪽을 택한다).
+ * 범위({@link DataAccess})를 받아, 볼 수 없는 유형의 객체는 없는 객체처럼 빠지고, 범위가 가리는 민감 값은 null이다. 재배정 검사는 민감 값을 가리지
+ * 않는 검사 범위로 읽고(404), Agent 완료 시각 계산은 모델 범위로 읽는다.
  */
 @Component
 @RequiredArgsConstructor
@@ -39,7 +39,7 @@ public class ReassignmentObjectRepository {
                 .toList();
     }
 
-    /** 객체 한 행. 속성 값은 자료형에 따라 숫자·문자열로 오므로 text·number로 읽는다. 표시 이름과 속성은 가림을 적용한 값이다. */
+    /** 객체 한 행. 속성 값은 자료형에 따라 숫자·문자열로 오므로 text·number로 읽는다. 표시 이름과 속성은 범위의 가림을 적용한 값이다. */
     public record ObjectRow(
             long id,
             String typeCode,

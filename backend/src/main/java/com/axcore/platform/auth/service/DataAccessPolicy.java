@@ -32,17 +32,29 @@ public class DataAccessPolicy {
     }
 
     /**
-     * 용도를 인자로 받는 범위. 화면과 Agent가 같은 조회 서비스를 쓸 때 부르는 쪽이 용도를 넘긴다. 사람(VIEW)이나 모델(MODEL) 용도만 받는다. 정의 조회
-     * 범위는 객체 값을 읽는 서비스에 넘기면 민감 값이 가려지지 않으므로 {@link #forDefinitions}로만 만든다.
+     * 용도를 인자로 받는 범위. 화면과 Agent가 같은 조회 서비스를 쓸 때 부르는 쪽이 용도를 넘긴다. 사람(VIEW)이나 모델(MODEL) 용도만 받는다. 정의
+     * 조회·검사 범위는 객체 값을 읽는 서비스에 넘기면 민감 값이 가려지지 않으므로 {@link #forDefinitions}·{@link #forCheck}로만 만든다.
      *
-     * @throws IllegalArgumentException 용도가 DEFINITIONS이면
+     * @throws IllegalArgumentException 용도가 DEFINITIONS나 CHECK이면
      */
     @Transactional(readOnly = true)
     public DataAccess of(LoginAccount actor, DataPurpose purpose) {
         if (purpose == DataPurpose.DEFINITIONS) {
             throw new IllegalArgumentException("정의 조회 범위는 forDefinitions()로만 만듭니다.");
         }
+        if (purpose == DataPurpose.CHECK) {
+            throw new IllegalArgumentException("검사 범위는 forCheck()로만 만듭니다.");
+        }
         return scope(actor, purpose);
+    }
+
+    /**
+     * 실행자가 업무 조건을 검사하고 그 근거를 저장할 범위({@link DataPurpose#CHECK}, S15P31C106-404). 보이는 유형은 {@link
+     * #of}와 같고 민감 값을 가리지 않는다. 지금은 재배정 계획 검사(091)만 쓴다. 읽은 값을 응답·모델 입력에 그대로 담지 않는다.
+     */
+    @Transactional(readOnly = true)
+    public DataAccess forCheck(LoginAccount actor) {
+        return scope(actor, DataPurpose.CHECK);
     }
 
     /**

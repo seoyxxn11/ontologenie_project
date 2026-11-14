@@ -182,7 +182,12 @@ class ReassignmentPlanQueryApiTests {
                 .andExpect(jsonPath("$.data.items.length()").value(2))
                 .andExpect(jsonPath("$.data.items[0].workOrderId").value(workOrder))
                 .andExpect(jsonPath("$.data.items[0].fromEquipmentId").value(fromEquipment))
-                .andExpect(jsonPath("$.data.items[0].sourceSnapshot.status").value("중단"))
+                .andExpect(
+                        jsonPath("$.data.items[0].sourceSnapshot.operations[0].status").value("중단"))
+                .andExpect(
+                        jsonPath("$.data.items[0].sourceSnapshot.workOrderNo").value("JB2610-0141"))
+                // 404: 정한 스냅샷 필드만 내보낸다.
+                .andExpect(jsonPath("$.data.items[0].sourceSnapshot.note").doesNotExist())
                 .andExpect(jsonPath("$.meta").doesNotExist());
         mockMvc.perform(get(PLANS + "/" + planId + "/items").cookie(viewer.session()))
                 .andExpect(status().isOk())
@@ -228,26 +233,48 @@ class ReassignmentPlanQueryApiTests {
                 .andExpect(status().isOk());
     }
 
+    /** 실행기가 막은 기록(GATE)은 차단 이유를 그대로 보여 주고, 차단 주체 표시는 result에서 뺀다(404). */
     @Test
     void showsBlockedExecutionWithReason() throws Exception {
         TestAccount viewer = createAccount("VIEWER");
-        long blocked =
-                auditRecorder.recordSeparately(
-                        AuditEntry.builder()
-                                .eventKind(EventKind.ACTION)
-                                .actor(Actor.user(loginOf(viewer)))
-                                .entryPoint(EntryPoint.WEB)
-                                .status(ExecutionStatus.BLOCKED)
-                                .actionDefinitionId(definitionId("CREATE_REASSIGNMENT_PLAN"))
-                                .checkedPermissionCode("PLAN_CREATE")
-                                .blockedReason("PLAN_CREATE 권한이 없습니다.")
-                                .build());
+        long blocked = recordBlocked(viewer, "PLAN_CREATE 권한이 없습니다.", Map.of("blockedBy", "GATE"));
 
         mockMvc.perform(get(EXECUTIONS + "/" + blocked).cookie(login(viewer).session()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("BLOCKED"))
                 .andExpect(jsonPath("$.data.blockedReason").value("PLAN_CREATE 권한이 없습니다."))
+                .andExpect(jsonPath("$.data.result").isEmpty())
                 .andExpect(jsonPath("$.data.entityChanges").isEmpty());
+    }
+
+    /**
+     * 404 이전 기록(차단 주체 없음)은 사람이 실행하면 민감 값이 문구에 들어갔을 수 있다. Handler가 읽는 유형의 민감 값까지 볼 수 있어야 보이고, 아니면 정한
+     * 문구로 바꾼다.
+     */
+    @Test
+    void hidesLegacyBlockedReasonFromViewersWithoutRestrictedView() throws Exception {
+        TestAccount viewer = createAccount("VIEWER");
+        long legacy = recordBlocked(viewer, "작업지시 JB-1의 공정 담당 김철수", null);
+
+        mockMvc.perform(get(EXECUTIONS + "/" + legacy).cookie(login(viewer).session()))
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$.data.blockedReason")
+                                .value("차단 이유에 볼 수 없는 객체 정보가 있을 수 있어 가렸습니다."));
+    }
+
+    private long recordBlocked(TestAccount actor, String reason, Map<String, Object> result) {
+        return auditRecorder.recordSeparately(
+                AuditEntry.builder()
+                        .eventKind(EventKind.ACTION)
+                        .actor(Actor.user(loginOf(actor)))
+                        .entryPoint(EntryPoint.WEB)
+                        .status(ExecutionStatus.BLOCKED)
+                        .actionDefinitionId(definitionId("CREATE_REASSIGNMENT_PLAN"))
+                        .checkedPermissionCode("PLAN_CREATE")
+                        .blockedReason(reason)
+                        .result(result)
+                        .build());
     }
 
     @Test
@@ -292,7 +319,9 @@ class ReassignmentPlanQueryApiTests {
                         insert into reassignment_plan_item (plan_id, work_order_id, operation_code,
                                                             from_equipment_id, to_equipment_id, source_snapshot)
                         values (:planId, :workOrder, :operationCode, :from, :to,
-                                '{"status": "중단", "equipmentCode": "P103"}'::jsonb)
+                                '{"workOrderNo": "JB2610-0141", "note": "저장만 된 필드",
+                                  "operations": [{"objectId": 1, "sequence": "20",
+                                                  "status": "중단", "equipmentCode": "P103"}]}'::jsonb)
                         """)
                 .param("planId", planId)
                 .param("workOrder", workOrder)

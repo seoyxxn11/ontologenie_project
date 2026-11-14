@@ -32,6 +32,30 @@ public record ActionExecutionResponse(
         Instant requestedAt,
         Instant finishedAt) {
 
+    /** 결과와 차단 이유만 바꾼 응답. 실행기가 보는 사람에 맞춰 가린 값을 담을 때 쓴다(404). */
+    public ActionExecutionResponse masked(
+            Map<String, Object> maskedResult, String maskedBlockedReason) {
+        return new ActionExecutionResponse(
+                id,
+                requestId,
+                eventKind,
+                actionDefinitionId,
+                status,
+                actorType,
+                actorId,
+                actorRoleCode,
+                checkedPermissionCode,
+                entryPoint,
+                targetType,
+                targetId,
+                agentMessageId,
+                input,
+                maskedResult,
+                maskedBlockedReason,
+                requestedAt,
+                finishedAt);
+    }
+
     public static ActionExecutionResponse from(ActionExecution execution) {
         return new ActionExecutionResponse(
                 execution.getId(),

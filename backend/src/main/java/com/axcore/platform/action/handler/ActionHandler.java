@@ -13,9 +13,17 @@ import java.util.Optional;
  * 준비한 저장을 실행한다.
  *
  * <p>대상 밖의 객체를 더 읽는 Handler는 실행자의 조회 범위를 직접 적용해야 한다(S15P31C106-384·390). 객체는 공통 읽기 진입점({@code
- * ScopedObjectReader})으로 읽고, 범위는 {@code DataAccessPolicy.of(context.actor(),
- * context.dataPurpose())}로 만든다. Agent가 실행한 경우 차단 문구와 결과가 외부 모델로 가므로 {@link
- * ActionContext#dataPurpose()}가 모델 용도를 준다.
+ * ScopedObjectReader})으로 읽는다.
+ *
+ * <ul>
+ *   <li>업무 조건 검사와 저장할 근거는 {@code DataAccessPolicy.forCheck(context.actor())}로 읽는다. 민감 값을 가리지 않은 원래
+ *       값이라 가린 값(null)으로 검사가 건너뛰어지지 않는다(404).
+ *   <li>차단 문구는 실행 기록에 저장되어 실행자·ADMIN·Agent(모델)가 본다. 보는 사람마다 가릴 수 없으므로 민감 속성 값을 넣지 않는다({@code
+ *       DataAccess.isRestricted}).
+ *   <li>입력·결과·변경 표의 자리를 {@code RecordedPropertyPaths}로 모두 알린다. 실행 응답(091)과 이력 조회(092·097·098)는 허용
+ *       목록이라 알리지 않은 자리는 값이 가려지고, 알린 속성 자리는 보는 사람의 범위로 가려진다(Agent가 실행하면 모델 용도). 그래서 결과에 속성 값을 넣으려면 그
+ *       자리를 속성 자리로 알린다.
+ * </ul>
  */
 public interface ActionHandler {
 
