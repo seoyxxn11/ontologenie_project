@@ -74,10 +74,11 @@ public class AgentMessageService {
             LoginAccount asker, long conversationId, QuestionRequest request) {
         AgentConversation conversation = ownedConversation(asker.id(), conversationId);
         rejectIfAnswering(conversationId);
-        // 질문할 때보다 지금 범위가 줄어든 답변은 모델 문맥에 다시 넣지 않는다(413)
+        // 질문할 때보다 지금 범위가 모델 기준으로 줄어든 답변은 모델 문맥에 다시 넣지 않는다(413, 426). 화면에서 거두는 기준(084)과 달리
+        // 민감 값을 볼 수 있는 사용자도 민감 속성이 늘었으면 뺀다. 민감 값은 누구의 질문이든 모델에 보내지 않기 때문이다.
         Map<String, Object> scope = accessScope.current(asker);
         Set<Long> withdrawn =
-                AgentAccessScope.withdrawnAnswers(messages.findScopeMarks(conversationId), scope);
+                AgentAccessScope.withheldFromModel(messages.findScopeMarks(conversationId), scope);
         PendingClarification pending = pendingClarification(conversationId, withdrawn);
         QuestionInterpretation previous = previousConditions(conversationId, withdrawn);
         List<ConversationTurn> turns = recentTurns(conversationId, withdrawn);

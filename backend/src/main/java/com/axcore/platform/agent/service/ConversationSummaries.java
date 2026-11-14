@@ -96,7 +96,8 @@ public class ConversationSummaries {
         Long summarizedUntil = conversation.getSummarizedUntilMessageId();
         long after = summarizedUntil == null ? 0 : summarizedUntil;
         List<AgentMessage> read = toSummarize(conversationId, after, before);
-        // 요약은 가장 최근 질문의 범위로 만든다. 그 범위보다 넓은 범위에서 만든 답변은 넣지 않고, 이전 요약을 만든 범위보다 줄었으면 이전 요약도
+        // 요약은 모델에만 쓰므로 모델 기준(426)으로, 가장 최근 질문의 범위로 만든다. 그 범위보다 넓은 범위에서 만든 답변은 넣지 않고, 이전 요약을 만든 범위보다
+        // 줄었으면 이전 요약도
         // 버린다(413). 이 기능 전 질문(범위 없음)이면 예전처럼 모두 합친다.
         Map<String, Object> scope = AgentAccessScope.latestScope(recent);
         String previousSummary = conversation.getSummary();
@@ -104,7 +105,7 @@ public class ConversationSummaries {
         if (scope != null) {
             added =
                     AgentAccessScope.withoutWithdrawnTurns(
-                            read, AgentAccessScope.withdrawnAnswersIn(read, scope));
+                            read, AgentAccessScope.withheldFromModelIn(read, scope));
             if (!AgentAccessScope.summaryUsable(conversation.getSummaryAccessScope(), scope)) {
                 previousSummary = null;
             }

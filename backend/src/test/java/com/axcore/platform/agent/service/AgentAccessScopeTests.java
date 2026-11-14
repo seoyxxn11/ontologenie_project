@@ -82,6 +82,26 @@ class AgentAccessScopeTests {
     }
 
     @Test
+    void newRestrictedPropertyWithholdsAnswersFromTheModelEvenForUsersWhoMaySeeIt() {
+        // 민감 값을 볼 수 있는 역할: 화면에는 그대로 보이지만, 일반일 때 답한 값은 모델에 다시 보내지 않는다(426)
+        Map<String, Object> before = scope("p", 1, true, List.of());
+        Map<String, Object> after = scope("p", 1, true, List.of("technician"));
+
+        assertThat(AgentAccessScope.narrowed(before, after)).isFalse();
+        assertThat(AgentAccessScope.narrowedForModel(before, after)).isTrue();
+        assertThat(AgentAccessScope.narrowedForModel(after, before)).isFalse();
+        assertThat(AgentAccessScope.summaryUsable(AgentAccessScope.toText(before), after))
+                .isFalse();
+
+        List<MessageScopeMark> history =
+                List.of(
+                        new MessageScopeMark(1L, MessageSender.USER, Map.of("accessScope", before)),
+                        new MessageScopeMark(2L, MessageSender.AGENT, Map.of()));
+        assertThat(AgentAccessScope.withdrawnAnswers(history, after)).isEmpty();
+        assertThat(AgentAccessScope.withheldFromModel(history, after)).containsExactly(2L);
+    }
+
+    @Test
     void summaryIsUsableUnlessTheScopeNarrowedSinceItWasMade() {
         String made = AgentAccessScope.toText(BASE);
 

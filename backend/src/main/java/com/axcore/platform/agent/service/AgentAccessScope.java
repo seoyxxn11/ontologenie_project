@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
@@ -69,8 +70,8 @@ public class AgentAccessScope {
     }
 
     /**
-     * then 범위에서 만든 답을 now 범위에서 다시 쓰면 안 되는가. then이 없으면(이 기능 전) false다. 원천 정책이 바뀌었거나, then에 보이던 유형이
-     * now에 없거나, now에서 민감 값을 볼 수 없는데 then에 볼 수 있었거나 민감 속성이 늘었으면 true다.
+     * then 범위에서 만든 답을 now 범위의 <b>화면</b>에 다시 보이면 안 되는가. then이 없으면(이 기능 전) false다. 원천 정책이 바뀌었거나,
+     * then에 보이던 유형이 now에 없거나, now에서 민감 값을 볼 수 없는데 then에 볼 수 있었거나 민감 속성이 늘었으면 true다.
      */
     static boolean narrowed(Object then, Map<String, Object> now) {
         if (!(then instanceof Map<?, ?> before)) {
@@ -98,27 +99,60 @@ public class AgentAccessScope {
         return false;
     }
 
-    /** 오래된 순 메시지에서, 질문할 때보다 지금 범위가 줄어든 질문에 대한 답변 ID. */
-    static Set<Long> withdrawnAnswers(List<MessageScopeMark> oldestFirst, Map<String, Object> now) {
-        Set<Long> withdrawn = new LinkedHashSet<>();
-        Object scope = null;
-        for (MessageScopeMark message : oldestFirst) {
-            if (message.sender() == MessageSender.USER) {
-                scope = scopeOf(message.context());
-            } else if (narrowed(scope, now)) {
-                withdrawn.add(message.id());
+    /**
+     * then 범위에서 만든 답을 now 범위의 <b>외부 모델 문맥</b>(최근 대화·요약·되묻기·이전 조건)에 다시 넣으면 안 되는가(426). 민감 값은 누구의
+     * 질문이든 모델에 보내지 않으므로, 사용자가 민감 값을 볼 수 있는지와 관계없이 민감 속성이 늘었으면 줄어든 것으로 본다. 원천 정책이 바뀌었거나 보이던 유형이 빠진
+     * 것도 화면과 같다. then이 없으면(이 기능 전) false다.
+     */
+    static boolean narrowedForModel(Object then, Map<String, Object> now) {
+        if (!(then instanceof Map<?, ?> before)) {
+            return false;
+        }
+        if (!Objects.equals(before.get(POLICY), now.get(POLICY))) {
+            return true;
+        }
+        Map<?, ?> nowTypes = map(now.get(TYPES));
+        for (Map.Entry<?, ?> entry : map(before.get(TYPES)).entrySet()) {
+            Object current = nowTypes.get(entry.getKey());
+            if (current == null || !codes(map(entry.getValue())).containsAll(codes(map(current)))) {
+                return true;
             }
         }
-        return withdrawn;
+        return false;
     }
 
-    /** {@link #withdrawnAnswers}를 이미 읽은 메시지로. */
-    static Set<Long> withdrawnAnswersIn(List<AgentMessage> oldestFirst, Map<String, Object> now) {
-        return withdrawnAnswers(
+    /** 오래된 순 메시지에서, 질문할 때보다 지금 화면 범위가 줄어든 질문에 대한 답변 ID(084에서 거둔다). */
+    static Set<Long> withdrawnAnswers(List<MessageScopeMark> oldestFirst, Map<String, Object> now) {
+        return answersWhere(oldestFirst, scope -> narrowed(scope, now));
+    }
+
+    /** 오래된 순 메시지에서, 모델 문맥에 다시 넣으면 안 되는 답변 ID(426). */
+    static Set<Long> withheldFromModel(
+            List<MessageScopeMark> oldestFirst, Map<String, Object> now) {
+        return answersWhere(oldestFirst, scope -> narrowedForModel(scope, now));
+    }
+
+    /** {@link #withheldFromModel}을 이미 읽은 메시지로. */
+    static Set<Long> withheldFromModelIn(List<AgentMessage> oldestFirst, Map<String, Object> now) {
+        return withheldFromModel(
                 oldestFirst.stream()
                         .map(m -> new MessageScopeMark(m.getId(), m.getSender(), m.getContext()))
                         .toList(),
                 now);
+    }
+
+    private static Set<Long> answersWhere(
+            List<MessageScopeMark> oldestFirst, Predicate<Object> askedUnderNarrowedScope) {
+        Set<Long> answers = new LinkedHashSet<>();
+        Object scope = null;
+        for (MessageScopeMark message : oldestFirst) {
+            if (message.sender() == MessageSender.USER) {
+                scope = scopeOf(message.context());
+            } else if (askedUnderNarrowedScope.test(scope)) {
+                answers.add(message.id());
+            }
+        }
+        return answers;
     }
 
     /** 오래된 순 메시지에서 가장 최근 질문의 범위. 없거나 이 기능 전 질문이면 null. */
@@ -158,13 +192,16 @@ public class AgentAccessScope {
         return scope == null ? null : JSON.writeValueAsString(scope);
     }
 
-    /** 요약을 만든 범위(저장한 글)에서 지금 범위가 줄지 않았으면 그 요약을 쓸 수 있다. 범위 없이 만든 예전 요약은 쓴다. 읽을 수 없는 글이면 쓰지 않는다. */
+    /**
+     * 요약을 만든 범위(저장한 글)에서 지금 범위가 모델 기준으로 줄지 않았으면 그 요약을 모델에 넘길 수 있다(요약은 모델에만 쓴다, 426). 범위 없이 만든 예전
+     * 요약은 쓴다. 읽을 수 없는 글이면 쓰지 않는다.
+     */
     static boolean summaryUsable(String summaryScope, Map<String, Object> now) {
         if (summaryScope == null) {
             return true;
         }
         try {
-            return !narrowed(
+            return !narrowedForModel(
                     JSON.readValue(summaryScope, new TypeReference<Map<String, Object>>() {}), now);
         } catch (JacksonException unreadable) {
             return false;
