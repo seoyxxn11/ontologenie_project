@@ -9,8 +9,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.axcore.platform.TestcontainersConfiguration;
 import com.axcore.platform.global.security.LoginAccount;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -125,14 +123,37 @@ class ModelGraphApiTests {
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {"PLANNER", "MAINTENANCE", "VIEWER"})
-    void rejectsNonAdminAccounts(String role) throws Exception {
-        mockMvc.perform(get(PATH).with(account(role, false)))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"))
-                .andExpect(jsonPath("$.error.details.requiredPermission").value("ADMIN"))
-                .andExpect(jsonPath("$.data").doesNotExist());
+    @Test
+    void nonAdminSeesOnlyVisibleTypesAndTheirRelations() throws Exception {
+        String suffix = Long.toString(System.nanoTime());
+        int shown = insertType("SHOWN_" + suffix, "보이는 유형");
+        int hidden = insertType("HIDDEN_" + suffix, "숨은 유형");
+        jdbc.sql("update object_type set access_group = 'PRODUCTION' where id = :id")
+                .param("id", shown)
+                .update();
+        int self = insertLinkType("SELF_" + suffix, shown, shown, "MANY_TO_MANY");
+        int toHidden = insertLinkType("TO_HIDDEN_" + suffix, shown, hidden, "MANY_TO_ONE");
+        try {
+            // 조회 사용자: 볼 수 있는 유형과 그 유형끼리의 관계만(S15P31C106-420)
+            mockMvc.perform(get(PATH).with(account("VIEWER", false)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.nodes[?(@.id == " + shown + ")]", hasSize(1)))
+                    .andExpect(jsonPath("$.data.nodes[?(@.id == " + hidden + ")]", hasSize(0)))
+                    .andExpect(jsonPath("$.data.edges[?(@.id == " + self + ")]", hasSize(1)))
+                    .andExpect(jsonPath("$.data.edges[?(@.id == " + toHidden + ")]", hasSize(0)));
+            // 범위가 없는 역할은 빈 관계도
+            mockMvc.perform(get(PATH).with(account("MAINTENANCE", false)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.nodes[?(@.id == " + shown + ")]", hasSize(0)))
+                    .andExpect(jsonPath("$.data.edges[?(@.id == " + self + ")]", hasSize(0)));
+        } finally {
+            jdbc.sql("delete from link_type where id in (:ids)")
+                    .param("ids", java.util.List.of(self, toHidden))
+                    .update();
+            jdbc.sql("delete from object_type where id in (:ids)")
+                    .param("ids", java.util.List.of(shown, hidden))
+                    .update();
+        }
     }
 
     @Test

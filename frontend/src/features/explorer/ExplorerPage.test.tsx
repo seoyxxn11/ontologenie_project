@@ -1103,6 +1103,23 @@ test.each(['PLANNER', 'MAINTENANCE', 'VIEWER'] as const)(
   },
 )
 
+test('볼 수 있는 유형이 없으면 빈 관계도 대신 객체 선택 안내를 보여준다', async () => {
+  server.use(
+    http.get('/api/v1/ontology/model-graph', () =>
+      HttpResponse.json({ data: { nodes: [], edges: [] } }),
+    ),
+  )
+  setMockAccount({ ...demoAccount, roleCode: 'MAINTENANCE' })
+  renderExplorerPage()
+
+  expect(
+    await screen.findByText('객체를 선택하면 연결 관계를 표시합니다.'),
+  ).toBeInTheDocument()
+  expect(
+    screen.queryByRole('heading', { name: '객체 유형 간 관계' }),
+  ).not.toBeInTheDocument()
+})
+
 test.each(['server', 'network'])(
   '%s 오류는 안내와 재시도를 제공하고 성공하면 관계도를 복구한다',
   async (kind) => {

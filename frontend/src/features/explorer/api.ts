@@ -47,6 +47,14 @@ export async function fetchObjectProperties(typeId: number) {
   return body.data
 }
 
+// 검색 조건에 쓸 속성. 관리자도 객체 조회 범위로 받아, 검색할 수 없는 민감 속성을 목록에 넣지 않는다(420)
+export async function fetchSearchableProperties(typeId: number) {
+  const body = await apiGet<ObjectPropertyDefinition[]>(
+    `/ontology/object-types/${typeId}/properties?scope=viewable`,
+  )
+  return body.data
+}
+
 // 077 객체 상세 조회
 export async function fetchObject(id: number) {
   const body = await apiGet<ObjectInstanceDetail>(`/objects/${id}`)

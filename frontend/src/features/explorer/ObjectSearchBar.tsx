@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ApiError } from '../../api/client'
-import { fetchObjectProperties, type ObjectFilters } from './api'
+import { fetchSearchableProperties, type ObjectFilters } from './api'
 import type { ObjectTypeOption } from './types'
 import Button from '../../components/Button'
 
@@ -51,8 +51,8 @@ function ObjectSearchBar({
     error,
     refetch,
   } = useQuery({
-    queryKey: ['ontology', 'object-properties', typeId],
-    queryFn: () => fetchObjectProperties(Number(typeId)),
+    queryKey: ['ontology', 'object-properties', 'searchable', typeId],
+    queryFn: () => fetchSearchableProperties(Number(typeId)),
     enabled: Boolean(typeId),
     retry: false,
   })
