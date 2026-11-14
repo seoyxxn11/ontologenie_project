@@ -73,4 +73,14 @@ public interface AgentMessageRepository extends JpaRepository<AgentMessage, Long
     /** 메시지가 속한 대화 ID. 재배정 계획을 Agent 대화에 연결할 때 쓴다. 메시지가 없으면 비어 있다. */
     @Query("select m.conversationId from AgentMessage m where m.id = :id")
     Optional<Long> findConversationIdById(@Param("id") Long id);
+
+    /** 대화 메시지를 오래된 순으로, 권한 범위 판단에 필요한 것만(413). 084를 다시 부를 때마다 읽으므로 답변 본문은 읽지 않는다. */
+    @Query(
+            """
+            select new com.axcore.platform.agent.repository.MessageScopeMark(m.id, m.sender, m.context)
+              from AgentMessage m
+             where m.conversationId = :conversationId
+             order by m.id
+            """)
+    List<MessageScopeMark> findScopeMarks(@Param("conversationId") long conversationId);
 }

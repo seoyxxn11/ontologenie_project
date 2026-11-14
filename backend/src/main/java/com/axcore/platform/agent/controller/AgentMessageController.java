@@ -45,7 +45,7 @@ public class AgentMessageController {
         int page = request.page() == null ? 0 : request.page();
         int size = request.size() == null ? DEFAULT_PAGE_SIZE : request.size();
         return ApiResponse.ofPage(
-                service.search(account.id(), id, PageRequest.of(page, size, OLDEST_FIRST)));
+                service.search(account, id, PageRequest.of(page, size, OLDEST_FIRST)));
     }
 
     @Operation(summary = "085 질문하고 답변 받기")
