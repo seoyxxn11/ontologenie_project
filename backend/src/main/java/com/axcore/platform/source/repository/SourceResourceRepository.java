@@ -71,6 +71,10 @@ public interface SourceResourceRepository extends JpaRepository<SourceResource, 
     @Query("select r from SourceResource r where r.id = :id")
     Optional<SourceResource> findForUpdate(@Param("id") Long id);
 
+    /** 잠그기 전에 자원 키만 읽는다. 엔티티를 불러오지 않아 뒤의 잠금 조회가 최신 행을 읽는다(429). */
+    @Query("select r.resourceKey from SourceResource r where r.id = :id")
+    Optional<String> findResourceKey(@Param("id") Long id);
+
     /**
      * CDC 반영(198-5)이 쓸 원천 테이블 행을 ID 순서로 공유 잠금한다(PostgreSQL {@code FOR SHARE}). 전체 읽기 저장(197 {@code
      * complete})과 매핑 변경은 같은 행을 {@code FOR UPDATE}로 잡으므로, 원천 테이블 행 → 객체 행 순서가 같아져 교착이 생기지 않고 반영하는 동안

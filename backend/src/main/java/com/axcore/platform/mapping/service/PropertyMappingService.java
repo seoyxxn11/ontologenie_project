@@ -321,24 +321,29 @@ public class PropertyMappingService {
         return locked;
     }
 
-    /** 잠그기 전에 읽은 값으로, 이 매핑이 일반 속성에 민감 컬럼을 담는지 본다. 잠근 뒤 다시 판단하므로 여기서는 잠글 범위만 정한다. */
+    /**
+     * 잠그기 전에 읽은 값으로, 이 매핑이 일반 속성에 민감 컬럼을 담는지 본다. 잠근 뒤 다시 판단하므로 여기서는 잠글 범위만 정한다. 속성·원천 자원은 엔티티로 불러오지
+     * 않고 필요한 값만 읽는다. 엔티티를 먼저 불러 두면 뒤의 잠금 조회(findForUpdate)가 잠금은 잡아도 이미 불러 둔 옛 상태를 돌려줘, 동시에 민감으로 올린
+     * 속성을 일반으로 보고 키에 두는 경합이 생긴다(429).
+     */
     private boolean mayRaise(Long propertyId, Long columnId) {
         if (propertyId == null || columnId == null) {
             return false;
         }
-        PropertyDefinition property = propertyRepository.findById(propertyId).orElse(null);
-        SourceColumn column = columnRepository.findById(columnId).orElse(null);
-        if (property == null
+        PropertySensitivity sensitivity =
+                propertyRepository.findSensitivity(propertyId).orElse(null);
+        SourceColumnRepository.ColumnLocation column =
+                columnRepository.findLocationById(columnId).orElse(null);
+        if (sensitivity == null
                 || column == null
-                || property.getSensitivity() == PropertySensitivity.RESTRICTED) {
+                || sensitivity == PropertySensitivity.RESTRICTED) {
             return false;
         }
         return resourceRepository
-                .findById(column.getSourceResourceId())
+                .findResourceKey(column.getSourceResourceId())
                 .map(
-                        resource ->
-                                sourceColumnPolicy.gradeOf(
-                                                resource.getResourceKey(), column.getColumnName())
+                        resourceKey ->
+                                sourceColumnPolicy.gradeOf(resourceKey, column.getColumnName())
                                         == SourceColumnGrade.RESTRICTED)
                 .orElse(false);
     }

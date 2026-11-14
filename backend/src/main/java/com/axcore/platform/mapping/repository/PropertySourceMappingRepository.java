@@ -38,6 +38,20 @@ public interface PropertySourceMappingRepository
     /** 한 속성을 채우는 매핑. 속성 민감도의 하한(384·391)을 계산할 때 쓴다. */
     List<PropertySourceMapping> findByPropertyDefinitionId(Long propertyDefinitionId);
 
+    /**
+     * 속성을 담는 켜진 매핑의 원천 자원 ID(오름차순). 매핑 엔티티를 불러오지 않는다. 자원을 잠그기 전에 부르므로, 엔티티를 먼저 불러 두면 잠근 뒤 같은 엔티티를
+     * 다시 찾을 때 옛 상태(켜짐 여부 등)를 보게 된다(429).
+     */
+    @Query(
+            """
+            select distinct pm.sourceResourceId from PropertySourceMapping pm, ObjectSourceMapping om
+             where pm.propertyDefinitionId = :propertyId
+               and om.id = pm.sourceMappingId
+               and om.active = true
+             order by pm.sourceResourceId
+            """)
+    List<Long> findActiveSourceResourceIds(@Param("propertyId") long propertyId);
+
     /** 여러 객체 매핑의 속성 매핑. 전체 읽기(Jira 197)가 쓴다. */
     List<PropertySourceMapping> findBySourceMappingIdInOrderById(Collection<Long> sourceMappingIds);
 
