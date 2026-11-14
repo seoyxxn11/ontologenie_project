@@ -39,6 +39,10 @@ class ModelGraphApiTests {
         int workOrder = insertType("WORK_ORDER", "작업지시");
         int equipment = insertType("EQUIPMENT", "설비");
         int isolated = insertType("DOCUMENT", "문서");
+        // 관리자도 자기 데이터 범위(PRODUCTION·SALES_SUPPLY)의 유형만 받는다(427)
+        jdbc.sql("update object_type set access_group = 'PRODUCTION' where id in (:ids)")
+                .param("ids", java.util.List.of(workOrder, equipment, isolated))
+                .update();
         int uses = insertLinkType("USES_EQUIPMENT", workOrder, equipment, "MANY_TO_ONE");
         int returnLink = insertLinkType("EQUIPMENT_FOR", equipment, workOrder, "ONE_TO_MANY");
         int empty = insertLinkType("RELATED_ORDER", workOrder, workOrder, "MANY_TO_MANY");
@@ -124,7 +128,7 @@ class ModelGraphApiTests {
     }
 
     @Test
-    void nonAdminSeesOnlyVisibleTypesAndTheirRelations() throws Exception {
+    void everyRoleSeesOnlyVisibleTypesAndTheirRelations() throws Exception {
         String suffix = Long.toString(System.nanoTime());
         int shown = insertType("SHOWN_" + suffix, "보이는 유형");
         int hidden = insertType("HIDDEN_" + suffix, "숨은 유형");
@@ -140,6 +144,12 @@ class ModelGraphApiTests {
                     .andExpect(jsonPath("$.data.nodes[?(@.id == " + shown + ")]", hasSize(1)))
                     .andExpect(jsonPath("$.data.nodes[?(@.id == " + hidden + ")]", hasSize(0)))
                     .andExpect(jsonPath("$.data.edges[?(@.id == " + self + ")]", hasSize(1)))
+                    .andExpect(jsonPath("$.data.edges[?(@.id == " + toHidden + ")]", hasSize(0)));
+            // 관리자도 범위 밖(그룹 없음) 유형과 그 관계는 받지 않는다(427)
+            mockMvc.perform(get(PATH).with(account("ADMIN", false)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.nodes[?(@.id == " + shown + ")]", hasSize(1)))
+                    .andExpect(jsonPath("$.data.nodes[?(@.id == " + hidden + ")]", hasSize(0)))
                     .andExpect(jsonPath("$.data.edges[?(@.id == " + toHidden + ")]", hasSize(0)));
             // 범위가 없는 역할은 빈 관계도
             mockMvc.perform(get(PATH).with(account("MAINTENANCE", false)))

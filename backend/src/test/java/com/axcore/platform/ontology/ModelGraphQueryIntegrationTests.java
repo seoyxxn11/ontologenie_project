@@ -1,9 +1,13 @@
 package com.axcore.platform.ontology;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.axcore.platform.TestcontainersConfiguration;
+import com.axcore.platform.auth.service.DataAccess;
 import com.axcore.platform.ontology.dto.ModelGraphEdgeResponse;
 import com.axcore.platform.ontology.dto.ModelGraphNodeResponse;
 import com.axcore.platform.ontology.repository.ModelGraphQueryRepository;
@@ -61,11 +65,14 @@ class ModelGraphQueryIntegrationTests {
                 .when(graphQuery)
                 .findModelGraphEdges();
 
-        var first = service.getGraph();
+        // 모든 유형을 보는 범위로 부른다. 범위로 걸러 선이 사라지면 스냅샷이 깨져도 이 시험이 잡지 못한다.
+        DataAccess everything = mock(DataAccess.class);
+        when(everything.canView(anyLong())).thenReturn(true);
+        var first = service.getVisibleGraph(everything);
         assertThat(first.nodes()).isEmpty();
         assertThat(first.edges()).isEmpty();
 
-        var next = service.getGraph();
+        var next = service.getVisibleGraph(everything);
         assertThat(next.nodes())
                 .extracting(ModelGraphNodeResponse::code)
                 .containsExactly("NEW_TYPE");
