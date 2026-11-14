@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useLocation } from 'react-router'
 import { ApiError } from '../../api/errors'
 import Button from '../../components/Button'
 import PageHeader from '../../components/PageHeader'
@@ -13,6 +13,13 @@ import {
   type ConditionDraft,
   type RuleDraft,
 } from './ruleDraft'
+import {
+  fetchRuleRelations,
+  fetchRuleEndpoint,
+  matchesRuleProperty,
+} from './ruleCatalog'
+import type { RuleEndpoint } from './ruleCatalog'
+import RuleSelect from './RuleSelect'
 import TransformEditor from './TransformEditor'
 import type { Proposal, ProposalOption } from './types'
 
@@ -26,6 +33,64 @@ function RuleForm({
   options?: ProposalOption[]
 }) {
   const [draft, setDraft] = useState(initial)
+  const [candidateMode, setCandidateMode] = useState(
+    !initial.linkTypeId && !!initial.linkTypeCode,
+  )
+  const { search } = useLocation()
+  const relations = useQuery({
+    queryKey: ['rule-editor', 'relations'],
+    queryFn: ({ signal }) => fetchRuleRelations(signal),
+    retry: false,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: false,
+  })
+  const relation = relations.data?.find(
+    (item) => String(item.id) === draft.linkTypeId,
+  )
+  const endpoints = useQuery({
+    queryKey: [
+      'rule-editor',
+      'endpoints',
+      relation?.id,
+      relation?.sourceTypeId,
+      relation?.targetTypeId,
+      relation?.rowVersion,
+    ],
+    queryFn: async ({ signal }) => {
+      const [source, target] = await Promise.all([
+        fetchRuleEndpoint(relation!.sourceTypeId, signal),
+        fetchRuleEndpoint(relation!.targetTypeId, signal),
+      ])
+      return { source, target }
+    },
+    enabled: !!relation,
+    retry: false,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: false,
+  })
+  const catalogReady =
+    candidateMode ||
+    (!draft.linkTypeId
+      ? false
+      : !!relation &&
+        relations.isSuccess &&
+        !relations.isFetching &&
+        endpoints.isSuccess &&
+        !endpoints.isFetching)
+  function propertyOptions(endpoint?: RuleEndpoint) {
+    return (endpoint?.properties ?? [])
+      .filter((property) => property.sensitivity !== 'RESTRICTED')
+      .map((property) => ({
+        value: `${endpoint!.code}.${property.code}`,
+        name: property.name,
+        code: property.code,
+      }))
+  }
+  function propertyValue(value: string, endpoint?: RuleEndpoint) {
+    return endpoint?.properties.some((property) => property.code === value)
+      ? `${endpoint.code}.${value}`
+      : value
+  }
   const [validation, setValidation] = useState('')
   const lock = useRef(false)
   const client = useQueryClient()
@@ -41,7 +106,10 @@ function RuleForm({
   })
   const blocked =
     mutation.error instanceof ApiError &&
-    [401, 403, 404, 409].includes(mutation.error.status ?? 0)
+    ([401, 403, 404, 409].includes(mutation.error.status ?? 0) ||
+      ['network', 'aborted', 'invalid-response', 'server'].includes(
+        mutation.error.kind,
+      ))
   function changeCondition(index: number, update: Partial<ConditionDraft>) {
     setDraft({
       ...draft,
@@ -55,6 +123,27 @@ function RuleForm({
     let rule
     try {
       rule = buildRule(draft, proposal)
+      if (!catalogReady)
+        throw new Error('관계 유형과 속성 목록을 확인한 뒤 저장해 주세요.')
+      if (draft.linkTypeId && endpoints.data) {
+        for (const [index, condition] of draft.conditions.entries()) {
+          for (const side of ['source', 'target'] as const) {
+            const value = condition[`${side}Property`]
+            const originalValue = condition.original[`${side}Property`]
+            const preservedCandidate =
+              proposal?.analysisRunId != null &&
+              draft.linkTypeId === initial.linkTypeId &&
+              value === originalValue
+            if (
+              !matchesRuleProperty(value, endpoints.data[side]) &&
+              !preservedCandidate
+            )
+              throw new Error(
+                `조건 ${index + 1}의 ${side === 'source' ? '출발' : '도착'} 속성을 선택한 관계에 맞게 다시 선택해 주세요.`,
+              )
+          }
+        }
+      }
     } catch (error) {
       setValidation(
         error instanceof Error ? error.message : '입력을 확인해 주세요.',
@@ -92,7 +181,7 @@ function RuleForm({
         </p>
         <Link
           className="text-violet-700 underline"
-          to={`/admin/rules/${mutation.data.id}`}
+          to={`/admin/rules/${mutation.data.id}${search}`}
         >
           저장한 제안 보기
         </Link>
@@ -121,7 +210,6 @@ function RuleForm({
             [
               { key: 'name', label: '규칙명' },
               { key: 'code', label: '규칙 코드' },
-              { key: 'linkTypeId', label: '관계 유형 ID' },
             ] as const
           ).map((field) => (
             <label key={field.key} className="flex flex-col gap-2 text-sm">
@@ -132,31 +220,119 @@ function RuleForm({
                 onChange={(event) =>
                   setDraft({ ...draft, [field.key]: event.target.value })
                 }
-                inputMode={field.key === 'linkTypeId' ? 'numeric' : undefined}
               />
             </label>
           ))}
-          {proposal?.analysisRunId != null && (
-            <label className="flex flex-col gap-2 text-sm">
-              관계 유형 코드
-              <input
-                className="rounded-lg border p-2"
-                value={draft.linkTypeCode}
-                onChange={(event) =>
-                  setDraft({ ...draft, linkTypeCode: event.target.value })
-                }
-              />
-              <span className="text-xs text-slate-500">
-                아직 확정되지 않은 동일 분석의 관계 유형 후보는 코드로 지정할 수
-                있습니다.
-              </span>
-            </label>
-          )}
         </div>
-        <p className="text-sm text-slate-500">
-          기존 관계 유형 ID와 그 관계의 출발·도착 속성 코드를 지정하세요. 속성이
-          해당 관계에 속하는지는 서버가 검사합니다.
-        </p>
+        {proposal?.analysisRunId != null && (
+          <label className="flex flex-col gap-2 text-sm">
+            관계 지정 방식
+            <select
+              className="rounded-lg border p-2"
+              value={candidateMode ? 'candidate' : 'existing'}
+              onChange={(event) => {
+                const candidate = event.target.value === 'candidate'
+                setCandidateMode(candidate)
+                setDraft({
+                  ...draft,
+                  linkTypeId: '',
+                  linkTypeCode: candidate ? initial.linkTypeCode : '',
+                })
+              }}
+            >
+              <option value="existing">등록된 관계 유형 선택</option>
+              <option value="candidate">동일 분석의 관계 유형 코드 지정</option>
+            </select>
+          </label>
+        )}
+        {candidateMode ? (
+          <label className="flex flex-col gap-2 text-sm">
+            관계 유형 코드
+            <input
+              className="rounded-lg border p-2"
+              aria-label="관계 유형 코드"
+              value={draft.linkTypeCode}
+              onChange={(event) =>
+                setDraft({ ...draft, linkTypeCode: event.target.value })
+              }
+            />
+            <span>
+              동일 분석의 미확정 관계·속성 코드는 서버가 최종 검사합니다.
+            </span>
+          </label>
+        ) : (
+          <>
+            <RuleSelect
+              label="관계 유형"
+              value={draft.linkTypeId}
+              options={(relations.data ?? []).map((item) => ({
+                value: String(item.id),
+                name: item.name,
+                code: item.code,
+              }))}
+              disabled={
+                relations.isPending || relations.isFetching || relations.isError
+              }
+              onChange={(linkTypeId) => {
+                const changed = linkTypeId !== draft.linkTypeId
+                setDraft({
+                  ...draft,
+                  linkTypeId,
+                  linkTypeCode: '',
+                  conditions: draft.conditions.map((condition) =>
+                    changed
+                      ? { ...condition, sourceProperty: '', targetProperty: '' }
+                      : condition,
+                  ),
+                })
+                setValidation(
+                  changed
+                    ? '관계 유형을 변경했습니다. 출발·도착 속성을 다시 선택해 주세요. 변환 단계는 유지됩니다.'
+                    : '',
+                )
+              }}
+            />
+            {relations.isPending && (
+              <LoadingState message="관계 유형을 불러오는 중…" />
+            )}
+            {relations.isError && (
+              <ErrorState
+                error={relations.error}
+                onRetry={() => {
+                  void relations.refetch()
+                }}
+              />
+            )}
+            {draft.linkTypeId && relations.isSuccess && !relation && (
+              <p role="alert">
+                기존 관계 유형을 찾을 수 없습니다. 최신 목록에서 다시 선택해
+                주세요.
+              </p>
+            )}
+            {relation && (
+              <>
+                {(endpoints.isPending || endpoints.isFetching) && (
+                  <LoadingState message="출발·도착 속성을 불러오는 중…" />
+                )}
+                {endpoints.isError && (
+                  <ErrorState
+                    error={endpoints.error}
+                    onRetry={() => {
+                      void endpoints.refetch()
+                    }}
+                  />
+                )}
+                {endpoints.data && (
+                  <p>
+                    출발: {endpoints.data.source.name} (
+                    {endpoints.data.source.code}) · 도착:{' '}
+                    {endpoints.data.target.name} ({endpoints.data.target.code})
+                  </p>
+                )}
+              </>
+            )}
+          </>
+        )}
         <label className="flex flex-col gap-2 text-sm">
           설명
           <textarea
@@ -190,32 +366,38 @@ function RuleForm({
             >
               <legend className="font-medium">조건 {index + 1}</legend>
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="flex flex-col gap-2 text-sm">
-                  출발 속성 코드
-                  <input
-                    className="rounded border p-2"
-                    value={condition.sourceProperty}
-                    onChange={(event) =>
-                      changeCondition(index, {
-                        sourceProperty: event.target.value,
-                      })
-                    }
-                    placeholder="예: WORK_ORDER.equipment_code"
-                  />
-                </label>
-                <label className="flex flex-col gap-2 text-sm">
-                  도착 속성 코드
-                  <input
-                    className="rounded border p-2"
-                    value={condition.targetProperty}
-                    onChange={(event) =>
-                      changeCondition(index, {
-                        targetProperty: event.target.value,
-                      })
-                    }
-                    placeholder="예: EQUIPMENT.code"
-                  />
-                </label>
+                {(['source', 'target'] as const).map((side) => {
+                  const label = `${side === 'source' ? '출발' : '도착'} 속성`
+                  const endpoint = endpoints.data?.[side]
+                  return candidateMode ? (
+                    <label key={side} className="flex flex-col gap-2 text-sm">
+                      {label} 코드
+                      <input
+                        className="rounded border p-2"
+                        value={condition[`${side}Property`]}
+                        onChange={(event) =>
+                          changeCondition(index, {
+                            [`${side}Property`]: event.target.value,
+                          })
+                        }
+                      />
+                    </label>
+                  ) : (
+                    <RuleSelect
+                      key={side}
+                      label={label}
+                      value={propertyValue(
+                        condition[`${side}Property`],
+                        endpoint,
+                      )}
+                      options={propertyOptions(endpoint)}
+                      disabled={!catalogReady || !draft.linkTypeId}
+                      onChange={(value) =>
+                        changeCondition(index, { [`${side}Property`]: value })
+                      }
+                    />
+                  )
+                })}
               </div>
               <div className="grid gap-4 lg:grid-cols-2">
                 <TransformEditor
@@ -270,6 +452,12 @@ function RuleForm({
       {mutation.isError && (
         <>
           <ErrorState error={mutation.error} />
+          {blocked && (
+            <p role="status">
+              저장을 중단했습니다. 입력은 유지됩니다. 목록에서 최신 상태와 저장
+              여부를 확인한 뒤 다시 편집해 주세요.
+            </p>
+          )}
           {mutation.error instanceof ApiError &&
             mutation.error.status === 409 && (
               <p className="text-sm">
@@ -285,7 +473,11 @@ function RuleForm({
         절차입니다. 통신 오류가 나면 목록에서 저장 여부를 확인한 뒤 다시
         시도하세요.
       </p>
-      <Button type="submit" pending={mutation.isPending} disabled={blocked}>
+      <Button
+        type="submit"
+        pending={mutation.isPending}
+        disabled={blocked || (!!draft.linkTypeId && !catalogReady)}
+      >
         후보 저장
       </Button>
     </form>
@@ -294,6 +486,7 @@ function RuleForm({
 
 export default function RuleEditorPage() {
   const { id } = useParams()
+  const { search } = useLocation()
   const editing = id !== undefined
   const number = Number(id)
   const valid =
@@ -356,7 +549,10 @@ export default function RuleEditorPage() {
   }
   return (
     <div className="rules-editor-page">
-      <Link className="text-sm text-violet-700 underline" to="/admin/rules">
+      <Link
+        className="text-sm text-violet-700 underline"
+        to={`/admin/rules${search}`}
+      >
         제안 목록으로 돌아가기
       </Link>
       <PageHeader

@@ -419,3 +419,18 @@ test('미제공·범위 밖 신뢰도를 0%로 표시하지 않는다', () => {
     expect(confidence(value)).toBe('제공되지 않음')
   expect(confidence(0)).toBe('0.0%')
 })
+
+test('목록 안 수정 링크에 검색·필터·선택 후보·페이지·분석 범위를 보존한다', async () => {
+  const search = '?q=설비&origin=AI&candidate=303&page=1&analysis=51'
+  open(`/admin/rules${search}`)
+  expect(
+    await screen.findByRole('link', { name: '규칙 후보 수정' }),
+  ).toHaveAttribute(
+    'href',
+    `/admin/rules/303/edit?${new URLSearchParams(search)}`,
+  )
+  expect(screen.getByRole('link', { name: '직접 관계 제안' })).toHaveAttribute(
+    'href',
+    `/admin/rules/new?${new URLSearchParams(search)}`,
+  )
+})

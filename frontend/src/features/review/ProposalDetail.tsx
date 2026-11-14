@@ -196,6 +196,8 @@ export default function ProposalDetail({
     const selectionKey = `${item.id}:${item.revision}:${item.reviewStatus}`
     const unavailable =
       refreshing || !query.isFetchedAfterMount || !!query.error
+    const editParams = new URLSearchParams(search)
+    editParams.set('candidate', String(item.id))
     const historyUrl = `/admin/rules/${item.id}/history`
     const activityParams = new URLSearchParams(search)
     activityParams.set('view', 'activity')
@@ -244,12 +246,11 @@ export default function ProposalDetail({
               </StatusBadge>
             </span>
           </p>
-          {!embeddedId &&
-            item.itemKind === 'LINK_RULE' &&
+          {item.itemKind === 'LINK_RULE' &&
             ['PENDING', 'HELD'].includes(item.reviewStatus) && (
               <Link
                 className="inline-block text-sm text-violet-700 underline"
-                to={`/admin/rules/${item.id}/edit`}
+                to={`/admin/rules/${item.id}/edit?${editParams}`}
               >
                 규칙 후보 수정
               </Link>

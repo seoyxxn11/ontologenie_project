@@ -8,6 +8,7 @@ import { accountHandlers } from './accountHandlers'
 import { proposalHandlers } from './proposalHandlers'
 import { reassignmentHandlers } from './reassignmentHandlers'
 import { issueHandlers } from './issueHandlers'
+import { ruleCatalogHandlers } from './ruleCatalogHandlers'
 import { mappingHandlers } from './mappingHandlers'
 import { sourceHandlers } from './sourceHandlers'
 import {
@@ -808,6 +809,7 @@ export const handlers = [
   ...issueHandlers,
   ...authHandlers,
   ...sourceHandlers,
+  ...ruleCatalogHandlers,
   ...mappingHandlers,
   ...analysisHandlers,
   ...agentHandlers,

@@ -253,7 +253,7 @@ export default function ProposalsPage() {
             </Link>
             <Link
               className="ui-button ui-button--secondary"
-              to="/admin/rules/new"
+              to={`/admin/rules/new?${params}`}
             >
               직접 관계 제안
             </Link>

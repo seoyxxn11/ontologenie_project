@@ -3,12 +3,14 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import { MemoryRouter, Route, Routes } from 'react-router'
-import { expect, test, vi } from 'vitest'
+import { beforeEach, expect, test, vi } from 'vitest'
 import App from '../../App'
 import { demoAccount, setMockAccount } from '../../mocks/auth'
 import { proposalFixtures } from '../../mocks/proposalHandlers'
 import { server } from '../../mocks/node'
 import RuleEditorPage from './RuleEditorPage'
+
+beforeEach(() => setMockAccount({ ...demoAccount, roleCode: 'ADMIN' }))
 
 function open(
   path = '/admin/rules/new',
@@ -114,12 +116,13 @@ test('후보를 생성하고 새 개정의 재검사 요청을 안내한다', as
   const user = userEvent.setup()
   open()
   await user.type(screen.getByLabelText('규칙명'), '새 연결 규칙')
-  await user.type(screen.getByLabelText('관계 유형 ID'), '2')
-  await user.type(
-    screen.getByLabelText('출발 속성 코드'),
+  await user.selectOptions(await screen.findByLabelText('관계 유형'), '2')
+  await waitFor(() => expect(screen.getByLabelText('출발 속성')).toBeEnabled())
+  await user.selectOptions(
+    screen.getByLabelText('출발 속성'),
     'WORK_ORDER.equipment_code',
   )
-  await user.type(screen.getByLabelText('도착 속성 코드'), 'EQUIPMENT.code')
+  await user.selectOptions(screen.getByLabelText('도착 속성'), 'EQUIPMENT.code')
   await user.click(screen.getByRole('button', { name: '출발 값 변환 추가' }))
   await user.click(screen.getByRole('button', { name: '후보 저장' }))
   expect(
@@ -163,6 +166,7 @@ test('기준 개정과 복수 후보·기존 근거를 보존해 수정하고 �
   open('/admin/rules/303/edit')
   await screen.findByLabelText('규칙명')
   const save = screen.getByRole('button', { name: '후보 저장' })
+  await waitFor(() => expect(save).toBeEnabled())
   fireEvent.submit(save.closest('form')!)
   fireEvent.submit(save.closest('form')!)
   await screen.findByRole('heading', { name: '규칙 후보를 저장했습니다.' })
@@ -170,7 +174,7 @@ test('기준 개정과 복수 후보·기존 근거를 보존해 수정하고 �
   expect(screen.getByText('제안 #303 · 개정 3')).toBeInTheDocument()
 })
 
-test.each([400, 403, 409, 500])(
+test.each([400, 403, 409, 422, 500])(
   '저장 HTTP %s에서 입력과 오류 안내를 유지한다',
   async (status) => {
     server.use(
@@ -190,6 +194,9 @@ test.each([400, 403, 409, 500])(
     )
     open('/admin/rules/303/edit')
     const input = await screen.findByLabelText('규칙명')
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: '후보 저장' })).toBeEnabled(),
+    )
     await userEvent.click(screen.getByRole('button', { name: '후보 저장' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(
       '검사용 저장 실패',
@@ -240,4 +247,264 @@ test('관리자 아닌 사용자는 생성 주소에서도 저장 화면·API를
   )
   await screen.findByRole('heading', { name: '접근 권한이 없습니다.' })
   await waitFor(() => expect(request).not.toHaveBeenCalled())
+})
+
+test('검색으로 관계·속성을 선택하고 관계 변경 후 부적합한 속성을 다시 선택한다', async () => {
+  const user = userEvent.setup()
+  const request = vi.fn(async ({ request }: { request: Request }) => {
+    expect(await request.json()).toMatchObject({
+      payload: {
+        linkTypeId: 3,
+        conditions: [
+          {
+            sourceProperty: 'EQUIPMENT.code',
+            targetProperty: 'WORK_ORDER.equipment_code',
+            sourceTransforms: [{ op: 'UPPER', arg: null }],
+          },
+        ],
+      },
+    })
+    return HttpResponse.json({
+      data: { id: 303, revision: 3, checkRunId: 1200 },
+    })
+  })
+  server.use(http.post('/api/v1/proposals/:id/revisions', request))
+  open('/admin/rules/303/edit')
+  await screen.findByLabelText('규칙명')
+  await waitFor(() => expect(screen.getByLabelText('출발 속성')).toBeEnabled())
+  await user.type(screen.getByLabelText('관계 유형 검색'), 'EQUIPMENT_ORDER')
+  await user.selectOptions(screen.getByLabelText('관계 유형'), '3')
+  await waitFor(() => expect(screen.getByLabelText('출발 속성')).toBeEnabled())
+  expect(screen.getByLabelText('출발 속성')).toHaveValue('')
+  expect(screen.getByLabelText('도착 속성')).toHaveValue('')
+  await user.click(screen.getByRole('button', { name: '후보 저장' }))
+  expect(request).not.toHaveBeenCalled()
+  await user.type(screen.getByLabelText('출발 속성 검색'), '설비 코드')
+  await user.selectOptions(screen.getByLabelText('출발 속성'), 'EQUIPMENT.code')
+  await user.selectOptions(
+    screen.getByLabelText('도착 속성'),
+    'WORK_ORDER.equipment_code',
+  )
+  await user.click(screen.getByRole('button', { name: '후보 저장' }))
+  await screen.findByRole('heading', { name: '규칙 후보를 저장했습니다.' })
+  expect(request).toHaveBeenCalledTimes(1)
+})
+
+test('편집 URL의 목록 조건을 복귀 링크와 저장한 상세에 유지한다', async () => {
+  const search =
+    '?q=설비&group=AI&origin=AI&page=2&candidate=303&analysis=51&itemKind=LINK_RULE&reviewStatus=PENDING'
+  open(`/admin/rules/303/edit${search}`)
+  expect(
+    screen.getByRole('link', { name: '제안 목록으로 돌아가기' }),
+  ).toHaveAttribute('href', `/admin/rules${search}`)
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: '후보 저장' })).toBeEnabled(),
+  )
+  await userEvent.click(screen.getByRole('button', { name: '후보 저장' }))
+  expect(
+    await screen.findByRole('link', { name: '저장한 제안 보기' }),
+  ).toHaveAttribute('href', `/admin/rules/303${search}`)
+})
+
+test('동일 분석의 미확정 관계·속성 코드와 묶음 정의·복수 후보·변환을 보존한다', async () => {
+  const payload = {
+    ...proposalFixtures[0].payload,
+    linkTypeId: undefined,
+    linkTypeCode: 'PENDING_RELATION',
+    linkType: {
+      code: 'PENDING_RELATION',
+      sourceTypeCode: 'PENDING_SOURCE',
+      targetTypeCode: 'PENDING_TARGET',
+    },
+    conditions: [
+      {
+        sourceProperty: 'PENDING_SOURCE.name',
+        targetProperty: 'PENDING_TARGET.name',
+        operator: 'EQ',
+        sourceTransforms: [
+          { op: 'TRIM', arg: null },
+          { op: 'UPPER', arg: null },
+        ],
+        targetTransforms: [],
+      },
+    ],
+  }
+  const request = vi.fn(async ({ request }: { request: Request }) => {
+    const body = await request.json()
+    expect(body).toMatchObject({
+      baseRevision: 2,
+      payload: JSON.parse(JSON.stringify(payload)),
+      options: expect.arrayContaining([
+        expect.objectContaining({ payload: expect.any(Object) }),
+      ]),
+    })
+    expect(body.payload).not.toHaveProperty('linkTypeId')
+    return HttpResponse.json({
+      data: { id: 303, revision: 3, checkRunId: 1201 },
+    })
+  })
+  server.use(
+    http.get('/api/v1/proposals/:id', () =>
+      HttpResponse.json({ data: { ...proposalFixtures[0], payload } }),
+    ),
+    http.post('/api/v1/proposals/:id/revisions', request),
+    http.get('/api/v1/ontology/link-types', () => HttpResponse.error()),
+  )
+  open('/admin/rules/303/edit')
+  expect(await screen.findByLabelText('관계 유형 코드')).toHaveValue(
+    'PENDING_RELATION',
+  )
+  expect(screen.getByLabelText('출발 속성 코드')).toHaveValue(
+    'PENDING_SOURCE.name',
+  )
+  await userEvent.click(screen.getByRole('button', { name: '후보 저장' }))
+  await screen.findByRole('heading', { name: '규칙 후보를 저장했습니다.' })
+  expect(request).toHaveBeenCalledTimes(1)
+})
+
+test.each(['network', 'forbidden', 'empty'] as const)(
+  '관계 목록 %s 상태에서 안내하고 저장을 막는다',
+  async (kind) => {
+    server.use(
+      http.get('/api/v1/ontology/link-types', () =>
+        kind === 'network'
+          ? HttpResponse.error()
+          : kind === 'empty'
+            ? HttpResponse.json({ data: [] })
+            : HttpResponse.json(
+                {
+                  error: {
+                    code: 'FORBIDDEN',
+                    message: '관계 조회 권한이 없습니다.',
+                    details: {},
+                    requestId: 'test',
+                  },
+                },
+                { status: 403 },
+              ),
+      ),
+    )
+    open('/admin/rules/303/edit')
+    await screen.findByLabelText('규칙명')
+    await screen.findByRole('alert')
+    expect(screen.getByRole('button', { name: '후보 저장' })).toBeDisabled()
+    expect(screen.getByLabelText('규칙명')).toHaveValue(
+      '작업지시 설비 코드 연결',
+    )
+  },
+)
+
+test('속성 목록 조회 실패 시 저장을 막고 재조회 뒤 입력을 유지한다', async () => {
+  server.use(
+    http.get('/api/v1/ontology/object-types/904/properties', () =>
+      HttpResponse.error(),
+    ),
+  )
+  open('/admin/rules/303/edit')
+  await screen.findByRole('alert')
+  expect(screen.getByRole('button', { name: '후보 저장' })).toBeDisabled()
+  server.use(
+    http.get('/api/v1/ontology/object-types/904/properties', () =>
+      HttpResponse.json({
+        data: [
+          {
+            id: 9040,
+            code: 'equipment_code',
+            name: '설비 코드',
+            sensitivity: 'NORMAL',
+          },
+        ],
+      }),
+    ),
+  )
+  await userEvent.click(screen.getByRole('button', { name: '다시 불러오기' }))
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: '후보 저장' })).toBeEnabled(),
+  )
+  expect(screen.getByLabelText('출발 속성')).toHaveValue(
+    'WORK_ORDER.equipment_code',
+  )
+})
+
+test.each(['network', 'invalid'] as const)(
+  '저장 응답 %s 유실 시 자동·중복 재전송을 차단한다',
+  async (kind) => {
+    const request = vi.fn(() =>
+      kind === 'network'
+        ? HttpResponse.error()
+        : HttpResponse.json({ data: { id: 303 } }),
+    )
+    server.use(http.post('/api/v1/proposals/:id/revisions', request))
+    open('/admin/rules/303/edit')
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: '후보 저장' })).toBeEnabled(),
+    )
+    const save = screen.getByRole('button', { name: '후보 저장' })
+    await userEvent.click(save)
+    await screen.findByRole('alert')
+    expect(save).toBeDisabled()
+    fireEvent.submit(save.closest('form')!)
+    expect(request).toHaveBeenCalledTimes(1)
+    expect(screen.getByLabelText('규칙명')).toHaveValue(
+      '작업지시 설비 코드 연결',
+    )
+  },
+)
+
+test('다른 개정의 복수 후보는 편집에 사용하지 않는다', async () => {
+  server.use(
+    http.get('/api/v1/proposals/:id/options', () =>
+      HttpResponse.json({
+        data: [{ id: 1, revision: 1, payload: {}, evidence: {} }],
+      }),
+    ),
+  )
+  open('/admin/rules/303/edit')
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    '후보 개정이 일치하지 않습니다',
+  )
+  expect(screen.queryByLabelText('규칙명')).not.toBeInTheDocument()
+})
+
+test('앞 조건을 삭제해도 뒤 조건의 동일 분석 미확정 속성을 보존한다', async () => {
+  const pendingCondition = {
+    sourceProperty: 'WORK_ORDER.pending_code',
+    targetProperty: 'EQUIPMENT.pending_code',
+    operator: 'EQ',
+    sourceTransforms: [{ op: 'UPPER', arg: null }],
+    targetTransforms: [],
+  }
+  const request = vi.fn(async ({ request }: { request: Request }) => {
+    expect(await request.json()).toMatchObject({
+      payload: { conditions: [pendingCondition] },
+    })
+    return HttpResponse.json({
+      data: { id: 303, revision: 3, checkRunId: 1202 },
+    })
+  })
+  server.use(
+    http.get('/api/v1/proposals/:id', () =>
+      HttpResponse.json({
+        data: {
+          ...proposalFixtures[0],
+          payload: {
+            ...proposalFixtures[0].payload,
+            conditions: [
+              ...(proposalFixtures[0].payload.conditions as object[]),
+              pendingCondition,
+            ],
+          },
+        },
+      }),
+    ),
+    http.post('/api/v1/proposals/:id/revisions', request),
+  )
+  open('/admin/rules/303/edit')
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: '후보 저장' })).toBeEnabled(),
+  )
+  await userEvent.click(screen.getAllByRole('button', { name: '조건 삭제' })[0])
+  await userEvent.click(screen.getByRole('button', { name: '후보 저장' }))
+  await screen.findByRole('heading', { name: '규칙 후보를 저장했습니다.' })
+  expect(request).toHaveBeenCalledTimes(1)
 })

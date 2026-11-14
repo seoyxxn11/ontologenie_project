@@ -1,4 +1,3 @@
-import { Link } from 'react-router'
 import DataTable from '../../components/DataTable'
 import { isRow, transformText } from './bundle'
 import type { Proposal } from './types'
@@ -32,18 +31,7 @@ export default function RuleContent({ proposal }: { proposal: Proposal }) {
       ])
   return (
     <section className="rule-content">
-      <div className="flex items-center justify-between gap-4">
-        <h3>연결·변환 규칙</h3>
-        {proposal.itemKind === 'LINK_RULE' &&
-          ['PENDING', 'HELD'].includes(proposal.reviewStatus) && (
-            <Link
-              className="ui-button ui-button--secondary"
-              to={`/admin/rules/${proposal.id}/edit`}
-            >
-              규칙 수정
-            </Link>
-          )}
-      </div>
+      <h3>연결·변환 규칙</h3>
       {rows.length > 0 && (
         <DataTable label="연결·변환 규칙">
           <thead>

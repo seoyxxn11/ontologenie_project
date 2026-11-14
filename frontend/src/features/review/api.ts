@@ -49,11 +49,8 @@ export async function fetchProposalOptions(
 
 export async function fetchRuleForEdit(id: number, signal?: AbortSignal) {
   const proposal = await fetchProposal(id, signal)
-  const options = await apiGet<ProposalOption[]>(
-    `/proposals/${id}/options?revision=${proposal.revision}`,
-    { signal },
-  )
-  return { proposal, options: options.data }
+  const options = await fetchProposalOptions(id, proposal.revision, signal)
+  return { proposal, options }
 }
 
 export async function saveRule(input: {
