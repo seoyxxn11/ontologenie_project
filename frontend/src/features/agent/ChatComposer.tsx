@@ -24,6 +24,12 @@ type ChatComposerProps = {
   onSend: (content: string) => Promise<void>
 }
 
+function resizeInput(input: HTMLTextAreaElement) {
+  input.style.height = 'auto'
+  input.style.height = `${Math.min(160, Math.max(40, input.scrollHeight))}px`
+  input.style.overflowY = input.scrollHeight > 160 ? 'auto' : 'hidden'
+}
+
 function ChatComposer({
   disabled,
   initialDraft = '',
@@ -48,11 +54,20 @@ function ChatComposer({
   useLayoutEffect(() => {
     onDraftChange?.(draft)
     const input = inputRef.current
-    if (!input) return
-    input.style.height = 'auto'
-    input.style.height = `${Math.min(160, Math.max(40, input.scrollHeight))}px`
-    input.style.overflowY = input.scrollHeight > 160 ? 'auto' : 'hidden'
+    if (input) resizeInput(input)
   }, [draft, onDraftChange])
+  useLayoutEffect(() => {
+    const input = inputRef.current
+    if (!input) return
+    let previousWidth = input.clientWidth
+    const observer = new ResizeObserver(() => {
+      if (input.clientWidth === previousWidth) return
+      previousWidth = input.clientWidth
+      resizeInput(input)
+    })
+    observer.observe(input)
+    return () => observer.disconnect()
+  }, [])
   useLayoutEffect(() => {
     if (focusRequest > 0) inputRef.current?.focus()
   }, [focusRequest])

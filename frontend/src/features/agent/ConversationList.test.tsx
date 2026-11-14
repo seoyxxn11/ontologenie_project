@@ -95,7 +95,9 @@ test('목록 높이에 들어가는 개수만 표시하고 대화 선택 없이 
   resize(110)
 
   expect(visibleTitles()).toEqual(['대화 1', '대화 2', '대화 3'])
-  expect(screen.getByText('1 / 3쪽 · 8건')).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: '1페이지로 이동' }),
+  ).toHaveAttribute('aria-current', 'page')
   expect(screen.getByRole('button', { name: '이전 페이지' })).toBeDisabled()
 
   await user.click(screen.getByRole('button', { name: '다음 페이지' }))
@@ -118,7 +120,9 @@ test('높이와 글자 크기가 바뀌면 보던 항목을 포함하는 페이�
 
   resize(72)
   expect(visibleTitles()).toEqual(['대화 3', '대화 4'])
-  expect(screen.getByText('2 / 4쪽 · 8건')).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: '2페이지로 이동' }),
+  ).toHaveAttribute('aria-current', 'page')
 
   rowHeight = 48
   resize(144)
@@ -134,7 +138,9 @@ test('주소로 선택된 대화와 새로 생성된 대화가 있는 페이지�
   expect(
     screen.getByRole('button', { name: '대화 8', pressed: true }),
   ).toBeInTheDocument()
-  expect(screen.getByText('3 / 3쪽 · 8건')).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: '3페이지로 이동' }),
+  ).toHaveAttribute('aria-current', 'page')
 
   rerender(<ConversationList {...handlers} selectedId={2} />)
   expect(
@@ -154,7 +160,9 @@ test('주소로 선택된 대화와 새로 생성된 대화가 있는 페이지�
   expect(
     screen.getByRole('button', { name: '새 대화', pressed: true }),
   ).toBeInTheDocument()
-  expect(screen.getByText('1 / 3쪽 · 9건')).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: '1페이지로 이동' }),
+  ).toHaveAttribute('aria-current', 'page')
 })
 
 test('마지막 페이지의 대화가 사라지면 남아 있는 마지막 페이지로 돌아간다', async () => {
@@ -170,7 +178,9 @@ test('마지막 페이지의 대화가 사라지면 남아 있는 마지막 페�
     />,
   )
   expect(visibleTitles()).toEqual(['대화 4', '대화 5', '대화 6'])
-  expect(screen.getByText('2 / 2쪽 · 6건')).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: '2페이지로 이동' }),
+  ).toHaveAttribute('aria-current', 'page')
 })
 
 test('대화가 없으면 빈 안내를, 한 페이지면 비활성 페이지 버튼을 표시한다', () => {

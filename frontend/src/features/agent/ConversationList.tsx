@@ -151,12 +151,18 @@ function ConversationList({
         </div>
       )}
       {hasConversations && (
-        <div className="agent-sidebar-footer">
+        <div
+          className="agent-sidebar-footer"
+          data-long-page-numbers={
+            Math.ceil(conversations.length / pageSize) >= 100
+          }
+        >
           <Pagination
             page={page}
             size={pageSize}
             totalElements={conversations.length}
             compact
+            showSummary={false}
             onChange={(nextPage) =>
               setPagination({
                 selectedId,
