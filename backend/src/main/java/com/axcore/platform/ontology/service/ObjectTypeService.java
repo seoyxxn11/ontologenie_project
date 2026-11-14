@@ -15,7 +15,10 @@ import com.axcore.platform.ontology.repository.DefinitionReferenceRepository;
 import com.axcore.platform.ontology.repository.ObjectTypeRepository;
 import com.axcore.platform.ontology.repository.PropertyDefinitionRepository;
 import com.axcore.platform.source.domain.SourceResource;
+import com.axcore.platform.source.policy.SourcePolicyViolation;
+import com.axcore.platform.source.service.FullLoadPlanner;
 import com.axcore.platform.source.service.SourceCatalogService;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -36,6 +39,7 @@ public class ObjectTypeService {
     private final DefinitionReferenceRepository referenceRepository;
     private final ObjectSourceMappingRepository mappingRepository;
     private final SourceCatalogService catalogService;
+    private final FullLoadPlanner fullLoadPlanner;
 
     /** API 021. q가 비어 있으면 전체를 돌려준다. */
     public Page<ObjectTypeResponse> search(String q, Pageable pageable) {
@@ -117,16 +121,56 @@ public class ObjectTypeService {
                         Map.of("field", "displayPropertyId"));
             }
         }
+        String accessGroup =
+                request.hasAccessGroup() ? request.getAccessGroup() : objectType.getAccessGroup();
+        if (accessGroup != null && !accessGroup.equals(objectType.getAccessGroup())) {
+            requirePublishable(id);
+        }
         objectType.update(
                 request.getName() == null ? objectType.getName() : request.getName(),
                 request.hasDescription() ? request.getDescription() : objectType.getDescription(),
                 request.getSynonyms() == null ? objectType.getSynonyms() : request.getSynonyms(),
-                request.hasAccessGroup() ? request.getAccessGroup() : objectType.getAccessGroup(),
+                accessGroup,
                 displayPropertyId);
         reloadTargets.forEach(catalogService::requireFullReload);
         // 응답의 rowVersion·수정 시각이 이번 변경을 반영하도록 먼저 DB에 쓴다.
         objectTypeRepository.flush();
         return ObjectTypeResponse.from(objectType);
+    }
+
+    /**
+     * 공개 전 검사(402). 그룹을 새로 지정하거나 바꾸면 그 그룹 역할에게 객체가 보인다. 이 유형의 켜진 매핑이 원천 데이터 정책을 어기면(금지 컬럼, 민감 키, 민감
+     * 컬럼을 담는 일반 속성) 거절한다. 적재 계획과 같은 판단이다. 정리보다 공개가 먼저 되어 금지 값이 나간 일(398)을 서버가 막는다. 그룹을 비우는 것은 막지
+     * 않는다.
+     */
+    private void requirePublishable(Long objectTypeId) {
+        List<SourcePolicyViolation> violations =
+                mappingRepository.findActiveSourceResourceIds(objectTypeId).stream()
+                        .flatMap(resourceId -> fullLoadPlanner.violations(resourceId).stream())
+                        .filter(violation -> violation.objectTypeId() == objectTypeId)
+                        .toList();
+        if (violations.isEmpty()) {
+            return;
+        }
+        throw new BusinessException(
+                CommonErrorCode.BUSINESS_RULE_VIOLATION,
+                "원천 데이터 정책을 어기는 매핑이 있어 그룹을 지정할 수 없습니다. 매핑을 고친 뒤 지정하세요.",
+                Map.of(
+                        "field",
+                        "accessGroup",
+                        "violations",
+                        violations.stream().map(ObjectTypeService::summary).toList()));
+    }
+
+    private static Map<String, Object> summary(SourcePolicyViolation violation) {
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("kind", violation.kind().name());
+        summary.put("resourceKey", violation.resourceKey());
+        summary.put("columnName", violation.columnName());
+        summary.put("objectMappingId", violation.objectMappingId());
+        summary.put("propertyMappingId", violation.propertyMappingId());
+        summary.put("propertyCode", violation.propertyCode());
+        return summary;
     }
 
     /** 이 유형이 켜진 매핑으로 연결된 원천 테이블 행을 번호 순으로 잠근다. 번호 순이라 다른 잠금과 서로 기다리다 멈추지 않는다. */

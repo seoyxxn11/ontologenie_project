@@ -69,7 +69,7 @@ Debezium이 원천마다 토픽 하나(`{data_source.code}.all`)에 보낸 변�
 
 1. 원천의 `cdc_offset` 행을 `FOR UPDATE`로 잡는다(없으면 만든다). END가 다음 위치보다 앞이면 `ALREADY_APPLIED`(아무것도 안 씀). 복구가 필요한 원천이면 `RECOVERY_PENDING`.
 2. `last_txid`(없으면 `initialReference` = 원천 xmax)로 txId epoch를 복원한다. 확신할 수 없으면 `recovery_reason = EPOCH_UNCERTAIN`, `healthy_since = NULL`, 그 원천 CDC 표 `loaded_lsn = NULL`만 쓰고 `RECOVERY_NEEDED`. 위치는 옮기지 않는다.
-3. 변경이 걸린 표를 찾아 원천 테이블 행을 ID 순서로 `FOR SHARE` 잠근다. 전체 읽기 저장·매핑 변경(`FOR UPDATE`)과 잠금 순서가 같아져 교착이 없고, 반영 중 매핑이 바뀌지 않는다. 매핑 계획은 197과 같은 `FullLoadPlanner`다. 없는 표·CDC가 아닌 표·켜진 매핑이 없는 표·지금 적재할 수 없는 매핑(행 조건 등)은 건너뛴다(`skippedEvents`).
+3. 변경이 걸린 표를 찾아 원천 테이블 행을 ID 순서로 `FOR SHARE` 잠근다. 전체 읽기 저장·매핑 변경(`FOR UPDATE`)과 잠금 순서가 같아져 교착이 없고, 반영 중 매핑이 바뀌지 않는다. 매핑 계획은 197과 같은 `FullLoadPlanner`다. 없는 표·CDC가 아닌 표·켜진 매핑이 없는 표·지금 적재할 수 없는 매핑(정책 위반, 행 조건 등)은 건너뛴다(`skippedEvents`). 적재할 수 없는 표는 다시 읽기를 표시한다(402, 아래 "적재할 수 없는 테이블").
 4. 변경을 원천 커밋 순서대로 쓴다. 값 해석은 **매핑한 컬럼만** 한다. 해석하지 못하는 형식의 컬럼은 빼고 다시 해석해 그 컬럼만 실패로 남긴다.
 
 | 변경 | 처리 |
@@ -166,6 +166,7 @@ Debezium이 원천마다 토픽 하나(`{data_source.code}.all`)에 보낸 변�
    - 조건: 그 원천의 CDC 테이블 중 켜진 매핑이 있는 테이블이 모두 `recovery_at` **뒤에 시작한** 전체 읽기로 적재됨. 매핑이 없는 테이블은 기다리지 않는다.
    - 원천 교체(`SOURCE_CHANGED`)는 풀지 않는다(아래 알림 전).
    - 풀 때: `recovery_reason`·`recovery_at`·`last_txid`를 비우고, `resume_after` = 그 테이블들의 마지막 전체 읽기 중 가장 이른 시작 시각.
+   - 적재 계획을 만들 수 없는 테이블은 기다리지 않는다(402, 아래).
 4. 소비자가 표시가 풀린 걸 보면(30초 주기) `resume_after` 뒤에 토픽에 쓰인 첫 메시지(`offsetsForTimes`, 없으면 토픽 끝)로 간다.
    - 처음 만나는 BEGIN 전의 메시지(기준 시각 앞에 시작한 트랜잭션의 나머지)는 버린다. heartbeat는 마지막 메시지 시각·정상 여부만 남기고 위치는 옮기지 않는다(트랜잭션 중간일 수 있다).
    - 첫 BEGIN에서 `next_offset` = 그 BEGIN, `resume_after = NULL`로 저장하고 평소대로 반영한다.
@@ -196,3 +197,17 @@ Debezium이 원천마다 토픽 하나(`{data_source.code}.all`)에 보낸 변�
   - `configChangeStopsCdcOfConsumedSourceWithoutReload`: 012에서 접속 설정이 바뀌면 `SOURCE_CHANGED`, `loaded_lsn` 그대로, 이름만 바꾸거나 CDC 테이블 없는 소비 전 원천은 그대로
   - `configChangeStopsCdcOfSourceNotConsumedYet`: 소비 전 원천도 CDC 테이블이 있으면 `SOURCE_CHANGED` 행이 생기고 `loaded_lsn` 그대로, 재연결하면 `SLOT_LOST`·`loaded_lsn` 비움
   - `reconnectAfterSourceChangeRequestsReload`: 교체 중이 아니면 409, 맞으면 202·`SLOT_LOST`·`loaded_lsn` 비움, ADMIN만
+
+## 적재할 수 없는 테이블 (402)
+
+켜진 매핑이 있는데 적재 계획(`FullLoadPlanner`)을 만들 수 없는 테이블이다. 원천 데이터 정책 위반(금지 컬럼, 민감 키, 민감 컬럼을 담는 일반 속성), 원천에서 없어진 컬럼, 행 조건, SYNC 계정이 읽을 수 없는 테이블 등이다. 정책 파일이 바뀌면 이미 있던 매핑이 이렇게 될 수 있다.
+
+| 무엇 | 동작 |
+|---|---|
+| CDC 반영 | 그 표의 변경은 건너뛰고(`skippedEvents`) 위치는 넘긴다. 변경을 잃지 않게 `loaded_lsn`을 비운다(이미 비었으면 그대로, `loaded_lsn`만 바꾸는 SQL로 다른 칸을 되돌리지 않는다). 같은 트랜잭션의 다른 표는 반영한다 |
+| 계획 실패의 전파 | 반영은 `FullLoadPlanner.tryPlan`(예외 대신 사유를 돌려줌)을 쓴다. `plan`의 예외가 트랜잭션 경계를 넘으면 반영 트랜잭션이 rollback-only가 되어 잡아도 커밋하지 못한다. 402 전에는 막힌 표가 섞인 원천 트랜잭션이 통째로 실패해 같은 위치에서 멈췄다 |
+| 감시 작업 | 막힌 테이블을 처음에는 넣어, 실행이 사유를 수집 실패(074·075 화면의 실패 사유)로 남기게 한다. 마지막 시도가 같은 사유로 실패했으면 넣지 않는다. 그래서 고칠 때까지 실패 기록이 쌓이지 않는다. 매핑을 고치면 계획이 만들어져, 마지막 실패 뒤 재시도 대기(`retry-delay`, 5분)가 지나면 넣는다. 사유가 바뀌면 한 번 더 넣는다. 원천 데이터 정책 때문에 생긴 실패(문구가 "원천 데이터 정책상 "으로 시작)는 멈춤 횟수(`max-failures`)에 세지 않는다. 세면 다른 실패와 합쳐 3번이 되어 고친 뒤에도 자동으로 넣지 않는다. 계획은 마지막 시도가 실패인 테이블만 만들어 본다. 예상하지 못한 오류(깨진 변환 단계 등)는 막힌 것으로 보지 않고 넣어, 그 실행만 실패한다. 후보는 200개까지 보고 20개까지 넣는다(막힌 테이블이 앞 번호를 차지해도 다른 테이블을 넣게) |
+| 복구 해제 | 복구 중인 원천(`SOURCE_CHANGED` 제외)에 막힌 CDC 테이블이 있으면, 감시 작업이 주기마다 다시 읽기를 기다리는 CDC 테이블의 계획을 만들어 보고, 막힌 테이블을 빼고 해제 조건을 본다(`releaseRecoveryIfReloaded(source, blocked)`, `cdc_offset`을 먼저 잠근다). 막힌 테이블 목록은 잠금 전에 구하므로 그사이 고친 테이블은 기다리지 않고 풀 수 있는데, 그 테이블은 다시 읽기 표시가 남아 뒤에 다시 읽어 맞춘다. 기다리면 그 테이블의 다시 읽기가 끝나지 않아 원천 전체의 CDC가 멈춘다. 막힌 테이블은 다시 읽기 표시가 남아 고친 뒤 따로 다시 읽고, 그때까지 CDC는 그 표의 변경을 건너뛴다. 모든 테이블이 막혔으면 이어 받을 기준이 없어 풀지 않는다 |
+| 보기 | `GET /api/v1/sources/policy-violations`의 `blockedResources`(사유, 다시 읽기 대기 여부), 수집 이력의 실패 사유 |
+
+시험: `CdcTransactionApplierTests.skippedTableThatCannotBePlannedIsMarkedForReload`, `CdcReloadServiceTests.queuesBlockedTableOnceThenWaitsUntilMappingIsFixed`·`queuesBlockedTableAgainWhenReasonDiffers`·`releasesRecoveryWithoutWaitingForBlockedTable`·`keepsRecoveryWhileLoadableTableIsNotReloaded`.

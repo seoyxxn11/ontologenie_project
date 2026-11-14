@@ -240,6 +240,73 @@ class ObjectTypeApiTests {
                 .andExpect(jsonPath("$.error.details.field").value("displayPropertyId"));
     }
 
+    /**
+     * 공개 전 검사(402). 켜진 매핑이 원천 데이터 정책을 어기면 그룹을 지정할 수 없다. 매핑을 고치면 지정할 수 있다. 그룹을 비우는 것과 그룹을 그대로 둔 다른
+     * 수정은 막지 않는다.
+     */
+    @Test
+    void refusesToPublishTypeWhoseMappingBreaksSourcePolicy() throws Exception {
+        LoginSession admin = loginAs("ADMIN");
+        long typeId = createObjectType(admin, uniqueCode());
+        long table = insertCdcTable(100L);
+        jdbcClient
+                .sql("update source_resource set resource_key = 'erp.employee' where id = :id")
+                .param("id", table)
+                .update();
+        long mapping = insertMappingReturningId(table, typeId, "emp_no");
+        long otherType = createObjectType(admin, uniqueCode());
+        long otherTable = insertCdcTable(100L);
+        insertMapping(otherTable, otherType, true);
+        long property = insertProperty(typeId);
+        long column = insertColumn(table, "emp_name");
+        long propertyMapping = insertPropertyMapping(table, mapping, property, column);
+
+        send(
+                        admin,
+                        patch(BASE_PATH + "/" + typeId),
+                        "{\"accessGroup\": \"PRODUCTION\", \"rowVersion\": 0}")
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.error.code").value("BUSINESS_RULE_VIOLATION"))
+                .andExpect(jsonPath("$.error.details.field").value("accessGroup"))
+                .andExpect(jsonPath("$.error.details.violations[0].kind").value("FORBIDDEN_COLUMN"))
+                .andExpect(
+                        jsonPath("$.error.details.violations[0].resourceKey").value("erp.employee"))
+                .andExpect(jsonPath("$.error.details.violations[0].columnName").value("emp_name"))
+                .andExpect(
+                        jsonPath("$.error.details.violations[0].propertyMappingId")
+                                .value(propertyMapping));
+        // 위반이 없는 다른 유형은 지정할 수 있다.
+        send(
+                        admin,
+                        patch(BASE_PATH + "/" + otherType),
+                        "{\"accessGroup\": \"PRODUCTION\", \"rowVersion\": 0}")
+                .andExpect(status().isOk());
+
+        jdbcClient
+                .sql("delete from property_source_mapping where id = :id")
+                .param("id", propertyMapping)
+                .update();
+        send(
+                        admin,
+                        patch(BASE_PATH + "/" + typeId),
+                        "{\"accessGroup\": \"PRODUCTION\", \"rowVersion\": 0}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.accessGroup").value("PRODUCTION"));
+
+        // 공개 뒤 정책이 바뀌어 위반이 생겨도 그룹을 비우거나 그룹을 그대로 둔 수정은 된다.
+        insertPropertyMapping(table, mapping, property, column);
+        send(admin, patch(BASE_PATH + "/" + typeId), "{\"name\": \"직원\", \"rowVersion\": 1}")
+                .andExpect(status().isOk());
+        send(
+                        admin,
+                        patch(BASE_PATH + "/" + typeId),
+                        "{\"accessGroup\": \"QUALITY\", \"rowVersion\": 2}")
+                .andExpect(status().isUnprocessableContent());
+        send(admin, patch(BASE_PATH + "/" + typeId), "{\"accessGroup\": null, \"rowVersion\": 2}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.accessGroup").isEmpty());
+    }
+
     @Test
     void deletesUnusedTypeButNotTypeInUse() throws Exception {
         LoginSession admin = loginAs("ADMIN");
@@ -325,6 +392,57 @@ class ObjectTypeApiTests {
                 .param("type", objectTypeId)
                 .param("active", active)
                 .update();
+    }
+
+    private long insertMappingReturningId(long resourceId, long objectTypeId, String key) {
+        return jdbcClient
+                .sql(
+                        """
+                        insert into object_source_mapping
+                            (source_resource_id, object_type_id, key_columns, is_active)
+                        values (:resource, :type, jsonb_build_array(:key), true)
+                        returning id
+                        """)
+                .param("resource", resourceId)
+                .param("type", objectTypeId)
+                .param("key", key)
+                .query(Long.class)
+                .single();
+    }
+
+    private long insertColumn(long resourceId, String name) {
+        return jdbcClient
+                .sql(
+                        """
+                        insert into source_column
+                            (source_resource_id, column_name, source_data_type, is_nullable,
+                             ordinal_position, is_present)
+                        values (:resource, :name, 'varchar', false, 1, true)
+                        returning id
+                        """)
+                .param("resource", resourceId)
+                .param("name", name)
+                .query(Long.class)
+                .single();
+    }
+
+    /** 서비스는 정책상 금지 컬럼 매핑을 거절하므로(391) 행으로 넣는다. 391 이전 매핑이나 정책이 바뀐 경우다. */
+    private long insertPropertyMapping(
+            long resourceId, long mappingId, long propertyId, long columnId) {
+        return jdbcClient
+                .sql(
+                        """
+                        insert into property_source_mapping
+                            (source_mapping_id, source_resource_id, property_definition_id, source_column_id)
+                        values (:mapping, :resource, :property, :column)
+                        returning id
+                        """)
+                .param("mapping", mappingId)
+                .param("resource", resourceId)
+                .param("property", propertyId)
+                .param("column", columnId)
+                .query(Long.class)
+                .single();
     }
 
     private Long loadedLsn(long resourceId) {

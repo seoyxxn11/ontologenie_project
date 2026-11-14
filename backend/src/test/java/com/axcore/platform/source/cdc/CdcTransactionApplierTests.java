@@ -378,6 +378,26 @@ class CdcTransactionApplierTests {
     }
 
     /**
+     * 적재 계획을 만들 수 없는 표(정책 위반, 행 조건 등)의 변경은 건너뛰되, 잃지 않게 다시 읽기를 표시한다(402). 매핑을 고치면 감시 작업이 다시 읽는다. 다른
+     * 표의 반영과 오프셋 이동은 그대로 한다.
+     */
+    @Test
+    void skippedTableThatCannotBePlannedIsMarkedForReload() {
+        jdbc.sql(
+                        "update object_source_mapping set row_filter = '{\"status\": \"OPEN\"}'::jsonb where id = :m")
+                .param("m", workOrderMapping)
+                .update();
+
+        Result result = apply(transactions().get(1));
+
+        assertThat(result.status()).isEqualTo(Status.APPLIED);
+        assertThat(result.skippedEvents()).isEqualTo(1);
+        assertThat(loadedLsn(workOrderResource)).isNull();
+        assertThat(loadedLsn(equipmentResource)).isEqualTo(1L);
+        assertThat(offset().get("next_offset")).isEqualTo(14L);
+    }
+
+    /**
      * 반영이 잡는 원천 테이블 잠금은 공유 잠금(FOR SHARE)이다. 다른 CDC 소비자의 공유 잠금은 통과하고, 전체 읽기 저장·매핑 변경의 FOR UPDATE는
      * 기다린다(교착 없는 잠금 순서, 결정 문서 10.1 질문 1).
      */

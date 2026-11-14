@@ -50,6 +50,15 @@ public interface ObjectSourceMappingRepository extends JpaRepository<ObjectSourc
             """)
     List<Long> findActiveSourceResourceIds(@Param("objectTypeId") Long objectTypeId);
 
+    /** 켜진 매핑이 있는 원천 자원 전부. 번호 순. 원천 데이터 정책 위반 보고(402)가 쓴다. */
+    @Query(
+            """
+            select distinct m.sourceResourceId from ObjectSourceMapping m
+            where m.active = true
+            order by m.sourceResourceId
+            """)
+    List<Long> findAllActiveSourceResourceIds();
+
     /** 한 원천 자원의 켜진 매핑. 전체 읽기(Jira 197)가 이 매핑으로 객체를 만든다. */
     List<ObjectSourceMapping> findBySourceResourceIdAndActiveTrueOrderById(Long sourceResourceId);
 }

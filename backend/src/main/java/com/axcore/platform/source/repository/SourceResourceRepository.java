@@ -51,6 +51,15 @@ public interface SourceResourceRepository extends JpaRepository<SourceResource, 
     int requireFullReloadOfTables(
             @Param("dataSourceId") Long dataSourceId, @Param("strategy") SyncStrategy strategy);
 
+    /**
+     * 한 테이블의 다시 읽기를 표시한다(loaded_lsn만 비움). CDC 반영이 적재할 수 없는 표를 건너뛸 때 쓴다(402). 엔티티 전체를 다시 쓰지 않아, 잠금
+     * 전에 읽은 엔티티의 옛 값으로 다른 칸(읽기 가능 여부 등)을 되돌리지 않는다.
+     */
+    @Modifying(flushAutomatically = true)
+    @Query(
+            "update SourceResource r set r.loadedLsn = null where r.id = :id and r.loadedLsn is not null")
+    int requireFullReload(@Param("id") Long id);
+
     /** 매핑 변경과 수집이 같은 테이블을 동시에 다루지 않도록 행을 잠근다. 수집도 같은 행을 잠그고 읽는다. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from SourceResource r where r.id = :id")

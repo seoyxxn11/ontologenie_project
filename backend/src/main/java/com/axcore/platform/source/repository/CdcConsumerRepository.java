@@ -5,6 +5,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -192,6 +194,21 @@ public class CdcConsumerRepository {
      * @return 풀었으면 이어 받을 기준 시각
      */
     public Optional<Instant> releaseRecoveryIfReloaded(long dataSourceId) {
+        return releaseRecoveryIfReloaded(dataSourceId, List.of());
+    }
+
+    /**
+     * {@link #releaseRecoveryIfReloaded(long)}와 같되 적재 계획을 만들 수 없는 테이블(402)은 기다리지 않는다. 기다리면 그 테이블의
+     * 다시 읽기가 끝나지 않아 원천 전체의 CDC가 멈춘다. 그 테이블은 다시 읽기 표시가 남아 매핑을 고친 뒤 따로 다시 읽고, 그때까지 CDC는 그 테이블의 변경을
+     * 건너뛴다.
+     *
+     * @param blockedResourceIds 기다리지 않을 테이블
+     */
+    public Optional<Instant> releaseRecoveryIfReloaded(
+            long dataSourceId, Collection<Long> blockedResourceIds) {
+        // 빈 목록이 IN ()이 되지 않게 없는 번호 하나로 둔다.
+        List<Long> blocked =
+                blockedResourceIds.isEmpty() ? List.of(-1L) : List.copyOf(blockedResourceIds);
         return jdbc.sql(
                         """
                         with loaded as (
@@ -199,6 +216,7 @@ public class CdcConsumerRepository {
                             from source_resource r
                             left join sync_run s on s.id = r.full_load_done_gen
                             where r.data_source_id = :source and r.sync_strategy = 'CDC'
+                              and r.id not in (:blocked)
                               and exists (select 1 from object_source_mapping m
                                           where m.source_resource_id = r.id and m.is_active)
                         )
@@ -215,8 +233,21 @@ public class CdcConsumerRepository {
                         returning o.resume_after
                         """)
                 .param("source", dataSourceId)
+                .param("blocked", blocked)
                 .query((rs, row) -> rs.getTimestamp("resume_after").toInstant())
                 .optional();
+    }
+
+    /** 복구 중인 원천. 접속 정보 변경(SOURCE_CHANGED)은 커넥터를 맞추기 전이라 풀 수 없으므로 뺀다. */
+    public List<Long> findRecoveringSourceIds() {
+        return jdbc.sql(
+                        """
+                        select distinct data_source_id from cdc_offset
+                        where recovery_reason is not null and recovery_reason <> 'SOURCE_CHANGED'
+                        order by data_source_id
+                        """)
+                .query(Long.class)
+                .list();
     }
 
     /**
