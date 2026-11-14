@@ -12,6 +12,7 @@ import com.axcore.platform.ontology.service.ModelSummaryService;
 import com.axcore.platform.ontology.service.ObjectSearchQuery;
 import com.axcore.platform.ontology.service.PropertyValueSampleService;
 import java.time.Clock;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -178,6 +179,98 @@ class AgentObjectListToolsIntegrationTests {
         assertThat(data.total()).isZero();
         assertThat(data.objects()).isEmpty();
         assertThat(data.properties()).isEmpty();
+    }
+
+    /**
+     * 값 목록 조건은 그중 하나와 같은 객체를 한 번에 찾는다. 값 하나만 받을 때는 값마다 따로 부르거나 목록을 넣어 입력을 읽지 못했다(2026-11-14 대화
+     * 103). 076 입력에는 값 목록이 없고 Agent 전용 입구로만 간다.
+     */
+    @Test
+    void findsObjectsMatchingAnyOfSeveralValues() {
+        ObjectList both =
+                (ObjectList)
+                        tools(VIEWER)
+                                .objectList(
+                                        visible,
+                                        Map.of("status", List.of("가동", "정지")),
+                                        null,
+                                        null,
+                                        null,
+                                        null)
+                                .get("data");
+        ObjectList withMissing =
+                (ObjectList)
+                        tools(VIEWER)
+                                .objectList(
+                                        visible,
+                                        Map.of("status", List.of("정지", "점검")),
+                                        null,
+                                        null,
+                                        null,
+                                        null)
+                                .get("data");
+        ObjectList oneInList =
+                (ObjectList)
+                        tools(VIEWER)
+                                .objectList(
+                                        visible,
+                                        Map.of("status", List.of("정지")),
+                                        null,
+                                        null,
+                                        null,
+                                        null)
+                                .get("data");
+
+        assertThat(both.total()).isEqualTo(26L);
+        assertThat(withMissing.total()).isEqualTo(1L);
+        assertThat(withMissing.unmatchedValues()).containsEntry("status", "점검");
+        assertThat(oneInList.total()).as("값이 하나뿐인 목록은 값 하나 조건과 같다").isEqualTo(1L);
+        assertThat(
+                        tools(VIEWER)
+                                .objectList(
+                                        visible,
+                                        Map.of("cost", List.of("900", "1200")),
+                                        null,
+                                        null,
+                                        null,
+                                        null))
+                .as("볼 수 없는 민감 속성은 값 목록이어도 DENIED다")
+                .containsEntry("resultCategory", "DENIED");
+    }
+
+    /** 값 하나 조건과 값 목록 조건을 함께 건다. 빈 목록은 조건을 빼지 않고 입력 오류다(!475 리뷰). */
+    @Test
+    void combinesSingleAndSeveralValuesAndRejectsEmptyList() {
+        ObjectList mixed =
+                (ObjectList)
+                        tools(VIEWER)
+                                .objectList(
+                                        visible,
+                                        Map.of(
+                                                "status",
+                                                List.of("가동", "정지"),
+                                                "started_on",
+                                                "2026-10-01"),
+                                        null,
+                                        null,
+                                        null,
+                                        null)
+                                .get("data");
+
+        assertThat(mixed.objects())
+                .extracting(AgentQueryTools.ObjectSummary::displayName)
+                .containsExactly("EQ-1");
+        assertThat(
+                        tools(VIEWER)
+                                .objectList(
+                                        visible,
+                                        Map.of("status", List.of()),
+                                        null,
+                                        null,
+                                        null,
+                                        null))
+                .hasEntrySatisfying(
+                        "error", error -> assertThat((String) error).contains("값을 하나 이상"));
     }
 
     @Test

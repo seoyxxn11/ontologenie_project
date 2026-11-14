@@ -122,9 +122,11 @@ public class AgentObjectSetTools {
                             required = false)
                     Long objectTypeId,
             @ToolParam(
-                            description = "속성 값 조건(OBJECT_LIST와 같음). 속성 코드를 키로, 저장된 값을 값으로 둔다",
+                            description =
+                                    "속성 값 조건(OBJECT_LIST와 같음). 속성 코드를 키로, 저장된 값이나 값 목록을 값으로 둔다. 값 목록은"
+                                            + " 그중 하나와 같으면 된다",
                             required = false)
-                    Map<String, String> propertyValues,
+                    Map<String, Object> propertyValues,
             @ToolParam(description = "기간으로 거를 날짜·시각 속성 코드", required = false) String dateProperty,
             @ToolParam(description = "기간 시작일(yyyy-MM-dd, 이 날 포함)", required = false) String from,
             @ToolParam(description = "기간 종료일(yyyy-MM-dd, 이 날 포함)", required = false) String to) {
@@ -151,10 +153,15 @@ public class AgentObjectSetTools {
                                         + " objectTypeId를 씁니다.",
                                 null);
                     }
-                    return byObjects
-                            ? startFromObjects(objectIds)
-                            : startFromConditions(
-                                    objectTypeId, propertyValues, dateProperty, from, to);
+                    if (byObjects) {
+                        return startFromObjects(objectIds);
+                    }
+                    return startFromConditions(
+                            objectTypeId,
+                            AgentConditions.of(propertyValues),
+                            dateProperty,
+                            from,
+                            to);
                 });
     }
 
@@ -180,8 +187,12 @@ public class AgentObjectSetTools {
                                     "OUT(관계의 출발 → 도착), IN(도착 → 출발), BOTH(양 끝 유형이 같은 관계만). 비우면 서버가 정한다",
                             required = false)
                     String direction,
-            @ToolParam(description = "연결된 객체의 속성 값 조건. 속성 코드를 키로, 저장된 값을 값으로 둔다", required = false)
-                    Map<String, String> propertyValues,
+            @ToolParam(
+                            description =
+                                    "연결된 객체(도착 유형)의 속성 값 조건. 속성 코드를 키로, 저장된 값이나 값 목록을 값으로 둔다. 값이 여럿이면"
+                                            + " 그중 하나와 같으면 된다(예: {\"<속성 코드>\": [\"<값1>\", \"<값2>\"]}). 출발 유형의 속성은 쓸 수 없다",
+                            required = false)
+                    Map<String, Object> propertyValues,
             @ToolParam(description = "연결된 객체를 기간으로 거를 날짜·시각 속성 코드", required = false)
                     String dateProperty,
             @ToolParam(description = "기간 시작일(yyyy-MM-dd, 이 날 포함)", required = false) String from,
@@ -324,31 +335,34 @@ public class AgentObjectSetTools {
     }
 
     private Outcome startFromConditions(
-            long typeId,
-            Map<String, String> propertyValues,
-            String dateProperty,
-            String from,
-            String to) {
+            long typeId, AgentConditions conditions, String dateProperty, String from, String to) {
         List<PropertyItem> properties = properties(typeId);
         PropertyDataType periodType = AgentObjectListTools.dataTypeOf(properties, dateProperty);
         IdSearch found;
         try {
             // 건수와 ID만 같은 스냅샷에서 읽는다. 상한을 넘으면 ID는 읽지 않는다.
+            ObjectSearchRequest request =
+                    new ObjectSearchRequest(
+                            null,
+                            typeId,
+                            ObjectSearchRequest.Status.ACTIVE,
+                            null,
+                            null,
+                            conditions.single(),
+                            AgentObjectListTools.blankToNull(dateProperty),
+                            AgentObjectListTools.periodStart(periodType, from),
+                            AgentObjectListTools.periodEnd(periodType, to));
+            // 값 목록 조건은 Agent 전용 입구로 보낸다. 값 하나만 있으면 076과 같은 입구다.
             found =
-                    objects.searchIds(
-                            session.asker(),
-                            DataPurpose.MODEL,
-                            new ObjectSearchRequest(
-                                    null,
-                                    typeId,
-                                    ObjectSearchRequest.Status.ACTIVE,
-                                    null,
-                                    null,
-                                    propertyValues,
-                                    AgentObjectListTools.blankToNull(dateProperty),
-                                    AgentObjectListTools.periodStart(periodType, from),
-                                    AgentObjectListTools.periodEnd(periodType, to)),
-                            MAX_SET_SIZE);
+                    conditions.several().isEmpty()
+                            ? objects.searchIds(
+                                    session.asker(), DataPurpose.MODEL, request, MAX_SET_SIZE)
+                            : objects.searchIds(
+                                    session.asker(),
+                                    DataPurpose.MODEL,
+                                    request,
+                                    conditions.several(),
+                                    MAX_SET_SIZE);
         } catch (BusinessException ex) {
             if (ex.getErrorCode() == CommonErrorCode.FORBIDDEN) {
                 return denied();
@@ -367,8 +381,7 @@ public class AgentObjectSetTools {
                             + "건을 넘습니다. 속성이나 기간 조건을 더해 주세요.",
                     null);
         }
-        Map<String, String> unmatched =
-                AgentObjectListTools.unmatchedValues(properties, propertyValues);
+        Map<String, String> unmatched = conditions.unmatched(properties);
         if (found.ids().isEmpty()) {
             Map<String, Object> data = new LinkedHashMap<>();
             data.put("count", 0);
@@ -397,11 +410,12 @@ public class AgentObjectSetTools {
             String objectSetId,
             Long linkTypeId,
             String direction,
-            Map<String, String> propertyValues,
+            Map<String, Object> propertyValues,
             String dateProperty,
             String from,
             String to) {
         ObjectSet set = requireSet(objectSetId);
+        AgentConditions conditions = AgentConditions.of(propertyValues);
         if (session.searchArounds() >= MAX_SEARCH_AROUNDS) {
             throw new InvalidInput(
                     "한 질문에서 관계 따라가기는 "
@@ -446,11 +460,25 @@ public class AgentObjectSetTools {
                                     available,
                                     linkTypeId,
                                     requested,
-                                    propertyValues,
+                                    conditions.single(),
                                     AgentObjectListTools.blankToNull(dateProperty),
                                     AgentObjectListTools.periodStart(periodType, from),
-                                    AgentObjectListTools.periodEnd(periodType, to)));
+                                    AgentObjectListTools.periodEnd(periodType, to),
+                                    conditions.several()));
         } catch (BusinessException ex) {
+            // 조건 칸의 입력 오류일 때만 안내한다. 방향·기준 객체 오류(objectIds)에 붙이면 엉뚱한 유형의 속성을 안내한다(!475 리뷰).
+            String hint =
+                    ex.getErrorCode() == CommonErrorCode.VALIDATION_FAILED && conditionField(ex)
+                            ? conditionHint(
+                                    summary,
+                                    set.objectTypeId(),
+                                    expectedType,
+                                    expectedProperties,
+                                    conditions)
+                            : null;
+            if (hint != null) {
+                throw new InvalidInput(AgentObjectListTools.reasonOf(ex) + " " + hint, ex);
+            }
             return searchAroundFailure(ex, linkTypeId);
         }
         // 결과에 넣을 값을 모두 읽은 뒤에 Object Set을 저장하고 횟수를 센다. 뒤 조회가 실패해 답이 실패가 되면 세지 않는다.
@@ -463,7 +491,7 @@ public class AgentObjectSetTools {
         String relatedTypeName = typeName(summary, relatedType);
         // 379에 실제로 넘긴 조건으로 판단한다. 빈 문자열만 보낸 조건은 조건이 아니다.
         boolean filtered =
-                (propertyValues != null && !propertyValues.isEmpty())
+                !conditions.isEmpty()
                         || AgentObjectListTools.blankToNull(dateProperty) != null
                         || AgentObjectListTools.blankToNull(from) != null
                         || AgentObjectListTools.blankToNull(to) != null;
@@ -492,9 +520,7 @@ public class AgentObjectSetTools {
         data.put("sample", sample);
         data.put("properties", properties);
         data.put("linkTypes", nextLinkTypes(summary, relatedType));
-        data.put(
-                "unmatchedValues",
-                AgentObjectListTools.unmatchedValues(properties, propertyValues));
+        data.put("unmatchedValues", conditions.unmatched(properties));
         data.put("remainingSearchArounds", MAX_SEARCH_AROUNDS - session.searchArounds());
         if (unavailable > 0) {
             data.put("unavailableBaseObjects", unavailable);
@@ -520,7 +546,7 @@ public class AgentObjectSetTools {
     Map<String, Object> find(
             List<Long> objectIds,
             String targetType,
-            Map<String, List<String>> propertyValues,
+            Map<String, ?> propertyValues,
             String dateProperty,
             String from,
             String to,
@@ -551,7 +577,7 @@ public class AgentObjectSetTools {
                         findPaths(
                                 objectIds,
                                 targetType,
-                                propertyValues == null ? Map.of() : propertyValues,
+                                AgentConditions.of(propertyValues).asLists(),
                                 dateProperty,
                                 from,
                                 to,
@@ -950,6 +976,55 @@ public class AgentObjectSetTools {
         return stored;
     }
 
+    private static boolean conditionField(BusinessException ex) {
+        Object field = ex.getDetails() == null ? null : ex.getDetails().get("field");
+        return field instanceof String name
+                && (name.startsWith("propertyValues[") || name.startsWith("propertyValueSets["));
+    }
+
+    /**
+     * 서비스가 조건을 입력 오류로 돌려줬을 때 덧붙일 안내. 출발 유형의 속성을 넣어 "정의된 속성 코드를 지정해 주세요"만 받고 같은 실수를 되풀이한 일이
+     * 있었다(2026-11-14 대화 102). 볼 수 없는 민감 속성 조건은 서비스가 DENIED로 답하므로 여기 오지 않는다. 미리 막지 않는 것도 그래서다. 도착
+     * 유형을 모르거나 볼 수 있는 속성 목록에 없는 코드가 없으면 null이다.
+     */
+    private String conditionHint(
+            ModelSummaryResponse summary,
+            long fromType,
+            Long toType,
+            List<PropertyItem> toProperties,
+            AgentConditions conditions) {
+        if (toType == null || toProperties.isEmpty() || conditions.isEmpty()) {
+            return null;
+        }
+        Set<String> known =
+                toProperties.stream().map(PropertyItem::code).collect(Collectors.toSet());
+        List<String> unknown =
+                conditions.codes().stream().filter(code -> !known.contains(code)).toList();
+        if (unknown.isEmpty()) {
+            return null;
+        }
+        Set<String> fromCodes =
+                properties(fromType).stream().map(PropertyItem::code).collect(Collectors.toSet());
+        List<String> onFrom = unknown.stream().filter(fromCodes::contains).toList();
+        StringBuilder reason =
+                new StringBuilder("propertyValues는 도착 유형 '")
+                        .append(typeName(summary, toType))
+                        .append("'의 속성에만 겁니다. ")
+                        .append(unknown)
+                        .append("는 그 유형의 속성이 아닙니다. 쓸 수 있는 속성: ")
+                        .append(toProperties.stream().map(PropertyItem::code).toList())
+                        .append('.');
+        if (!onFrom.isEmpty()) {
+            reason.append(' ')
+                    .append(onFrom)
+                    .append("는 출발 유형 '")
+                    .append(typeName(summary, fromType))
+                    .append(
+                            "'의 속성입니다. 출발 객체를 그 조건으로 좁히려면 OBJECT_SET_START를 그 조건으로 다시 만들고, 찾는 객체의 조건이면 도착 유형의 속성으로 다시 부르세요.");
+        }
+        return reason.toString();
+    }
+
     /** 고칠 수 있는 입력 오류는 이유를 돌려주고, 볼 수 없는 민감 속성 조건은 DENIED로 답한다. */
     private Outcome searchAroundFailure(BusinessException ex, long linkTypeId) {
         CommonErrorCode code = ex.getErrorCode() instanceof CommonErrorCode common ? common : null;
@@ -1130,7 +1205,7 @@ public class AgentObjectSetTools {
 
     private static void putConditions(
             Map<String, Object> input,
-            Map<String, String> propertyValues,
+            Map<String, ?> propertyValues,
             String dateProperty,
             String from,
             String to) {

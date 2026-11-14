@@ -3,6 +3,7 @@ package com.axcore.platform.agent.service;
 import com.axcore.platform.auth.service.ModelTextMasker;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.ai.chat.model.ToolContext;
@@ -13,6 +14,7 @@ import org.springframework.ai.tool.metadata.ToolMetadata;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.exc.MismatchedInputException;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
@@ -31,10 +33,14 @@ final class ModelMaskingToolCallback implements ToolCallback {
     private static final JsonMapper JSON =
             JsonMapper.builder().enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS).build();
 
-    private final ToolCallback delegate;
+    static final String UNREADABLE_INPUT_LABEL = "도구 입력 확인";
 
-    private ModelMaskingToolCallback(ToolCallback delegate) {
+    private final ToolCallback delegate;
+    private final AgentQuerySession session;
+
+    private ModelMaskingToolCallback(ToolCallback delegate, AgentQuerySession session) {
         this.delegate = delegate;
+        this.session = session;
     }
 
     /**
@@ -42,27 +48,32 @@ final class ModelMaskingToolCallback implements ToolCallback {
      * ChatClient.tools}가 받던 것과 같은 모양을 받는다.
      */
     static ToolCallback[] wrapAll(Object... tools) {
+        return wrapAllRecording(null, tools);
+    }
+
+    /** 위와 같고, 도구 입력을 읽지 못한 호출을 이번 답변의 조회 기록에 실패로 남긴다. session이 null이면 기록하지 않고 고칠 방법만 돌려준다. */
+    static ToolCallback[] wrapAllRecording(AgentQuerySession session, Object... tools) {
         List<ToolCallback> wrapped = new ArrayList<>();
         for (Object tool : tools) {
-            collect(tool, wrapped);
+            collect(tool, wrapped, session);
         }
         return wrapped.toArray(ToolCallback[]::new);
     }
 
-    private static void collect(Object tool, List<ToolCallback> out) {
+    private static void collect(Object tool, List<ToolCallback> out, AgentQuerySession session) {
         if (tool instanceof ToolCallback callback) {
-            out.add(new ModelMaskingToolCallback(callback));
+            out.add(new ModelMaskingToolCallback(callback, session));
         } else if (tool instanceof ToolCallback[] callbacks) {
             for (ToolCallback callback : callbacks) {
-                out.add(new ModelMaskingToolCallback(callback));
+                out.add(new ModelMaskingToolCallback(callback, session));
             }
         } else if (tool instanceof Collection<?> items) {
             for (Object item : items) {
-                collect(item, out);
+                collect(item, out, session);
             }
         } else {
             for (ToolCallback callback : ToolCallbacks.from(tool)) {
-                out.add(new ModelMaskingToolCallback(callback));
+                out.add(new ModelMaskingToolCallback(callback, session));
             }
         }
     }
@@ -79,12 +90,109 @@ final class ModelMaskingToolCallback implements ToolCallback {
 
     @Override
     public String call(String toolInput) {
-        return masked(delegate.call(toolInput));
+        try {
+            return masked(delegate.call(toolInput));
+        } catch (RuntimeException ex) {
+            return unreadableInput(toolInput, ex);
+        }
     }
 
     @Override
     public String call(String toolInput, ToolContext toolContext) {
-        return masked(delegate.call(toolInput, toolContext));
+        try {
+            return masked(delegate.call(toolInput, toolContext));
+        } catch (RuntimeException ex) {
+            return unreadableInput(toolInput, ex);
+        }
+    }
+
+    /**
+     * AI가 보낸 입력을 도구 인자 형식으로 바꾸지 못했으면(예: 문자열 자리에 목록) Java 오류 원문 대신 고칠 방법을 돌려주고 실패로 기록한다. 원문은 내부 클래스
+     * 이름을 담고, 기록이 없어 답변 출처에도 남지 않았다(2026-11-14 대화 103). 입력 형식 오류가 아니면 그대로 던진다.
+     */
+    private String unreadableInput(String toolInput, RuntimeException ex) {
+        MismatchedInputException mismatch = mismatchedInput(ex);
+        if (mismatch == null) {
+            throw ex;
+        }
+        String name = delegate.getToolDefinition().name();
+        String reason =
+                "입력 형식이 도구 설명과 달라 읽지 못했습니다"
+                        + where(mismatch)
+                        + ". 값마다 정해진 형식(숫자, 문자열, 목록)으로 고쳐 "
+                        + name
+                        + "을 다시 부르세요.";
+        Map<String, Object> reply;
+        if (session == null) {
+            reply = Map.of("error", reason);
+        } else {
+            Map<String, Object> input = new LinkedHashMap<>();
+            input.put("toolInput", toolInput == null ? null : abbreviate(toolInput));
+            reply =
+                    session.run(
+                            name,
+                            UNREADABLE_INPUT_LABEL,
+                            input,
+                            null,
+                            null,
+                            () -> {
+                                throw new AgentQuerySession.InvalidInput(reason, ex);
+                            });
+        }
+        return masked(JSON.writeValueAsString(reply));
+    }
+
+    private static MismatchedInputException mismatchedInput(Throwable ex) {
+        for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+            if (cause instanceof MismatchedInputException mismatch) {
+                return mismatch;
+            }
+            if (cause.getCause() == cause) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /** 틀린 칸과 기대한 형식. 어느 값이 틀렸는지 몰라 조건을 통째로 빼던 일이 있었다(!475 리뷰). Java 클래스 이름은 넣지 않는다. */
+    private static String where(MismatchedInputException mismatch) {
+        List<String> names = new ArrayList<>();
+        for (JacksonException.Reference reference : mismatch.getPath()) {
+            if (reference.getPropertyName() != null) {
+                names.add(reference.getPropertyName());
+            } else if (reference.getIndex() >= 0) {
+                names.add("[" + reference.getIndex() + "]");
+            }
+        }
+        String expected = expected(mismatch.getTargetType());
+        if (names.isEmpty()) {
+            return expected == null ? "" : "(" + expected + "이어야 하는 값)";
+        }
+        String at = String.join(".", names).replace(".[", "[");
+        return expected == null ? "(위치: " + at + ")" : "(위치: " + at + ", " + expected + "이어야 함)";
+    }
+
+    private static String expected(Class<?> type) {
+        if (type == null) {
+            return null;
+        }
+        if (CharSequence.class.isAssignableFrom(type)) {
+            return "문자열 하나";
+        }
+        if (Number.class.isAssignableFrom(type) || (type.isPrimitive() && type != boolean.class)) {
+            return "숫자";
+        }
+        if (Collection.class.isAssignableFrom(type) || type.isArray()) {
+            return "목록";
+        }
+        if (Map.class.isAssignableFrom(type)) {
+            return "객체";
+        }
+        return null;
+    }
+
+    private static String abbreviate(String text) {
+        return text.length() <= 500 ? text : text.substring(0, 500) + "…";
     }
 
     /** JSON이면 문자열 값과 키마다, 아니면 글 전체를 가린다. */

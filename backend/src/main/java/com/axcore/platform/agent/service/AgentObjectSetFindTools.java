@@ -34,7 +34,7 @@ public class AgentObjectSetFindTools {
                                     "찾는 유형의 속성 조건. 속성 코드를 키로, 저장된 값 목록을 값으로 둔다. 값이 여럿이면 그중 하나와 같으면"
                                             + " 된다(예: {\"status\": [\"생산중\", \"접수\"]})",
                             required = false)
-                    Map<String, List<String>> propertyValues,
+                    Map<String, Object> propertyValues,
             @ToolParam(description = "찾는 유형을 기간으로 거를 날짜·시각 속성 코드", required = false)
                     String dateProperty,
             @ToolParam(description = "기간 시작일(yyyy-MM-dd, 이 날 포함)", required = false) String from,
@@ -43,6 +43,7 @@ public class AgentObjectSetFindTools {
                             description = "경로 번호. 앞 결과의 paths 중 하나만 다시 볼 때 넣는다. 비우면 모든 경로를 본다",
                             required = false)
                     Integer pathIndex) {
+        // 값 하나만 보내도(예: {"status": "진행"}) 목록으로 받는다. 형식이 달라 입력을 읽지 못하는 일을 막는다.
         return sets.find(objectIds, targetType, propertyValues, dateProperty, from, to, pathIndex);
     }
 }

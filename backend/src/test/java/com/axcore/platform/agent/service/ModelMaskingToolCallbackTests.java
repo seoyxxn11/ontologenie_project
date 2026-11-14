@@ -14,6 +14,18 @@ import org.springframework.ai.tool.definition.ToolDefinition;
 /** Agent 도구 결과가 모델로 가기 전에 자유 글 가림을 거치는지 본다(S15P31C106-414). */
 class ModelMaskingToolCallbackTests {
 
+    static class ConditionTools {
+        @Tool(description = "조건 하나")
+        String byCondition(java.util.Map<String, String> propertyValues) {
+            return "조건 " + propertyValues;
+        }
+
+        @Tool(description = "늘 실패")
+        String broken() {
+            throw new IllegalStateException("내부 오류");
+        }
+    }
+
     static class NoteTools {
         @Tool(description = "인계 메모")
         String handoverNote() {
@@ -50,6 +62,53 @@ class ModelMaskingToolCallbackTests {
         assertThat(wrapped[0].call("{}")).isEqualTo("\"야간 *** 반장 확인, 연락 ***. 설비 P103\"");
         assertThat(wrapped[1].call("{}")).isEqualTo("***님께 전달");
         assertThat(wrapped[2].call("{}", new ToolContext(java.util.Map.of()))).isEqualTo("***");
+    }
+
+    /**
+     * 입력을 도구 인자로 바꾸지 못하면(문자열 자리에 목록) Java 오류 원문 대신 고칠 방법을 주고 이번 답변에 실패로 남긴다(2026-11-14 대화 103). 다른
+     * 오류는 그대로 던진다.
+     */
+    @Test
+    void reportsUnreadableInputAsFixableFailure() {
+        AgentQuerySession session =
+                new AgentQuerySession(
+                        new com.axcore.platform.global.security.LoginAccount(
+                                7L, "planner", "PLANNER", false),
+                        11L,
+                        org.mockito.Mockito.mock(AgentQueryRecorder.class),
+                        java.time.Clock.systemUTC());
+        ToolCallback[] wrapped =
+                ModelMaskingToolCallback.wrapAllRecording(session, new ConditionTools());
+        ToolCallback byCondition =
+                java.util.Arrays.stream(wrapped)
+                        .filter(tool -> tool.getToolDefinition().name().equals("byCondition"))
+                        .findFirst()
+                        .orElseThrow();
+
+        assertThat(byCondition.call("{\"propertyValues\":{\"status\":\"진행\"}}")).contains("조건");
+        String reply = byCondition.call("{\"propertyValues\":{\"status\":[\"진행\",\"대기\"]}}");
+
+        assertThat(reply)
+                .contains("입력 형식이 도구 설명과 달라", "byCondition", "위치: status", "문자열 하나")
+                .doesNotContain("Cannot deserialize", "java.lang");
+        assertThat(session.results())
+                .extracting(
+                        AgentQueryResult::toolCode,
+                        AgentQueryResult::label,
+                        AgentQueryResult::succeeded)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(
+                                "byCondition",
+                                ModelMaskingToolCallback.UNREADABLE_INPUT_LABEL,
+                                false));
+        ToolCallback broken =
+                java.util.Arrays.stream(wrapped)
+                        .filter(tool -> tool.getToolDefinition().name().equals("broken"))
+                        .findFirst()
+                        .orElseThrow();
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> broken.call("{}"))
+                .as("입력 형식 오류가 아니면 바꾸지 않는다")
+                .isInstanceOf(RuntimeException.class);
     }
 
     @Test

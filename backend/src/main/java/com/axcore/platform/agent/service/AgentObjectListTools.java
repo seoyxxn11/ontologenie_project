@@ -93,10 +93,11 @@ public class AgentObjectListTools {
             @ToolParam(description = "객체 유형 ID(모델 요약의 id)") Long objectTypeId,
             @ToolParam(
                             description =
-                                    "속성 값 조건. 속성 코드를 키로, 저장된 값을 값으로 둔다(예: {\"status\": \"가동\"}). 여러 개면 모두"
+                                    "속성 값 조건. 속성 코드를 키로, 저장된 값이나 값 목록을 값으로 둔다(예: {\"status\": \"가동\"},"
+                                            + " {\"<속성 코드>\": [\"<값1>\", \"<값2>\"]}). 값 목록은 그중 하나와 같으면 된다. 속성이 여러 개면 모두"
                                             + " 만족하는 객체만 찾는다. 없으면 비운다",
                             required = false)
-                    Map<String, String> propertyValues,
+                    Map<String, Object> propertyValues,
             @ToolParam(
                             description = "기간으로 거를 날짜(DATE)·시각(DATETIME) 속성 코드. 기간이 없으면 비운다",
                             required = false)
@@ -129,24 +130,32 @@ public class AgentObjectListTools {
                     }
                     long typeId = objectTypeId;
                     int pageNumber = pageNumber(page);
+                    AgentConditions conditions = AgentConditions.of(propertyValues);
                     List<PropertyItem> properties = visibleProperties(typeId);
                     PropertyDataType periodType = dataTypeOf(properties, dateProperty);
                     Page<ObjectSearchResponse> found;
                     try {
+                        ObjectSearchRequest request =
+                                new ObjectSearchRequest(
+                                        null,
+                                        typeId,
+                                        ObjectSearchRequest.Status.ACTIVE,
+                                        pageNumber,
+                                        AgentQueryTools.MAX_ROWS,
+                                        conditions.single(),
+                                        blankToNull(dateProperty),
+                                        periodStart(periodType, from),
+                                        periodEnd(periodType, to));
+                        // 값 목록 조건은 Agent 전용 입구로 보낸다. 값 하나만 있으면 076과 같은 입구다.
                         found =
-                                objects.search(
-                                        session.asker(),
-                                        DataPurpose.MODEL,
-                                        new ObjectSearchRequest(
-                                                null,
-                                                typeId,
-                                                ObjectSearchRequest.Status.ACTIVE,
-                                                pageNumber,
-                                                AgentQueryTools.MAX_ROWS,
-                                                propertyValues,
-                                                blankToNull(dateProperty),
-                                                periodStart(periodType, from),
-                                                periodEnd(periodType, to)));
+                                conditions.several().isEmpty()
+                                        ? objects.search(
+                                                session.asker(), DataPurpose.MODEL, request)
+                                        : objects.search(
+                                                session.asker(),
+                                                DataPurpose.MODEL,
+                                                request,
+                                                conditions.several());
                     } catch (BusinessException ex) {
                         if (ex.getErrorCode() == CommonErrorCode.FORBIDDEN) {
                             // 볼 수 없는 민감 속성으로 거르려 했다. 결과 건수로 값이 드러나지 않게 076이 거절한다.
@@ -171,7 +180,7 @@ public class AgentObjectListTools {
                                     found.hasNext(),
                                     rows,
                                     properties,
-                                    unmatchedValues(properties, propertyValues)),
+                                    conditions.unmatched(properties)),
                             found.getTotalElements() == 0
                                     ? AgentResultCategory.NO_DATA
                                     : AgentResultCategory.FOUND,

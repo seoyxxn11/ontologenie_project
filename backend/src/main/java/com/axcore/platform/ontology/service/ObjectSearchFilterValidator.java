@@ -69,7 +69,7 @@ public class ObjectSearchFilterValidator {
 
     /**
      * {@link #validate(long, Map, String, String, String, DataAccess)}와 같고 속성마다 값을 여럿 받는다. 값이 여럿이면
-     * 그중 하나와 같으면 된다. Agent 목표 유형 찾기(OBJECT_SET_FIND)가 끝나지 않은 상태 값 여러 개를 한 번에 걸 때 쓴다.
+     * 그중 하나와 같으면 된다. Agent 조회 도구(객체 목록·객체 집합·목표 유형 찾기)가 값 여러 개(예: 끝나지 않은 상태 값들)를 한 번에 걸 때 쓴다.
      */
     SearchFilters validateAny(
             long typeId,

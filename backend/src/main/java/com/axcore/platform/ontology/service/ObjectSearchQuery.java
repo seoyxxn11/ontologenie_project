@@ -6,6 +6,7 @@ import com.axcore.platform.ontology.dto.ObjectSearchRequest;
 import com.axcore.platform.ontology.dto.ObjectSearchResponse;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import org.springframework.data.domain.Page;
 
 /** 076 객체 검색을 Explorer와 Agent가 같은 권한 기준으로 호출하는 계약. */
@@ -21,6 +22,16 @@ public interface ObjectSearchQuery {
             LoginAccount actor, DataPurpose purpose, ObjectSearchRequest request);
 
     /**
+     * 위와 같고, 속성마다 값 목록 조건(그중 하나와 같으면 된다)을 더한다. Agent 도구만 쓰고 076 입력에는 없다. 같은 속성을
+     * request.propertyValues와 함께 넣으면 입력 오류다.
+     */
+    Page<ObjectSearchResponse> search(
+            LoginAccount actor,
+            DataPurpose purpose,
+            ObjectSearchRequest request,
+            Map<String, List<String>> propertyValueSets);
+
+    /**
      * 076과 같은 권한·조건으로 맞는 객체의 전체 건수와 ID를 id 순으로 돌려준다(380). 건수가 limit를 넘으면 ID는 읽지 않고 비운다. Agent
      * Object Set을 조건으로 만들 때 쓴다. 검색어(q)는 받지 않고, page·size는 보지 않는다.
      */
@@ -29,6 +40,14 @@ public interface ObjectSearchQuery {
     /** 위와 같고, 읽는 용도를 정한다. Agent 도구처럼 외부 모델에 보내는 값은 DataPurpose.MODEL로 읽어 민감 값을 항상 가린다(384). */
     IdSearch searchIds(
             LoginAccount actor, DataPurpose purpose, ObjectSearchRequest request, int limit);
+
+    /** 위와 같고, 속성마다 값 목록 조건을 더한다(Agent 전용, search의 값 목록 조건과 같다). */
+    IdSearch searchIds(
+            LoginAccount actor,
+            DataPurpose purpose,
+            ObjectSearchRequest request,
+            Map<String, List<String>> propertyValueSets,
+            int limit);
 
     /** 조건에 맞는 전체 건수와 객체 ID. 건수가 상한을 넘으면 ids는 비어 있다. */
     record IdSearch(long total, List<Long> ids) {

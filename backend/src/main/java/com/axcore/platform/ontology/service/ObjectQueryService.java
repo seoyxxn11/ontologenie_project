@@ -77,11 +77,21 @@ public class ObjectQueryService
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public Page<ObjectSearchResponse> search(
             LoginAccount actor, DataPurpose purpose, ObjectSearchRequest request) {
+        return search(actor, purpose, request, Map.of());
+    }
+
+    @Override
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public Page<ObjectSearchResponse> search(
+            LoginAccount actor,
+            DataPurpose purpose,
+            ObjectSearchRequest request,
+            Map<String, List<String>> propertyValueSets) {
         PageRequest page =
                 PageRequest.of(
                         request.page() == null ? 0 : request.page(),
                         request.size() == null ? DEFAULT_PAGE_SIZE : request.size());
-        SearchScope scope = searchScope(actor, purpose, request);
+        SearchScope scope = searchScope(actor, purpose, request, propertyValueSets);
         if (scope == null) {
             return Page.empty(page);
         }
@@ -112,10 +122,21 @@ public class ObjectQueryService
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public IdSearch searchIds(
             LoginAccount actor, DataPurpose purpose, ObjectSearchRequest request, int limit) {
+        return searchIds(actor, purpose, request, Map.of(), limit);
+    }
+
+    @Override
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public IdSearch searchIds(
+            LoginAccount actor,
+            DataPurpose purpose,
+            ObjectSearchRequest request,
+            Map<String, List<String>> propertyValueSets,
+            int limit) {
         if (request.q() != null && !request.q().isBlank()) {
             throw new IllegalArgumentException("검색어 조건은 ID 조회에서 지원하지 않습니다.");
         }
-        SearchScope scope = searchScope(actor, purpose, request);
+        SearchScope scope = searchScope(actor, purpose, request, propertyValueSets);
         if (scope == null) {
             return new IdSearch(0, List.of());
         }
@@ -128,10 +149,17 @@ public class ObjectQueryService
         return new IdSearch(total, ids);
     }
 
-    /** 076의 권한·조건 검사. 볼 수 있는 유형이 없으면 조건을 검증하지 않고 null이다(숨긴 유형의 속성을 드러내지 않는다). */
+    /**
+     * 076의 권한·조건 검사. 볼 수 있는 유형이 없으면 조건을 검증하지 않고 null이다(숨긴 유형의 속성을 드러내지 않는다). 값 목록 조건(Agent 전용)이 있으면
+     * Search Around와 같은 검사(validateAny)로 값 하나 조건과 함께 검증한다.
+     */
     private SearchScope searchScope(
-            LoginAccount actor, DataPurpose purpose, ObjectSearchRequest request) {
-        if (request.hasFilters() && request.objectTypeId() == null) {
+            LoginAccount actor,
+            DataPurpose purpose,
+            ObjectSearchRequest request,
+            Map<String, List<String>> propertyValueSets) {
+        boolean severalValues = propertyValueSets != null && !propertyValueSets.isEmpty();
+        if ((request.hasFilters() || severalValues) && request.objectTypeId() == null) {
             throw BusinessException.invalidField("objectTypeId", "속성 또는 기간 조건에는 객체 유형을 지정해 주세요.");
         }
         Status status = request.status() == null ? Status.ACTIVE : request.status();
@@ -152,11 +180,36 @@ public class ObjectQueryService
         if (visibleTypeIds.isEmpty()) {
             return null;
         }
-        SearchFilters filters = filterValidator.validate(request, access);
+        SearchFilters filters =
+                severalValues
+                        ? filterValidator.validateAny(
+                                request.objectTypeId(),
+                                mergedConditions(request.propertyValues(), propertyValueSets),
+                                request.dateProperty(),
+                                request.from(),
+                                request.to(),
+                                access)
+                        : filterValidator.validate(request, access);
         if (!filters.values().isEmpty()) {
             filters = matchStoredSpacing(filters, request.objectTypeId(), status);
         }
         return new SearchScope(access, visibleTypeIds, status, filters);
+    }
+
+    /** 값 하나 조건과 값 목록 조건을 합친다. 같은 속성을 두 칸에 함께 넣으면 입력 오류다(Search Around와 같다). */
+    private static Map<String, List<String>> mergedConditions(
+            Map<String, String> single, Map<String, List<String>> several) {
+        Map<String, List<String>> conditions = new LinkedHashMap<>();
+        single.forEach((code, value) -> conditions.put(code, Collections.singletonList(value)));
+        several.forEach(
+                (code, values) -> {
+                    if (conditions.putIfAbsent(code, values) != null) {
+                        throw BusinessException.invalidField(
+                                "propertyValueSets[" + code + "]",
+                                "같은 속성을 propertyValues와 propertyValueSets에 함께 넣을 수 없습니다.");
+                    }
+                });
+        return conditions;
     }
 
     private record SearchScope(
