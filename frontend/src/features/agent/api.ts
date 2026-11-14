@@ -29,8 +29,8 @@ export async function createConversation() {
   return body.data
 }
 
-// 임시(개발 데이터 정리용, 나중에 제거): 대화를 DB에서 지운다. API 명세에 없다.
-export async function deleteConversationTemporarily(conversationId: number) {
+// 106 대화 삭제: 내 목록에서 숨긴다. 조회 기록은 감사용으로 남는다.
+export async function deleteConversation(conversationId: number) {
   await apiDelete(`/agent/conversations/${conversationId}`)
 }
 

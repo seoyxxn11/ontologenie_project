@@ -195,7 +195,7 @@ export const agentHandlers = [
     return HttpResponse.json({ data: created }, { status: 201 })
   }),
 
-  // 임시(개발 데이터 정리용, 나중에 제거): 대화 삭제
+  // 106 대화 삭제
   http.delete('/api/v1/agent/conversations/:id', async ({ params }) => {
     await delay(150)
     const id = Number(params.id)

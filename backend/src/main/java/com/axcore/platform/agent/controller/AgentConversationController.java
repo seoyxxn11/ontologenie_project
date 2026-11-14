@@ -53,13 +53,12 @@ public class AgentConversationController {
         return ApiResponse.of(service.create(account.id()));
     }
 
-    /** 임시(개발 데이터 정리용, 나중에 제거). API 명세에 없다. */
-    @Operation(summary = "임시: 대화 삭제")
+    @Operation(summary = "106 대화 삭제")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteTemporarily(
+    public void delete(
             @PathVariable("id") @Min(1) long id, @AuthenticationPrincipal LoginAccount account) {
-        service.deleteTemporarily(account.id(), id);
+        service.delete(account.id(), id);
     }
 
     @Operation(summary = "083 대화 상세")
