@@ -6,7 +6,7 @@
 
 | 파일 | 내용 |
 | --- | --- |
-| `ontology.json` | 객체 유형 29 · 속성 214 · 관계 58 |
+| `ontology.json` | 객체 유형 29 · 속성 214 · 관계 57 |
 | `mapping_rules.json` | ERP·MES 식별자 연결 규칙 5 |
 | `id_links.json` | 연결 규칙의 값 단위 정답 (연결·미연결·결측·모호) |
 | `integrity_checks.json` | 정합성 검사 8건의 기대 판정 (고정자산 K3는 금지 표라 뺌) |
@@ -113,7 +113,6 @@
 | `mes.die.product_code` → `erp.item.item_code` | 기본키 | MANY_TO_ONE | R-ITEM |  |
 | `mes.maintenance_order.target_code` → `mes.equipment.code` | 기본키 | MANY_TO_ONE | target_type = 설비 |  |
 | `mes.maintenance_order.target_code` → `mes.die.die_code` | 기본키 | MANY_TO_ONE | target_type = 금형 |  |
-| `mes.maintenance_order.technician` → `erp.department.dept_name` | 다른 유일 키 | MANY_TO_ONE |  | 홍보람: 팀 대신 담당 직원 이름으로 적힘 |
 | `mes.handover_note.author_id` → `mes.worker.id` | 기본키 | MANY_TO_ONE |  |  |
 | `erp.shipment.lot_no` → `mes.inspection.lot_no` | 다른 유일 키 | ONE_TO_ONE | R-LOT |  |
 
