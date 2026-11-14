@@ -155,6 +155,7 @@ publication과 컬럼 목록은 **Debezium이 쓰는 pgoutput 출력**만 거릅
 - **REPLICATION 한계**: `platform_cdc`로 `test_decoding` 슬롯을 만들면 `erp.attendance` 변경이 보임(위 "한계")
 - **정책 비교**: `test_source_allowlist.py` — 391 브랜치의 `application.yml`과는 일치, 한 글자 바꾸면 실패(395 당시 기록. 그때는 정책이 없으면 건너뛰었지만, 405부터는 백엔드 정책이 없으면 시험이 실패한다)
 - **change_log 금지**(2026-11-14, S15P31C106-405): 같은 방법으로 새 설치 → ERP 11표(CDC 11), MES 14표(CDC 14). 세 계정 모두 `change_log` 거부, publication에 없음. 다시 실행해도 성공
+- **자동 확인 스크립트**(2026-11-14, S15P31C106-396): `bash infra/tests/source_exposure_check.sh`. 일회용 컨테이너에 새 설치하고 세 계정의 컬럼별 읽기(금지·제한·제외·일반 21건)와 pgoutput 슬롯의 변경 흐름(시험 값 10건: 금지 값은 없고 제한·일반 값은 있음)을 보고, 기대와 다르면 종료 코드 1이다. 결과 기록: `docs/evidence/396-20261114/validation.md`
 
 ## 원천에 테이블을 추가할 때
 
