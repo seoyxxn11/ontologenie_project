@@ -28,6 +28,12 @@ public interface SourceResourceRepository extends JpaRepository<SourceResource, 
     @Query("select distinct r.dataSourceId from SourceResource r where r.syncStrategy = :strategy")
     List<Long> findDataSourceIdsBySyncStrategy(@Param("strategy") SyncStrategy strategy);
 
+    /**
+     * 마지막 연결 검사에서 SYNC 계정이 읽을 수 있던 원천 자원. 권한이 빠진 표는 지우지 않고 is_readable=false로 남으므로 거른다. 기동 때 원천 데이터
+     * 정책 항목을 카탈로그와 견준다(405).
+     */
+    List<SourceResource> findByIsReadableTrue();
+
     /** CDC 이벤트의 표({스키마}.{이름})를 찾는다(198-5). */
     Optional<SourceResource> findByDataSourceIdAndResourceKey(
             Long dataSourceId, String resourceKey);

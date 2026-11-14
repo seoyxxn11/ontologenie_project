@@ -10,7 +10,10 @@
   관계 근거에는 쓸 수 있다(정비 담당 → 부서명). 그 안의 사람 이름 모양 값은 app.llm.privacy가 가린다.
 """
 
-FORBIDDEN_TABLES = frozenset({"erp.attendance", "erp.fixed_asset"})
+# change_log는 근태 키(사번|근무일)를 담는 동기화 기록이라 표 전체를 금지한다(S15P31C106-405, 결정 D3).
+FORBIDDEN_TABLES = frozenset(
+    {"erp.attendance", "erp.fixed_asset", "erp.change_log", "mes.change_log"}
+)
 
 FORBIDDEN_COLUMNS = frozenset(
     {

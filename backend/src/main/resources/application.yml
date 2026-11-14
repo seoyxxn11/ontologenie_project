@@ -70,10 +70,14 @@ axcore:
   # 원천 데이터 정책(Jira 384·391). 스키마.표.컬럼, 표 전체는 스키마.표.*.
   # forbidden: 들이지 않는다(매핑·적재·표본 모두 막음). restricted: 들이지만 민감(RESTRICTED) 속성으로만 담는다.
   # 원천 계정 권한·publication 스크립트(infra/source-db)와 같은 목록을 유지한다.
+  # 닫힌 기본값(405): 섹션이 없거나 금지 목록(forbidden)이 비면(민감 목록만 있어도), 또는 항목 형식이 틀리면 기동하지 않는다. 정책 없이 띄우려면 allow-empty: true를 명시한다.
+  # change_log는 근태 키(사번|근무일)를 담는 동기화 기록이라 표 전체를 금지한다(결정 D3).
   source-data-policy:
     forbidden:
       - erp.attendance.*
       - erp.fixed_asset.*
+      - erp.change_log.*
+      - mes.change_log.*
       - erp.employee.emp_name
       - erp.employee.position
       - erp.employee.hire_date

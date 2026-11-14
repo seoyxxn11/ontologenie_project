@@ -17,9 +17,34 @@ APPLICATION_YML = (
 GOLD_DIR = AI_ROOT / "data" / "gold-v1.0"
 
 
+def _yaml_plain(line: str) -> str:
+    """YAML 한 줄에서 주석을 뗀다. #는 줄 처음이거나 앞이 공백이고 따옴표 밖일 때만 주석이다."""
+    quote = None
+    for i, char in enumerate(line):
+        if quote:
+            if char == quote:
+                quote = None
+        elif char in ("'", '"') and (i == 0 or line[i - 1] in " \t[,-:"):
+            quote = char
+        elif char == "#" and (i == 0 or line[i - 1] in " \t"):
+            return line[:i].rstrip()
+    return line.rstrip()
+
+
+def _yaml_scalar(value: str) -> str:
+    """따옴표로 감싼 값은 따옴표를 뗀다."""
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+        return value[1:-1]
+    return value
+
+
 def _backend_policy(text: str) -> dict[str, set[str]] | None:
-    """application.yml의 axcore.source-data-policy에서 forbidden·restricted 목록을 읽는다. 없으면 None."""
-    lines = text.splitlines()
+    """application.yml의 axcore.source-data-policy에서 forbidden·restricted 목록을 읽는다. 없으면 None.
+
+    줄 끝 주석과 따옴표는 YAML처럼 뗀다. 흐름 목록(forbidden: [a, b])도 읽는다.
+    """
+    lines = [_yaml_plain(line) for line in text.splitlines()]
     start = next(
         (i for i, line in enumerate(lines) if line.strip() == "source-data-policy:"),
         None,
@@ -30,16 +55,41 @@ def _backend_policy(text: str) -> dict[str, set[str]] | None:
     policy: dict[str, set[str]] = {"forbidden": set(), "restricted": set()}
     grade = None
     for line in lines[start + 1 :]:
-        if not line.strip() or line.lstrip().startswith("#"):
+        if not line.strip():
             continue
         if len(line) - len(line.lstrip()) <= base:
             break
         stripped = line.strip()
-        if stripped in ("forbidden:", "restricted:"):
-            grade = stripped[:-1]
-        elif stripped.startswith("- ") and grade:
-            policy[grade].add(stripped[2:].strip())
+        key, colon, rest = stripped.partition(":")
+        if colon and key in ("forbidden", "restricted"):
+            grade = key
+            rest = rest.strip()
+            if rest.startswith("[") and rest.endswith("]"):
+                policy[grade].update(
+                    _yaml_scalar(item) for item in rest[1:-1].split(",") if item.strip()
+                )
+                grade = None
+        elif stripped.startswith("-") and grade:
+            policy[grade].add(_yaml_scalar(stripped[1:]))
+        elif not stripped.startswith("-"):
+            grade = None
     return policy
+
+
+def test_backend_policy_parser_reads_comments_quotes_and_flow_lists():
+    text = (
+        "axcore:\n"
+        "  source-data-policy:  # 정책\n"
+        "    forbidden:\n"
+        "      - erp.change_log.*  # D3\n"
+        "      - 'erp.employee.emp_name'\n"
+        '    restricted: [erp.vendor.contact_name, "mes.worker.skill_level"]\n'
+        "  source-load:\n"
+    )
+    assert _backend_policy(text) == {
+        "forbidden": {"erp.change_log.*", "erp.employee.emp_name"},
+        "restricted": {"erp.vendor.contact_name", "mes.worker.skill_level"},
+    }
 
 
 def test_copy_matches_backend_policy():

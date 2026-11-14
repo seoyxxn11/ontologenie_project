@@ -92,7 +92,7 @@
 - 연결 규칙의 변환은 `reference_transforms`에 출발(`source_transforms`)과 도착(`target_transforms`)을 따로 적습니다. AI 후보의 연결 규칙도 같은 형식이라 바로 비교할 수 있습니다. 예: R-W `[{"op": "PAD_ZEROS", "arg": 4}, {"op": "ADD_PREFIX", "arg": "GP"}]` → `[]`
 - 위치는 `원천.표.컬럼`(예: `mes.work_order.so_ref`)으로 적습니다. `level: must`는 반드시 찾아야 하는 정답이고, 채점은 이름이 아니라 원천 위치로 합니다.
 - 관계는 `via.from → via.to`이고, 두 컬럼 이상이면 목록입니다.
-- 금지 데이터: 백엔드 `axcore.source-data-policy`(사본 `app/source_policy.py`)의 금지 표(`erp.attendance`·`erp.fixed_asset`)와 금지 컬럼(`erp.employee`의 `emp_name`·`position`·`hire_date`·`employment_type`·`status`, `mes.worker.name`)은 객체·속성·관계·규칙·사례 어디에도 넣지 않습니다. 이를 제안하지 않아도 감점되지 않고, 제안하면 정답에 없는 후보로 셉니다. 원천 데이터(`data-v1.0`)에는 원천 계정 허용 목록을 시험하려고 그대로 둡니다.
+- 금지 데이터: 백엔드 `axcore.source-data-policy`(사본 `app/source_policy.py`)의 금지 표(`erp.attendance`·`erp.fixed_asset`·`erp.change_log`·`mes.change_log`)와 금지 컬럼(`erp.employee`의 `emp_name`·`position`·`hire_date`·`employment_type`·`status`, `mes.worker.name`)은 객체·속성·관계·규칙·사례 어디에도 넣지 않습니다. 이를 제안하지 않아도 감점되지 않고, 제안하면 정답에 없는 후보로 셉니다. 원천 데이터(`data-v1.0`)에는 원천 계정 허용 목록을 시험하려고 그대로 둡니다.
 - `via.key`: 도착 컬럼이 기본키(`primary`), 다른 유일 키(`alternate`), 키 아님(`none`, 예: 라우팅 설비 종류 → 설비 종류)
 - `via.condition`: 그 값일 때만 성립 (예: 정비 대상 종류 = 설비 / 금형)
 - `via.through`: 다른 표를 거쳐 잇는 관계. 생산 실적·불량 기록·작업지시 공정별 배정의 작업지시 번호로 작업지시의 품목 코드를 찾고, 공정 순번과 함께 라우팅 한 줄을 가리킵니다.

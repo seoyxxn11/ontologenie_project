@@ -39,6 +39,75 @@ class SourceColumnPolicyTests {
                 .containsExactly("emp_name");
     }
 
+    /** 형식이 틀린 항목은 이름을 모두 담아 거절한다(405). 공백·대소문자는 형식 검사에서도 보지 않는다. */
+    @Test
+    void rejectsMalformedEntries() {
+        assertThatThrownBy(
+                        () ->
+                                new SourceColumnPolicy(
+                                        new SourceDataPolicyProperties(
+                                                List.of(
+                                                        "erp.attendance",
+                                                        "erp.employee.emp name",
+                                                        " ERP.Fixed_Asset.* "),
+                                                java.util.Arrays.asList(
+                                                        "erp.vendor.contact_name", "", null))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("forbidden[erp.attendance]")
+                .hasMessageContaining("forbidden[erp.employee.emp name]")
+                .hasMessageContaining("restricted[]")
+                .message()
+                .doesNotContain("Fixed_Asset")
+                .doesNotContain("contact_name");
+        assertThatThrownBy(
+                        () ->
+                                new SourceColumnPolicy(
+                                        new SourceDataPolicyProperties(
+                                                List.of("erp.*.*", "1erp.t.c", "erp.t.c.d"),
+                                                List.of())))
+                .hasMessageContaining("forbidden[erp.*.*]")
+                .hasMessageContaining("forbidden[1erp.t.c]")
+                .hasMessageContaining("forbidden[erp.t.c.d]");
+    }
+
+    /** 민감은 컬럼 단위로만 판단하므로 표 전체(.*)를 받으면 아무 컬럼도 민감이 되지 않는다. 그래서 거절한다(405 리뷰). */
+    @Test
+    void rejectsWholeTableInRestrictedList() {
+        assertThatThrownBy(
+                        () ->
+                                new SourceColumnPolicy(
+                                        new SourceDataPolicyProperties(
+                                                List.of("erp.attendance.*"),
+                                                List.of("erp.vendor.*"))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("restricted[erp.vendor.*]")
+                .message()
+                .doesNotContain("forbidden[");
+    }
+
+    @Test
+    void rejectsEmptyPolicyUnlessAllowed() {
+        assertThatThrownBy(
+                        () ->
+                                new SourceColumnPolicy(
+                                        new SourceDataPolicyProperties(List.of(), null)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("allow-empty=true");
+
+        SourceColumnPolicy open =
+                new SourceColumnPolicy(new SourceDataPolicyProperties(null, null, true));
+        assertThat(open.gradeOf("erp.attendance", "emp_no")).isEqualTo(SourceColumnGrade.NORMAL);
+        assertThat(open.forbiddenEntries()).isEmpty();
+    }
+
+    @Test
+    void exposesNormalizedEntriesInOrder() {
+        assertThat(policy.forbiddenEntries())
+                .containsExactly("erp.attendance.*", "erp.employee.emp_name", "mes.worker.name");
+        assertThat(policy.restrictedEntries())
+                .containsExactly("erp.employee.emp_name", "erp.vendor.contact_name");
+    }
+
     @Test
     void coversTablesThatHaveAnyListedEntry() {
         assertThat(policy.coversTable("erp.attendance")).isTrue();
