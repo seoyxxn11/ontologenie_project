@@ -14,6 +14,8 @@
   "publication.name": "axcore_cdc",
   "publication.autocreate.mode": "disabled",
   "snapshot.mode": "no_data",
+  "table.exclude.list": "erp.attendance,erp.fixed_asset,erp.change_log",
+  "column.exclude.list": "erp.employee.(emp_name|position|hire_date|employment_type|status)",
   "decimal.handling.mode": "string",
   "tombstones.on.delete": "false",
   "heartbeat.interval.ms": "60000",
