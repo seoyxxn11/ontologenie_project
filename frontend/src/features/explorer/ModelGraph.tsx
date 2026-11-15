@@ -23,7 +23,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import Button from '../../components/Button'
+import { createPortal } from 'react-dom'
 import type { Route } from './edgeRoute'
 import '@xyflow/react/dist/style.css'
 import {
@@ -188,18 +188,15 @@ const MAX_GRAPH_ZOOM = 1.5
 const nodeTypes = { type: TypeNode }
 const edgeTypes = { relation: RelationEdge }
 
-// 개요(관계도 그림) 또는 유형 목록. 고르는 버튼은 관계도 칸 제목 줄에 있다.
-export type ModelGraphView = 'graph' | 'list'
-
 type ModelGraphProps = {
-  view: ModelGraphView
+  toolbarContainer?: HTMLDivElement | null
   graph: ModelGraphData
   selectedTypeId: number | null
   onSelect: (id: number | null) => void
 }
 
 function ModelGraph({
-  view,
+  toolbarContainer,
   graph,
   selectedTypeId,
   onSelect,
@@ -339,7 +336,7 @@ function ModelGraph({
       MIN_GRAPH_ZOOM,
       MAX_GRAPH_ZOOM,
       {
-        top: `${(toolbar.current?.offsetHeight ?? 40) + 24}px`,
+        top: `${(canvas.current?.contains(toolbar.current) ? (toolbar.current?.offsetHeight ?? 40) : 0) + 24}px`,
         right: '24px',
         bottom: `${(fullscreenHint.current?.offsetHeight ?? 0) + 24}px`,
         left: `${(zoomTools.current?.offsetWidth ?? 34) + 24}px`,
@@ -364,10 +361,10 @@ function ModelGraph({
   )
 
   useEffect(() => {
-    if (view === 'graph' && navigation.camera.kind !== 'keep') {
+    if (navigation.camera.kind !== 'keep') {
       applyCamera(navigation.camera)
     }
-  }, [applyCamera, navigation.camera, view])
+  }, [applyCamera, navigation.camera])
 
   const rememberViewport = useCallback((viewport: Viewport) => {
     navigate({ type: 'viewport', viewport })
@@ -448,7 +445,7 @@ function ModelGraph({
   // 칸 크기가 바뀌어도 같은 배율과 화면 중심을 유지한다.
   useEffect(() => {
     const element = canvas.current
-    if (view !== 'graph' || !element) {
+    if (!element) {
       flow.current = null
       return
     }
@@ -488,7 +485,7 @@ function ModelGraph({
     })
     observer.observe(element)
     return () => observer.disconnect()
-  }, [view])
+  }, [])
 
   // 카드 크기와 선이 붙을 자리를 미리 알려 주면, 화면에서 크기를 재기 전에도 선을 그릴 수 있다.
   const nodes: TypeFlowNode[] = visibleGraph.nodes.map((type) => ({
@@ -582,195 +579,179 @@ function ModelGraph({
     }
   })
 
+  const graphTools = (
+    <div
+      ref={toolbar}
+      role="group"
+      aria-label="관계도 도구"
+      className="model-graph-zoom"
+    >
+      <button
+        type="button"
+        disabled={!selectedType}
+        aria-pressed={focused}
+        title={
+          selectedType
+            ? `${selectedType.name}의 직접 연결만 보기`
+            : '객체 유형을 먼저 선택하세요'
+        }
+        onClick={() =>
+          navigate({
+            type: 'focus',
+            viewport: flow.current?.getViewport(),
+          })
+        }
+      >
+        {focused ? '전체 배치 보기' : '집중 보기'}
+      </button>
+      <button type="button" onClick={() => void flow.current?.zoomTo(1)}>
+        읽기 크기
+      </button>
+      <button type="button" onClick={fitSelection}>
+        전체 맞춤
+      </button>
+    </div>
+  )
+
   return (
     <div>
-      {view === 'list' ? (
-        <div className="model-graph-directory" aria-label="객체 유형 목록">
-          {graph.nodes.map((type) => (
-            <Button
-              key={type.id}
-              variant="secondary"
-              aria-pressed={type.id === selectedTypeId}
-              onClick={() => selectType(type.id)}
+      {fullscreenError && <p role="alert">{fullscreenError}</p>}
+      <div ref={canvas} className="explorer-graph-canvas">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          onInit={(instance) => {
+            flow.current = instance
+            applyCamera(navigation.camera, navigation.viewport)
+          }}
+          // 카메라는 초기 맞춤과 명시적 도구 조작에서만 바꾼다.
+          fitView={false}
+          onViewportChange={rememberViewport}
+          zoomOnScroll
+          zoomOnPinch
+          preventScrolling
+          panOnScroll={false}
+          panOnDrag
+          minZoom={MIN_GRAPH_ZOOM}
+          maxZoom={MAX_GRAPH_ZOOM}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable={false}
+          // Tab은 카드 버튼에만 멈춘다. 카드를 감싼 칸과 선은 이름 없이 초점만 받아 길을 잃게 한다.
+          nodesFocusable={false}
+          edgesFocusable={false}
+          proOptions={{ hideAttribution: true }}
+        >
+          {fullscreen && (
+            <Panel
+              position="bottom-right"
+              style={{ maxWidth: 'calc(100% - 80px)' }}
             >
-              {type.name}
-            </Button>
-          ))}
-        </div>
-      ) : (
-        <>
-          {fullscreenError && <p role="alert">{fullscreenError}</p>}
-          <div ref={canvas} className="explorer-graph-canvas">
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              nodeTypes={nodeTypes}
-              edgeTypes={edgeTypes}
-              onInit={(instance) => {
-                flow.current = instance
-                applyCamera(navigation.camera, navigation.viewport)
-              }}
-              // 카메라는 초기 맞춤과 명시적 도구 조작에서만 바꾼다.
-              fitView={false}
-              onViewportChange={rememberViewport}
-              zoomOnScroll
-              zoomOnPinch
-              preventScrolling
-              panOnScroll={false}
-              panOnDrag
-              minZoom={MIN_GRAPH_ZOOM}
-              maxZoom={MAX_GRAPH_ZOOM}
-              nodesDraggable={false}
-              nodesConnectable={false}
-              elementsSelectable={false}
-              // Tab은 카드 버튼에만 멈춘다. 카드를 감싼 칸과 선은 이름 없이 초점만 받아 길을 잃게 한다.
-              nodesFocusable={false}
-              edgesFocusable={false}
-              proOptions={{ hideAttribution: true }}
-            >
-              {fullscreen && (
-                <Panel
-                  position="bottom-right"
-                  style={{ maxWidth: 'calc(100% - 80px)' }}
-                >
-                  <div
-                    ref={fullscreenHint}
-                    className="model-graph-fullscreen-navigation"
-                    role="group"
-                    aria-label="전체 화면 탐색"
-                  >
-                    <strong>{selectedType?.name ?? '전체 유형'}</strong>
-                    <span>Esc로 전체 화면 닫기</span>
-                  </div>
-                </Panel>
-              )}
-              <Panel position="bottom-left">
-                <div
-                  ref={zoomTools}
-                  role="group"
-                  aria-label="관계도 배율 조절"
-                  className="model-graph-zoom model-graph-scale"
-                >
-                  <button
-                    type="button"
-                    onClick={() => void flow.current?.zoomIn()}
-                    aria-label="관계도 확대"
-                  >
-                    ＋
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void flow.current?.zoomOut()}
-                    aria-label="관계도 축소"
-                  >
-                    −
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void toggleFullscreen()}
-                    aria-label={fullscreen ? '전체 화면 닫기' : '전체 화면'}
-                    title={fullscreen ? '전체 화면 닫기' : '전체 화면'}
-                  >
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d={
-                          fullscreen
-                            ? 'M3 9h6V3m6 0v6h6M9 21v-6H3m12 6v-6h6'
-                            : 'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5'
-                        }
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </Panel>
-              <Panel
-                position="top-right"
-                style={{ maxWidth: 'calc(100% - 24px)' }}
+              <div
+                ref={fullscreenHint}
+                className="model-graph-fullscreen-navigation"
+                role="group"
+                aria-label="전체 화면 탐색"
               >
-                <div
-                  ref={toolbar}
-                  role="group"
-                  aria-label="관계도 도구"
-                  className="model-graph-zoom"
+                <strong>{selectedType?.name ?? '전체 유형'}</strong>
+                <span>Esc로 전체 화면 닫기</span>
+              </div>
+            </Panel>
+          )}
+          <Panel position="bottom-left">
+            <div
+              ref={zoomTools}
+              role="group"
+              aria-label="관계도 배율 조절"
+              className="model-graph-zoom model-graph-scale"
+            >
+              <button
+                type="button"
+                onClick={() => void flow.current?.zoomIn()}
+                aria-label="관계도 확대"
+              >
+                ＋
+              </button>
+              <button
+                type="button"
+                onClick={() => void flow.current?.zoomOut()}
+                aria-label="관계도 축소"
+              >
+                −
+              </button>
+              <button
+                type="button"
+                onClick={() => void toggleFullscreen()}
+                aria-label={fullscreen ? '전체 화면 닫기' : '전체 화면'}
+                title={fullscreen ? '전체 화면 닫기' : '전체 화면'}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
                 >
-                  <button
-                    type="button"
-                    disabled={!selectedType}
-                    aria-pressed={focused}
-                    title={
-                      selectedType
-                        ? `${selectedType.name}의 직접 연결만 보기`
-                        : '객체 유형을 먼저 선택하세요'
+                  <path
+                    d={
+                      fullscreen
+                        ? 'M3 9h6V3m6 0v6h6M9 21v-6H3m12 6v-6h6'
+                        : 'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5'
                     }
-                    onClick={() =>
-                      navigate({
-                        type: 'focus',
-                        viewport: flow.current?.getViewport(),
-                      })
-                    }
-                  >
-                    {focused ? '전체 배치 보기' : '집중 보기'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void flow.current?.zoomTo(1)}
-                  >
-                    읽기 크기
-                  </button>
-                  <button type="button" onClick={fitSelection}>
-                    전체 맞춤
-                  </button>
-                </div>
-              </Panel>
-            </ReactFlow>
-          </div>
-        </>
-      )}
+                  />
+                </svg>
+              </button>
+            </div>
+          </Panel>
+          {fullscreen || !toolbarContainer ? (
+            <Panel
+              position="top-right"
+              style={{ maxWidth: 'calc(100% - 24px)' }}
+            >
+              {graphTools}
+            </Panel>
+          ) : (
+            createPortal(graphTools, toolbarContainer)
+          )}
+        </ReactFlow>
+      </div>
 
       {/* 건수와 범례를 한 줄에 두어 1440×900 첫 화면 안에 들어오게 한다. */}
       <p className="model-graph-caption">
         <span>
-          {focused && view === 'graph'
+          {focused
             ? `객체 유형 ${visibleGraph.nodes.length}/${graph.nodes.length}개 · 관계 유형 ${visibleGraph.edges.length}/${graph.edges.length}개`
             : `객체 유형 ${graph.nodes.length}개 · 관계 유형 ${graph.edges.length}개`}
         </span>
-        {view === 'graph' && (
-          <span>점선: 현재 연결 0건 · 화살표: 관계 방향</span>
+        <span>점선: 현재 연결 0건 · 화살표: 관계 방향</span>
+        {selectedType && (hasIncoming || hasOutgoing || hasSelfRelation) && (
+          <span
+            className="model-graph-direction-legend"
+            role="group"
+            aria-label="선택 유형 기준 관계 방향"
+          >
+            <span>선택 유형 기준</span>
+            {hasIncoming && (
+              <span className="model-graph-legend-in">→ 들어오는 관계</span>
+            )}
+            {(hasOutgoing || hasSelfRelation) && (
+              <span className="model-graph-legend-out">
+                →{' '}
+                {hasOutgoing
+                  ? hasSelfRelation
+                    ? '나가는 관계 · 자기 관계'
+                    : '나가는 관계'
+                  : '자기 관계'}
+              </span>
+            )}
+          </span>
         )}
-        {view === 'graph' &&
-          selectedType &&
-          (hasIncoming || hasOutgoing || hasSelfRelation) && (
-            <span
-              className="model-graph-direction-legend"
-              role="group"
-              aria-label="선택 유형 기준 관계 방향"
-            >
-              <span>선택 유형 기준</span>
-              {hasIncoming && (
-                <span className="model-graph-legend-in">→ 들어오는 관계</span>
-              )}
-              {(hasOutgoing || hasSelfRelation) && (
-                <span className="model-graph-legend-out">
-                  →{' '}
-                  {hasOutgoing
-                    ? hasSelfRelation
-                      ? '나가는 관계 · 자기 관계'
-                      : '나가는 관계'
-                    : '자기 관계'}
-                </span>
-              )}
-            </span>
-          )}
       </p>
     </div>
   )

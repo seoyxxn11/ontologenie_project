@@ -755,11 +755,11 @@ test('객체를 고르기 전에는 객체 유형 관계도를 보여준다', as
     graph.queryByText(/각 카드는 개별 객체가 아닌/),
   ).not.toBeInTheDocument()
   const heading = graph.getByRole('heading', { name: '객체 유형 간 관계' })
-  const viewGroup = graph.getByRole('group', { name: '보기 방식' })
+  const viewGroup = graph.getByRole('group', { name: '관계도 도구' })
   expect(heading.parentElement).toContainElement(viewGroup)
   expect(
-    within(viewGroup).getByRole('button', { name: '개요' }),
-  ).toHaveAttribute('aria-pressed', 'true')
+    within(viewGroup).getByRole('button', { name: '전체 맞춤' }),
+  ).toBeInTheDocument()
   expect(graph.queryByText('객체 유형')).not.toBeInTheDocument()
   expect(
     graph.getByRole('button', { name: '객체 유형 설비' }),
@@ -782,23 +782,32 @@ test('목록 건수는 천 단위 쉼표로 표시한다', async () => {
   expect(await screen.findByText('5,064건')).toBeInTheDocument()
 })
 
-test('유형 목록으로 바꾼 보기는 객체를 골랐다 돌아와도 유지한다', async () => {
+test('중복 보기 버튼 없이 제목 줄에 관계도 도구를 두고 전체 구조로 돌아온다', async () => {
   const user = userEvent.setup()
   renderExplorerPage()
-  const graph = within(screen.getByRole('region', { name: '관계도' }))
-  await user.click(await graph.findByRole('button', { name: '유형 목록' }))
-  expect(graph.getByLabelText('객체 유형 목록')).toBeInTheDocument()
-
-  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
+  const region = screen.getByRole('region', { name: '관계도' })
+  const graph = within(region)
+  await graph.findByRole('button', { name: '읽기 크기' })
   expect(
-    await graph.findByRole('heading', { name: '프레스 3호기와 연결된 정보' }),
-  ).toBeInTheDocument()
-  expect(
-    graph.queryByRole('group', { name: '보기 방식' }),
+    graph.queryByRole('button', { name: '유형 목록' }),
   ).not.toBeInTheDocument()
-
+  expect(graph.queryByRole('button', { name: '개요' })).not.toBeInTheDocument()
+  expect(
+    graph.queryByRole('button', { name: '관계도 확장' }),
+  ).not.toBeInTheDocument()
+  expect(region.querySelector('.explorer-panel-heading')).toContainElement(
+    graph.getByRole('group', { name: '관계도 도구' }),
+  )
+  expect(region.querySelector('.explorer-graph-canvas')).not.toContainElement(
+    graph.getByRole('group', { name: '관계도 도구' }),
+  )
+  expect(region.querySelector('.explorer-graph-canvas')).toContainElement(
+    graph.getByRole('button', { name: '전체 화면' }),
+  )
+  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
+  await graph.findByRole('heading', { name: '프레스 3호기와 연결된 정보' })
   await user.click(graph.getByRole('button', { name: '← 전체 구조로' }))
-  expect(await graph.findByLabelText('객체 유형 목록')).toBeInTheDocument()
+  expect(await graph.findByRole('button', { name: '전체 맞춤' })).toBeVisible()
 })
 
 test('같은 두 유형 사이의 관계는 선 하나에 이름을 모아 보여준다', async () => {
@@ -1771,8 +1780,9 @@ test('관계명을 항상 표시하고 선택 묶음의 선과 화살촉 강조�
       )
       ?.getAttribute('marker-end'),
   ).toMatch(/-selected\)$/)
-  const expand = graph.getByRole('button', { name: '관계도 확장' })
-  expect(expand).toHaveClass('ui-button--secondary')
+  expect(
+    graph.queryByRole('button', { name: '관계도 확장' }),
+  ).not.toBeInTheDocument()
   await user.click(graph.getByRole('button', { name: /정비 지시\s*3건/ }))
   expect(
     diagram.querySelectorAll('.object-graph-edge[data-selected="true"]'),
@@ -1817,12 +1827,15 @@ test('검색 조건을 입력만 하면 현재 결과·페이지를 유지하고
   expect(screen.getByLabelText('ID · 이름 검색')).toHaveValue('새 조건')
 })
 
-test('유형 목록에서도 유형을 선택해 객체 검색과 관계 상세를 연결한다', async () => {
+test('검색 줄에서 유형을 선택해 객체 검색과 관계 상세를 연결한다', async () => {
   const user = userEvent.setup()
   renderExplorerPage()
-  const graph = within(screen.getByRole('region', { name: '관계도' }))
-  await user.click(await graph.findByRole('button', { name: '유형 목록' }))
-  await user.click(graph.getByRole('button', { name: '설비' }))
+  await screen.findByLabelText('객체 유형')
+  await within(screen.getByLabelText('객체 유형')).findByRole('option', {
+    name: '설비',
+  })
+  await user.selectOptions(screen.getByLabelText('객체 유형'), '3')
+  await user.click(screen.getByRole('button', { name: '검색' }))
   await screen.findByText('2건')
   expect(screen.getByLabelText('객체 유형')).toHaveValue('3')
   expect(
@@ -1833,19 +1846,17 @@ test('유형 목록에서도 유형을 선택해 객체 검색과 관계 상세�
   ).toBeInTheDocument()
 })
 
-test('관계도를 확장해도 선택한 객체를 유지하고 분할 보기로 복원한다', async () => {
+test('객체 선택 후에도 세 영역과 선택 상태를 유지한다', async () => {
   const user = userEvent.setup()
   renderExplorerPage()
   await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
   await screen.findByRole('heading', { name: '프레스 3호기' })
-  await user.click(screen.getByRole('button', { name: '관계도 확장' }))
   expect(
     screen.queryByRole('region', { name: '객체 목록' }),
-  ).not.toBeInTheDocument()
+  ).toBeInTheDocument()
   expect(
     screen.queryByRole('region', { name: '상세 정보' }),
-  ).not.toBeInTheDocument()
-  await user.click(screen.getByRole('button', { name: '분할 보기' }))
+  ).toBeInTheDocument()
   expect(
     within(screen.getByRole('region', { name: '상세 정보' })).getByRole(
       'heading',
@@ -2010,13 +2021,12 @@ test('주소에서 연결 목록·기준 객체·선택 상세를 복원하고 �
   ).toBeVisible()
 })
 
-test('확장한 관계도에서 묶음을 고르면 분할 보기로 돌아와 왼쪽 결과를 보여준다', async () => {
+test('관계도 묶음을 고르면 세 영역을 유지하며 왼쪽 결과를 보여준다', async () => {
   const user = userEvent.setup()
   renderExplorerPage()
   await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
   const graph = within(screen.getByRole('region', { name: '관계도' }))
   await graph.findByRole('button', { name: /현재 배정 설비 연결 객체 보기/ })
-  await user.click(graph.getByRole('button', { name: '관계도 확장' }))
   await user.click(
     graph.getByRole('button', { name: '현재 배정 설비 연결 객체 보기' }),
   )
@@ -2025,10 +2035,9 @@ test('확장한 관계도에서 묶음을 고르면 분할 보기로 돌아와 �
       '프레스 작업',
     ),
   ).toBeVisible()
-  expect(graph.getByRole('button', { name: '관계도 확장' })).toHaveAttribute(
-    'aria-pressed',
-    'false',
-  )
+  expect(
+    graph.queryByRole('button', { name: '관계도 확장' }),
+  ).not.toBeInTheDocument()
 })
 
 test('연결 객체의 AI 질문에는 기준 설비가 아닌 오른쪽 선택 객체를 전달한다', async () => {

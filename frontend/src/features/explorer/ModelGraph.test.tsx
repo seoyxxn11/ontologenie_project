@@ -33,15 +33,23 @@ const graph: GraphData = {
   })),
 }
 
-function TestGraph() {
+function TestGraph({ headingTools = false }: { headingTools?: boolean }) {
   const [selected, setSelected] = useState<number | null>(null)
+  const [host, setHost] = useState<HTMLDivElement | null>(null)
   return (
-    <ModelGraph
-      graph={graph}
-      view="graph"
-      selectedTypeId={selected}
-      onSelect={setSelected}
-    />
+    <>
+      {headingTools && (
+        <header aria-label="관계도 제목">
+          <div ref={setHost} />
+        </header>
+      )}
+      <ModelGraph
+        graph={graph}
+        selectedTypeId={selected}
+        onSelect={setSelected}
+        toolbarContainer={host}
+      />
+    </>
   )
 }
 
@@ -159,7 +167,6 @@ test.each(['outgoing', 'self', 'none'] as const)(
     render(
       <ModelGraph
         graph={{ ...graph, edges }}
-        view="graph"
         selectedTypeId={3}
         onSelect={() => {}}
       />,
@@ -184,8 +191,9 @@ test.each(['outgoing', 'self', 'none'] as const)(
 
 test('전체 화면 진입·종료와 브라우저에서 종료된 상태를 반영하며 실패를 안내한다', async () => {
   const user = userEvent.setup()
-  render(<TestGraph />)
+  render(<TestGraph headingTools />)
   const canvas = document.querySelector('.explorer-graph-canvas')!
+  const header = screen.getByRole('banner', { name: '관계도 제목' })
   const originalElement = Object.getOwnPropertyDescriptor(
     document,
     'fullscreenElement',
@@ -211,11 +219,17 @@ test('전체 화면 진입·종료와 브라우저에서 종료된 상태를 반
     value: vi.fn(async () => changeFullscreen(null)),
   })
   try {
+    expect(header).toContainElement(
+      screen.getByRole('group', { name: '관계도 도구' }),
+    )
     await user.click(screen.getByRole('button', { name: '읽기 크기' }))
     await waitFor(() => expect(viewport()).toContain('scale(1)'))
     const beforeFullscreen = viewport()
     await user.click(screen.getByRole('button', { name: '전체 화면' }))
     expect(request).toHaveBeenCalledOnce()
+    expect(canvas).toContainElement(
+      screen.getByRole('group', { name: '관계도 도구' }),
+    )
     expect(screen.getByRole('button', { name: '전체 화면 닫기' })).toBeVisible()
     expect(
       within(screen.getByRole('group', { name: '관계도 도구' })).getByRole(
@@ -224,6 +238,9 @@ test('전체 화면 진입·종료와 브라우저에서 종료된 상태를 반
       ),
     ).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '전체 화면 닫기' }))
+    expect(header).toContainElement(
+      screen.getByRole('group', { name: '관계도 도구' }),
+    )
     await waitFor(() => expect(viewport()).toBe(beforeFullscreen))
     expect(screen.getByRole('button', { name: '전체 화면' })).toBeVisible()
     expect(screen.queryByRole('group', { name: '전체 화면 탐색' })).toBeNull()
@@ -281,12 +298,7 @@ test('읽기 크기 뒤 전체 맞춤은 갱신 없는 controlled 노드도 30% 
   }
   try {
     render(
-      <ModelGraph
-        graph={dense}
-        view="graph"
-        selectedTypeId={null}
-        onSelect={() => {}}
-      />,
+      <ModelGraph graph={dense} selectedTypeId={null} onSelect={() => {}} />,
     )
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: '읽기 크기' }))

@@ -15,7 +15,6 @@ import {
   OBJECT_PAGE_SIZE,
   type ObjectFilters,
 } from './api'
-import type { ModelGraphView } from './ModelGraph'
 import ObjectCard from './ObjectCard'
 import ObjectDetail from './ObjectDetail'
 import ObjectGraph from './ObjectGraph'
@@ -45,9 +44,7 @@ function ExplorerPage() {
   } | null>(null)
   const { filters, page } = readSearchState(searchParams)
   const detailPanel = useRef<HTMLElement>(null)
-  const [graphExpanded, setGraphExpanded] = useState(false)
-  // 유형 관계도의 보기 방식. 객체를 골랐다가 전체 구조로 돌아와도 고른 보기를 유지한다.
-  const [modelView, setModelView] = useState<ModelGraphView>('graph')
+  const [graphToolbar, setGraphToolbar] = useState<HTMLDivElement | null>(null)
 
   // 객체·관계 선택은 기록을 쌓아 뒤로 가기에서 이전 상세와 검색 문맥을 복원한다.
   function selectObject(id: number | null) {
@@ -73,7 +70,6 @@ function ExplorerPage() {
 
   function selectGroup(group: LinkGroup) {
     if (anchorId === null) return
-    setGraphExpanded(false)
     if (relationKey === group.key && selectedId === anchorId) return
     setLastGroup({ anchorId, group })
     setSearchParams((previous) => {
@@ -226,7 +222,6 @@ function ExplorerPage() {
   ])
 
   function showDetail() {
-    setGraphExpanded(false)
     requestAnimationFrame(() => {
       detailPanel.current?.scrollIntoView?.({
         block: 'start',
@@ -301,13 +296,10 @@ function ExplorerPage() {
         </div>
       )}
 
-      <div
-        className={`explorer-workbench${graphExpanded ? ' is-expanded' : ''}`}
-      >
+      <div className="explorer-workbench">
         <section
           aria-label="객체 목록"
           className="explorer-panel explorer-list"
-          hidden={graphExpanded}
         >
           {showRelated ? (
             <RelatedObjectList
@@ -369,39 +361,13 @@ function ExplorerPage() {
             <h2>{graphTitle}</h2>
             <div className="explorer-panel-actions">
               {showModelGraph && (
-                <div
-                  role="group"
-                  aria-label="보기 방식"
-                  className="explorer-view-toggle"
-                >
-                  <button
-                    type="button"
-                    aria-pressed={modelView === 'graph'}
-                    onClick={() => setModelView('graph')}
-                  >
-                    개요
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={modelView === 'list'}
-                    onClick={() => setModelView('list')}
-                  >
-                    유형 목록
-                  </button>
-                </div>
+                <div ref={setGraphToolbar} className="explorer-graph-tools" />
               )}
               {anchorId !== null && (
                 <Button variant="text" onClick={() => selectObject(null)}>
                   ← 전체 구조로
                 </Button>
               )}
-              <Button
-                variant="secondary"
-                aria-pressed={graphExpanded}
-                onClick={() => setGraphExpanded((expanded) => !expanded)}
-              >
-                {graphExpanded ? '분할 보기' : '관계도 확장'}
-              </Button>
             </div>
           </div>
           <div className="explorer-panel-body">
@@ -435,7 +401,7 @@ function ExplorerPage() {
                 }
               >
                 <ModelGraph
-                  view={modelView}
+                  toolbarContainer={graphToolbar}
                   graph={visibleModelGraph}
                   selectedTypeId={filters.objectTypeId ?? null}
                   onSelect={handleSelectType}
@@ -457,7 +423,6 @@ function ExplorerPage() {
           tabIndex={-1}
           aria-label="상세 정보"
           className="explorer-panel explorer-detail"
-          hidden={graphExpanded}
         >
           <div className="explorer-panel-heading">
             <h2>상세 정보</h2>

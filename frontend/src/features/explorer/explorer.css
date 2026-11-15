@@ -216,12 +216,6 @@
 .explorer-properties .explorer-restricted {
   color: var(--ui-text-secondary);
 }
-.explorer-workbench.is-expanded {
-  grid-template-columns: minmax(0, 1fr);
-}
-.explorer-workbench.is-expanded > :is(.explorer-list, .explorer-detail) {
-  display: none;
-}
 /* 1440×900에서 관계도 그림 전체가 첫 화면에 들어오도록 창 높이에 맞춘다. */
 .explorer-graph-canvas {
   height: 480px;
@@ -341,43 +335,6 @@
   align-items: center;
   gap: 12px;
 }
-/* 관계도 칸 제목 줄의 개요 / 유형 목록 전환 */
-/* overflow를 숨기지 않아야 키보드 포커스 테두리가 잘리지 않는다. 모서리는 양 끝 버튼에 준다. */
-.explorer-view-toggle {
-  display: flex;
-  border: 1px solid var(--ui-input-border);
-  border-radius: var(--ui-radius);
-}
-.explorer-view-toggle button:first-child {
-  border-radius: 3px 0 0 3px;
-}
-.explorer-view-toggle button:last-child {
-  border-radius: 0 3px 3px 0;
-}
-.explorer-view-toggle button:focus-visible {
-  position: relative;
-  z-index: 1;
-}
-.explorer-view-toggle button {
-  height: 36px;
-  padding: 0 14px;
-  border: 0;
-  background: var(--ui-surface);
-  color: var(--ui-text-secondary);
-  font-size: 14px;
-  font-weight: 600;
-}
-.explorer-view-toggle button + button {
-  border-left: 1px solid var(--ui-input-border);
-}
-.explorer-view-toggle button:hover {
-  background: var(--ui-surface-subtle);
-}
-.explorer-view-toggle button[aria-pressed='true'] {
-  background: var(--ui-brand-subtle);
-  color: var(--ui-text);
-  box-shadow: inset 0 -2px 0 var(--ui-brand-strong);
-}
 /* 그림 안의 보기 도구와 왼쪽 아래 배율 버튼 */
 .model-graph-zoom {
   display: flex;
@@ -424,17 +381,6 @@
 .model-graph-scale button + button {
   border-left: 0;
   border-top: 1px solid var(--ui-border);
-}
-.model-graph-directory {
-  display: grid;
-  gap: 8px;
-  max-height: 460px;
-  overflow-y: auto;
-}
-.model-graph-directory button {
-  justify-content: flex-start;
-  text-align: left;
-  overflow-wrap: anywhere;
 }
 .model-graph-node {
   font-size: 14px;
@@ -538,10 +484,6 @@
   .explorer-object-list {
     max-height: none;
   }
-}
-/* 관계도 확장일 때만 그림을 더 높게 해서, 세로로 긴 유형 관계도를 더 크게 보여 준다. */
-.explorer-workbench.is-expanded .explorer-graph-canvas {
-  height: max(360px, calc(100vh - 230px));
 }
 
 .explorer-object-row[aria-pressed='true'] .explorer-object-name {
@@ -692,14 +634,6 @@
 .explorer-source-status {
   margin-top: 12px;
 }
-.explorer-page .model-graph-directory {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  max-height: none;
-  overflow: visible;
-}
-.explorer-view-toggle button {
-  height: 40px;
-}
 .model-graph-zoom button {
   min-height: 40px;
   height: 40px;
@@ -748,9 +682,6 @@
   }
   .explorer-object-graph .object-graph-canvas {
     min-width: 560px;
-  }
-  .explorer-page .model-graph-directory {
-    grid-template-columns: minmax(0, 1fr);
   }
 }
 @container explorer-plot (max-width: 500px) {
@@ -807,4 +738,18 @@
     justify-content: flex-end;
     margin-bottom: 12px;
   }
+}
+
+/* 일반 보기 도구는 제목 줄에 두고 전체 화면에서는 그림 안에서 제공한다. */
+.explorer-graph > .explorer-panel-heading {
+  flex-wrap: wrap;
+}
+.explorer-graph-tools {
+  min-width: 0;
+  max-width: 100%;
+}
+.explorer-graph .explorer-panel-actions {
+  min-width: 0;
+  max-width: 100%;
+  flex-shrink: 1;
 }
