@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import { MemoryRouter, Route, Routes } from 'react-router'
@@ -123,6 +129,7 @@ test('후보를 생성하고 새 개정의 재검사 요청을 안내한다', as
     'WORK_ORDER.equipment_code',
   )
   await user.selectOptions(screen.getByLabelText('도착 속성'), 'EQUIPMENT.code')
+  await user.click(screen.getByRole('button', { name: '연결 조건' }))
   await user.click(screen.getByRole('button', { name: '출발 값 변환 추가' }))
   await user.click(screen.getByRole('button', { name: '후보 저장' }))
   expect(
@@ -295,7 +302,7 @@ test('편집 URL의 목록 조건을 복귀 링크와 저장한 상세에 유지
     '?q=설비&group=AI&origin=AI&page=2&candidate=303&analysis=51&itemKind=LINK_RULE&reviewStatus=PENDING'
   open(`/admin/rules/303/edit${search}`)
   expect(
-    screen.getByRole('link', { name: '제안 목록으로 돌아가기' }),
+    screen.getByRole('link', { name: '연결 규칙 목록으로 돌아가기' }),
   ).toHaveAttribute('href', `/admin/rules${search}`)
   await waitFor(() =>
     expect(screen.getByRole('button', { name: '후보 저장' })).toBeEnabled(),
@@ -503,8 +510,70 @@ test('앞 조건을 삭제해도 뒤 조건의 동일 분석 미확정 속성을
   await waitFor(() =>
     expect(screen.getByRole('button', { name: '후보 저장' })).toBeEnabled(),
   )
-  await userEvent.click(screen.getAllByRole('button', { name: '조건 삭제' })[0])
+  await userEvent.click(screen.getByRole('button', { name: '연결 조건' }))
+  await userEvent.click(screen.getByRole('button', { name: '조건 삭제' }))
   await userEvent.click(screen.getByRole('button', { name: '후보 저장' }))
   await screen.findByRole('heading', { name: '규칙 후보를 저장했습니다.' })
   expect(request).toHaveBeenCalledTimes(1)
+})
+
+test('탭과 조건을 전환해도 규칙명·검색·조건별 속성과 변환 입력을 유지한다', async () => {
+  const user = userEvent.setup()
+  open('/admin/rules/303/edit')
+  const name = await screen.findByLabelText('규칙명')
+  await user.clear(name)
+  await user.type(name, '탭 입력 유지')
+  await user.click(screen.getByRole('button', { name: '연결 조건' }))
+  expect(
+    screen.queryByRole('button', { name: '조건 1' }),
+  ).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '출발 값 변환 추가' }))
+  const functionSelect = screen.getAllByLabelText(/출발 값 변환.*함수/).at(-1)!
+  await user.selectOptions(functionSelect, 'STRIP_PREFIX')
+  await user.type(screen.getByLabelText('접두어'), 'WO-')
+  await user.type(screen.getByLabelText('출발 속성 검색'), '설비')
+  await user.click(screen.getByRole('button', { name: '조건 추가' }))
+  const second = screen.getByRole('group', { name: '조건 2' })
+  await user.selectOptions(
+    within(second).getByLabelText('출발 속성'),
+    'WORK_ORDER.equipment_code',
+  )
+  await user.selectOptions(
+    within(second).getByLabelText('도착 속성'),
+    'EQUIPMENT.code',
+  )
+  await user.click(screen.getByRole('button', { name: '조건 1' }))
+  expect(screen.getByLabelText('접두어')).toHaveValue('WO-')
+  expect(screen.getByRole('searchbox', { name: '출발 속성 검색' })).toHaveValue(
+    '설비',
+  )
+  await user.click(screen.getByRole('button', { name: '기본 정보' }))
+  expect(screen.getByLabelText('규칙명')).toHaveValue('탭 입력 유지')
+  await user.click(screen.getByRole('button', { name: '연결 조건' }))
+  await user.click(screen.getByRole('button', { name: '조건 2' }))
+  expect(within(second).getByLabelText('출발 속성')).toHaveValue(
+    'WORK_ORDER.equipment_code',
+  )
+  expect(within(second).getByLabelText('도착 속성')).toHaveValue(
+    'EQUIPMENT.code',
+  )
+})
+
+test('입력이 빠진 다른 조건이 있으면 해당 조건을 열고 저장을 막는다', async () => {
+  const user = userEvent.setup()
+  const request = vi.fn(() => HttpResponse.json({ data: {} }))
+  server.use(http.post('/api/v1/proposals/:id/revisions', request))
+  open('/admin/rules/303/edit')
+  await screen.findByLabelText('규칙명')
+  await user.click(screen.getByRole('button', { name: '연결 조건' }))
+  await user.click(screen.getByRole('button', { name: '조건 추가' }))
+  await user.click(screen.getByRole('button', { name: '조건 1' }))
+  await user.click(screen.getByRole('button', { name: '후보 저장' }))
+  await screen.findByRole('alert')
+  expect(screen.getByRole('button', { name: '조건 2' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  expect(screen.getByRole('group', { name: '조건 2' })).toBeVisible()
+  expect(request).not.toHaveBeenCalled()
 })
