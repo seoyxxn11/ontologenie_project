@@ -1,9 +1,12 @@
 package com.axcore.platform.agent.service;
 
 import com.axcore.platform.audit.domain.AgentResultCategory;
+import com.axcore.platform.auth.service.DataAccessPolicy;
 import com.axcore.platform.auth.service.DataPurpose;
+import com.axcore.platform.ontology.dto.ModelSummaryResponse;
 import com.axcore.platform.ontology.dto.ObjectSearchRequest;
 import com.axcore.platform.ontology.dto.ObjectSearchResponse;
+import com.axcore.platform.ontology.service.ModelSummaryService;
 import com.axcore.platform.ontology.service.ObjectSearchQuery;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -47,7 +50,12 @@ public class AgentTargetResolver {
     /** 같은 이름 후보를 되물을 때 붙인 구별 번호로 고른 말. 예: 번호 306 */
     private static final Pattern CHOSEN_NUMBER = Pattern.compile("번호\\s*(\\d{1,18})");
 
+    /** "작업자 6"에서 이름이 맞는 유형을 이만큼까지 찾아본다. */
+    private static final int MAX_TYPED_TYPES = 3;
+
     private final ObjectSearchQuery objects;
+    private final ModelSummaryService models;
+    private final DataAccessPolicy dataAccess;
 
     /** 하나로 정하지 못한 대상. 후보가 비었으면 찾지 못한 것이다. */
     public record TargetIssue(String target, List<AgentReferenceObject> candidates) {
@@ -72,6 +80,8 @@ public class AgentTargetResolver {
                 known.stream().map(AgentReferenceObject::id).collect(Collectors.toSet());
         Map<Long, AgentReferenceObject> found = new LinkedHashMap<>();
         List<TargetIssue> issues = new ArrayList<>();
+        // 유형 이름은 대상 여럿이어도 한 번만 읽는다.
+        TypeNames typeNames = new TypeNames(session);
         for (String target : targets) {
             Optional<AgentReferenceObject> chosen =
                     chosenByNumber(target, known).or(() -> onlyKnownNamed(target, known));
@@ -87,6 +97,16 @@ public class AgentTargetResolver {
                 if (!shorter.isEmpty()) {
                     query = shorter;
                     candidates = search(query, session);
+                }
+            }
+            if (candidates.isEmpty()) {
+                // "작업자 6"처럼 유형 이름과 번호를 함께 말하면 번호로 찾고 그 유형만 남긴다(419).
+                Optional<TypedNumber> typed = typedNumber(target);
+                if (typed.isPresent()) {
+                    candidates = searchTyped(typed.get(), typeNames, session);
+                    if (!candidates.isEmpty()) {
+                        query = typed.get().number();
+                    }
                 }
             }
             if (candidates.isEmpty()) {
@@ -111,6 +131,140 @@ public class AgentTargetResolver {
             }
         }
         return new Resolution(List.copyOf(found.values()), issues);
+    }
+
+    /** 질문자가 볼 수 있는 객체 유형. 처음 쓸 때 한 번만 읽는다. */
+    private final class TypeNames {
+        private final AgentQuerySession session;
+        private List<ModelSummaryResponse.ObjectTypeSummary> types;
+
+        TypeNames(AgentQuerySession session) {
+            this.session = session;
+        }
+
+        List<ModelSummaryResponse.ObjectTypeSummary> get() {
+            if (types == null) {
+                types = models.summarize(dataAccess.forModel(session.asker())).objectTypes();
+            }
+            return types;
+        }
+    }
+
+    /** 유형 이름과 번호. 예: "작업자 6" → 작업자, 6. */
+    record TypedNumber(String typeWord, String number) {}
+
+    private static final Pattern WORD_THEN_NUMBER =
+            Pattern.compile("^(\\D*[가-힣]\\D*?)\\s*([A-Za-z0-9][A-Za-z0-9_-]*)\\s*번?$");
+
+    private static final Pattern NUMBER_THEN_WORD =
+            Pattern.compile("^([A-Za-z0-9][A-Za-z0-9_-]*)\\s*번?\\s+(\\D*[가-힣]\\D*)$");
+
+    /**
+     * "작업자 6", "직원 24번", "6번 작업자"처럼 유형 이름과 번호를 함께 쓴 말이면 둘로 나눈다(419). 작업자·직원은 이름이 금지라 대표 속성이 없고 표시
+     * 이름이 원천 키(6, 24…)라서, "작업자 6"을 통째로 찾으면 0건이었다. 유형 이름이 없으면 비어 있다.
+     */
+    static Optional<TypedNumber> typedNumber(String target) {
+        if (target == null) {
+            return Optional.empty();
+        }
+        String text = target.strip();
+        Matcher wordFirst = WORD_THEN_NUMBER.matcher(text);
+        if (wordFirst.matches()) {
+            return Optional.of(new TypedNumber(wordFirst.group(1).strip(), wordFirst.group(2)));
+        }
+        Matcher numberFirst = NUMBER_THEN_WORD.matcher(text);
+        if (numberFirst.matches()) {
+            return Optional.of(new TypedNumber(numberFirst.group(2).strip(), numberFirst.group(1)));
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * 유형 이름이 그 말과 같거나 그 말로 끝나면 맞는다. 띄어쓰기는 보지 않는다. "작업자"는 "현장 작업자"에 맞지만 "설비"는 "설비 비가동"·"설비 센서 측정"에
+     * 맞지 않는다(한국어는 끝 명사가 중심이다).
+     */
+    static boolean typeNamed(String typeName, String typeWord) {
+        if (typeName == null || typeWord == null) {
+            return false;
+        }
+        String type = typeName.replace(" ", "");
+        String word = typeWord.replace(" ", "");
+        return !word.isEmpty() && type.endsWith(word);
+    }
+
+    /**
+     * 이름이 맞는 유형 안에서만 번호로 찾는다. 이름이 똑같은 유형이 있으면 그것만, 없으면 이름이 그 말로 끝나는 유형을 {@value
+     * #MAX_TYPED_TYPES}개까지 본다. 076 전체 검색은 "6"이 든 객체가 많아 100건 안에 직원(GP0006)이 들지 못할 수 있다. 번호가 같은 후보(앞
+     * 영문자와 앞의 0을 뺀 숫자가 같다, 6 ↔ GP0006)가 있으면 그것만, 없으면 표시 이름이나 열 하나짜리 원천 키가 번호와 똑같은 후보만 남긴다. 그것도 없으면
+     * 비워서 속성 값 검색(372)으로 넘긴다. "3"이 든 다른 객체로 되묻지 않기 위해서다.
+     */
+    private List<ObjectSearchResponse> searchTyped(
+            TypedNumber typed, TypeNames typeNames, AgentQuerySession session) {
+        List<ModelSummaryResponse.ObjectTypeSummary> types = typeNames.get();
+        String word = typed.typeWord().replace(" ", "");
+        List<ModelSummaryResponse.ObjectTypeSummary> exact =
+                types.stream()
+                        .filter(
+                                type ->
+                                        type.name() != null
+                                                && type.name().replace(" ", "").equals(word))
+                        .toList();
+        List<ModelSummaryResponse.ObjectTypeSummary> matched =
+                exact.isEmpty()
+                        ? types.stream().filter(type -> typeNamed(type.name(), word)).toList()
+                        : exact;
+        List<ObjectSearchResponse> candidates = new ArrayList<>();
+        matched.stream()
+                .map(ModelSummaryResponse.ObjectTypeSummary::id)
+                .limit(MAX_TYPED_TYPES)
+                .forEach(typeId -> candidates.addAll(search(typed.number(), typeId, session)));
+        List<ObjectSearchResponse> sameNumber =
+                candidates.stream()
+                        .filter(candidate -> sameNumber(candidate, typed.number()))
+                        .toList();
+        if (!sameNumber.isEmpty()) {
+            return sameNumber;
+        }
+        Set<String> number = Set.of(typed.number());
+        return candidates.stream()
+                .filter(
+                        candidate ->
+                                sameDisplayName(candidate, number) || wholeKey(candidate, number))
+                .toList();
+    }
+
+    /** 표시 이름이나 열 하나짜리 원천 키의 끝 숫자가 번호와 같다. 번호가 숫자가 아니면 보지 않는다. */
+    static boolean sameNumber(ObjectSearchResponse candidate, String number) {
+        Optional<Long> wanted = trailingNumber(number, true);
+        if (wanted.isEmpty()) {
+            return false;
+        }
+        List<String> labels = new ArrayList<>();
+        labels.add(candidate.displayName());
+        Map<String, Object> key = candidate.sourceKey();
+        if (key != null
+                && key.size() == 1
+                && key.values().iterator().next() instanceof String value) {
+            labels.add(value);
+        }
+        return labels.stream()
+                .map(label -> trailingNumber(label, false))
+                .anyMatch(found -> found.equals(wanted));
+    }
+
+    /** 앞 영문자 뒤 숫자. 하이픈이 든 기록 번호(DT-0401)는 번호로 보지 않는다. */
+    private static final Pattern TRAILING_NUMBER = Pattern.compile("^[A-Za-z]*([0-9]{1,18})$");
+
+    private static Optional<Long> trailingNumber(String text, boolean digitsOnly) {
+        if (text == null) {
+            return Optional.empty();
+        }
+        String value = text.strip();
+        if (digitsOnly && !value.chars().allMatch(Character::isDigit)) {
+            return Optional.empty();
+        }
+        Matcher matcher = TRAILING_NUMBER.matcher(value);
+        return matcher.matches() ? Optional.of(Long.parseLong(matcher.group(1))) : Optional.empty();
     }
 
     /**
@@ -205,14 +359,25 @@ public class AgentTargetResolver {
     }
 
     private List<ObjectSearchResponse> search(String query, AgentQuerySession session) {
+        return search(query, null, session);
+    }
+
+    private List<ObjectSearchResponse> search(
+            String query, Long objectTypeId, AgentQuerySession session) {
+        Map<String, Object> input = new LinkedHashMap<>();
+        input.put("q", query);
+        if (objectTypeId != null) {
+            input.put("objectTypeId", objectTypeId);
+        }
         return lookup(
-                Map.of("q", query),
+                input,
                 session,
                 () ->
                         objects.search(
                                         session.asker(),
                                         DataPurpose.MODEL,
-                                        new ObjectSearchRequest(query, null, null, 0, SEARCH_SIZE))
+                                        new ObjectSearchRequest(
+                                                query, objectTypeId, null, 0, SEARCH_SIZE))
                                 .getContent());
     }
 
