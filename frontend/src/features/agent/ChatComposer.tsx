@@ -131,9 +131,6 @@ function ChatComposer({
             {reference.typeName} · {reference.name}
           </p>
         )}
-        <div className="agent-composer-label">
-          <label htmlFor="agent-input">업무 질문</label>
-        </div>
         <div className="agent-input-box">
           <textarea
             id="agent-input"
