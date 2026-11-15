@@ -165,10 +165,26 @@ test('055를 0페이지·20개로 호출하고 과거 개정·대안 ID·실행�
           decision: 'APPROVE',
           reason: '승인 이유',
           selectedOptionId: 501,
+          selectedOptionNo: 3,
+          decidedByName: '김민수',
         }),
         record({ decision: 'REJECT', reason: '거절 이유' }),
       ])
     }),
+    http.get('/api/v1/proposals/303/options', () =>
+      HttpResponse.json({
+        data: [
+          {
+            id: 501,
+            optionNo: 3,
+            revision: 1,
+            payload: {},
+            evidence: {},
+            aiConfidence: null,
+          },
+        ],
+      }),
+    ),
   )
   open()
   const table = await screen.findByRole('table', { name: '검토 결정 이력' })
@@ -178,7 +194,11 @@ test('055를 0페이지·20개로 호출하고 과거 개정·대안 ID·실행�
   expect(params.has('revision')).toBe(false)
   expect(within(table).getAllByRole('row')[1]).toHaveTextContent('승인 이유')
   expect(within(table).getAllByRole('row')[2]).toHaveTextContent('거절 이유')
-  expect(within(table).getByText('대안 ID #501')).toBeInTheDocument()
+  expect(
+    await within(table).findByRole('button', { name: '대안 3' }),
+  ).toBeInTheDocument()
+  expect(within(table).getByText('김민수')).toBeInTheDocument()
+  expect(within(table).queryByText(/결정 #/)).not.toBeInTheDocument()
   expect(within(table).getAllByText('개정 1')).toHaveLength(2)
   expect(screen.getByText('제안 #303 · 현재 개정 2')).toBeInTheDocument()
 })
@@ -377,4 +397,120 @@ test('승인 상태 조회 실패 시 오래된 반영 정보를 표시하지 �
   expect(
     screen.queryByRole('region', { name: '승인·반영 상태' }),
   ).not.toBeInTheDocument()
+})
+
+test('과거 개정 팝업은 개정 목록 다음 페이지까지 조회하고 현재 내용으로 대체하지 않는다', async () => {
+  const requests: number[] = []
+  server.use(
+    http.get('/api/v1/proposals/303/decisions', () =>
+      pageResponse([record({ itemRevision: 21, decidedByName: '이서연' })]),
+    ),
+    http.get('/api/v1/proposals/303/revisions', ({ request }) => {
+      const page = Number(new URL(request.url).searchParams.get('page'))
+      requests.push(page)
+      return HttpResponse.json({
+        data: Array.from({ length: page === 0 ? 20 : 1 }, (_, i) => ({
+          revision: page * 20 + i + 1,
+          payload: {
+            name: page === 0 ? '이전 기록' : '당시 규칙 내용 확인',
+            conditions: [
+              {
+                sourceProperty: '과거 설비 코드',
+                targetProperty: '과거 대상 코드',
+                operator: 'EQ',
+              },
+            ],
+          },
+          evidence: {},
+          aiConfidence: null,
+          createdBy: 7,
+          createdAt: '2026-11-01T03:00:00Z',
+        })),
+        meta: { page, size: 20, totalElements: 21, hasNext: page === 0 },
+      })
+    }),
+  )
+  const user = userEvent.setup()
+  open()
+  const trigger = await screen.findByRole('button', { name: '개정 21' })
+  await user.click(trigger)
+  const dialog = within(await screen.findByRole('dialog'))
+  expect(await dialog.findByText('당시 규칙 내용 확인')).toBeVisible()
+  expect(dialog.getByText('과거 설비 코드')).toBeVisible()
+  expect(requests).toEqual([0, 1])
+  await user.keyboard('{Escape}')
+  expect(trigger).toHaveFocus()
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
+test('선택 대안은 당시 개정과 ID를 대조하고 번호는 optionNo를 표시한다', async () => {
+  const revisions: string[] = []
+  server.use(
+    http.get('/api/v1/proposals/303/decisions', () =>
+      pageResponse([record({ selectedOptionId: 501, selectedOptionNo: 3 })]),
+    ),
+    http.get('/api/v1/proposals/303/options', ({ request }) => {
+      revisions.push(new URL(request.url).searchParams.get('revision') ?? '')
+      return HttpResponse.json({
+        data: [
+          {
+            id: 501,
+            optionNo: 3,
+            revision: 1,
+            payload: {
+              name: '과거 선택 후보',
+              conditions: [
+                {
+                  sourceProperty: '옛 출발',
+                  targetProperty: '옛 대상',
+                  operator: 'EQ',
+                },
+              ],
+            },
+            evidence: {},
+            aiConfidence: null,
+          },
+        ],
+      })
+    }),
+  )
+  const user = userEvent.setup()
+  open()
+  const trigger = await screen.findByRole('button', { name: '대안 3' })
+  await user.click(trigger)
+  const dialog = within(await screen.findByRole('dialog'))
+  expect(await dialog.findByText('과거 선택 후보')).toBeVisible()
+  expect(revisions.every((x) => x === '1')).toBe(true)
+  await user.click(dialog.getByRole('button', { name: '닫기' }))
+  expect(trigger).toHaveFocus()
+})
+
+test('해당 개정에 선택 대안 ID가 없으면 다른 대안을 대신 보여주지 않는다', async () => {
+  server.use(
+    http.get('/api/v1/proposals/303/decisions', () =>
+      pageResponse([record({ selectedOptionId: 501 })]),
+    ),
+    http.get('/api/v1/proposals/303/options', () =>
+      HttpResponse.json({
+        data: [
+          {
+            id: 502,
+            optionNo: 3,
+            revision: 1,
+            payload: { name: '다른 후보' },
+            evidence: {},
+            aiConfidence: null,
+          },
+        ],
+      }),
+    ),
+  )
+  open()
+  await userEvent.click(
+    await screen.findByRole('button', { name: '대안 보기' }),
+  )
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    '해당 개정의 선택 대안을 찾을 수 없습니다.',
+  )
+  expect(screen.queryByText('다른 후보')).not.toBeInTheDocument()
 })

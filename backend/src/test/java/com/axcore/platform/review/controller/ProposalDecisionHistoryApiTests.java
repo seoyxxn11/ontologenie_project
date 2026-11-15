@@ -68,6 +68,7 @@ class ProposalDecisionHistoryApiTests {
                 .andExpect(jsonPath("$.data[0].selectedOptionId").value(nullValue()))
                 .andExpect(jsonPath("$.data[0].reason").value("추가 확인 필요"))
                 .andExpect(jsonPath("$.data[0].decidedBy").value(account))
+                .andExpect(jsonPath("$.data[0].decidedByName").value("결정 이력 테스트"))
                 .andExpect(jsonPath("$.data[0].decidedAt").value("2026-11-04T01:30:00Z"))
                 .andExpect(jsonPath("$.meta.page").value(0))
                 .andExpect(jsonPath("$.meta.size").value(20))
@@ -223,6 +224,23 @@ class ProposalDecisionHistoryApiTests {
                 .param("id", proposal)
                 .query()
                 .singleRow();
+    }
+
+    @Test
+    void includesDisplayNamesForDifferentDecisionActors() throws Exception {
+        long other = data.account();
+        long option = data.option(proposal, 1);
+        jdbc.sql("update account set display_name='검토 담당자' where id=:id")
+                .param("id", other)
+                .update();
+        data.decision(proposal, 1, "HOLD", null, "검토", account, "2026-11-04T01:00:00Z");
+        data.decision(proposal, 1, "APPROVE", option, "확인", other, "2026-11-04T02:00:00Z");
+        mvc.perform(get("/api/v1/proposals/{id}/decisions", proposal).with(login("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].decidedBy").value(other))
+                .andExpect(jsonPath("$.data[0].decidedByName").value("검토 담당자"))
+                .andExpect(jsonPath("$.data[0].selectedOptionNo").value(1))
+                .andExpect(jsonPath("$.data[1].decidedByName").value("결정 이력 테스트"));
     }
 
     private RequestPostProcessor login(String role) {

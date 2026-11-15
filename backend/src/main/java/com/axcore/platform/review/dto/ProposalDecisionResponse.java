@@ -11,19 +11,24 @@ public record ProposalDecisionResponse(
         int itemRevision,
         String decision,
         Long selectedOptionId,
+        Integer selectedOptionNo,
         String reason,
         long decidedBy,
+        String decidedByName,
         Instant decidedAt) {
 
-    public static ProposalDecisionResponse from(ReviewDecision decision) {
+    public static ProposalDecisionResponse from(
+            ReviewDecision decision, String decidedByName, Integer selectedOptionNo) {
         return new ProposalDecisionResponse(
                 decision.getId(),
                 decision.getProposalItemId(),
                 decision.getItemRevision(),
                 decision.getDecision(),
                 decision.getSelectedOptionId(),
+                selectedOptionNo,
                 decision.getReason(),
                 decision.getDecidedBy(),
+                decidedByName,
                 decision.getDecidedAt());
     }
 }

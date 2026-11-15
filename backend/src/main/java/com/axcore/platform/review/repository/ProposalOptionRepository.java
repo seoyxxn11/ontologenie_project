@@ -12,6 +12,8 @@ public interface ProposalOptionRepository extends Repository<ProposalOption, Lon
 
     boolean existsByIdAndProposalItemIdAndRevision(long id, long proposalItemId, int revision);
 
+    List<ProposalOption> findByIdIn(List<Long> ids);
+
     Optional<ProposalOption> findByIdAndProposalItemIdAndRevision(
             long id, long proposalItemId, int revision);
 

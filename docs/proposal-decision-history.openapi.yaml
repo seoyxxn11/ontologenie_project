@@ -1,0 +1,85 @@
+openapi: 3.1.0
+info:
+  title: 규칙 결정 이력 이름·대안 번호 표시 보완
+  version: 1.0.0
+  description: 기존 결정 이력 응답에 decidedByName과 selectedOptionNo를 추가하는 보완 계약. 팀 OpenAPI 원본 반영이 필요하다. 경로·권한·정렬·페이지 크기 계약은 유지한다.
+paths:
+  /api/v1/proposals/{id}/decisions:
+    get:
+      summary: 제안의 전체 개정에 대한 검토 결정 이력 조회
+      description: ADMIN 전용. decidedAt 내림차순, 같은 시각이면 id 내림차순. 이름은 현재 계정 표시 이름이며 당시 이름의 스냅샷은 아니다.
+      parameters:
+        - {
+            name: id,
+            in: path,
+            required: true,
+            schema: { type: integer, format: int64, minimum: 1 },
+          }
+        - {
+            name: page,
+            in: query,
+            schema: { type: integer, minimum: 0, default: 0 },
+          }
+        - {
+            name: size,
+            in: query,
+            schema: { type: integer, minimum: 1, default: 20 },
+          }
+      responses:
+        "200":
+          description: 결정 이력과 페이지 정보
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    {
+                      type: array,
+                      items: { $ref: "#/components/schemas/ProposalDecision" },
+                    }
+                  meta:
+                    type: object
+                    required: [page, size, totalElements, hasNext]
+                    properties:
+                      page: { type: integer }
+                      size: { type: integer }
+                      totalElements: { type: integer, format: int64 }
+                      hasNext: { type: boolean }
+        "400": { description: 잘못된 ID 또는 페이지 입력 }
+        "401": { description: 인증 필요 }
+        "403": { description: 관리자 권한 필요 }
+        "404": { description: 제안 없음 }
+components:
+  schemas:
+    ProposalDecision:
+      type: object
+      required:
+        [
+          id,
+          proposalItemId,
+          itemRevision,
+          decision,
+          selectedOptionId,
+          selectedOptionNo,
+          reason,
+          decidedBy,
+          decidedByName,
+          decidedAt,
+        ]
+      properties:
+        id: { type: integer, format: int64 }
+        proposalItemId: { type: integer, format: int64 }
+        itemRevision: { type: integer, minimum: 1 }
+        decision: { type: string, enum: [APPROVE, HOLD, REJECT] }
+        selectedOptionId: { type: [integer, "null"], format: int64 }
+        selectedOptionNo:
+          type: [integer, "null"]
+          description: 동일 제안·개정의 selectedOptionId와 대조한 표시 번호. 대안이 없거나 대조할 수 없으면 null.
+        reason: { type: string }
+        decidedBy: { type: integer, format: int64 }
+        decidedByName:
+          type: [string, "null"]
+          description: 현재 계정의 표시 이름. 이름을 조회할 수 없으면 null이며 화면은 decidedBy 번호로 대체한다. 기존 필드는 제거하지 않는다.
+        decidedAt: { type: string, format: date-time }

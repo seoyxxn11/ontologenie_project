@@ -1,5 +1,7 @@
 package com.axcore.platform.review.service;
 
+import com.axcore.platform.account.domain.Account;
+import com.axcore.platform.account.repository.AccountRepository;
 import com.axcore.platform.audit.service.RestrictedViewRecorder;
 import com.axcore.platform.audit.service.RestrictedViewRecorder.Seen;
 import com.axcore.platform.auth.service.DataAccessPolicy;
@@ -58,6 +60,7 @@ public class ProposalService {
     private final ProposalOptionRepository proposalOptionRepository;
     private final ProposalRevisionRepository proposalRevisionRepository;
     private final ReviewDecisionRepository reviewDecisionRepository;
+    private final AccountRepository accountRepository;
     private final DataAccessPolicy dataAccessPolicy;
     private final ProposalEvidenceScope evidenceScope;
     private final RestrictedViewRecorder restrictedViews;
@@ -197,9 +200,41 @@ public class ProposalService {
                     CommonErrorCode.RESOURCE_NOT_FOUND,
                     Map.of("resource", "proposal_item", "id", id));
         }
-        return reviewDecisionRepository
-                .findByProposalItemIdOrderByDecidedAtDescIdDesc(id, pageable)
-                .map(ProposalDecisionResponse::from);
+        var decisions =
+                reviewDecisionRepository.findByProposalItemIdOrderByDecidedAtDescIdDesc(
+                        id, pageable);
+        var actorIds =
+                decisions.getContent().stream()
+                        .map(decision -> decision.getDecidedBy())
+                        .distinct()
+                        .toList();
+        Map<Long, String> names =
+                accountRepository.findAllById(actorIds).stream()
+                        .collect(Collectors.toMap(Account::getId, Account::getDisplayName));
+        var optionIds =
+                decisions.getContent().stream()
+                        .map(decision -> decision.getSelectedOptionId())
+                        .filter(java.util.Objects::nonNull)
+                        .distinct()
+                        .toList();
+        Map<Long, ProposalOption> options =
+                proposalOptionRepository.findByIdIn(optionIds).stream()
+                        .collect(Collectors.toMap(ProposalOption::getId, Function.identity()));
+        return decisions.map(
+                decision -> {
+                    ProposalOption option =
+                            decision.getSelectedOptionId() == null
+                                    ? null
+                                    : options.get(decision.getSelectedOptionId());
+                    Integer optionNo =
+                            option != null
+                                            && option.getRevision() == decision.getItemRevision()
+                                            && option.getProposalItemId() == id
+                                    ? option.getOptionNo()
+                                    : null;
+                    return ProposalDecisionResponse.from(
+                            decision, names.get(decision.getDecidedBy()), optionNo);
+                });
     }
 
     private Map<Long, LatestCheckResponse> loadLatestChecks(List<ProposalItem> proposals) {
