@@ -11,6 +11,11 @@
 .app-shell .workspace-main:has(> .explorer-page) {
   padding-block: 8px;
 }
+@media (min-width: 1280px) {
+  .app-shell .workspace-main:has(> .explorer-page) {
+    padding-block: var(--app-page-padding);
+  }
+}
 .explorer-search {
   display: grid;
   grid-template-columns:

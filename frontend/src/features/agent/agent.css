@@ -11,6 +11,17 @@
 .agent-workspace[data-sidebar-collapsed='true'] {
   grid-template-columns: minmax(0, 1fr);
 }
+@media (min-width: 1280px) {
+  .agent-page {
+    margin: 0;
+  }
+  .agent-workspace {
+    height: max(
+      480px,
+      calc(100dvh - var(--app-header-height) - 2 * var(--app-page-padding))
+    );
+  }
+}
 .agent-sidebar-slot {
   display: flex;
   min-width: 0;
