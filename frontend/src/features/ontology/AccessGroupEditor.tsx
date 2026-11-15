@@ -5,7 +5,6 @@ import Button from '../../components/Button'
 import { ErrorState } from '../../components/Feedback'
 import {
   accessGroupLabels,
-  accessGroupText,
   policyViolations,
   selectableAccessGroups,
   violationKindLabels,
@@ -44,18 +43,18 @@ export default function AccessGroupEditor({
 
   return (
     <form
-      className="space-y-3"
+      className="object-types-form"
       aria-label="조회 그룹 지정"
       onSubmit={(event) => {
         event.preventDefault()
         save.mutate()
       }}
     >
-      <p>현재 조회 그룹: {accessGroupText(type.accessGroup)}</p>
       <label className="flex flex-col gap-2 font-medium">
         조회 그룹
         <select
           className="object-types-property-select"
+          aria-describedby="object-types-group-help"
           value={selected}
           onChange={(event) => {
             setSelected(event.target.value)
@@ -70,10 +69,15 @@ export default function AccessGroupEditor({
           ))}
         </select>
       </label>
-      <p className="text-slate-500">
-        그룹이 없으면 어느 역할에도 이 유형의 객체가 보이지 않습니다. 원천
-        데이터 정책을 어기는 매핑이 있으면 지정할 수 없습니다.
+      <p id="object-types-group-help" className="object-types-help">
+        그룹이 없으면 어느 역할에도 이 유형의 객체가 보이지 않습니다.
       </p>
+      <details className="object-types-policy">
+        <summary>원천 데이터 정책</summary>
+        <p className="object-types-help">
+          원천 데이터 정책을 어기는 매핑이 있으면 지정할 수 없습니다.
+        </p>
+      </details>
       {save.isError && (
         <ErrorState
           error={save.error}

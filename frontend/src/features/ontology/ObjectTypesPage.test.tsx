@@ -84,7 +84,7 @@ test('대표 속성을 고르면 민감 속성을 빼고 보여 주고, 저장�
   open()
   const table = await screen.findByRole('table', { name: '객체 유형 목록' })
   const rows = within(table).getAllByRole('row')
-  expect(within(rows[1]).getByText('없음')).toBeInTheDocument()
+  expect(within(rows[1]).getByText('원천 키 사용')).toBeInTheDocument()
   expect(within(rows[2]).getByText('지정됨')).toBeInTheDocument()
 
   const user = await choose('설비')
@@ -101,16 +101,16 @@ test('대표 속성을 고르면 민감 속성을 빼고 보여 주고, 저장�
   expect(
     screen.getByText('민감 속성 1개는 대표 속성으로 고를 수 없습니다.'),
   ).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: '저장' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: '대표 속성 저장' })).toBeDisabled()
 
   await user.selectOptions(select, '12')
-  await user.click(screen.getByRole('button', { name: '저장' }))
+  await user.click(screen.getByRole('button', { name: '대표 속성 저장' }))
 
   expect(
     await screen.findByText(/다시 읽도록 예약했습니다/),
   ).toBeInTheDocument()
   expect(body).toEqual({ displayPropertyId: 12, rowVersion: 3 })
-  expect(screen.getByText('현재 대표 속성: 설비명 (name)')).toBeInTheDocument()
+  expect(screen.getByLabelText('대표 속성')).toHaveValue('12')
   expect(within(rows[1]).getByText('지정됨')).toBeInTheDocument()
 })
 
@@ -127,12 +127,10 @@ test('지정하지 않음을 고르면 대표 속성을 비우도록 null을 보
   )
   open()
   const user = await choose('품목')
-  expect(
-    await screen.findByText('현재 대표 속성: 품목명 (item_name)'),
-  ).toBeInTheDocument()
+  expect(await screen.findByLabelText('대표 속성')).toHaveValue('21')
 
   await user.selectOptions(screen.getByLabelText('대표 속성'), '')
-  await user.click(screen.getByRole('button', { name: '저장' }))
+  await user.click(screen.getByRole('button', { name: '대표 속성 저장' }))
 
   await screen.findByText(/다시 읽도록 예약했습니다/)
   expect(body).toEqual({ displayPropertyId: null, rowVersion: 0 })
@@ -156,7 +154,7 @@ test('다른 사람이 먼저 바꿔 409가 오면 안내하고 목록을 다시
   open()
   const user = await choose('설비')
   await user.selectOptions(await screen.findByLabelText('대표 속성'), '11')
-  await user.click(screen.getByRole('button', { name: '저장' }))
+  await user.click(screen.getByRole('button', { name: '대표 속성 저장' }))
 
   expect(
     await screen.findByText(/다른 사람이 먼저 이 유형을 바꿨습니다/),
@@ -164,9 +162,7 @@ test('다른 사람이 먼저 바꿔 409가 오면 안내하고 목록을 다시
 
   serveTypes([{ ...equipment, displayPropertyId: 11, rowVersion: 4 }, item])
   await user.click(screen.getByRole('button', { name: '목록 다시 불러오기' }))
-  expect(
-    await screen.findByText('현재 대표 속성: 설비 코드 (code)'),
-  ).toBeInTheDocument()
+  expect(await screen.findByLabelText('대표 속성')).toHaveValue('11')
   expect(
     screen.queryByText(/다른 사람이 먼저 이 유형을 바꿨습니다/),
   ).not.toBeInTheDocument()
@@ -313,4 +309,24 @@ test('정책을 어긴 매핑이 있어 거절되면 어긴 매핑을 보여 준
   expect(list).toHaveTextContent(
     'erp.employee.emp_name → emp_name · 금지 컬럼(수집하지 않음)',
   )
+})
+
+test('이름 외 셀을 눌러도 유형을 선택하고 키보드 선택도 유지한다', async () => {
+  serveTypes()
+  open()
+  const user = userEvent.setup()
+  const table = await screen.findByRole('table', { name: '객체 유형 목록' })
+  const rows = within(table).getAllByRole('row')
+  await user.click(within(rows[1]).getByText('원천 키 사용'))
+  expect(await screen.findByLabelText('대표 속성')).toHaveValue('')
+  expect(within(rows[1]).getByRole('button', { name: '설비' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  const itemButton = within(rows[2]).getByRole('button', { name: '품목' })
+  itemButton.focus()
+  await user.keyboard('[Space]')
+  expect(await screen.findByLabelText('대표 속성')).toHaveValue('21')
+  expect(itemButton).toHaveFocus()
+  expect(itemButton).toHaveAttribute('aria-pressed', 'true')
 })
