@@ -1,0 +1,274 @@
+.rule-editor-tabs-page {
+  display: grid;
+  gap: 20px;
+  color: var(--ui-text);
+  font: 14px/21px var(--ui-font);
+}
+.rule-editor-navigation {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid var(--ui-border);
+  min-width: 0;
+}
+.rule-editor-navigation .management-tabs {
+  border: 0;
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+}
+.rule-editor-navigation .management-tabs button {
+  min-height: 48px;
+  font-size: 14px;
+  line-height: 21px;
+  font-weight: 600;
+}
+.rule-editor-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  color: var(--ui-text-secondary);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+}
+.rule-editor-back:hover {
+  background: var(--ui-hover);
+}
+.rule-editor-divider {
+  width: 1px;
+  height: 24px;
+  flex-shrink: 0;
+  background: var(--ui-border);
+}
+.rule-editor-tabs-page .rules-editor-form {
+  max-width: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+.rule-editor-tabs-page [hidden] {
+  display: none !important;
+}
+.rule-editor-tabs-page :is(p, h2, h3, label) {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.rule-editor-tabs-page fieldset {
+  min-width: 0;
+}
+.rule-editor-basic {
+  padding: 20px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+}
+.rule-editor-basic > label :is(input, textarea, select) {
+  width: 100%;
+  min-width: 0;
+}
+.rule-editor-basic textarea {
+  min-height: 64px;
+}
+.rule-editor-conditions {
+  display: grid;
+  gap: 20px;
+}
+.rule-editor-condition-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.rule-editor-condition-switch {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.rule-editor-condition-switch button[aria-pressed='true'] {
+  background: var(--ui-brand-subtle);
+  border-color: var(--ui-brand-strong);
+  color: var(--ui-brand-strong);
+}
+.rule-editor-condition {
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+}
+.rule-editor-condition-heading {
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--ui-border);
+  font-weight: 600;
+}
+.rule-editor-lanes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr);
+  gap: 20px;
+  padding: 20px;
+}
+.rule-editor-side {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  min-width: 0;
+  grid-row: 1;
+}
+.rule-editor-side:nth-child(2) {
+  grid-column: 3;
+}
+.rule-editor-side h2 {
+  font-size: 14px;
+  line-height: 21px;
+  font-weight: 600;
+}
+.rule-editor-side :is(input, select) {
+  width: 100%;
+  min-width: 0;
+}
+.rule-editor-side > fieldset {
+  margin: 0;
+  padding: 12px 0 0;
+  border: 0;
+  border-top: 1px solid var(--ui-border);
+  border-radius: 0;
+  background: transparent;
+}
+.rule-editor-side > fieldset > div {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+}
+.rule-editor-side > fieldset > div + div {
+  padding-top: 12px;
+  border-top: 1px solid var(--ui-border);
+}
+.rule-editor-equal {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  color: var(--ui-brand-strong);
+  font-weight: 600;
+}
+.rule-editor-equal strong {
+  font-size: 24px;
+  line-height: 32px;
+}
+.rules-shell .rule-editor-help,
+.rule-editor-help {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--ui-text-secondary);
+}
+.rule-editor-meaning {
+  padding: 12px 20px;
+  border-top: 1px solid var(--ui-border);
+  color: var(--ui-text-secondary);
+}
+.rule-editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--ui-border);
+}
+.rule-editor-footer p {
+  max-width: 68ch;
+}
+.rule-editor-footer > button {
+  flex-shrink: 0;
+}
+@media (max-width: 700px) {
+  .rule-editor-lanes {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .rule-editor-side {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .rule-editor-side:nth-child(2) {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .rule-editor-equal {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+  }
+  .rule-editor-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+@media (max-width: 600px) {
+  .rule-editor-basic,
+  .rule-editor-lanes {
+    padding: 16px;
+  }
+  .rule-editor-condition-heading,
+  .rule-editor-meaning {
+    padding: 12px 16px;
+  }
+  .rule-editor-navigation {
+    gap: 12px;
+  }
+}
+.rule-editor-relation > div {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr);
+  gap: 8px;
+}
+.rule-editor-relation label:nth-child(1) {
+  grid-column: 1;
+  grid-row: 1;
+}
+.rule-editor-relation input {
+  grid-column: 1;
+  grid-row: 2;
+  min-width: 0;
+}
+.rule-editor-relation label:nth-child(3) {
+  grid-column: 2;
+  grid-row: 1;
+}
+.rule-editor-relation select {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+}
+.rule-editor-relation [role='status'] {
+  grid-column: 1 / -1;
+}
+.rule-editor-description summary {
+  cursor: pointer;
+  color: var(--ui-text-secondary);
+}
+.rule-editor-description-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 12px;
+}
+.rule-editor-description-fields :is(input, textarea) {
+  width: 100%;
+}
+@media (max-width: 700px) {
+  .rule-editor-relation > div,
+  .rule-editor-description-fields {
+    display: flex;
+    flex-direction: column;
+  }
+}
