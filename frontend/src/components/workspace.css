@@ -209,7 +209,7 @@
 
 @media (min-width: 1280px) {
   .app-frame {
-    --app-page-padding: 48px;
+    --app-page-padding: 40px;
   }
 }
 @media (max-width: 900px) {
