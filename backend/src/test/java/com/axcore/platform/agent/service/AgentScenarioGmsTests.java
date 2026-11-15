@@ -533,6 +533,20 @@ class AgentScenarioGmsTests {
         run.verify();
     }
 
+    /**
+     * H1(419): 작업자는 이름이 금지라 대표 속성이 없고 표시 이름이 원천 키(6)다. "작업자 6"을 통째로 찾으면 0건이라 대상을 찾지 못했다. 유형 이름과 번호로
+     * 나눠 현장 작업자 6을 찾고, 개인 평가로 거절하지 않고 교대·라인을 답해야 한다.
+     */
+    @Test
+    void h1FindsWorkerByTypeWordAndNumber() {
+        Run run = ask("작업자 6 상세 정보 알려줘", null);
+
+        run.expectReached(data.object("Worker", Map.of("id", "6")));
+        run.expectAnswerWith("주간", "1라인");
+        run.log("현장 작업자 6: 주간, 1라인, 재직(Y). 숙련도는 민감 속성이라 볼 수 없음");
+        run.verify();
+    }
+
     /** L3(359): 10월 계획 시작 작업지시는 42건이다. 20건만 받으므로 전체 건수와 일부임을 함께 말해야 한다. */
     @Test
     void l3CountsWorkOrdersPlannedInOctober() {

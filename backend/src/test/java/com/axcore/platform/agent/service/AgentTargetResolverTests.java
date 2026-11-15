@@ -13,10 +13,13 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.axcore.platform.audit.domain.AgentResultCategory;
+import com.axcore.platform.auth.service.DataAccessPolicy;
 import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.global.security.LoginAccount;
+import com.axcore.platform.ontology.dto.ModelSummaryResponse;
 import com.axcore.platform.ontology.dto.ObjectSearchRequest;
 import com.axcore.platform.ontology.dto.ObjectSearchResponse;
+import com.axcore.platform.ontology.service.ModelSummaryService;
 import com.axcore.platform.ontology.service.ObjectSearchQuery;
 import java.time.Clock;
 import java.time.Instant;
@@ -36,7 +39,139 @@ class AgentTargetResolverTests {
     private final ObjectSearchQuery objects = mock(ObjectSearchQuery.class);
     private final AgentQueryRecorder recorder = mock(AgentQueryRecorder.class);
     private final AgentQuerySession session = new AgentQuerySession(ASKER, 11L, recorder, CLOCK);
-    private final AgentTargetResolver resolver = new AgentTargetResolver(objects);
+    private final ModelSummaryService models = mock(ModelSummaryService.class);
+    private final DataAccessPolicy dataAccess = mock(DataAccessPolicy.class);
+    private final AgentTargetResolver resolver =
+            new AgentTargetResolver(objects, models, dataAccess);
+
+    @Test
+    void findsWorkerByTypeWordAndNumber() {
+        searchReturns("작업자 6");
+        propertyValueReturns("작업자 6");
+        typesAre(type(31L, "현장 작업자"), type(32L, "직원"), type(33L, "설비"));
+        typedSearchReturns(
+                "6",
+                31L,
+                sourced(406L, "6", "현장 작업자", Map.of("id", "6")),
+                sourced(416L, "16", "현장 작업자", Map.of("id", "16")));
+
+        AgentTargetResolver.Resolution resolution =
+                resolver.resolve(List.of("작업자 6"), List.of(), session);
+
+        assertThat(resolution.found())
+                .containsExactly(new AgentReferenceObject(406L, "6", "현장 작업자"));
+        assertThat(resolution.issues()).isEmpty();
+        verify(objects, never()).findByPropertyValue(ASKER, DataPurpose.MODEL, "작업자 6", 100);
+    }
+
+    @Test
+    void findsEmployeeWhoseNumberHasPrefixAndZeros() {
+        searchReturns("직원 6번");
+        searchReturns("직원 6");
+        typesAre(type(31L, "현장 작업자"), type(32L, "직원"));
+        typedSearchReturns(
+                "6",
+                32L,
+                sourced(506L, "GP0006", "직원", Map.of("emp_no", "GP0006")),
+                sourced(516L, "GP0016", "직원", Map.of("emp_no", "GP0016")));
+
+        assertThat(resolver.resolve(List.of("직원 6번"), List.of(), session).found())
+                .extracting(AgentReferenceObject::id)
+                .containsExactly(506L);
+    }
+
+    @Test
+    void doesNotTakeRecordOfAnotherTypeWhoseNumberEndsTheSame() {
+        searchReturns("설비 401");
+        propertyValueReturns("설비 401");
+        typesAre(type(33L, "설비 비가동"), type(34L, "설비"), type(35L, "설비 센서 측정"));
+        typedSearchReturns("401", 34L);
+
+        AgentTargetResolver.Resolution resolution =
+                resolver.resolve(List.of("설비 401"), List.of(), session);
+
+        assertThat(resolution.found()).isEmpty();
+        assertThat(resolution.issues())
+                .containsExactly(new AgentTargetResolver.TargetIssue("설비 401", List.of()));
+        verify(objects, never())
+                .search(
+                        eq(ASKER),
+                        eq(DataPurpose.MODEL),
+                        eq(new ObjectSearchRequest("401", 33L, null, 0, 100)));
+        verify(objects).findByPropertyValue(ASKER, DataPurpose.MODEL, "설비 401", 100);
+        verify(dataAccess).forModel(ASKER);
+    }
+
+    @Test
+    void doesNotPickWorkerWhoseNumberOnlyContainsTheAskedNumber() {
+        searchReturns("작업자 9");
+        propertyValueReturns("작업자 9");
+        typesAre(type(31L, "현장 작업자"));
+        typedSearchReturns("9", 31L, sourced(479L, "79", "현장 작업자", Map.of("id", "79")));
+
+        AgentTargetResolver.Resolution resolution =
+                resolver.resolve(List.of("작업자 9"), List.of(), session);
+
+        assertThat(resolution.found()).as("다른 사람(79)을 대상으로 정하지 않는다").isEmpty();
+        assertThat(resolution.issues())
+                .containsExactly(new AgentTargetResolver.TargetIssue("작업자 9", List.of()));
+    }
+
+    @Test
+    void readsTypesOnceForSeveralTypedTargets() {
+        searchReturns("작업자 6");
+        searchReturns("작업자 24");
+        typesAre(type(31L, "현장 작업자"));
+        typedSearchReturns("6", 31L, sourced(406L, "6", "현장 작업자", Map.of("id", "6")));
+        typedSearchReturns("24", 31L, sourced(424L, "24", "현장 작업자", Map.of("id", "24")));
+
+        assertThat(resolver.resolve(List.of("작업자 6", "작업자 24"), List.of(), session).found())
+                .extracting(AgentReferenceObject::id)
+                .containsExactly(406L, 424L);
+        verify(models).summarize(any());
+    }
+
+    @Test
+    void fallsBackToPropertyValueWhenNoCandidateHasThatNumber() {
+        searchReturns("설비 3");
+        typesAre(type(34L, "설비"));
+        typedSearchReturns("3", 34L, object(301L, "P103"), object(302L, "PR-03"));
+        propertyValueReturns("설비 3");
+
+        assertThat(resolver.resolve(List.of("설비 3"), List.of(), session).issues())
+                .as("3이 든 다른 설비로 되묻지 않는다")
+                .containsExactly(new AgentTargetResolver.TargetIssue("설비 3", List.of()));
+        verify(objects).findByPropertyValue(ASKER, DataPurpose.MODEL, "설비 3", 100);
+    }
+
+    @Test
+    void asksBackWhenTypeWordMatchesNoTypeOrNumber() {
+        searchReturns("작업자 99");
+        propertyValueReturns("작업자 99");
+        typesAre(type(31L, "현장 작업자"));
+        typedSearchReturns("99", 31L);
+
+        assertThat(resolver.resolve(List.of("작업자 99"), List.of(), session).issues())
+                .containsExactly(new AgentTargetResolver.TargetIssue("작업자 99", List.of()));
+    }
+
+    @Test
+    void splitsTypeWordAndNumber() {
+        assertThat(AgentTargetResolver.typedNumber("작업자 6"))
+                .contains(new AgentTargetResolver.TypedNumber("작업자", "6"));
+        assertThat(AgentTargetResolver.typedNumber("직원 24번"))
+                .contains(new AgentTargetResolver.TypedNumber("직원", "24"));
+        assertThat(AgentTargetResolver.typedNumber("6번 작업자"))
+                .contains(new AgentTargetResolver.TypedNumber("작업자", "6"));
+        assertThat(AgentTargetResolver.typedNumber("작업자6"))
+                .contains(new AgentTargetResolver.TypedNumber("작업자", "6"));
+        assertThat(AgentTargetResolver.typedNumber("P103")).isEmpty();
+        assertThat(AgentTargetResolver.typedNumber("1라인 1호 프레스")).isEmpty();
+        assertThat(AgentTargetResolver.typedNumber("프레스 3호기")).isEmpty();
+        assertThat(AgentTargetResolver.typeNamed("현장 작업자", "작업자")).isTrue();
+        assertThat(AgentTargetResolver.typeNamed("직원", "작업자")).isFalse();
+        assertThat(AgentTargetResolver.typeNamed("설비 비가동", "설비")).isFalse();
+    }
 
     @Test
     void picksObjectWithSameNameAmongSimilarOnes() {
@@ -438,6 +573,24 @@ class AgentTargetResolverTests {
                 null,
                 null,
                 null);
+    }
+
+    private void typesAre(ModelSummaryResponse.ObjectTypeSummary... types) {
+        when(models.summarize(any()))
+                .thenReturn(
+                        new ModelSummaryResponse(List.of(types), List.of(), List.of(), List.of()));
+    }
+
+    private static ModelSummaryResponse.ObjectTypeSummary type(long id, String name) {
+        return new ModelSummaryResponse.ObjectTypeSummary(id, "T" + id, name, null);
+    }
+
+    private void typedSearchReturns(String query, long typeId, ObjectSearchResponse... rows) {
+        when(objects.search(
+                        eq(ASKER),
+                        eq(DataPurpose.MODEL),
+                        eq(new ObjectSearchRequest(query, typeId, null, 0, 100))))
+                .thenReturn(new PageImpl<>(List.of(rows)));
     }
 
     private void searchReturns(String query, ObjectSearchResponse... rows) {
