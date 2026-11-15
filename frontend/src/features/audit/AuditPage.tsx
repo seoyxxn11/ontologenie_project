@@ -1,15 +1,18 @@
+import './audit.css'
 import { useQuery } from '@tanstack/react-query'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import Button from '../../components/Button'
+import type { ReactNode } from 'react'
 import PageHeader from '../../components/PageHeader'
 import { fetchObject } from '../explorer/api'
 import ExecutionHistory from './ExecutionHistory'
 
 type ObjectHistoryProps = {
   objectId: number
+  navigation: ReactNode
 }
 
-function ObjectHistory({ objectId }: ObjectHistoryProps) {
+function ObjectHistory({ objectId, navigation }: ObjectHistoryProps) {
   const { data: object } = useQuery({
     queryKey: ['objects', objectId],
     queryFn: () => fetchObject(objectId),
@@ -17,6 +20,8 @@ function ObjectHistory({ objectId }: ObjectHistoryProps) {
 
   return (
     <ExecutionHistory
+      fullPage
+      navigation={navigation}
       objectId={objectId}
       targetLabel={object?.displayName ?? `객체 #${objectId}`}
     />
@@ -43,27 +48,53 @@ function AuditPage() {
     }
   }
 
+  const navigation = (
+    <>
+      <Button
+        variant="text"
+        className="audit-back"
+        onClick={goBack}
+        aria-label="이전 화면으로"
+        data-tooltip="이전 화면으로"
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          aria-hidden="true"
+        >
+          <path d="m12 5-7 7 7 7M5 12h14" />
+        </svg>
+      </Button>
+      <span className="audit-nav-divider" aria-hidden="true" />
+    </>
+  )
   return (
-    <div className="management-page">
+    <div className="management-page audit-page">
       <PageHeader
         title="실행 이력"
         description="실행 결과와 처리 내용, 데이터 변경 전후를 확인합니다."
-        action={
-          <Button variant="secondary" onClick={goBack}>
-            이전 화면으로
-          </Button>
-        }
       />
-      <section className="management-panel">
-        <div>
+      <section className="audit-page-content">
+        <div className="audit-page-inner">
           {objectParam !== null && !hasObject ? (
-            <p role="alert" className="text-sm text-red-600">
-              올바른 객체 번호로 실행 이력을 조회해 주세요.
-            </p>
+            <>
+              <div className="audit-navigation">{navigation}</div>
+              <p role="alert" className="text-sm text-red-600">
+                올바른 객체 번호로 실행 이력을 조회해 주세요.
+              </p>
+            </>
           ) : hasObject ? (
-            <ObjectHistory key={objectId} objectId={objectId} />
+            <ObjectHistory
+              key={objectId}
+              objectId={objectId}
+              navigation={navigation}
+            />
           ) : (
-            <ExecutionHistory />
+            <ExecutionHistory fullPage navigation={navigation} />
           )}
         </div>
       </section>

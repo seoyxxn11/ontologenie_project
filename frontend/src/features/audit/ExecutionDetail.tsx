@@ -1,5 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { formatKstDateTime } from '../../utils/dateTime'
+import Button from '../../components/Button'
+import Dialog from '../../components/Dialog'
 import { ErrorState, LoadingState } from '../../components/Feedback'
 import { fetchExecutionChanges, fetchExecutionDetail } from './api'
 import EntityChangeTable from './EntityChangeTable'
@@ -31,7 +34,9 @@ function failureReasonText(reason: string | null) {
 function DetailContent({
   detail,
   execution,
+  compact = false,
 }: {
+  compact?: boolean
   detail: Detail
   execution: Execution
 }) {
@@ -48,16 +53,9 @@ function DetailContent({
     resultValues,
     detail.status === 'SUCCEEDED' ? detail.restrictedPropertyCodes : [],
   )
-  return (
+  const inputContent = (
     <>
-      <p className="mt-2 font-semibold text-slate-900">
-        {execution.actionName || eventKindLabels[execution.eventKind]} ·{' '}
-        {executionStatusLabels[detail.status]}
-      </p>
-      <p className="text-sm text-slate-600">
-        변경 {execution.changeCount}건
-        {execution.targetLabel ? ` · 대상: ${execution.targetLabel}` : ''}
-      </p>
+      {' '}
       <p className="mt-2 font-semibold text-slate-700">입력값</p>
       {detail.restrictedPropertyCodes.length > 0 && (
         <p className="text-slate-500">
@@ -68,6 +66,35 @@ function DetailContent({
         values={detail.input}
         restricted={detail.restrictedPropertyCodes}
       />
+    </>
+  )
+  return (
+    <>
+      <p className="mt-2 font-semibold text-slate-900">
+        {execution.actionName || eventKindLabels[execution.eventKind]} ·{' '}
+        {executionStatusLabels[detail.status]}
+      </p>
+      <p className="text-sm text-slate-600">
+        변경 {execution.changeCount}건
+        {execution.targetLabel ? ` · 대상: ${execution.targetLabel}` : ''}
+      </p>
+      {compact && (
+        <p className="audit-execution-meta">
+          {execution.actorType === 'SYSTEM'
+            ? '시스템'
+            : (execution.actorName ??
+              (execution.actorId
+                ? '사용자 #' + execution.actorId
+                : '실행자 미제공'))}{' '}
+          · {formatKstDateTime(new Date(execution.requestedAt))}
+        </p>
+      )}
+      {!compact && inputContent}
+      {compact && detail.restrictedPropertyCodes.length > 0 && (
+        <p className="text-slate-500">
+          입력값·처리 결과 중 권한으로 가린 속성이 있습니다.
+        </p>
+      )}
       {detail.status === 'BLOCKED' && (
         <>
           <p className="mt-2 font-semibold text-slate-700">차단 이유</p>
@@ -89,6 +116,20 @@ function DetailContent({
           <p className="mt-2 font-semibold text-slate-700">처리 결과</p>
           <ExecutionValues values={resultValues} />
         </>
+      )}
+      {compact && detail.status === 'RUNNING' && (
+        <p role="status">진행 중입니다. 완료된 처리 결과가 아직 없습니다.</p>
+      )}
+      {compact && (
+        <details className="mt-3 text-sm">
+          <summary className="cursor-pointer text-slate-500">입력값</summary>
+          <div className="audit-input-values">
+            <ExecutionValues
+              values={detail.input}
+              restricted={detail.restrictedPropertyCodes}
+            />
+          </div>
+        </details>
       )}
       <details className="mt-3 text-sm">
         <summary className="cursor-pointer text-slate-500">
@@ -165,8 +206,10 @@ function ExecutionChanges({ id, count }: { id: number; count: number }) {
 
 export default function ExecutionDetail({
   execution,
+  modal = false,
 }: {
   execution: Execution
+  modal?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const { data, isPending, isError, error, refetch } = useQuery({
@@ -174,29 +217,53 @@ export default function ExecutionDetail({
     queryFn: ({ signal }) => fetchExecutionDetail(execution.id, { signal }),
     enabled: open,
   })
+  const content = open && (
+    <>
+      {isPending ? (
+        <LoadingState message="실행 내용을 불러오는 중…" />
+      ) : isError ? (
+        <ErrorState
+          error={error}
+          onRetry={() => {
+            void refetch()
+          }}
+        />
+      ) : (
+        <DetailContent
+          detail={data.data}
+          execution={execution}
+          compact={modal}
+        />
+      )}
+      <ExecutionChanges id={execution.id} count={execution.changeCount} />
+    </>
+  )
+  if (modal)
+    return (
+      <>
+        <Button
+          variant="text"
+          aria-haspopup="dialog"
+          onClick={() => setOpen(true)}
+        >
+          내용 보기
+        </Button>
+        {open && (
+          <Dialog title="실행 내용" size="wide" onClose={() => setOpen(false)}>
+            <div className="audit-dialog-content management-detail">
+              {content}
+            </div>
+          </Dialog>
+        )}
+      </>
+    )
   return (
     <details
       className="management-detail"
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
       <summary className="cursor-pointer text-slate-500">내용 보기</summary>
-      {open && (
-        <>
-          {isPending ? (
-            <LoadingState message="실행 내용을 불러오는 중…" />
-          ) : isError ? (
-            <ErrorState
-              error={error}
-              onRetry={() => {
-                void refetch()
-              }}
-            />
-          ) : (
-            <DetailContent detail={data.data} execution={execution} />
-          )}
-          <ExecutionChanges id={execution.id} count={execution.changeCount} />
-        </>
-      )}
+      {content}
     </details>
   )
 }
