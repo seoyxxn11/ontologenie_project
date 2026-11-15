@@ -7,6 +7,7 @@ import com.axcore.platform.ontology.dto.ObjectLinkResponse;
 import com.axcore.platform.ontology.dto.ObjectLinkSearchRequest;
 import com.axcore.platform.ontology.dto.ObjectSearchRequest;
 import com.axcore.platform.ontology.service.ObjectDetailQuery;
+import com.axcore.platform.ontology.service.ObjectSearchQuery;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -27,6 +28,8 @@ public class AgentObjectDetailTools {
 
     private final AgentQuerySession session;
     private final ObjectDetailQuery objects;
+    // 관계 조회 결과의 상대 객체 속성을 함께 읽는다(434).
+    private final ObjectSearchQuery related;
 
     /**
      * AI에게 넘기는 객체 상세. 077 응답과 같고 시각만 한국 시간 오프셋으로 적는다. dataAsOf는 객체 값의 업무 기준일이라 UTC로 넘기면 날짜가 하루 틀어질
@@ -69,12 +72,18 @@ public class AgentObjectDetailTools {
         }
     }
 
-    public AgentObjectDetailTools(AgentQuerySession session, ObjectDetailQuery objects) {
+    public AgentObjectDetailTools(
+            AgentQuerySession session, ObjectDetailQuery objects, ObjectSearchQuery related) {
         this.session = session;
         this.objects = objects;
+        this.related = related;
     }
 
-    @Tool(name = OBJECT_DETAIL, description = "객체 하나의 속성, 원천 위치, 수집 시각을 조회한다. 상대 객체의 속성도 이 도구로 본다.")
+    @Tool(
+            name = OBJECT_DETAIL,
+            description =
+                    "객체 하나의 속성, 원천 위치, 수집 시각을 조회한다. 관계 조회의 relatedObjects나 목록 결과에 이미 속성이 온 객체는 속성"
+                            + " 값만 필요하면 다시 조회하지 않는다. 원천 위치·수집 시각·속성 이름이 필요하면 부른다.")
     public Map<String, Object> objectDetail(@ToolParam(description = "객체 ID") Long objectId) {
         Map<String, Object> input = new LinkedHashMap<>();
         AgentQueryTools.putIfPresent(input, "objectId", objectId);
@@ -105,8 +114,8 @@ public class AgentObjectDetailTools {
     @Tool(
             name = OBJECT_LINKS,
             description =
-                    "객체에 연결된 확정 관계를 한 번에 최대 20건 조회한다. 연결 상대 객체의 ID·이름과 관계 근거를 돌려준다. 상대 객체의 속성은"
-                            + " OBJECT_DETAIL로 본다. 관계 유형 없이 조회해 total이 20건을 넘으면 groups에 관계 유형·방향별 건수가 온다."
+                    "객체에 연결된 확정 관계를 한 번에 최대 20건 조회한다. 연결 상대 객체의 ID·이름과 관계 근거를 돌려주고, 상대 객체의 속성은"
+                            + " relatedObjects에 함께 온다. 관계 유형 없이 조회해 total이 20건을 넘으면 groups에 관계 유형·방향별 건수가 온다."
                             + " 그때는 찾는 정보에 맞는 묶음의 linkTypeId·direction으로 다시 조회하고, hasNext가 true면 page를 올려"
                             + " 다음 쪽을 본다.")
     public Map<String, Object> objectLinks(
@@ -167,6 +176,13 @@ public class AgentObjectDetailTools {
                                                         session.asker(), DataPurpose.MODEL, id));
                                     }
                                     data.put("links", links.getContent());
+                                    // 상대 객체의 속성을 함께 준다. 없으면 AI가 상대마다 상세를 다시 조회했다(434 측정에서 도구
+                                    // 호출의 22%). 076과 같은 권한·가림(MODEL 용도)으로 읽고, 볼 수 없는 객체는 빠진다.
+                                    List<AgentQueryTools.ObjectSummary> partners =
+                                            relatedObjects(id, links.getContent());
+                                    if (!partners.isEmpty()) {
+                                        data.put("relatedObjects", partners);
+                                    }
                                     // 연결이 없으면(UNLINKED) 기준 객체의 표만, 있으면 상대 객체의 표까지 본다.
                                     Set<Long> linked = objectIds(id, links.getContent());
                                     return new AgentQuerySession.Outcome(
@@ -182,6 +198,23 @@ public class AgentObjectDetailTools {
                                                     .toList(),
                                             session.dataAsOfObjects(linked));
                                 }));
+    }
+
+    /** 관계 상대 객체를 속성과 함께 읽는다. 기준 객체는 빼고, 같은 상대는 한 번만 담는다. */
+    private List<AgentQueryTools.ObjectSummary> relatedObjects(
+            long baseId, List<ObjectLinkResponse> links) {
+        Set<Long> ids = new LinkedHashSet<>();
+        for (ObjectLinkResponse link : links) {
+            if (link.relatedObject() != null && link.relatedObject().id() != baseId) {
+                ids.add(link.relatedObject().id());
+            }
+        }
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return related.findByIds(session.asker(), DataPurpose.MODEL, ids).stream()
+                .map(AgentQueryTools.ObjectSummary::from)
+                .toList();
     }
 
     /** AI가 음수 쪽 번호를 보내면 조회하지 않고 오류로 기록한다. */

@@ -22,7 +22,9 @@ import com.axcore.platform.ontology.dto.ObjectLinkGroupResponse;
 import com.axcore.platform.ontology.dto.ObjectLinkResponse;
 import com.axcore.platform.ontology.dto.ObjectLinkSearchRequest;
 import com.axcore.platform.ontology.dto.ObjectSearchRequest;
+import com.axcore.platform.ontology.dto.ObjectSearchResponse;
 import com.axcore.platform.ontology.service.ObjectDetailQuery;
+import com.axcore.platform.ontology.service.ObjectSearchQuery;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
@@ -42,7 +44,9 @@ class AgentObjectDetailToolsTests {
     private final AgentQueryRecorder recorder = mock(AgentQueryRecorder.class);
     private final AgentQuerySession session =
             new AgentQuerySession(ASKER, 11L, recorder, Clock.systemUTC());
-    private final AgentObjectDetailTools tools = new AgentObjectDetailTools(session, objects);
+    private final ObjectSearchQuery related = mock(ObjectSearchQuery.class);
+    private final AgentObjectDetailTools tools =
+            new AgentObjectDetailTools(session, objects, related);
 
     @Test
     void returnsDetailAsFound() {
@@ -97,6 +101,53 @@ class AgentObjectDetailToolsTests {
                         Map.of("objectId", 301L),
                         Map.of("objectId", 501L),
                         Map.of("objectId", 502L));
+    }
+
+    /**
+     * 관계 상대 객체의 속성을 함께 준다. 없으면 AI가 상대마다 상세를 다시 조회했다(434 측정: 도구 호출의 22%). 076과 같은 권한·가림(MODEL)으로 읽고,
+     * 같은 상대는 한 번만 읽는다.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void givesPropertiesOfRelatedObjectsWithLinks() {
+        when(objects.links(eq(ASKER), eq(DataPurpose.MODEL), eq(301L), any()))
+                .thenReturn(
+                        new PageImpl<>(
+                                List.of(link(91L, 501L), link(92L, 502L), link(93L, 501L)),
+                                PageRequest.of(0, 20),
+                                3));
+        ObjectSearchResponse partner =
+                new ObjectSearchResponse(
+                        501L,
+                        5L,
+                        "작업지시",
+                        "WO-501",
+                        Map.of("state", "진행"),
+                        List.of("cost"),
+                        ObjectSearchRequest.Status.ACTIVE,
+                        1L,
+                        Map.of("id", 501L),
+                        null,
+                        null,
+                        null);
+        when(related.findByIds(eq(ASKER), eq(DataPurpose.MODEL), any()))
+                .thenReturn(List.of(partner));
+
+        Map<String, Object> data =
+                (Map<String, Object>) tools.objectLinks(301L, null, null, null).get("data");
+
+        ArgumentCaptor<java.util.Collection<Long>> ids =
+                ArgumentCaptor.forClass(java.util.Collection.class);
+        verify(related).findByIds(eq(ASKER), eq(DataPurpose.MODEL), ids.capture());
+        assertThat(ids.getValue()).containsExactly(501L, 502L);
+        assertThat((List<AgentQueryTools.ObjectSummary>) data.get("relatedObjects"))
+                .singleElement()
+                .satisfies(
+                        summary -> {
+                            assertThat(summary.id()).isEqualTo(501L);
+                            assertThat(summary.properties()).containsEntry("state", "진행");
+                            assertThat(summary.restrictedPropertyCodes()).containsExactly("cost");
+                        });
     }
 
     /** 관계가 20건을 넘으면 AI가 쪽을 넘겨 본다. 받은 쪽 번호와 다음 쪽 여부를 함께 돌려준다(350). */

@@ -66,7 +66,7 @@ class AgentToolDataAsOfTests {
 
         Map<String, Object> searched = queryTools().objectSearch("PR", null, null);
         Map<String, Object> detailed =
-                new AgentObjectDetailTools(session, details).objectDetail(301L);
+                new AgentObjectDetailTools(session, details, search).objectDetail(301L);
 
         AgentQueryTools.ObjectSummary summary =
                 (AgentQueryTools.ObjectSummary)
@@ -91,7 +91,7 @@ class AgentToolDataAsOfTests {
         when(details.detail(ASKER, DataPurpose.MODEL, 301L)).thenReturn(detail(301L));
         when(dataAsOf.forObjects(List.of(301L))).thenReturn(CONFIRMED);
 
-        new AgentObjectDetailTools(session, details).objectDetail(301L);
+        new AgentObjectDetailTools(session, details, search).objectDetail(301L);
 
         assertThat(session.results().getFirst().dataAsOf()).isEqualTo(CONFIRMED);
     }
@@ -102,7 +102,7 @@ class AgentToolDataAsOfTests {
                 .thenReturn(new PageImpl<>(List.of(link(91L, 401L))))
                 .thenReturn(new PageImpl<>(List.of()));
         when(dataAsOf.forObjects(any())).thenReturn(CONFIRMED);
-        AgentObjectDetailTools tools = new AgentObjectDetailTools(session, details);
+        AgentObjectDetailTools tools = new AgentObjectDetailTools(session, details, search);
 
         tools.objectLinks(301L, null, null, null);
         tools.objectLinks(301L, null, null, null);
@@ -160,7 +160,8 @@ class AgentToolDataAsOfTests {
         when(details.detail(ASKER, DataPurpose.MODEL, 301L)).thenReturn(detail(301L));
         when(dataAsOf.forObjects(any())).thenThrow(new IllegalStateException("DB 연결 끊김"));
 
-        Map<String, Object> reply = new AgentObjectDetailTools(session, details).objectDetail(301L);
+        Map<String, Object> reply =
+                new AgentObjectDetailTools(session, details, search).objectDetail(301L);
 
         // 기준 시점만 비우고 조회 결과는 그대로 쓴다.
         assertThat(reply).containsEntry("resultCategory", "FOUND");
