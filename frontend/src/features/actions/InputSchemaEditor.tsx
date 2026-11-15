@@ -194,10 +194,13 @@ export default function InputSchemaEditor({
           </Button>
         )}
       </div>
-      <p className="text-slate-500">
-        이 기능을 실행할 때 받을 값입니다. Agent가 설명을 보고 값을 채웁니다.
-        모르면 비워 두세요. 개발자가 구현할 때 정할 수 있습니다.
-      </p>
+      <details className="actions-disclosure">
+        <summary>입력 형식 안내</summary>
+        <p className="text-slate-500">
+          이 기능을 실행할 때 받을 값입니다. Agent가 설명을 보고 값을 채웁니다.
+          모르면 비워 두세요. 개발자가 구현할 때 정할 수 있습니다.
+        </p>
+      </details>
       {value.mode === 'table' ? (
         <>
           {value.rows.length ? (
