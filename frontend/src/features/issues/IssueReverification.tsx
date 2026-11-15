@@ -1,7 +1,7 @@
 import { formatKstDateTime } from '../../utils/dateTime'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link, useSearchParams, useLocation } from 'react-router'
 import { ApiError } from '../../api/errors'
 import Button from '../../components/Button'
 import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
@@ -107,6 +107,7 @@ function ResolvedRunResults({
 }
 
 export default function IssueReverification({ issue }: { issue: Issue }) {
+  const historyOrigin = useLocation()
   const [open, setOpen] = useState(false)
   const [params, setParams] = useSearchParams()
   const client = useQueryClient()
@@ -257,7 +258,16 @@ export default function IssueReverification({ issue }: { issue: Issue }) {
       {uncertain && (
         <p>
           접수 여부가 불확실합니다. 다시 요청하기 전에{' '}
-          <Link to="/audit" className="underline">
+          <Link
+            state={{
+              historyReturnTo:
+                historyOrigin.pathname +
+                historyOrigin.search +
+                historyOrigin.hash,
+            }}
+            to="/audit"
+            className="underline"
+          >
             실행 이력
           </Link>
           을 확인해 주세요.

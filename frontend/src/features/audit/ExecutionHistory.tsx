@@ -369,7 +369,7 @@ function ExecutionHistory({
         <p className="mt-2 text-sm text-slate-500">
           {`${scopeText(objectId, target !== undefined, executionPage?.meta?.scope)} · Agent 조회 기록은 제외됩니다.`}
         </p>
-        {executionPage && !isError && (
+        {!fullPage && executionPage && !isError && (
           <p className="mt-3 text-sm text-slate-500">
             {`${executionPage.meta?.totalElements ?? executionPage.data.length}건`}
           </p>
@@ -377,9 +377,9 @@ function ExecutionHistory({
       </div>
       <div className="audit-results mt-2 text-sm">{content}</div>
       {executionPage?.meta &&
-        executionPage.meta.totalElements > 0 &&
+        (fullPage || executionPage.meta.totalElements > 0) &&
         !isError && (
-          <div className="audit-pagination mt-4">
+          <div className={fullPage ? 'audit-pagination' : 'mt-4'}>
             <Pagination
               page={executionPage.meta.page}
               size={executionPage.meta.size}

@@ -55,6 +55,18 @@ function open(
   return client
 }
 
+test('기본 모의 이력의 과거 개정 원본을 팝업으로 조회한다', async () => {
+  open()
+  await userEvent.click(
+    (await screen.findAllByRole('button', { name: '개정 1' }))[0],
+  )
+  expect(
+    await within(screen.getByRole('dialog')).findByText(
+      '작업지시 설비 코드 원문 연결',
+    ),
+  ).toBeInTheDocument()
+})
+
 test('현업 승인 상태는 별도 탭에서 준비 중으로 표시하고 기존 승인 결과를 사용하지 않는다', async () => {
   open('/admin/rules/301/history?view=business&reviewStatus=APPROVED')
   expect(
@@ -70,8 +82,8 @@ test('현업 승인 상태는 별도 탭에서 준비 중으로 표시하고 기
   expect(screen.getAllByText('미확인')).toHaveLength(4)
   expect(screen.queryByText('반영 실패')).not.toBeInTheDocument()
   expect(
-    screen.getByRole('link', { name: '제안 상세로 돌아가기' }),
-  ).toHaveAttribute('href', '/admin/rules/301?reviewStatus=APPROVED')
+    screen.queryByRole('link', { name: '제안 상세로 돌아가기' }),
+  ).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: '승인 상태' }))
   expect(
     await screen.findByRole('region', { name: '승인·반영 상태' }),

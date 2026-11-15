@@ -298,7 +298,7 @@ test('객체 실행 상세에서 성공 결과·차단 이유·실패 이유와 
   )
   const user = userEvent.setup()
   renderHistory()
-  await screen.findByText('3건')
+  await screen.findByText(/ · 3건$/)
   const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1)
   for (const [index, row] of rows.entries()) {
     const trigger = within(row).getByText('내용 보기')

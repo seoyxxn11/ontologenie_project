@@ -1,7 +1,7 @@
 import './audit.css'
 import { useQuery } from '@tanstack/react-query'
-import { useLocation, useNavigate, useSearchParams } from 'react-router'
-import Button from '../../components/Button'
+import { useSearchParams } from 'react-router'
+import HistoryBack from '../../components/HistoryBack'
 import type { ReactNode } from 'react'
 import PageHeader from '../../components/PageHeader'
 import { fetchObject } from '../explorer/api'
@@ -29,8 +29,6 @@ function ObjectHistory({ objectId, navigation }: ObjectHistoryProps) {
 }
 
 function AuditPage() {
-  const navigate = useNavigate()
-  const location = useLocation()
   const [searchParams] = useSearchParams()
   const objectParam = searchParams.get('objectId')
   const objectId = Number(objectParam)
@@ -40,37 +38,8 @@ function AuditPage() {
     Number.isSafeInteger(objectId) &&
     objectId > 0
 
-  function goBack() {
-    if (location.key !== 'default') {
-      navigate(-1)
-    } else {
-      navigate('/explorer')
-    }
-  }
-
   const navigation = (
-    <>
-      <Button
-        variant="text"
-        className="audit-back"
-        onClick={goBack}
-        aria-label="이전 화면으로"
-        data-tooltip="이전 화면으로"
-      >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          aria-hidden="true"
-        >
-          <path d="m12 5-7 7 7 7M5 12h14" />
-        </svg>
-      </Button>
-      <span className="audit-nav-divider" aria-hidden="true" />
-    </>
+    <HistoryBack className="audit-back" dividerClassName="audit-nav-divider" />
   )
   return (
     <div className="management-page audit-page">

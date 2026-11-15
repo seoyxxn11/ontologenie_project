@@ -135,13 +135,36 @@ let savedOptions: Record<string, ProposalOption[]> = {
   '303:2': structuredClone(comparisonFixtures),
 }
 let savedDecisions: ProposalDecisionRecord[] = []
-let historicalProposals: Proposal[] = []
+const historicalFixtures: Proposal[] = [
+  {
+    ...structuredClone(proposalFixtures[0]),
+    revision: 1,
+    payload: {
+      ...proposalFixtures[0].payload,
+      name: '작업지시 설비 코드 원문 연결',
+      conditions: [
+        {
+          sourceProperty: 'WORK_ORDER.equipment_code',
+          targetProperty: 'EQUIPMENT.code',
+          operator: 'EQ',
+          sourceTransforms: [],
+          targetTransforms: [],
+        },
+      ],
+    },
+    evidence: {
+      reason: '가상 과거 개정: 변환 없이 원문 코드로 비교한 후보입니다.',
+    },
+    latestCheck: null,
+  },
+]
+let historicalProposals: Proposal[] = structuredClone(historicalFixtures)
 
 export function resetProposalMocks() {
   proposals = structuredClone(proposalFixtures)
   savedOptions = { '303:2': structuredClone(comparisonFixtures) }
   savedDecisions = []
-  historicalProposals = []
+  historicalProposals = structuredClone(historicalFixtures)
 }
 function failed(status: number, code: string, message: string) {
   return HttpResponse.json(

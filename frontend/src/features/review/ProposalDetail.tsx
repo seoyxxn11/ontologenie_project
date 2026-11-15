@@ -129,7 +129,8 @@ export default function ProposalDetail({
   embeddedId,
 }: { embeddedId?: number } = {}) {
   const { id } = useParams()
-  const { search } = useLocation()
+  const historyOrigin = useLocation()
+  const { search } = historyOrigin
   const proposalId = embeddedId ?? Number(id)
   const validId =
     (embeddedId !== undefined || /^\d+$/.test(id ?? '')) &&
@@ -220,7 +221,16 @@ export default function ProposalDetail({
                     규칙 후보 수정
                   </Link>
                 )}
-              <Link className="candidate-history" to={`${historyUrl}${search}`}>
+              <Link
+                state={{
+                  historyReturnTo:
+                    historyOrigin.pathname +
+                    historyOrigin.search +
+                    historyOrigin.hash,
+                }}
+                className="candidate-history"
+                to={`${historyUrl}${search}`}
+              >
                 이력
               </Link>
             </div>
