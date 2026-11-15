@@ -203,14 +203,6 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.agent-message-label {
-  display: block;
-  margin-bottom: 8px;
-  color: var(--ui-text-secondary);
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 21px;
-}
 .agent-answer {
   border: 1px solid var(--ui-border);
   border-radius: var(--ui-panel-radius);

@@ -94,7 +94,7 @@ function MessageItem({ message }: { message: AgentMessage }) {
     return (
       <div className="agent-user-message">
         <p>
-          <span className="agent-message-label">나: </span>
+          <span className="sr-only">나: </span>
           {message.content}
         </p>
       </div>
@@ -143,9 +143,6 @@ function MessageItem({ message }: { message: AgentMessage }) {
     .join(' · ')
   return (
     <article aria-label="Agent 답변" className="agent-answer">
-      <span aria-hidden="true" className="agent-message-label">
-        AI 답변
-      </span>
       {message.status === 'FAILED' && (
         <p role="alert" className="agent-failure">
           답변을 끝내지 못했어요. {message.errorMessage}
