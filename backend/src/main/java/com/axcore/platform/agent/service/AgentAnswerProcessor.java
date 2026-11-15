@@ -131,8 +131,7 @@ public class AgentAnswerProcessor {
                 return;
             }
             answers.moveTo(answerId, AnswerStage.QUERYING);
-            session.allowObjects(
-                    interpretation.referenceObjectIds(), interpretation.kinds().isEmpty());
+            session.allowObjects(interpretation.referenceObjectIds());
             // 되묻기에 대한 답이면 무엇을 되물었는지도 알려 "두 번째 거" 같은 답을 질문으로 읽지 않게 한다(147).
             String content =
                     responder.answer(

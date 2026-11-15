@@ -162,7 +162,7 @@ class AgentResponderGmsTests {
         when(objectDetails.detail(any(), eq(workOrder)))
                 .thenReturn(workOrderDetail(workOrder, type));
         AgentQuerySession session = new AgentQuerySession(ADMIN, 13L, recorder, Clock.systemUTC());
-        session.allowObjects(List.of(press), true);
+        session.allowObjects(List.of(press));
 
         String answer =
                 responder()

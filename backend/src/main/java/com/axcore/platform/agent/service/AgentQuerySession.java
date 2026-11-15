@@ -29,6 +29,18 @@ public class AgentQuerySession {
     /** 객체 하나를 조회하는 도구의 대상 종류. */
     static final String OBJECT_INSTANCE = "object_instance";
 
+    /**
+     * 답변 하나에서 객체 하나를 대상으로 조회할 수 있는 횟수. 목록·검색으로 찾은 객체를 하나씩 끝없이 조회하지 않게 한다. 여러 객체는 객체 목록 조회나 Object
+     * Set으로 한 번에 본다.
+     */
+    static final int MAX_OBJECT_LOOKUPS = 30;
+
+    static final String OBJECT_LOOKUP_LIMIT =
+            "이번 답변에서 객체 하나씩 조회는 "
+                    + MAX_OBJECT_LOOKUPS
+                    + "번까지라 조회하지 않았습니다. 여러 객체는 객체 목록 조회나 Object Set으로 한 번에 확인하거나, 지금까지 조회한 결과로 답하면서"
+                    + " 일부만 확인했다고 말해 주세요.";
+
     /** AI에게 알려 주는 기준 시점의 시간대. 답변은 한국 시간으로 말한다. */
     private static final ZoneId USER_ZONE = ZoneId.of("Asia/Seoul");
 
@@ -43,8 +55,8 @@ public class AgentQuerySession {
     private int sequence;
     // 객체별 도구로 조회할 수 있는 객체. null이면 제한하지 않는다.
     private Set<Long> allowedObjectIds;
-    // 도구 결과에 나온 객체도 조회를 허용하는가. 종류 전체 질문이면 허용하지 않는다(326).
-    private boolean allowFoundObjects;
+    // 이번 답변에서 객체 하나를 대상으로 실행한 조회 수. MAX_OBJECT_LOOKUPS를 넘기지 않는다.
+    private int objectLookups;
 
     // 조회 결과의 기준 시점을 구한다(145). null이면 구하지 않고 기준 시점을 비운다.
     private final DataAsOfResolver dataAsOf;
@@ -187,14 +199,13 @@ public class AgentQuerySession {
             Instant dataAsOf) {}
 
     /**
-     * 이번 답변에서 객체별 도구로 조회할 수 있는 객체를 정한다(147). 질문을 해석해 정한 대상 객체를 허용하고, includeFound면 이번 답변의 도구
-     * 결과(검색·관계)에 실제로 나온 객체도 허용한다(326). 결과에 나온 ID만 더하므로 AI가 지어낸 ID는 계속 막힌다. 허용 목록은 이 세션에만 있어 다음 답변으로
-     * 넘어가지 않는다. 종류 전체 질문은 검색으로 객체를 많이 찾아 하나씩 조회하지 않게 includeFound를 끈다. 부르지 않으면 제한하지 않는다(답변 처리기는 늘
-     * 부른다).
+     * 이번 답변에서 객체별 도구로 조회할 수 있는 객체를 정한다(147). 질문을 해석해 정한 대상 객체를 허용하고, 이번 답변의 도구 결과(검색·관계·목록)에 실제로 나온
+     * 객체도 허용한다(326). 결과에 나온 ID만 더하므로 AI가 지어낸 ID는 계속 막힌다. 허용 목록은 이 세션에만 있어 다음 답변으로 넘어가지 않는다. 종류 전체
+     * 질문도 같다. 찾은 객체를 하나씩 끝없이 조회하는 것은 질문 종류가 아니라 조회 횟수({@link #MAX_OBJECT_LOOKUPS})로 막는다. 부르지 않으면
+     * 대상은 제한하지 않는다(답변 처리기는 늘 부른다).
      */
-    public synchronized void allowObjects(Collection<Long> objectIds, boolean includeFound) {
+    public synchronized void allowObjects(Collection<Long> objectIds) {
         allowedObjectIds = new HashSet<>(objectIds);
-        allowFoundObjects = includeFound;
     }
 
     private boolean objectAllowed(Long objectId) {
@@ -212,7 +223,7 @@ public class AgentQuerySession {
     }
 
     private void allowFound(List<Map<String, Object>> sources) {
-        if (allowedObjectIds == null || !allowFoundObjects) {
+        if (allowedObjectIds == null) {
             return;
         }
         for (Map<String, Object> source : sources) {
@@ -246,6 +257,13 @@ public class AgentQuerySession {
             // 이번 답변의 대상이 아닌 객체는 조회하지 않는다. 데이터에 닿지 않았으므로 기록하지 않고, AI가 "데이터 없음"으로 말하지 않게
             // 조회하지 않은 이유를 돌려준다(147).
             return Map.of("error", NOT_TARGET);
+        }
+        if (OBJECT_INSTANCE.equals(targetType)) {
+            if (objectLookups >= MAX_OBJECT_LOOKUPS) {
+                // 조회하지 않았으므로 기록하지 않는다. AI가 남은 객체를 "데이터 없음"으로 말하지 않고 다른 방법을 고르게 이유를 돌려준다.
+                return Map.of("error", OBJECT_LOOKUP_LIMIT);
+            }
+            objectLookups++;
         }
         Instant requestedAt = Instant.now(clock);
         AgentQueryResult result;

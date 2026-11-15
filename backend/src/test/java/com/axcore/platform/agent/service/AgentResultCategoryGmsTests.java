@@ -170,7 +170,7 @@ class AgentResultCategoryGmsTests {
             Consumer<String> checkAnswer) {
         AgentQuerySession session =
                 new AgentQuerySession(PLANNER, 21L, recorder, Clock.systemUTC());
-        session.allowObjects(List.of(PRESS), true);
+        session.allowObjects(List.of(PRESS));
         String answer =
                 responder()
                         .answer(
@@ -201,7 +201,7 @@ class AgentResultCategoryGmsTests {
             SoftAssertions softly, String name, String question, Consumer<String> checkAnswer) {
         AgentQuerySession session =
                 new AgentQuerySession(PLANNER, 22L, recorder, Clock.systemUTC());
-        session.allowObjects(List.of(), true);
+        session.allowObjects(List.of());
         String answer =
                 responder()
                         .answer(

@@ -133,7 +133,7 @@ class AgentEquipmentCapabilityToolsTests {
     /** 이번 답변의 대상이 아닌 객체면 비교하지 않는다. 빈 값·중복은 비교하지 않고 실패로 돌려준다. */
     @Test
     void rejectsNonTargetsAndBadInput() {
-        session.allowObjects(List.of(141L, 2210L), true);
+        session.allowObjects(List.of(141L, 2210L));
 
         assertThat(tools.compareEquipmentCapability(141L, List.of(9999L), null))
                 .containsEntry("error", AgentQuerySession.NOT_TARGET);

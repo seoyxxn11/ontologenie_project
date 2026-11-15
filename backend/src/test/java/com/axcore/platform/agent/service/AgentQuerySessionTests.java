@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.axcore.platform.audit.domain.AgentResultCategory;
@@ -218,7 +219,7 @@ class AgentQuerySessionTests {
 
     @Test
     void allowsObjectsFoundInThisAnswersResultsButNotInventedOnes() {
-        session.allowObjects(List.of(301L), true);
+        session.allowObjects(List.of(301L));
 
         session.run(
                 "OBJECT_SEARCH",
@@ -239,24 +240,45 @@ class AgentQuerySessionTests {
     }
 
     @Test
-    void keepsOnlyTargetsWhenFoundObjectsAreNotAllowed() {
-        // 종류 전체 질문처럼 도구 결과의 객체를 더하지 않는 경우
-        session.allowObjects(List.of(), false);
+    void stopsObjectLookupsAtTheLimitWithoutRecording() {
+        session.allowObjects(List.of(301L));
 
-        session.run(
-                "OBJECT_SEARCH",
-                "객체 검색",
-                Map.of("q", "설비"),
-                null,
-                null,
-                () ->
-                        new AgentQuerySession.Outcome(
-                                List.of(),
-                                AgentResultCategory.FOUND,
-                                List.of(Map.of("objectId", 415L)),
-                                null));
+        for (int i = 0; i < AgentQuerySession.MAX_OBJECT_LOOKUPS; i++) {
+            assertThat(detail(301L)).containsEntry("resultCategory", "FOUND");
+        }
 
-        assertThat(detail(415L)).isEqualTo(Map.of("error", AgentQuerySession.NOT_TARGET));
+        // 한도를 넘으면 조회하지 않고, AI가 다른 방법을 고르거나 일부만 확인했다고 말하게 이유를 돌려준다. 데이터에 닿지 않았으므로 기록하지
+        // 않는다.
+        assertThat(detail(301L)).isEqualTo(Map.of("error", AgentQuerySession.OBJECT_LOOKUP_LIMIT));
+        verify(recorder, times(AgentQuerySession.MAX_OBJECT_LOOKUPS))
+                .record(any(), anyLong(), anyInt(), any(), any(), any(), any(), any());
+        assertThat(session.results()).hasSize(AgentQuerySession.MAX_OBJECT_LOOKUPS);
+        // 객체 하나가 대상이 아닌 조회(검색·목록)는 한도와 관계없다.
+        assertThat(
+                        session.run(
+                                "OBJECT_SEARCH",
+                                "객체 검색",
+                                Map.of("q", "설비"),
+                                null,
+                                null,
+                                () ->
+                                        new AgentQuerySession.Outcome(
+                                                List.of(),
+                                                AgentResultCategory.FOUND,
+                                                List.of(),
+                                                null)))
+                .containsEntry("resultCategory", "FOUND");
+    }
+
+    @Test
+    void doesNotCountRefusedObjectsTowardTheLimit() {
+        session.allowObjects(List.of(301L));
+
+        for (int i = 0; i < AgentQuerySession.MAX_OBJECT_LOOKUPS; i++) {
+            assertThat(detail(0L)).isEqualTo(Map.of("error", AgentQuerySession.NOT_TARGET));
+        }
+
+        assertThat(detail(301L)).containsEntry("resultCategory", "FOUND");
     }
 
     private Map<String, Object> detail(long objectId) {

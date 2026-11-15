@@ -398,7 +398,7 @@ class AgentAnswerProcessorTests {
     }
 
     @Test
-    void doesNotLetWholeKindQuestionQuerySearchedObjects() {
+    void letsWholeKindQuestionQueryObjectsFoundInThisAnswer() {
         when(interpreter.isConfigured()).thenReturn(true);
         when(interpreter.interpret(any(), any(), any(), any(), any(), any()))
                 .thenReturn(
@@ -421,15 +421,18 @@ class AgentAnswerProcessorTests {
                                                     List.of(Map.of("objectId", 415L)),
                                                     null));
                             replies.add(detail(session, 415L));
-                            return "전체 현황은 아직 조회할 수 없습니다.";
+                            replies.add(detail(session, 0L));
+                            return "P103은 비가동 중입니다.";
                         })
                 .when(responder)
                 .answer(any(), any(), any(), any());
 
         processor.onRequested(EVENT);
 
-        // 종류 전체 질문은 검색으로 찾은 객체를 하나씩 조회하지 않는다(326).
-        assertThat(replies).containsExactly(Map.of("error", AgentQuerySession.NOT_TARGET));
+        // 종류 전체 질문도 이번 답변의 도구 결과에 나온 객체는 조회한다. "미착수 수주"처럼 목록의 객체에서 관계를 따라가야 답할 수 있다.
+        // 결과에 없던 ID는 계속 막는다(326). 하나씩 끝없이 조회하는 것은 조회 횟수로 막는다.
+        assertThat(replies.get(0)).containsEntry("resultCategory", "FOUND");
+        assertThat(replies.get(1)).isEqualTo(Map.of("error", AgentQuerySession.NOT_TARGET));
     }
 
     @Test

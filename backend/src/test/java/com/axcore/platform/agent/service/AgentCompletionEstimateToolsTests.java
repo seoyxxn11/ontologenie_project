@@ -168,7 +168,7 @@ class AgentCompletionEstimateToolsTests {
     /** 설비도 이번 답변에서 조회한 객체만 쓴다(147). */
     @Test
     void refusesEquipmentOutsideThisAnswer() {
-        session.allowObjects(List.of(141L), false);
+        session.allowObjects(List.of(141L));
 
         Map<String, Object> reply = tools.estimateCompletion(List.of(141L), null, 2210L, null);
 
@@ -179,7 +179,7 @@ class AgentCompletionEstimateToolsTests {
     /** 이번 답변의 대상이 아닌 작업지시가 하나라도 있으면 계산하지 않고 기록도 남기지 않는다(147). */
     @Test
     void refusesWorkOrdersOutsideThisAnswer() {
-        session.allowObjects(List.of(141L), false);
+        session.allowObjects(List.of(141L));
 
         Map<String, Object> reply = tools.estimateCompletion(List.of(141L, 999L), null, null, null);
 

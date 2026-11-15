@@ -104,7 +104,7 @@ class AgentObjectSetToolsIntegrationTests {
     @SuppressWarnings("unchecked")
     void startsSearchesAroundTwoHopsAndListsOnlyTheFinalObjects() {
         AgentQuerySession session = session();
-        session.allowObjects(List.of(p103), true);
+        session.allowObjects(List.of(p103));
         AgentObjectSetTools tools = tools(session);
 
         Map<String, Object> start =
@@ -354,7 +354,7 @@ class AgentObjectSetToolsIntegrationTests {
     @Test
     void rejectsUnknownSetsWrongStartsAndObjectsOutsideTheQuestion() {
         AgentQuerySession session = session();
-        session.allowObjects(List.of(p103), true);
+        session.allowObjects(List.of(p103));
         AgentObjectSetTools tools = tools(session);
 
         assertThat(tools.objectSetStart(List.of(o1), null, null, null, null, null))
@@ -381,15 +381,17 @@ class AgentObjectSetToolsIntegrationTests {
     }
 
     @Test
-    void listedObjectsAreNotAllowedForQuestionsAboutAWholeKind() {
+    void listedObjectsAreAllowedForQuestionsAboutAWholeKind() {
+        // 종류 전체 질문도 목록 보기로 받은 객체는 조회할 수 있다. 시작만 하고 받지 않은 객체는 아직 허용하지 않는다(326, 380).
         AgentQuerySession session = session();
-        session.allowObjects(List.of(), false);
+        session.allowObjects(List.of());
         AgentObjectSetTools tools = tools(session);
 
         tools.objectSetStart(null, workOrder, null, null, null, null);
-        tools.objectSetList("S1", null);
-
         assertThat(session.objectsAllowed(List.of(w1))).isFalse();
+
+        tools.objectSetList("S1", null);
+        assertThat(session.objectsAllowed(List.of(w1))).isTrue();
     }
 
     @Test
@@ -444,7 +446,7 @@ class AgentObjectSetToolsIntegrationTests {
     @SuppressWarnings("unchecked")
     void findsTargetTypeThroughPathAndShowsValueCounts() {
         AgentQuerySession session = session();
-        session.allowObjects(List.of(p103), true);
+        session.allowObjects(List.of(p103));
         AgentObjectSetTools tools = tools(session);
 
         Map<String, Object> found =
@@ -480,7 +482,7 @@ class AgentObjectSetToolsIntegrationTests {
     @SuppressWarnings("unchecked")
     void appliesConditionsOnlyToTargetAndAcceptsSeveralValues() {
         AgentQuerySession session = session();
-        session.allowObjects(List.of(p103), true);
+        session.allowObjects(List.of(p103));
         AgentObjectSetTools tools = tools(session);
 
         Map<String, Object> running =
@@ -511,7 +513,7 @@ class AgentObjectSetToolsIntegrationTests {
 
         // 한 답변에서 찾기는 3번까지라 아래는 새 답변(세션)으로 본다.
         AgentQuerySession next = session();
-        next.allowObjects(List.of(p103), true);
+        next.allowObjects(List.of(p103));
         AgentObjectSetTools fresh = tools(next);
         // 저장 값에 없는 값은 0건으로 끝내지 않고 저장 값을 알려 다시 부르게 한다("진행 중"으로 0건을 받고 "없다"고 답하던 실수, GMS M1).
         assertThat(
@@ -561,7 +563,7 @@ class AgentObjectSetToolsIntegrationTests {
         setProperties(w2, "{\"state\":\"완료\",\"secret\":\"B\",\"qty\":2}");
         setProperties(w3, "{\"state\":\"진행\",\"secret\":\"A\",\"qty\":3}");
         AgentQuerySession session = session();
-        session.allowObjects(List.of(p103), true);
+        session.allowObjects(List.of(p103));
         AgentObjectSetTools tools = tools(session);
 
         Map<String, Object> all =
@@ -598,7 +600,7 @@ class AgentObjectSetToolsIntegrationTests {
         link(downtimeEquipment, d1, p103);
         link(downtimeOrder, d1, w1);
         AgentQuerySession session = session();
-        session.allowObjects(List.of(p103), true);
+        session.allowObjects(List.of(p103));
         AgentObjectSetTools tools = tools(session);
 
         Map<String, Object> both =
@@ -626,7 +628,7 @@ class AgentObjectSetToolsIntegrationTests {
     @Test
     void rejectsStartObjectsThatAreNotTargetsAndSameTypeTarget() {
         AgentQuerySession session = session();
-        session.allowObjects(List.of(p103), true);
+        session.allowObjects(List.of(p103));
         AgentObjectSetTools tools = tools(session);
 
         assertThat(tools.find(List.of(w1), tag + "-order", null, null, null, null, null))
@@ -642,7 +644,7 @@ class AgentObjectSetToolsIntegrationTests {
     @Test
     void suggestsSimilarTypesAndPointsFoundSetsBackToFind() {
         AgentQuerySession session = session();
-        session.allowObjects(List.of(p103), true);
+        session.allowObjects(List.of(p103));
         AgentObjectSetTools tools = tools(session);
 
         assertThat(tools.find(List.of(p103), "order", null, null, null, null, null))
@@ -682,7 +684,7 @@ class AgentObjectSetToolsIntegrationTests {
     void searchesAroundWithSeveralValuesAndExplainsConditionsOnTheWrongSide() {
         property(operation, "seq", "STRING", "NORMAL");
         AgentQuerySession session = session();
-        session.allowObjects(List.of(o1, o2, o3), true);
+        session.allowObjects(List.of(o1, o2, o3));
         AgentObjectSetTools tools = tools(session);
         tools.objectSetStart(List.of(o1, o2, o3), null, null, null, null, null);
 
@@ -755,7 +757,7 @@ class AgentObjectSetToolsIntegrationTests {
     @SuppressWarnings("unchecked")
     void rejectsEmptyConditionsAndKeepsHintsToConditionErrors() {
         AgentQuerySession session = session();
-        session.allowObjects(List.of(o1, o2, o3, p103), true);
+        session.allowObjects(List.of(o1, o2, o3, p103));
         AgentObjectSetTools tools = tools(session);
         tools.objectSetStart(List.of(o1, o2, o3), null, null, null, null, null);
         Map<String, Object> nullValue = new java.util.HashMap<>();
@@ -803,7 +805,7 @@ class AgentObjectSetToolsIntegrationTests {
                         "error", error -> assertThat((String) error).doesNotContain("의 속성에만 겁니다"));
 
         AgentQuerySession findSession = session();
-        findSession.allowObjects(List.of(p103), true);
+        findSession.allowObjects(List.of(p103));
         AgentObjectSetTools finder = tools(findSession);
         assertThat(
                         finder.find(
