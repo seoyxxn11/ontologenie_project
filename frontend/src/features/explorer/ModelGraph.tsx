@@ -257,93 +257,118 @@ function ModelGraph({
   )
 
   // 현재 표시된 카드와 선을 맞춘다. controlled nodes의 갱신을 기다리는 fitView 대신 직접 범위를 적용한다.
-  const fitSelection = useCallback(() => {
-    const instance = flow.current
-    if (!instance) return
-    const element = canvas.current
-    const viewportElement = element?.querySelector<HTMLElement>('.react-flow')
-    const width = element?.clientWidth || viewportElement?.offsetWidth
-    const height = element?.clientHeight || viewportElement?.offsetHeight
-    if (!width || !height) return
-    const boxes = visibleGraph.nodes.flatMap(({ id }) => {
-      const point = points.get(id)
-      if (!point) return []
-      return [
-        {
-          left: point.x,
-          top: point.y,
-          right: point.x + TYPE_NODE_WIDTH,
-          bottom: point.y + TYPE_NODE_HEIGHT + selfRelationHeight(lines, id),
-        },
-      ]
-    })
-    if (boxes.length === 0) return
-    if (
-      boxes.length === 1 &&
-      selfRelationHeight(lines, visibleGraph.nodes[0].id) === 0
-    ) {
-      // 연결 없는 유형은 카드 하나만 크게 확대하지 않고 읽기 크기(1배)로 가운데에 둔다.
-      const [box] = boxes
-      void instance.setCenter(
-        (box.left + box.right) / 2,
-        (box.top + box.bottom) / 2,
-        { zoom: 1 },
+  const fitGraph = useCallback(
+    (connectedOnly: boolean) => {
+      const instance = flow.current
+      if (!instance) return
+      const element = canvas.current
+      const viewportElement = element?.querySelector<HTMLElement>('.react-flow')
+      const width = element?.clientWidth || viewportElement?.offsetWidth
+      const height = element?.clientHeight || viewportElement?.offsetHeight
+      if (!width || !height) return
+      const fittedGraph =
+        connectedOnly && selectedTypeId !== null
+          ? focusTypeGraph(visibleGraph, selectedTypeId)
+          : visibleGraph
+      const fittedIds = new Set(fittedGraph.nodes.map(({ id }) => id))
+      const fittedLines = lines.filter(
+        (line) =>
+          fittedIds.has(line.sourceTypeId) &&
+          fittedIds.has(line.targetTypeId) &&
+          (!connectedOnly ||
+            line.sourceTypeId === selectedTypeId ||
+            line.targetTypeId === selectedTypeId),
       )
-      return
-    }
-    const routePoints = [...routes.values()].flatMap((route) => route.points)
-    const left = Math.min(
-      ...boxes.map((box) => box.left),
-      ...routePoints.map((p) => p.x),
-    )
-    const right = Math.max(
-      ...boxes.map((box) => box.right),
-      ...routePoints.map((p) => p.x),
-    )
-    const top = Math.min(
-      ...boxes.map((box) => box.top),
-      ...routePoints.map((p) => p.y),
-    )
-    const bottom = Math.max(
-      ...boxes.map((box) => box.bottom),
-      ...routePoints.map((p) => p.y),
-    )
-    const selected =
-      focused && selectedTypeId !== null
-        ? points.get(selectedTypeId)
-        : undefined
-    const centerX = selected
-      ? selected.x + TYPE_NODE_WIDTH / 2
-      : (left + right) / 2
-    const centerY =
-      selected && selectedTypeId !== null
-        ? selected.y +
-          selfRelationHeight(lines, selectedTypeId) +
-          TYPE_NODE_HEIGHT / 2
-        : (top + bottom) / 2
-    // 양옆 관계 수가 달라도 선택한 카드가 화면 가운데에 오도록 대칭 영역을 맞춘다.
-    const halfWidth = Math.max(centerX - left, right - centerX)
-    const halfHeight = Math.max(centerY - top, bottom - centerY)
-    const viewport = getViewportForBounds(
-      {
-        x: centerX - halfWidth,
-        y: centerY - halfHeight,
-        width: halfWidth * 2,
-        height: halfHeight * 2,
-      },
-      width,
-      height,
-      MIN_GRAPH_ZOOM,
-      MAX_GRAPH_ZOOM,
-      {
-        top: `${(canvas.current?.contains(toolbar.current) ? (toolbar.current?.offsetHeight ?? 40) : 0) + 24}px`,
-        right: '24px',
-        bottom: `${(fullscreenHint.current?.offsetHeight ?? 0) + 24}px`,
-        left: `${(zoomTools.current?.offsetWidth ?? 34) + 24}px`,
-      },
-    )
-    void instance.setViewport(viewport)
-  }, [focused, selectedTypeId, visibleGraph.nodes, points, lines, routes])
+      const boxes = fittedGraph.nodes.flatMap(({ id }) => {
+        const point = points.get(id)
+        if (!point) return []
+        return [
+          {
+            left: point.x,
+            top: point.y,
+            right: point.x + TYPE_NODE_WIDTH,
+            bottom: point.y + TYPE_NODE_HEIGHT + selfRelationHeight(lines, id),
+          },
+        ]
+      })
+      if (boxes.length === 0) return
+      if (
+        boxes.length === 1 &&
+        selfRelationHeight(fittedLines, fittedGraph.nodes[0].id) === 0
+      ) {
+        // 연결 없는 유형은 카드 하나만 크게 확대하지 않고 읽기 크기(1배)로 가운데에 둔다.
+        const [box] = boxes
+        void instance.setCenter(
+          (box.left + box.right) / 2,
+          (box.top + box.bottom) / 2,
+          { zoom: 1 },
+        )
+        return
+      }
+      const routePoints = fittedLines.flatMap(
+        (line) => routes.get(line.key)?.points ?? [],
+      )
+      const left = Math.min(
+        ...boxes.map((box) => box.left),
+        ...routePoints.map((p) => p.x),
+      )
+      const right = Math.max(
+        ...boxes.map((box) => box.right),
+        ...routePoints.map((p) => p.x),
+      )
+      const top = Math.min(
+        ...boxes.map((box) => box.top),
+        ...routePoints.map((p) => p.y),
+      )
+      const bottom = Math.max(
+        ...boxes.map((box) => box.bottom),
+        ...routePoints.map((p) => p.y),
+      )
+      const selected =
+        (focused || connectedOnly) && selectedTypeId !== null
+          ? points.get(selectedTypeId)
+          : undefined
+      const centerX = selected
+        ? selected.x + TYPE_NODE_WIDTH / 2
+        : (left + right) / 2
+      const centerY =
+        selected && selectedTypeId !== null
+          ? selected.y +
+            selfRelationHeight(lines, selectedTypeId) +
+            TYPE_NODE_HEIGHT / 2
+          : (top + bottom) / 2
+      // 양옆 관계 수가 달라도 선택한 카드가 화면 가운데에 오도록 대칭 영역을 맞춘다.
+      const halfWidth = Math.max(centerX - left, right - centerX)
+      const halfHeight = Math.max(centerY - top, bottom - centerY)
+      const viewport = getViewportForBounds(
+        {
+          x: centerX - halfWidth,
+          y: centerY - halfHeight,
+          width: halfWidth * 2,
+          height: halfHeight * 2,
+        },
+        width,
+        height,
+        MIN_GRAPH_ZOOM,
+        MAX_GRAPH_ZOOM,
+        {
+          top: `${(canvas.current?.contains(toolbar.current) ? (toolbar.current?.offsetHeight ?? 40) : 0) + 24}px`,
+          right: '24px',
+          bottom: `${(fullscreenHint.current?.offsetHeight ?? 0) + 24}px`,
+          left: `${(zoomTools.current?.offsetWidth ?? 34) + 24}px`,
+        },
+      )
+      void instance.setViewport(viewport)
+    },
+    [focused, selectedTypeId, visibleGraph, points, lines, routes],
+  )
+
+  const fitSelection = useCallback(() => fitGraph(false), [fitGraph])
+
+  function readSelection() {
+    if (selectedType) fitGraph(true)
+    else void flow.current?.zoomTo(1)
+  }
 
   const applyCamera = useCallback(
     (camera: GraphCameraRequest, remembered: Viewport | null = null) => {
@@ -604,7 +629,7 @@ function ModelGraph({
       >
         {focused ? '전체 배치 보기' : '집중 보기'}
       </button>
-      <button type="button" onClick={() => void flow.current?.zoomTo(1)}>
+      <button type="button" onClick={readSelection}>
         읽기 크기
       </button>
       <button type="button" onClick={fitSelection}>

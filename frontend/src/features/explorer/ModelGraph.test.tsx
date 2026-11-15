@@ -56,6 +56,140 @@ function TestGraph({ headingTools = false }: { headingTools?: boolean }) {
 const viewport = () =>
   document.querySelector('.react-flow__viewport')?.getAttribute('style')
 
+test.each([false, true])(
+  '선택한 유형의 읽기 크기는 직접 연결 영역에 맞추고 집중 보기=%s 상태를 유지한다',
+  async (focused) => {
+    const widthSpy = vi
+      .spyOn(HTMLElement.prototype, 'clientWidth', 'get')
+      .mockReturnValue(720)
+    const heightSpy = vi
+      .spyOn(HTMLElement.prototype, 'clientHeight', 'get')
+      .mockReturnValue(480)
+    const extended: GraphData = {
+      ...graph,
+      nodes: [
+        ...graph.nodes,
+        ...Array.from({ length: 25 }, (_, i) => ({
+          id: i + 10,
+          code: `UNRELATED_${i}`,
+          name: `별도 유형 ${i}`,
+        })),
+      ],
+    }
+    const camera = () => {
+      const match = viewport()!.match(
+        /translate\(([-\d.]+)px,\s*([-\d.]+)px\) scale\(([-\d.eE+]+)\)/,
+      )!
+      return match.slice(1).map(Number)
+    }
+    try {
+      const user = userEvent.setup()
+      render(
+        <ModelGraph graph={extended} selectedTypeId={3} onSelect={() => {}} />,
+      )
+      await screen.findByRole('button', { name: '객체 유형 설비' })
+      await user.click(screen.getByRole('button', { name: '전체 맞춤' }))
+      const overview = viewport()
+      const overviewZoom = camera()[2]
+      if (focused)
+        await user.click(screen.getByRole('button', { name: '집중 보기' }))
+      await user.click(screen.getByRole('button', { name: '읽기 크기' }))
+      const [x, y, zoom] = camera()
+      expect(zoom).toBeGreaterThan(overviewZoom)
+      expect(document.querySelectorAll('.react-flow__node')).toHaveLength(
+        focused ? 2 : extended.nodes.length,
+      )
+      for (const id of [3, 4]) {
+        const element = document.querySelector<HTMLElement>(
+          `.react-flow__node[data-id="${id}"]`,
+        )!
+        const position = element.style.transform.match(
+          /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/,
+        )!
+        const left = Number(position[1]) * zoom + x,
+          top = Number(position[2]) * zoom + y
+        expect(left).toBeGreaterThanOrEqual(0)
+        expect(top).toBeGreaterThanOrEqual(0)
+        expect(
+          left + Number(element.style.width.replace('px', '')) * zoom,
+        ).toBeLessThanOrEqual(720)
+        expect(
+          top + Number(element.style.height.replace('px', '')) * zoom,
+        ).toBeLessThanOrEqual(480)
+      }
+      const reading = viewport()
+      await user.click(screen.getByRole('button', { name: '관계도 축소' }))
+      await waitFor(() => expect(viewport()).not.toBe(reading))
+      await user.click(screen.getByRole('button', { name: '읽기 크기' }))
+      await waitFor(() => expect(viewport()).toBe(reading))
+      if (focused) {
+        await user.click(screen.getByRole('button', { name: '전체 배치 보기' }))
+        await waitFor(() => expect(viewport()).toBe(overview))
+      }
+    } finally {
+      widthSpy.mockRestore()
+      heightSpy.mockRestore()
+    }
+  },
+)
+
+test('연결 없는 선택 유형은 1배로 가운데 이동하고 선택을 해제하면 읽기 크기는 1배만 적용한다', async () => {
+  const offsetWidthSpy = vi
+    .spyOn(HTMLElement.prototype, 'offsetWidth', 'get')
+    .mockReturnValue(720)
+  const offsetHeightSpy = vi
+    .spyOn(HTMLElement.prototype, 'offsetHeight', 'get')
+    .mockReturnValue(480)
+  const widthSpy = vi
+    .spyOn(HTMLElement.prototype, 'clientWidth', 'get')
+    .mockReturnValue(720)
+  const heightSpy = vi
+    .spyOn(HTMLElement.prototype, 'clientHeight', 'get')
+    .mockReturnValue(480)
+  const isolated: GraphData = {
+    ...graph,
+    nodes: [...graph.nodes, { id: 8, code: 'ISOLATED', name: '연결 없음' }],
+  }
+  try {
+    const user = userEvent.setup()
+    const { rerender } = render(
+      <ModelGraph graph={isolated} selectedTypeId={8} onSelect={() => {}} />,
+    )
+    await screen.findByRole('button', { name: '객체 유형 연결 없음' })
+    await user.click(screen.getByRole('button', { name: '읽기 크기' }))
+    expect(viewport()).toContain('scale(1)')
+    const element = document.querySelector<HTMLElement>(
+      '.react-flow__node[data-id="8"]',
+    )!
+    const position = element.style.transform
+      .match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/)!
+      .slice(1)
+      .map(Number)
+    const camera = viewport()!
+      .match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/)!
+      .slice(1)
+      .map(Number)
+    expect(
+      position[0] + parseFloat(element.style.width) / 2 + camera[0],
+    ).toBeCloseTo(360)
+    expect(
+      position[1] + parseFloat(element.style.height) / 2 + camera[1],
+    ).toBeCloseTo(240)
+    rerender(
+      <ModelGraph graph={isolated} selectedTypeId={null} onSelect={() => {}} />,
+    )
+    await user.click(screen.getByRole('button', { name: '관계도 축소' }))
+    await waitFor(() => expect(viewport()).not.toContain('scale(1)'))
+    await user.click(screen.getByRole('button', { name: '읽기 크기' }))
+    await waitFor(() => expect(viewport()).toContain('scale(1)'))
+  } finally {
+    offsetWidthSpy.mockRestore()
+    offsetHeightSpy.mockRestore()
+    widthSpy.mockRestore()
+    heightSpy.mockRestore()
+  }
+})
+
 test('관계도 위의 휠을 올리면 확대하고 내리면 축소한다', async () => {
   const user = userEvent.setup()
   render(<TestGraph />)
