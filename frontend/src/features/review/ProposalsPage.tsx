@@ -38,56 +38,37 @@ const statuses = [
 
 function ProposalFilterForm({
   initialFilters,
-  pending,
-  onSearch,
 }: {
   initialFilters: ProposalFilters
-  pending: boolean
-  onSearch: (filters: ProposalFilters) => void
 }) {
   const [draft, setDraft] = useState(initialFilters)
   return (
-    <form
-      className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(4,1fr)_auto_auto]"
-      onSubmit={(e) => {
-        e.preventDefault()
-        onSearch(draft)
-      }}
-    >
-      {fields.map((field) => (
-        <label key={field.key} className="flex flex-col gap-2 text-sm">
-          {field.label}
-          <select
-            value={draft[field.key] ?? ''}
-            onChange={(e) =>
-              setDraft({ ...draft, [field.key]: e.target.value })
-            }
-          >
-            <option value="">전체</option>
-            {Object.entries(field.options).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-      ))}
-      <Button type="submit" pending={pending}>
-        검색
-      </Button>
-      <Button
-        variant="secondary"
-        onClick={() => {
-          setDraft({})
-          onSearch({})
-        }}
-      >
-        초기화
-      </Button>
-    </form>
+    <div className="rules-extra-filter-fields grid items-end gap-3 sm:grid-cols-3">
+      {fields
+        .filter((field) => field.key !== 'reviewStatus')
+        .map((field) => (
+          <label key={field.key} className="flex flex-col gap-2 text-sm">
+            {field.label}
+            <select
+              form="rules-search"
+              name={field.key}
+              value={draft[field.key] ?? ''}
+              onChange={(event) =>
+                setDraft({ ...draft, [field.key]: event.target.value })
+              }
+            >
+              <option value="">전체</option>
+              {Object.entries(field.options).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
+    </div>
   )
 }
-
 function ProposalFlags({ item }: { item: Proposal }) {
   const change = item.evidence?.changeType
   return (
@@ -106,18 +87,29 @@ function ProposalFlags({ item }: { item: Proposal }) {
 function ProposalSearch({
   search,
   onSearch,
+  onReset,
 }: {
   search: string
-  onSearch: (value: string) => void
+  onSearch: (value: string, filters: ProposalFilters) => void
+  onReset: () => void
 }) {
   const [draft, setDraft] = useState(search)
   return (
     <form
+      id="rules-search"
       className="rules-search"
       aria-label="후보 검색 적용"
       onSubmit={(event) => {
         event.preventDefault()
-        onSearch(draft.trim())
+        const data = new FormData(event.currentTarget)
+        onSearch(
+          draft.trim(),
+          Object.fromEntries(
+            fields
+              .filter((field) => field.key !== 'reviewStatus')
+              .map((field) => [field.key, String(data.get(field.key) ?? '')]),
+          ),
+        )
       }}
     >
       <label>
@@ -133,13 +125,13 @@ function ProposalSearch({
         검색 적용
       </Button>
       <Button
-        variant="text"
+        variant="secondary"
         onClick={() => {
           setDraft('')
-          onSearch('')
+          onReset()
         }}
       >
-        검색어 지우기
+        초기화
       </Button>
     </form>
   )
@@ -147,6 +139,7 @@ function ProposalSearch({
 
 export default function ProposalsPage() {
   const [params, setParams] = useSearchParams()
+  const [resetVersion, setResetVersion] = useState(0)
   const showingIssues = params.get('view') === 'issues'
   const analysisValue = Number(params.get('analysis'))
   const analysisId =
@@ -352,28 +345,30 @@ export default function ProposalsPage() {
               </button>
             </div>
             <ProposalSearch
-              key={search}
+              key={`${search}-${resetVersion}`}
               search={search}
-              onSearch={(value) =>
-                update({ q: value, page: '', candidate: '' })
+              onReset={() => {
+                setResetVersion((version) => version + 1)
+                update({
+                  q: '',
+                  origin: '',
+                  itemKind: '',
+                  applyStatus: '',
+                  page: '',
+                  candidate: '',
+                  group,
+                })
+              }}
+              onSearch={(value, next) =>
+                update({ ...next, q: value, page: '', candidate: '' })
               }
             />
           </div>
           <details className="rules-extra-filters">
             <summary>상세 필터</summary>
             <ProposalFilterForm
-              key={params.toString()}
+              key={`${params}-${resetVersion}`}
               initialFilters={filters}
-              pending={query.isFetching}
-              onSearch={(next) =>
-                update({
-                  ...Object.fromEntries(
-                    fields.map((f) => [f.key, next[f.key] ?? '']),
-                  ),
-                  page: '',
-                  candidate: '',
-                })
-              }
             />
           </details>
           {query.isPending ? (
@@ -386,25 +381,33 @@ export default function ProposalsPage() {
           ) : (
             <>
               <p className="rules-result-count">후보 {filtered.length}건</p>
-              <p
-                className="rules-filter-summary"
-                aria-label="적용된 후보 검색 조건"
-              >
-                적용 조건:{' '}
-                {[
-                  reviewLabels[filters.reviewStatus ?? ''] ?? '전체 검토 상태',
-                  filters.itemKind
-                    ? filterKindLabels[filters.itemKind]
-                    : group === 'objects'
-                      ? '객체 속성'
-                      : '매핑',
-                  filters.origin ? originLabels[filters.origin] : null,
-                  filters.applyStatus ? applyLabels[filters.applyStatus] : null,
-                  search ? `검색어: ${search}` : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </p>
+              {(search ||
+                filters.origin ||
+                filters.itemKind ||
+                filters.applyStatus) && (
+                <p
+                  className="rules-filter-summary"
+                  aria-label="적용된 후보 검색 조건"
+                >
+                  적용 조건:{' '}
+                  {[
+                    reviewLabels[filters.reviewStatus ?? ''] ??
+                      '전체 검토 상태',
+                    filters.itemKind
+                      ? filterKindLabels[filters.itemKind]
+                      : group === 'objects'
+                        ? '객체 속성'
+                        : '매핑',
+                    filters.origin ? originLabels[filters.origin] : null,
+                    filters.applyStatus
+                      ? applyLabels[filters.applyStatus]
+                      : null,
+                    search ? `검색어: ${search}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+              )}
               {!selected ? (
                 <EmptyState message="선택한 상태·유형·검색어에 해당하는 후보가 없습니다." />
               ) : (

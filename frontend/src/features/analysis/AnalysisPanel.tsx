@@ -336,7 +336,7 @@ function AnalysisPanel({
           : 'space-y-4 rounded-xl border border-slate-200 p-5'
       }
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="analysis-toolbar flex flex-wrap items-center justify-between gap-3">
         {!compact && <h2 className="text-lg font-semibold">AI 분석</h2>}
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -349,30 +349,32 @@ function AnalysisPanel({
           >
             AI 관계 제안 받기
           </Button>
-          <details className="analysis-tools" open={compact ? undefined : true}>
-            <summary>분석 관리</summary>
-            <div className="analysis-tools-content flex flex-wrap gap-2">
-              <Button
-                variant="secondary"
-                aria-expanded={showRecent}
-                onClick={() => setShowRecent(!showRecent)}
-              >
-                {showRecent ? '최근 분석 닫기' : '최근 분석 보기'}
-              </Button>
-              <Button
-                variant="secondary"
-                disabled={running}
-                onClick={() => {
-                  setRunKind('REANALYSIS')
-                  setChoosing(true)
-                }}
-              >
-                변경 데이터 재분석
-              </Button>
-              {/* 임시(S15P31C106-307): 시연 전 이 줄과 import를 지운다 */}
-              <TestAnalysisDelete onDeleted={() => onSelect(undefined)} />
-            </div>
-          </details>
+          {!compact && (
+            <details className="analysis-tools" open>
+              <summary>분석 관리</summary>
+              <div className="analysis-tools-content flex flex-wrap gap-2">
+                <Button
+                  variant="secondary"
+                  aria-expanded={showRecent}
+                  onClick={() => setShowRecent(!showRecent)}
+                >
+                  {showRecent ? '최근 분석 닫기' : '최근 분석 보기'}
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={running}
+                  onClick={() => {
+                    setRunKind('REANALYSIS')
+                    setChoosing(true)
+                  }}
+                >
+                  변경 데이터 재분석
+                </Button>
+                {/* 임시(S15P31C106-307): 시연 전 이 줄과 import를 지운다 */}
+                <TestAnalysisDelete onDeleted={() => onSelect(undefined)} />
+              </div>
+            </details>
+          )}
         </div>
       </div>
       {running && (
