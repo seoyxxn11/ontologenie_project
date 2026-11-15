@@ -30,40 +30,14 @@ function valueText(value: unknown) {
 export function Result({
   result,
   candidate = true,
+  compact = false,
 }: {
   result: CheckResult
   candidate?: boolean
+  compact?: boolean
 }) {
-  return (
-    <article className="space-y-4 rounded border border-violet-200 bg-violet-50/20 p-4">
-      <h4 className="font-semibold">
-        결과 #{result.id}
-        {result.linkMappingId == null
-          ? ''
-          : ` · 연결 규칙 #${result.linkMappingId}`}
-      </h4>
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        {[
-          ['전체', result.totalCount],
-          ['정상', result.matchedCount],
-          ['미연결', result.unmatchedCount],
-          ['중복', result.duplicateCount],
-          ['조건 위반', result.violationCount],
-        ].map(([name, count]) => (
-          <div key={name}>
-            <dt className="text-sm text-slate-600">{name}</dt>
-            <dd className="text-right text-xl font-semibold tabular-nums">
-              {count}건
-            </dd>
-          </div>
-        ))}
-      </dl>
-      <p>
-        {candidate ? '시험 매칭률' : '매칭률'}:{' '}
-        {result.matchRate == null || !Number.isFinite(result.matchRate)
-          ? '계산할 수 없음'
-          : `${(result.matchRate * 100).toFixed(1)}%`}
-      </p>
+  const samples = (
+    <>
       <p className="text-sm text-slate-600">
         {candidate ? '시험 매칭률' : '매칭률'}은 검사 대상의 정상 비율이며 AI
         신뢰도와 다릅니다. 아래는 서버가 제공한 표본이며 전체 행 목록이
@@ -72,7 +46,10 @@ export function Result({
       {!result.sampleRows.length ? (
         <EmptyState message="제공된 판정 근거 표본이 없습니다." />
       ) : (
-        <DataTable label={`검사 결과 ${result.id} 판정 근거`}>
+        <DataTable
+          label={`검사 결과 ${result.id} 판정 근거`}
+          className={compact ? 'candidate-check-samples' : undefined}
+        >
           <thead>
             <tr>
               {[
@@ -114,6 +91,52 @@ export function Result({
           </tbody>
         </DataTable>
       )}
+    </>
+  )
+  return (
+    <article
+      className={
+        compact
+          ? 'candidate-check-result'
+          : 'space-y-4 rounded border border-violet-200 bg-violet-50/20 p-4'
+      }
+    >
+      <h4 className="font-semibold">
+        결과 #{result.id}
+        {result.linkMappingId == null
+          ? ''
+          : ` · 연결 규칙 #${result.linkMappingId}`}
+      </h4>
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        {[
+          ['전체', result.totalCount],
+          ['정상', result.matchedCount],
+          ['미연결', result.unmatchedCount],
+          ['중복', result.duplicateCount],
+          ['조건 위반', result.violationCount],
+        ].map(([name, count]) => (
+          <div key={name}>
+            <dt className="text-sm text-slate-600">{name}</dt>
+            <dd className="text-right text-xl font-semibold tabular-nums">
+              {count}건
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <p>
+        {candidate ? '시험 매칭률' : '매칭률'}:{' '}
+        {result.matchRate == null || !Number.isFinite(result.matchRate)
+          ? '계산할 수 없음'
+          : `${(result.matchRate * 100).toFixed(1)}%`}
+      </p>
+      {compact ? (
+        <details className="candidate-check-details">
+          <summary>검사 상세·표본 보기</summary>
+          {samples}
+        </details>
+      ) : (
+        samples
+      )}
     </article>
   )
 }
@@ -121,9 +144,11 @@ export function Result({
 function CompletedResults({
   proposal,
   runId,
+  compact = false,
 }: {
   proposal: Proposal
   runId: number
+  compact?: boolean
 }) {
   const [page, setPage] = useState(0)
   const query = useQuery({
@@ -153,10 +178,10 @@ function CompletedResults({
       />
     )
   return (
-    <div className="space-y-4">
+    <div className={compact ? 'candidate-check-completed' : 'space-y-4'}>
       {query.data.data.length ? (
         query.data.data.map((result) => (
-          <Result key={result.id} result={result} />
+          <Result key={result.id} result={result} compact={compact} />
         ))
       ) : (
         <EmptyState message="현재 제안 개정에 해당하는 검사 결과가 없습니다." />
@@ -175,12 +200,14 @@ export default function CheckResults({
   proposal,
   refreshing,
   polling = true,
+  compact = false,
   refreshError,
   onRefresh,
 }: {
   proposal: Proposal
   refreshing: boolean
   polling?: boolean
+  compact?: boolean
   refreshError?: Error | null
   onRefresh: () => void
 }) {
@@ -202,15 +229,30 @@ export default function CheckResults({
           검사 상태 새로고침
         </Button>
       </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <Link to="/admin/checks" className="text-sm underline">
-          수동 검사·실행 목록
-        </Link>
-        <p className="text-sm text-slate-500">
-          수동 검사는 반영 중인 연결 규칙을 점검합니다. 승인 전 후보 시험은
-          제안을 저장·수정할 때 자동으로 요청됩니다.
-        </p>
-      </div>
+      {compact ? (
+        <details className="candidate-check-details">
+          <summary>검사 안내·수동 검사</summary>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link to="/admin/checks" className="text-sm underline">
+              수동 검사·실행 목록
+            </Link>
+            <p className="text-sm text-slate-500">
+              수동 검사는 반영 중인 연결 규칙을 점검합니다. 승인 전 후보 시험은
+              제안을 저장·수정할 때 자동으로 요청됩니다.
+            </p>
+          </div>
+        </details>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          <Link to="/admin/checks" className="text-sm underline">
+            수동 검사·실행 목록
+          </Link>
+          <p className="text-sm text-slate-500">
+            수동 검사는 반영 중인 연결 규칙을 점검합니다. 승인 전 후보 시험은
+            제안을 저장·수정할 때 자동으로 요청됩니다.
+          </p>
+        </div>
+      )}
       {refreshError ? (
         <ErrorState error={refreshError} onRetry={onRefresh} />
       ) : !run ? (
@@ -243,6 +285,7 @@ export default function CheckResults({
             <CompletedResults
               key={`${proposal.id}:${proposal.revision}:${run.checkRunId}`}
               proposal={proposal}
+              compact={compact}
               runId={run.checkRunId}
             />
           )}

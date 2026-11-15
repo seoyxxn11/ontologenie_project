@@ -340,7 +340,7 @@ function AnalysisPanel({
         {!compact && <h2 className="text-lg font-semibold">AI 분석</h2>}
         <div className="flex flex-wrap items-center gap-2">
           <Button
-            variant={compact ? 'secondary' : 'primary'}
+            variant="primary"
             disabled={running}
             onClick={() => {
               setRunKind('INITIAL')

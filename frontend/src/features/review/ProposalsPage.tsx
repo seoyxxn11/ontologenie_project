@@ -4,7 +4,6 @@ import { Link, useSearchParams } from 'react-router'
 import Button from '../../components/Button'
 import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
 import Pagination from '../../components/Pagination'
-import PageHeader from '../../components/PageHeader'
 import StatusBadge from '../../components/StatusBadge'
 import AnalysisPanel from '../analysis/AnalysisPanel'
 import { fetchAnalysisProposals } from '../analysis/api'
@@ -130,9 +129,11 @@ function ProposalSearch({
           onChange={(event) => setDraft(event.target.value)}
         />
       </label>
-      <Button type="submit">검색 적용</Button>
+      <Button type="submit" variant="secondary">
+        검색 적용
+      </Button>
       <Button
-        variant="secondary"
+        variant="text"
         onClick={() => {
           setDraft('')
           onSearch('')
@@ -243,35 +244,32 @@ export default function ProposalsPage() {
   }
   return (
     <div className="rules-workspace">
-      <PageHeader
-        title="연결 규칙"
-        description="후보를 비교하고, 규칙·근거·검사 결과를 확인한 뒤 검토 결정을 남기세요."
-        action={
-          <div className="flex flex-wrap gap-2">
-            <Link className="ui-button ui-button--secondary" to="/admin/checks">
-              수동 검사·실행 목록
-            </Link>
-            <Link
-              className="ui-button ui-button--secondary"
-              to={`/admin/rules/new?${params}`}
-            >
-              직접 관계 제안
-            </Link>
-          </div>
-        }
-      />
-      <div className="rules-analysis-area">
-        <AnalysisPanel
-          compact
-          currentId={analysisId}
-          joined={params.get('joined') === '1'}
-          onSelect={(id) => selectAnalysis(id)}
-          onStarted={(run) => {
-            const next = new URLSearchParams({ analysis: String(run.id) })
-            if (run.joined) next.set('joined', '1')
-            setParams(next)
-          }}
-        />
+      <h1 className="sr-only">연결 규칙</h1>
+      <div className="rules-top-controls">
+        <div className="rules-analysis-area">
+          <AnalysisPanel
+            compact
+            currentId={analysisId}
+            joined={params.get('joined') === '1'}
+            onSelect={(id) => selectAnalysis(id)}
+            onStarted={(run) => {
+              const next = new URLSearchParams({ analysis: String(run.id) })
+              if (run.joined) next.set('joined', '1')
+              setParams(next)
+            }}
+          />
+        </div>
+        <div className="rules-page-actions">
+          <Link className="ui-button ui-button--secondary" to="/admin/checks">
+            수동 검사·실행 목록
+          </Link>
+          <Link
+            className="ui-button ui-button--secondary"
+            to={`/admin/rules/new?${params}`}
+          >
+            직접 관계 제안
+          </Link>
+        </div>
       </div>
       <nav className="rules-tabs" aria-label="연결 규칙 상태">
         {statuses.map(([value, label]) => (
@@ -421,17 +419,16 @@ export default function ProposalsPage() {
                           aria-pressed={item.id === selected.id}
                           onClick={() => update({ candidate: String(item.id) })}
                         >
-                          <span className="candidate-kind">
-                            {isObjectProposal(item) ? '객체 속성' : '매핑'}
-                          </span>
                           <strong>{proposalTitle(item)}</strong>
-                          <span>
+                          <span className="candidate-metadata">
+                            {isObjectProposal(item) ? '객체 속성' : '매핑'} ·{' '}
+                            {originLabels[item.origin] ?? item.origin}
+                          </span>
+                          <span className="candidate-metadata">
                             검토 상태:{' '}
                             {reviewLabels[item.reviewStatus] ??
-                              item.reviewStatus}
-                          </span>
-                          <span>
-                            적용 여부:{' '}
+                              item.reviewStatus}{' '}
+                            · 적용 여부:{' '}
                             {applyLabels[item.applyStatus] ?? item.applyStatus}
                           </span>
                           <ProposalFlags item={item} />

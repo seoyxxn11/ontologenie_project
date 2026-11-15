@@ -95,7 +95,7 @@ function renderDetail(embedded = false) {
   )
 }
 
-test('문서 후보의 기본 탭에서 펼치기 없이 내용·대상·판단 근거를 확인한다', async () => {
+test('문서 후보의 기본 상세에서 펼치기 없이 내용·대상·판단 근거를 확인한다', async () => {
   const proposal = documentLink({
     evidence: {
       ...documentLink().evidence,
@@ -115,10 +115,8 @@ test('문서 후보의 기본 탭에서 펼치기 없이 내용·대상·판단 
   expect(
     within(result).getByText(String(proposal.evidence.reason)),
   ).toBeVisible()
-  expect(screen.getByRole('button', { name: '문서 내용' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  )
+  expect(screen.getByRole('region', { name: '제안 근거' })).toBeVisible()
+  expect(screen.getByRole('region', { name: '정합성 검사' })).toBeVisible()
   expect(
     screen.queryByRole('heading', { name: '연결·변환 규칙' }),
   ).not.toBeInTheDocument()
@@ -212,7 +210,11 @@ test('운영 응답 형태처럼 대상 이름·관찰·대안이 없어도 기�
   ).toBeVisible()
   expect(within(result).getByTitle('연결한 언급')).toHaveTextContent(mention)
   expect(within(result).getByText('확인된 언급')).toBeVisible()
-  expect(screen.getByText('검사 대상이 아닌 후보입니다.')).toBeVisible()
+  expect(
+    within(screen.getByRole('region', { name: '정합성 검사' })).getByText(
+      /검사 대상 아님: 이 종류는 원천 행으로 시험하지 않으며/,
+    ),
+  ).toBeVisible()
   expect(within(result).queryByText('미확정')).not.toBeInTheDocument()
   expect(
     within(result).queryByRole('list', { name: '후보 대상' }),

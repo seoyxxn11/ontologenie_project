@@ -135,7 +135,6 @@ export default function ProposalDetail({
     (embeddedId !== undefined || /^\d+$/.test(id ?? '')) &&
     Number.isSafeInteger(proposalId) &&
     proposalId > 0
-  const [detailTab, setDetailTab] = useState('rule')
   const [refreshing, setRefreshing] = useState(false)
   const [selection, setSelection] = useState<{
     key: string
@@ -256,61 +255,12 @@ export default function ProposalDetail({
               </Link>
             )}
         </header>
-        {embeddedId && (
-          <>
-            <div className="candidate-review-summary">
-              <p className="candidate-apply-note">
-                {item.applyStatus === 'APPLIED'
-                  ? '승인된 개정본이 적용되었습니다.'
-                  : item.applyStatus === 'FAILED'
-                    ? '적용에 실패했습니다. 아래 실패 사유를 확인해 주세요.'
-                    : '아직 적용된 개정본이 없습니다. 승인 후 적용됩니다.'}
-              </p>
-              <p className="candidate-check-summary">
-                {item.checkRequired === false
-                  ? '검사 대상이 아닌 후보입니다.'
-                  : item.latestCheck?.status === 'SUCCEEDED' &&
-                      item.latestCheck.totalCount !== null &&
-                      item.latestCheck.matchedCount !== null
-                    ? `검사 요약: 전체 ${item.latestCheck.totalCount}행 · 정상 ${item.latestCheck.matchedCount}행`
-                    : '검사 요약: 완료된 검사 결과가 없습니다.'}
-              </p>
-              <div className="candidate-confidence-row">
-                <span className="candidate-confidence">
-                  신뢰도: {confidence(item.aiConfidence)}
-                </span>
-                <span>AI 제안 지표 · 검사 통과·승인 여부와 별도</span>
-              </div>
-            </div>
-            <div
-              className="rules-tabs detail-tabs"
-              role="group"
-              aria-label="후보 상세 보기"
-            >
-              {[
-                [
-                  'rule',
-                  item.itemKind === 'DOCUMENT_LINK' ? '문서 내용' : '규칙 내용',
-                ],
-                ['check', '검사 결과'],
-                ['evidence', '제안 이유·원본'],
-              ].map(([key, label]) => (
-                <button
-                  type="button"
-                  key={key}
-                  aria-pressed={detailTab === key}
-                  onClick={() => setDetailTab(key)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </>
+        {item.applyError && (
+          <p role="alert" className="rounded-lg bg-red-50 p-4 text-red-800">
+            반영 실패 사유: {item.applyError}
+          </p>
         )}
-        <div
-          hidden={!!embeddedId && detailTab !== 'rule'}
-          className="space-y-6"
-        >
+        <div className="candidate-rule-section space-y-6">
           {item.itemKind === 'DOCUMENT_LINK' ? (
             <DocumentLinkView proposal={item} />
           ) : (
@@ -360,9 +310,20 @@ export default function ProposalDetail({
             </section>
           </details>
         </div>
-        <div hidden={!!embeddedId && detailTab !== 'evidence'}>
-          <section className="rounded-xl border border-slate-200 p-5">
+        <div className={embeddedId ? 'candidate-review-context' : 'space-y-6'}>
+          <section className="candidate-evidence" aria-label="제안 근거">
             <h3 className="font-semibold">제안 근거</h3>
+            {embeddedId && (
+              <div className="candidate-confidence-row">
+                <span className="candidate-confidence">
+                  신뢰도: {confidence(item.aiConfidence)}
+                </span>
+                <span>AI 제안 지표 · 검사 통과·승인 여부와 별도</span>
+                {item.analysisRunId !== null && (
+                  <span>분석 실행 #{item.analysisRunId}</span>
+                )}
+              </div>
+            )}
             <EvidenceView
               evidence={
                 isBundle(item)
@@ -373,9 +334,8 @@ export default function ProposalDetail({
               }
             />
           </section>
-        </div>
-        <div hidden={!!embeddedId && detailTab !== 'check'}>
           <CheckResults
+            compact={!!embeddedId}
             proposal={item}
             refreshing={refreshing}
             polling={polling}
@@ -396,11 +356,6 @@ export default function ProposalDetail({
           onRefresh={refreshProposal}
           historyUrl={`${historyUrl}?${activityParams}`}
         />
-        {item.applyError && (
-          <p role="alert" className="rounded-lg bg-red-50 p-4 text-red-800">
-            반영 실패 사유: {item.applyError}
-          </p>
-        )}
       </article>
     )
   }
