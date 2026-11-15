@@ -33,13 +33,28 @@ public class AgentQuerySession {
      * 답변 하나에서 객체 하나를 대상으로 조회할 수 있는 횟수. 목록·검색으로 찾은 객체를 하나씩 끝없이 조회하지 않게 한다. 여러 객체는 객체 목록 조회나 Object
      * Set으로 한 번에 본다.
      */
-    static final int MAX_OBJECT_LOOKUPS = 30;
+    static final int MAX_OBJECT_LOOKUPS = 20;
 
     static final String OBJECT_LOOKUP_LIMIT =
             "이번 답변에서 객체 하나씩 조회는 "
                     + MAX_OBJECT_LOOKUPS
                     + "번까지라 조회하지 않았습니다. 여러 객체는 객체 목록 조회나 Object Set으로 한 번에 확인하거나, 지금까지 조회한 결과로 답하면서"
                     + " 일부만 확인했다고 말해 주세요.";
+
+    /**
+     * 답변 하나에서 AI가 부를 수 있는 도구 호출 수. Spring AI의 한도(AgentResponder)보다 먼저 걸려, 한도에 닿아도 AI가 지금까지 받은 결과로
+     * 답을 맺게 한다. Spring AI 한도에 걸리면 답이 맺어지지 않는다.
+     */
+    static final int MAX_TOOL_CALLS = 25;
+
+    static final String TOOL_CALL_LIMIT =
+            "이번 답변에서 도구는 "
+                    + MAX_TOOL_CALLS
+                    + "번까지 부를 수 있어 더 조회하지 않았습니다. 도구를 더 부르지 말고 지금까지 조회한 결과로 답해 주세요. 확인하지 못한 부분은 일부만"
+                    + " 확인했다고 말합니다.";
+
+    /** 도구 호출 한도에 걸린 호출의 기록 이름. */
+    static final String TOOL_CALL_LIMIT_LABEL = "도구 호출 한도";
 
     /** AI에게 알려 주는 기준 시점의 시간대. 답변은 한국 시간으로 말한다. */
     private static final ZoneId USER_ZONE = ZoneId.of("Asia/Seoul");
@@ -57,6 +72,8 @@ public class AgentQuerySession {
     private Set<Long> allowedObjectIds;
     // 이번 답변에서 객체 하나를 대상으로 실행한 조회 수. MAX_OBJECT_LOOKUPS를 넘기지 않는다.
     private int objectLookups;
+    // 이번 답변에서 AI가 부른 도구 수. 한도에 걸린 호출도 센다.
+    private int toolCalls;
 
     // 조회 결과의 기준 시점을 구한다(145). null이면 구하지 않고 기준 시점을 비운다.
     private final DataAsOfResolver dataAsOf;
@@ -242,6 +259,40 @@ public class AgentQuerySession {
     }
 
     /**
+     * 조회하지 않고 거절한다("대상 아님", 조회·도구 한도). 데이터에 닿지 않았으므로 답변의 results에는 넣지 않지만, 어디서 막혔는지 알 수 있게 거절 이유를
+     * 실패 조회로 기록한다. AI에게는 같은 이유를 돌려준다.
+     *
+     * @return AI에게 돌려줄 값
+     */
+    synchronized Map<String, Object> refuse(
+            String toolCode,
+            String label,
+            Map<String, Object> input,
+            String targetType,
+            Long targetId,
+            String reason) {
+        record(
+                input,
+                targetType,
+                targetId,
+                new AgentQueryResult(label, toolCode, false, null, List.of(), null, false, reason),
+                Instant.now(clock));
+        return Map.of("error", reason);
+    }
+
+    /**
+     * AI의 도구 호출 하나를 센다. {@link #MAX_TOOL_CALLS}를 넘었으면 부르지 않고 거절을 기록한 뒤 AI에게 돌려줄 값을 준다. 넘지 않았으면
+     * null이다.
+     */
+    synchronized Map<String, Object> countToolCall(String toolCode, Map<String, Object> input) {
+        toolCalls++;
+        if (toolCalls <= MAX_TOOL_CALLS) {
+            return null;
+        }
+        return refuse(toolCode, TOOL_CALL_LIMIT_LABEL, input, null, null, TOOL_CALL_LIMIT);
+    }
+
+    /**
      * 도구 하나를 실행하고 기록한다. 서버 오류·시간 초과처럼 응답을 받지 못했을 때만 실패이고, 그 사실을 AI에게 알려 "데이터 없음"으로 바꿔 말하지 않게 한다.
      *
      * @return AI에게 돌려줄 값
@@ -254,14 +305,13 @@ public class AgentQuerySession {
             Long targetId,
             Supplier<Outcome> query) {
         if (OBJECT_INSTANCE.equals(targetType) && !objectAllowed(targetId)) {
-            // 이번 답변의 대상이 아닌 객체는 조회하지 않는다. 데이터에 닿지 않았으므로 기록하지 않고, AI가 "데이터 없음"으로 말하지 않게
-            // 조회하지 않은 이유를 돌려준다(147).
-            return Map.of("error", NOT_TARGET);
+            // 이번 답변의 대상이 아닌 객체는 조회하지 않는다. AI가 "데이터 없음"으로 말하지 않게 조회하지 않은 이유를 돌려준다(147).
+            return refuse(toolCode, label, input, targetType, targetId, NOT_TARGET);
         }
         if (OBJECT_INSTANCE.equals(targetType)) {
             if (objectLookups >= MAX_OBJECT_LOOKUPS) {
-                // 조회하지 않았으므로 기록하지 않는다. AI가 남은 객체를 "데이터 없음"으로 말하지 않고 다른 방법을 고르게 이유를 돌려준다.
-                return Map.of("error", OBJECT_LOOKUP_LIMIT);
+                // AI가 남은 객체를 "데이터 없음"으로 말하지 않고 다른 방법을 고르게 이유를 돌려준다.
+                return refuse(toolCode, label, input, targetType, targetId, OBJECT_LOOKUP_LIMIT);
             }
             objectLookups++;
         }

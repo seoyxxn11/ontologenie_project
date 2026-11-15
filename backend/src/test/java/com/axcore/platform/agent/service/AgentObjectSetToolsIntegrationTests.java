@@ -640,6 +640,47 @@ class AgentObjectSetToolsIntegrationTests {
                         "error", error -> assertThat((String) error).contains("pathIndex"));
     }
 
+    /**
+     * 결과가 있는 경로 없이 끝까지 건너지 못한 경로만 있으면 연결이 없다고 할 수 없다. "연결 없음"(UNLINKED)이 아니라 실패로 기록하고, 성공한 찾기로 세지
+     * 않는다. AI에게는 경로마다 이유를 돌려준다.
+     */
+    @Test
+    void reportsUnfinishedPathsAsFailureInsteadOfNoLink() {
+        jdbc.sql(
+                        """
+                        with ops as (
+                            insert into object_instance (object_type_id, display_name, properties)
+                            select :operation, 'BULK-OP-' || n, '{}'::jsonb from generate_series(1, 5001) n
+                            returning id
+                        ), rule as (
+                            select id from link_mapping where link_type_id = :type and status = 'ACTIVE'
+                        )
+                        insert into object_link
+                            (link_type_id, source_object_id, target_object_id, origin, link_mapping_id, status)
+                        select :type, ops.id, :p103, 'RULE', rule.id, 'ACTIVE' from ops, rule
+                        """)
+                .param("operation", operation)
+                .param("type", operationEquipment)
+                .param("p103", p103)
+                .update();
+        AgentQuerySession session = session();
+        session.allowObjects(List.of(p103));
+        AgentObjectSetTools tools = tools(session);
+
+        assertThat(tools.find(List.of(p103), tag + "-order", null, null, null, null, null))
+                .hasEntrySatisfying(
+                        "error",
+                        error ->
+                                assertThat((String) error)
+                                        .contains("연결이 없다고 볼 수 없습니다", "5000건을 넘어"));
+        ArgumentCaptor<AgentQueryResult> recorded = ArgumentCaptor.forClass(AgentQueryResult.class);
+        verify(recorder)
+                .record(any(), anyLong(), anyInt(), any(), any(), any(), recorded.capture(), any());
+        assertThat(recorded.getValue().succeeded()).isFalse();
+        assertThat(recorded.getValue().resultCategory()).isNull();
+        assertThat(session.finds()).isZero();
+    }
+
     /** 없는 유형 이름에는 비슷한 이름을 알리고, 찾기 결과를 관계 따라가기로 거르다 실패하면 찾기를 다시 부르라고 알린다. */
     @Test
     void suggestsSimilarTypesAndPointsFoundSetsBackToFind() {

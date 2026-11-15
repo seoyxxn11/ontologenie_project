@@ -2,12 +2,10 @@ package com.axcore.platform.agent.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -27,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.LongStream;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
 
@@ -176,7 +175,10 @@ class AgentCompletionEstimateToolsTests {
         verifyNoInteractions(estimator);
     }
 
-    /** 이번 답변의 대상이 아닌 작업지시가 하나라도 있으면 계산하지 않고 기록도 남기지 않는다(147). */
+    /**
+     * 이번 답변의 대상이 아닌 작업지시가 하나라도 있으면 계산하지 않는다(147). 어디서 막혔는지 알 수 있게 거절 이유를 실패 조회로 기록하고, 답변의 results에는
+     * 넣지 않는다.
+     */
     @Test
     void refusesWorkOrdersOutsideThisAnswer() {
         session.allowObjects(List.of(141L));
@@ -185,8 +187,14 @@ class AgentCompletionEstimateToolsTests {
 
         assertThat(reply).containsEntry("error", AgentQuerySession.NOT_TARGET);
         verifyNoInteractions(estimator);
-        verify(recorder, never())
-                .record(any(), anyLong(), anyInt(), any(), any(), any(), any(), any());
+        ArgumentCaptor<AgentQueryResult> recorded = ArgumentCaptor.forClass(AgentQueryResult.class);
+        verify(recorder)
+                .record(any(), anyLong(), eq(1), any(), any(), any(), recorded.capture(), any());
+        assertThat(recorded.getValue().succeeded()).isFalse();
+        assertThat(recorded.getValue().toolCode())
+                .isEqualTo(AgentCompletionEstimateTools.ESTIMATE_COMPLETION);
+        assertThat(recorded.getValue().errorMessage()).isEqualTo(AgentQuerySession.NOT_TARGET);
+        assertThat(session.results()).isEmpty();
     }
 
     @Test

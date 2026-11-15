@@ -138,7 +138,8 @@ public class AgentObjectSetTools {
         if (byObjects
                 && (objectIds.stream().anyMatch(Objects::isNull)
                         || !session.objectsAllowed(Set.copyOf(objectIds)))) {
-            return Map.of("error", AgentQuerySession.NOT_TARGET);
+            return session.refuse(
+                    OBJECT_SET_START, "객체 집합 시작", input, null, null, AgentQuerySession.NOT_TARGET);
         }
         return session.run(
                 OBJECT_SET_START,
@@ -565,7 +566,8 @@ public class AgentObjectSetTools {
                 && !objectIds.isEmpty()
                 && (objectIds.stream().anyMatch(Objects::isNull)
                         || !session.objectsAllowed(Set.copyOf(objectIds)))) {
-            return Map.of("error", AgentQuerySession.NOT_TARGET);
+            return session.refuse(
+                    OBJECT_SET_FIND, "목표 유형 찾기", input, null, null, AgentQuerySession.NOT_TARGET);
         }
         return session.run(
                 OBJECT_SET_FIND,
@@ -689,6 +691,11 @@ public class AgentObjectSetTools {
         List<PathRun> nonEmpty = runs.stream().filter(run -> !run.ids().isEmpty()).toList();
 
         String fromTypeName = typeName(summary, fromType);
+        if (nonEmpty.isEmpty() && runs.stream().anyMatch(run -> run.error() != null)) {
+            // 결과가 있는 경로가 없는데 끝까지 확인하지 못한 경로가 있으면 연결이 없다고 할 수 없다. 연결 없음(UNLINKED)이 아니라 실패로
+            // 기록하고, 성공한 찾기로 세지 않는다. AI에게는 경로마다 이유를 돌려줘 조건을 더하거나 다른 방법으로 다시 찾게 한다.
+            throw new InvalidInput(unfinishedPaths(fromTypeName, runs), null);
+        }
         List<Map<String, Object>> paths = new ArrayList<>();
         List<Map<String, Object>> sources = new ArrayList<>();
         // 시작 객체는 이미 이번 답변의 대상이라 출처로 남겨도 허용 객체가 늘지 않는다.
@@ -859,6 +866,22 @@ public class AgentObjectSetTools {
             }
         }
         return new PathRun(index, path, ids, null, null, false, true);
+    }
+
+    /** 결과 없이 끝나지 못한 경로가 있을 때 AI에게 돌려줄 이유. 경로마다 끝까지 갔는지, 못 갔으면 왜인지 적는다. */
+    private static String unfinishedPaths(String fromTypeName, List<PathRun> runs) {
+        StringBuilder text =
+                new StringBuilder("결과가 있는 경로가 없고 끝까지 확인하지 못한 경로가 있어, 연결이 없다고 볼 수 없습니다.");
+        for (PathRun run : runs) {
+            text.append(" [경로 ")
+                    .append(run.index())
+                    .append(" ")
+                    .append(route(fromTypeName, run.path()))
+                    .append(": ")
+                    .append(run.error() == null ? "0건" : run.error())
+                    .append("]");
+        }
+        return text.toString();
     }
 
     /** "설비 → 작업지시 공정 배정 → 작업지시 → 수주"처럼 경로를 유형 이름으로 보여 준다. */

@@ -65,6 +65,47 @@ class ModelMaskingToolCallbackTests {
     }
 
     /**
+     * AI에게 주는 도구만 이번 답변의 도구 호출 한도에 센다. 한도를 넘으면 도구를 부르지 않고 지금까지 결과로 답하라고 돌려준다. 서버가 미리 부르는 호출(납기 위험
+     * 사전 비교)은 세지 않는다.
+     */
+    @Test
+    void countsOnlyToolsGivenToTheModel() {
+        AgentQuerySession session =
+                new AgentQuerySession(
+                        new com.axcore.platform.global.security.LoginAccount(
+                                7L, "planner", "PLANNER", false),
+                        11L,
+                        org.mockito.Mockito.mock(AgentQueryRecorder.class),
+                        java.time.Clock.systemUTC());
+        java.util.concurrent.atomic.AtomicInteger calls =
+                new java.util.concurrent.atomic.AtomicInteger();
+        ToolCallback counting =
+                new ToolCallback() {
+                    @Override
+                    public ToolDefinition getToolDefinition() {
+                        return new FixedCallback("결과").getToolDefinition();
+                    }
+
+                    @Override
+                    public String call(String toolInput) {
+                        calls.incrementAndGet();
+                        return "결과";
+                    }
+                };
+        ToolCallback server = ModelMaskingToolCallback.wrapAllRecording(session, counting)[0];
+        ToolCallback model = ModelMaskingToolCallback.wrapAllCounted(session, counting)[0];
+
+        for (int i = 0; i < AgentQuerySession.MAX_TOOL_CALLS; i++) {
+            assertThat(server.call("{}")).isEqualTo("결과");
+            assertThat(model.call("{}")).isEqualTo("결과");
+        }
+
+        assertThat(model.call("{}")).contains(AgentQuerySession.TOOL_CALL_LIMIT);
+        assertThat(server.call("{}")).isEqualTo("결과");
+        assertThat(calls).hasValue(AgentQuerySession.MAX_TOOL_CALLS * 2 + 1);
+    }
+
+    /**
      * 입력을 도구 인자로 바꾸지 못하면(문자열 자리에 목록) Java 오류 원문 대신 고칠 방법을 주고 이번 답변에 실패로 남긴다(2026-11-14 대화 103). 다른
      * 오류는 그대로 던진다.
      */
