@@ -2,7 +2,6 @@ import { formatKstDateTime } from '../../utils/dateTime'
 import { useQuery } from '@tanstack/react-query'
 import { ApiError } from '../../api/errors'
 import Button from '../../components/Button'
-import StatusBadge from '../../components/StatusBadge'
 import { connectionStatusLabels } from './labels'
 import { fetchSourceSyncSummary } from './syncApi'
 import type { ConnectionStatus } from './types'
@@ -19,6 +18,20 @@ const tones = {
   SUCCEEDED: 'success',
   FAILED: 'danger',
 } as const
+
+function SummaryStatus({
+  children,
+  tone = 'neutral',
+}: {
+  children: string
+  tone?: 'neutral' | 'info' | 'success' | 'warning' | 'danger'
+}) {
+  return (
+    <span className="sources-summary-status" data-tone={tone}>
+      {children}
+    </span>
+  )
+}
 
 function Time({ value }: { value: string | null }) {
   return value ? (
@@ -60,7 +73,9 @@ export default function SourceSyncSummary({
         <div>
           <dt>접속 확인</dt>
           <dd>
-            <StatusBadge tone={connection.tone}>{connection.label}</StatusBadge>
+            <SummaryStatus tone={connection.tone}>
+              {connection.label}
+            </SummaryStatus>
           </dd>
         </div>
         <div>
@@ -68,24 +83,25 @@ export default function SourceSyncSummary({
           <dd>
             <div role="status" aria-live="polite" aria-atomic="true">
               {query.isPending ? (
-                '불러오는 중…'
+                <SummaryStatus>불러오는 중…</SummaryStatus>
               ) : query.isError ? (
-                '확인 불가'
-              ) : latestRun ? (
-                <StatusBadge
-                  tone={tones[latestRun.status]}
-                >{`전체 읽기 · ${labels[latestRun.status]}`}</StatusBadge>
-              ) : (
-                '전체 읽기 이력 없음'
-              )}
-              {latestRun && (
-                <p className="sources-summary-time">
-                  {latestRun.status === 'SUCCEEDED' ? (
-                    <span className="sr-only">완료 시각: </span>
-                  ) : (
-                    '최근 실행 종료: '
-                  )}
+                <SummaryStatus>확인 불가</SummaryStatus>
+              ) : latestRun?.status === 'SUCCEEDED' ? (
+                <div className="sources-summary-completed">
+                  <span className="sr-only">완료 시각: </span>
                   <Time value={latestRun.finishedAt} />
+                  <SummaryStatus tone="success">완료</SummaryStatus>
+                </div>
+              ) : latestRun ? (
+                <SummaryStatus
+                  tone={tones[latestRun.status]}
+                >{`전체 읽기 · ${labels[latestRun.status]}`}</SummaryStatus>
+              ) : (
+                <SummaryStatus>전체 읽기 이력 없음</SummaryStatus>
+              )}
+              {latestRun && latestRun.status !== 'SUCCEEDED' && (
+                <p className="sources-summary-time">
+                  최근 실행 종료: <Time value={latestRun.finishedAt} />
                 </p>
               )}
             </div>

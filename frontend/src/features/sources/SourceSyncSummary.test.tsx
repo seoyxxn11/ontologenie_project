@@ -91,7 +91,7 @@ test('074를 원천별 1건 조회하고 최근 전체 읽기 상태·완료와 
   const second = within(
     screen.getByRole('region', { name: '원천 2 상태 요약' }),
   )
-  expect(await first.findByText('전체 읽기 · 완료')).toBeInTheDocument()
+  expect(await first.findByText('완료')).toBeInTheDocument()
   expect(await second.findByText('전체 읽기 · 실패')).toBeInTheDocument()
   expect(first.getByText(formatKstDateTime(finished))).toHaveAttribute(
     'dateTime',
@@ -202,12 +202,12 @@ test('한 원천의 조회 실패가 다른 원천을 가리지 않고 다시 �
     screen.getByRole('region', { name: '원천 2 상태 요약' }),
   )
   await first.findByText('요약 조회 실패')
-  expect(await second.findByText('전체 읽기 · 완료')).toBeInTheDocument()
+  expect(await second.findByText('완료')).toBeInTheDocument()
   failed = false
   await user.click(
     first.getByRole('button', { name: '원천 1 수집 요약 다시 조회' }),
   )
-  expect(await first.findByText('전체 읽기 · 완료')).toBeInTheDocument()
+  expect(await first.findByText('완료')).toBeInTheDocument()
   expect(post).not.toHaveBeenCalled()
 })
 
@@ -228,12 +228,11 @@ test('대기·실행 중인 최근 실행을 자동 조회해 완료 시각으�
     () => expect(screen.getByText('전체 읽기 · 실행 중')).toBeInTheDocument(),
     { timeout: 5000 },
   )
-  await waitFor(
-    () => expect(screen.getByText('전체 읽기 · 완료')).toBeInTheDocument(),
-    { timeout: 5000 },
-  )
+  await waitFor(() => expect(screen.getByText('완료')).toBeInTheDocument(), {
+    timeout: 5000,
+  })
   expect(screen.getByRole('status')).toBe(announcement)
-  expect(announcement).toHaveTextContent('전체 읽기 · 완료')
+  expect(announcement).toHaveTextContent('완료')
   expect(screen.getByText(formatKstDateTime(finished))).toHaveAttribute(
     'dateTime',
     finished,
@@ -247,7 +246,7 @@ test('갱신 실패 뒤 이전 수집 시각을 현재 결과처럼 남기지 �
     ),
   )
   const client = open()
-  await screen.findByText('전체 읽기 · 완료')
+  await screen.findByText('완료')
   server.use(
     http.get(
       '/api/v1/sources/1/sync-runs',
