@@ -74,7 +74,19 @@ function ConversationList({
       for (const entry of entries) {
         if (entry.target === viewport)
           availableHeight = entry.contentRect.height
-        if (entry.target === row) rowHeight = row.getBoundingClientRect().height
+        if (entry.target === row) {
+          const button = row.querySelector('.agent-conversation-select')
+          const minimumHeight = button
+            ? parseFloat(getComputedStyle(button).minHeight)
+            : 0
+          const borderHeight =
+            parseFloat(getComputedStyle(row).borderBottomWidth) || 0
+          // 늘어난 행 높이로 페이지 크기를 다시 줄이는 순환을 막는다.
+          rowHeight =
+            minimumHeight > 0
+              ? minimumHeight + borderHeight
+              : row.getBoundingClientRect().height
+        }
       }
       if (availableHeight > 0 && rowHeight > 0) {
         setPageSize(Math.max(1, Math.floor(availableHeight / rowHeight)))
@@ -109,7 +121,7 @@ function ConversationList({
         <p className="agent-sidebar-empty">아직 대화가 없어요.</p>
       ) : (
         <div ref={viewportRef} className="agent-conversation-viewport">
-          <ul>
+          <ul data-page-full={visibleConversations.length === pageSize}>
             {visibleConversations.map((conversation, index) => {
               const selected = conversation.id === selectedId
               return (
