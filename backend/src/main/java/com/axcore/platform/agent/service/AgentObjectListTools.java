@@ -88,7 +88,9 @@ public class AgentObjectListTools {
                             + " 조회한다. 값은 values에 있는 값 그대로 쓰고, 사용자의 말과 뜻이 가장 가까운 값을 고른다(예: \"진행 중\" →"
                             + " \"진행\"). 띄어쓰기만 다른 값은 서버가 저장된 값으로 맞춘다. unmatchedValues에 나온 조건은 저장된 값에 없는"
                             + " 값이니 values에서 다시 고르고, 맞는 값이 없으면 조건으로 거르지 않고 그런 값이 없다고 말한다. total이 objects"
-                            + " 수보다 많으면 일부만 받은 것이니 전체 건수와 일부만 보여 준다는 것을 함께 말한다.")
+                            + " 수보다 많으면 일부만 받은 것이니 전체 건수와 일부만 보여 준다는 것을 함께 말한다. 같은 객체의 두 속성을 비교해"
+                            + " 거를 수 있고(propertyComparisons, 예: 측정값이 상한을 넘은 기록), 속성 하나로 정렬할 수 있다(sortBy). \"처음\","
+                            + " \"가장 최근\"을 물으면 시각 속성으로 정렬해 첫 행을 본다. 기록을 하나씩 상세 조회해 찾지 않는다.")
     public Map<String, Object> objectList(
             @ToolParam(description = "객체 유형 ID(모델 요약의 id)") Long objectTypeId,
             @ToolParam(
@@ -107,7 +109,19 @@ public class AgentObjectListTools {
             @ToolParam(
                             description = "쪽 번호(0부터, 기본 0). 앞 결과의 hasNext가 true일 때 다음 쪽을 볼 때만 채운다",
                             required = false)
-                    Integer page) {
+                    Integer page,
+            @ToolParam(
+                            description =
+                                    "같은 객체의 두 속성 비교 조건 목록. \"<속성 코드> <연산자> <속성 코드>\" 형식이고 연산자는 >, >=, <, <="
+                                            + " 중 하나다(예: \"value > threshold_high\"). 숫자끼리나 날짜·시각끼리만 비교한다. 없으면 비운다",
+                            required = false)
+                    List<String> propertyComparisons,
+            @ToolParam(
+                            description = "정렬할 속성 코드(예: 측정 시각). 비우면 id 순이다. 값이 없는 객체는 뒤에 온다",
+                            required = false)
+                    String sortBy,
+            @ToolParam(description = "true면 큰 값·늦은 시각부터 정렬한다. 기본 false", required = false)
+                    Boolean sortDescending) {
         Map<String, Object> input = new LinkedHashMap<>();
         AgentQueryTools.putIfPresent(input, "objectTypeId", objectTypeId);
         if (propertyValues != null && !propertyValues.isEmpty()) {
@@ -117,6 +131,11 @@ public class AgentObjectListTools {
         AgentQueryTools.putIfPresent(input, "from", from);
         AgentQueryTools.putIfPresent(input, "to", to);
         AgentQueryTools.putIfPresent(input, "page", page);
+        if (propertyComparisons != null && !propertyComparisons.isEmpty()) {
+            input.put("propertyComparisons", propertyComparisons);
+        }
+        AgentQueryTools.putIfPresent(input, "sortBy", sortBy);
+        AgentQueryTools.putIfPresent(input, "sortDescending", sortDescending);
         return session.run(
                 OBJECT_LIST,
                 "객체 목록",
@@ -131,6 +150,13 @@ public class AgentObjectListTools {
                     long typeId = objectTypeId;
                     int pageNumber = pageNumber(page);
                     AgentConditions conditions = AgentConditions.of(propertyValues);
+                    List<ObjectSearchQuery.Comparison> comparisons =
+                            comparisons(propertyComparisons);
+                    ObjectSearchQuery.Sort sort =
+                            blankToNull(sortBy) == null
+                                    ? null
+                                    : new ObjectSearchQuery.Sort(
+                                            sortBy.strip(), Boolean.TRUE.equals(sortDescending));
                     List<PropertyItem> properties = visibleProperties(typeId);
                     PropertyDataType periodType = dataTypeOf(properties, dateProperty);
                     Page<ObjectSearchResponse> found;
@@ -147,15 +173,20 @@ public class AgentObjectListTools {
                                         periodStart(periodType, from),
                                         periodEnd(periodType, to));
                         // 값 목록 조건은 Agent 전용 입구로 보낸다. 값 하나만 있으면 076과 같은 입구다.
+                        boolean agentOnly =
+                                !conditions.several().isEmpty()
+                                        || !comparisons.isEmpty()
+                                        || sort != null;
                         found =
-                                conditions.several().isEmpty()
+                                agentOnly
                                         ? objects.search(
-                                                session.asker(), DataPurpose.MODEL, request)
-                                        : objects.search(
                                                 session.asker(),
                                                 DataPurpose.MODEL,
                                                 request,
-                                                conditions.several());
+                                                new ObjectSearchQuery.Extras(
+                                                        conditions.several(), comparisons, sort))
+                                        : objects.search(
+                                                session.asker(), DataPurpose.MODEL, request);
                     } catch (BusinessException ex) {
                         if (ex.getErrorCode() == CommonErrorCode.FORBIDDEN) {
                             // 볼 수 없는 민감 속성으로 거르려 했다. 결과 건수로 값이 드러나지 않게 076이 거절한다.
@@ -187,6 +218,45 @@ public class AgentObjectListTools {
                             ids.stream().map(id -> Map.<String, Object>of("objectId", id)).toList(),
                             session.dataAsOfObjects(ids));
                 });
+    }
+
+    /** 비교·정렬 없이 부른다. 도구 정의에는 나오지 않는다(테스트·기존 호출 호환). */
+    public Map<String, Object> objectList(
+            Long objectTypeId,
+            Map<String, Object> propertyValues,
+            String dateProperty,
+            String from,
+            String to,
+            Integer page) {
+        return objectList(
+                objectTypeId, propertyValues, dateProperty, from, to, page, null, null, null);
+    }
+
+    private static final java.util.regex.Pattern COMPARISON =
+            java.util.regex.Pattern.compile(
+                    "^\\s*([A-Za-z0-9_]+)\\s*(>=|<=|>|<)\\s*([A-Za-z0-9_]+)\\s*$");
+
+    /** "value > threshold_high" 같은 글을 비교 조건으로 바꾼다. 형식이 다르면 고칠 방법을 담은 입력 오류다(418). */
+    static List<ObjectSearchQuery.Comparison> comparisons(List<String> raw) {
+        if (raw == null || raw.isEmpty()) {
+            return List.of();
+        }
+        List<ObjectSearchQuery.Comparison> parsed = new java.util.ArrayList<>();
+        for (String text : raw) {
+            java.util.regex.Matcher matcher = COMPARISON.matcher(text == null ? "" : text);
+            if (!matcher.matches()) {
+                throw new AgentQuerySession.InvalidInput(
+                        "propertyComparisons의 \""
+                                + text
+                                + "\"를 읽지 못했습니다. \"<속성 코드> <연산자> <속성 코드>\" 형식으로"
+                                + " 쓰고 연산자는 >, >=, <, <= 중 하나를 씁니다(예: \"value > threshold_high\").",
+                        null);
+            }
+            parsed.add(
+                    new ObjectSearchQuery.Comparison(
+                            matcher.group(1), matcher.group(2), matcher.group(3)));
+        }
+        return List.copyOf(parsed);
     }
 
     /**

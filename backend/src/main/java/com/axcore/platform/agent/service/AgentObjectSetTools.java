@@ -361,7 +361,7 @@ public class AgentObjectSetTools {
                                     session.asker(),
                                     DataPurpose.MODEL,
                                     request,
-                                    conditions.several(),
+                                    ObjectSearchQuery.Extras.of(conditions.several()),
                                     MAX_SET_SIZE);
         } catch (BusinessException ex) {
             if (ex.getErrorCode() == CommonErrorCode.FORBIDDEN) {

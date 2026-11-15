@@ -145,6 +145,10 @@ axcore:
   # Notion '#Action·Agent 기능의 온톨로지 활용 개선안' 참고.
   # 진행 중인 공정은 준비(금형 교체)를 마쳤다고 보고 준비 시간을 넣지 않는다. 설비를 주면 그 설비 종류로 하는 공정만 계산한다.
   agent:
+    # 대체 설비 조건 비교가 queue 작업지시의 계획 시작일과 연결 수주의 납기를 비교할 속성 코드(418). 임시 설정이며 업무 역할 묶기를 도입하면 바꾼다.
+    capability-compare:
+      planned-start: planned_start
+      due-date: due_date
     completion-estimate:
       work-order:
         type: WORK_ORDER

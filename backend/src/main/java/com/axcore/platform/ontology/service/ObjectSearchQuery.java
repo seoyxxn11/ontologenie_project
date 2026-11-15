@@ -22,14 +22,11 @@ public interface ObjectSearchQuery {
             LoginAccount actor, DataPurpose purpose, ObjectSearchRequest request);
 
     /**
-     * 위와 같고, 속성마다 값 목록 조건(그중 하나와 같으면 된다)을 더한다. Agent 도구만 쓰고 076 입력에는 없다. 같은 속성을
-     * request.propertyValues와 함께 넣으면 입력 오류다.
+     * 위와 같고, Agent 도구만 쓰는 조건(값 목록·속성 비교·정렬)을 더한다. 076 입력에는 없다. 같은 속성을 request.propertyValues와 값 목록에
+     * 함께 넣으면 입력 오류다.
      */
     Page<ObjectSearchResponse> search(
-            LoginAccount actor,
-            DataPurpose purpose,
-            ObjectSearchRequest request,
-            Map<String, List<String>> propertyValueSets);
+            LoginAccount actor, DataPurpose purpose, ObjectSearchRequest request, Extras extras);
 
     /**
      * 076과 같은 권한·조건으로 맞는 객체의 전체 건수와 ID를 id 순으로 돌려준다(380). 건수가 limit를 넘으면 ID는 읽지 않고 비운다. Agent
@@ -41,13 +38,38 @@ public interface ObjectSearchQuery {
     IdSearch searchIds(
             LoginAccount actor, DataPurpose purpose, ObjectSearchRequest request, int limit);
 
-    /** 위와 같고, 속성마다 값 목록 조건을 더한다(Agent 전용, search의 값 목록 조건과 같다). */
+    /** 위와 같고, Agent 전용 조건(값 목록·속성 비교)을 더한다. 정렬은 보지 않는다(ID는 id 순). */
     IdSearch searchIds(
             LoginAccount actor,
             DataPurpose purpose,
             ObjectSearchRequest request,
-            Map<String, List<String>> propertyValueSets,
+            Extras extras,
             int limit);
+
+    /**
+     * Agent 전용 조건. propertyValueSets는 속성마다 값 목록(그중 하나와 같으면 된다), comparisons는 같은 객체의 두 속성 비교(예:
+     * value &gt; threshold_high, 418), sort는 정렬할 속성(null이면 id 순)이다.
+     */
+    record Extras(
+            Map<String, List<String>> propertyValueSets, List<Comparison> comparisons, Sort sort) {
+        public static final Extras NONE = new Extras(Map.of(), List.of(), null);
+
+        public Extras {
+            propertyValueSets =
+                    propertyValueSets == null ? Map.of() : Map.copyOf(propertyValueSets);
+            comparisons = comparisons == null ? List.of() : List.copyOf(comparisons);
+        }
+
+        public static Extras of(Map<String, List<String>> propertyValueSets) {
+            return new Extras(propertyValueSets, List.of(), null);
+        }
+    }
+
+    /** 같은 객체의 두 속성 비교. operator는 &gt;, &gt;=, &lt;, &lt;= 중 하나다. */
+    record Comparison(String left, String operator, String right) {}
+
+    /** 정렬할 속성. */
+    record Sort(String property, boolean descending) {}
 
     /** 조건에 맞는 전체 건수와 객체 ID. 건수가 상한을 넘으면 ids는 비어 있다. */
     record IdSearch(long total, List<Long> ids) {

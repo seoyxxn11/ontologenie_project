@@ -244,11 +244,27 @@ public class ObjectQueryRepository {
             String exactPattern,
             SearchFilters filters,
             Pageable page) {
+        return search(visibleTypeIds, maskedTypeIds, status, exactPattern, filters, null, page);
+    }
+
+    /**
+     * 위와 같고, 검색어가 없을 때 속성 하나로 정렬한다(Agent 객체 목록 전용, 418). 같은 값이면 id 순이고 값이 없는 객체는 뒤에 둔다. 검색어가 있으면
+     * 검색어 일치 순을 그대로 쓴다.
+     */
+    public Page<ObjectRow> search(
+            Collection<Long> visibleTypeIds,
+            Collection<Long> maskedTypeIds,
+            Status status,
+            String exactPattern,
+            SearchFilters filters,
+            SortOrder sort,
+            Pageable page) {
         if (exactPattern == null) {
-            return searchPage(visibleTypeIds, maskedTypeIds, status, null, filters, page);
+            return searchPage(visibleTypeIds, maskedTypeIds, status, null, filters, sort, page);
         }
         try (var jitScope = disableJitForSearch()) {
-            return searchPage(visibleTypeIds, maskedTypeIds, status, exactPattern, filters, page);
+            return searchPage(
+                    visibleTypeIds, maskedTypeIds, status, exactPattern, filters, null, page);
         }
     }
 
@@ -258,6 +274,7 @@ public class ObjectQueryRepository {
             Status status,
             String exactPattern,
             SearchFilters filters,
+            SortOrder sort,
             Pageable page) {
         String pattern = exactPattern == null ? null : "%" + exactPattern + "%";
         SearchClause conditions = searchConditions(filters);
@@ -267,7 +284,15 @@ public class ObjectQueryRepository {
                         + FILTERS
                         + (pattern == null ? "" : SEARCH_CONDITION)
                         + conditions.sql();
-        String order = exactPattern == null ? "order by oi.id " : SEARCH_ORDER;
+        String order =
+                exactPattern != null
+                        ? SEARCH_ORDER
+                        : sort == null
+                                ? "order by oi.id "
+                                : "order by "
+                                        + propertyExpression("sortProperty", sort.type())
+                                        + (sort.descending() ? " desc" : " asc")
+                                        + " nulls last, oi.id ";
         JdbcClient.StatementSpec pageQuery =
                 displayQuery(
                         SELECT + matches + order + "limit :limit offset :offset",
@@ -277,6 +302,9 @@ public class ObjectQueryRepository {
                         pattern);
         if (exactPattern != null) {
             pageQuery = pageQuery.param("exactPattern", exactPattern);
+        }
+        if (exactPattern == null && sort != null) {
+            pageQuery = pageQuery.param("sortProperty", sort.code());
         }
         List<ObjectRow> rows =
                 pageQuery
@@ -352,6 +380,21 @@ public class ObjectQueryRepository {
             }
             parameters.put(key, filter.code());
         }
+        for (int index = 0; index < filters.comparisons().size(); index++) {
+            PropertyComparison comparison = filters.comparisons().get(index);
+            String left = "compareLeft" + index;
+            String right = "compareRight" + index;
+            // 연산자는 PropertyComparison이 정한 목록에서만 온다. 속성 코드는 바인딩한다.
+            sql.append(" and ")
+                    .append(propertyExpression(left, comparison.leftType()))
+                    .append(' ')
+                    .append(comparison.operator())
+                    .append(' ')
+                    .append(propertyExpression(right, comparison.rightType()))
+                    .append("\n");
+            parameters.put(left, comparison.left());
+            parameters.put(right, comparison.right());
+        }
         PeriodFilter period = filters.period();
         if (period != null) {
             parameters.put("dateProperty", period.code());
@@ -421,7 +464,40 @@ public class ObjectQueryRepository {
 
     public record PeriodFilter(String code, PropertyDataType type, String from, String to) {}
 
-    public record SearchFilters(List<PropertyFilter> values, PeriodFilter period) {}
+    /**
+     * 같은 객체의 두 속성을 비교하는 조건(418). 예: 측정값(value) &gt; 경고 상한(threshold_high). 연산자는 &gt;, &gt;=, &lt;,
+     * &lt;= 중 하나만 받는다. SQL에 그대로 붙이므로 다른 값은 만들 수 없게 막는다.
+     */
+    public record PropertyComparison(
+            String left,
+            PropertyDataType leftType,
+            String operator,
+            String right,
+            PropertyDataType rightType) {
+        public static final List<String> OPERATORS = List.of(">", ">=", "<", "<=");
+
+        public PropertyComparison {
+            if (operator == null || !OPERATORS.contains(operator)) {
+                throw new IllegalArgumentException("지원하지 않는 비교 연산자입니다: " + operator);
+            }
+        }
+    }
+
+    /** 정렬할 속성 하나(418). */
+    public record SortOrder(String code, PropertyDataType type, boolean descending) {}
+
+    public record SearchFilters(
+            List<PropertyFilter> values,
+            PeriodFilter period,
+            List<PropertyComparison> comparisons) {
+        public SearchFilters {
+            comparisons = comparisons == null ? List.of() : List.copyOf(comparisons);
+        }
+
+        public SearchFilters(List<PropertyFilter> values, PeriodFilter period) {
+            this(values, period, List.of());
+        }
+    }
 
     private JitScope disableJitForSearch() {
         if ("off".equals(jdbc.sql("show jit").query(String.class).single())) {

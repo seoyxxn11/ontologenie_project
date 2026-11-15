@@ -29,6 +29,7 @@ import com.axcore.platform.ontology.repository.ObjectQueryRepository.DetailRow;
 import com.axcore.platform.ontology.repository.ObjectQueryRepository.ObjectRow;
 import com.axcore.platform.ontology.repository.ObjectQueryRepository.PropertyFilter;
 import com.axcore.platform.ontology.repository.ObjectQueryRepository.SearchFilters;
+import com.axcore.platform.ontology.repository.ObjectQueryRepository.SortOrder;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
@@ -77,21 +78,18 @@ public class ObjectQueryService
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public Page<ObjectSearchResponse> search(
             LoginAccount actor, DataPurpose purpose, ObjectSearchRequest request) {
-        return search(actor, purpose, request, Map.of());
+        return search(actor, purpose, request, Extras.NONE);
     }
 
     @Override
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public Page<ObjectSearchResponse> search(
-            LoginAccount actor,
-            DataPurpose purpose,
-            ObjectSearchRequest request,
-            Map<String, List<String>> propertyValueSets) {
+            LoginAccount actor, DataPurpose purpose, ObjectSearchRequest request, Extras extras) {
         PageRequest page =
                 PageRequest.of(
                         request.page() == null ? 0 : request.page(),
                         request.size() == null ? DEFAULT_PAGE_SIZE : request.size());
-        SearchScope scope = searchScope(actor, purpose, request, propertyValueSets);
+        SearchScope scope = searchScope(actor, purpose, request, extras);
         if (scope == null) {
             return Page.empty(page);
         }
@@ -105,6 +103,7 @@ public class ObjectQueryService
                                 scope.status(),
                                 exactPattern,
                                 scope.filters(),
+                                scope.sort(),
                                 page)
                         .map(row -> toResponse(row, scope.access(), seen));
         restrictedViews.record(actor, "OBJECT_SEARCH", seen);
@@ -122,7 +121,7 @@ public class ObjectQueryService
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public IdSearch searchIds(
             LoginAccount actor, DataPurpose purpose, ObjectSearchRequest request, int limit) {
-        return searchIds(actor, purpose, request, Map.of(), limit);
+        return searchIds(actor, purpose, request, Extras.NONE, limit);
     }
 
     @Override
@@ -131,12 +130,12 @@ public class ObjectQueryService
             LoginAccount actor,
             DataPurpose purpose,
             ObjectSearchRequest request,
-            Map<String, List<String>> propertyValueSets,
+            Extras extras,
             int limit) {
         if (request.q() != null && !request.q().isBlank()) {
             throw new IllegalArgumentException("검색어 조건은 ID 조회에서 지원하지 않습니다.");
         }
-        SearchScope scope = searchScope(actor, purpose, request, propertyValueSets);
+        SearchScope scope = searchScope(actor, purpose, request, extras);
         if (scope == null) {
             return new IdSearch(0, List.of());
         }
@@ -154,12 +153,12 @@ public class ObjectQueryService
      * Search Around와 같은 검사(validateAny)로 값 하나 조건과 함께 검증한다.
      */
     private SearchScope searchScope(
-            LoginAccount actor,
-            DataPurpose purpose,
-            ObjectSearchRequest request,
-            Map<String, List<String>> propertyValueSets) {
-        boolean severalValues = propertyValueSets != null && !propertyValueSets.isEmpty();
-        if ((request.hasFilters() || severalValues) && request.objectTypeId() == null) {
+            LoginAccount actor, DataPurpose purpose, ObjectSearchRequest request, Extras extras) {
+        Extras agent = extras == null ? Extras.NONE : extras;
+        Map<String, List<String>> propertyValueSets = agent.propertyValueSets();
+        boolean severalValues = !propertyValueSets.isEmpty();
+        boolean agentOnly = severalValues || !agent.comparisons().isEmpty() || agent.sort() != null;
+        if ((request.hasFilters() || agentOnly) && request.objectTypeId() == null) {
             throw BusinessException.invalidField("objectTypeId", "속성 또는 기간 조건에는 객체 유형을 지정해 주세요.");
         }
         Status status = request.status() == null ? Status.ACTIVE : request.status();
@@ -193,7 +192,17 @@ public class ObjectQueryService
         if (!filters.values().isEmpty()) {
             filters = matchStoredSpacing(filters, request.objectTypeId(), status);
         }
-        return new SearchScope(access, visibleTypeIds, status, filters);
+        SortOrder sort = null;
+        if (agentOnly) {
+            filters =
+                    new SearchFilters(
+                            filters.values(),
+                            filters.period(),
+                            filterValidator.validateComparisons(
+                                    request.objectTypeId(), agent.comparisons(), access));
+            sort = filterValidator.validateSort(request.objectTypeId(), agent.sort(), access);
+        }
+        return new SearchScope(access, visibleTypeIds, status, filters, sort);
     }
 
     /** 값 하나 조건과 값 목록 조건을 합친다. 같은 속성을 두 칸에 함께 넣으면 입력 오류다(Search Around와 같다). */
@@ -213,7 +222,11 @@ public class ObjectQueryService
     }
 
     private record SearchScope(
-            DataAccess access, Set<Long> visibleTypeIds, Status status, SearchFilters filters) {}
+            DataAccess access,
+            Set<Long> visibleTypeIds,
+            Status status,
+            SearchFilters filters,
+            SortOrder sort) {}
 
     /**
      * 문자 조건 값과 똑같은 저장 값이 없고 공백만 다른 저장 값이 하나뿐이면 그 값으로 거른다(378). "정비 중"으로 물으면 저장 값 "정비중"을 찾는다. 같은 값이
@@ -236,7 +249,7 @@ public class ObjectQueryService
             }
             matched.add(new PropertyFilter(filter.code(), filter.type(), values));
         }
-        return new SearchFilters(List.copyOf(matched), filters.period());
+        return new SearchFilters(List.copyOf(matched), filters.period(), filters.comparisons());
     }
 
     @Override

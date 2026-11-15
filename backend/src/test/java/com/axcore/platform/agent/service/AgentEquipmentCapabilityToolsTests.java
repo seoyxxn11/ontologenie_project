@@ -47,6 +47,7 @@ class AgentEquipmentCapabilityToolsTests {
                         List.of(),
                         List.of(),
                         List.of(),
+                        List.of(),
                         List.of());
         when(comparer.compare(eq(ASKER), anyLong(), any(), any()))
                 .thenReturn(
@@ -88,6 +89,7 @@ class AgentEquipmentCapabilityToolsTests {
                         List.of(),
                         List.of(),
                         List.of(),
+                        List.of(),
                         List.of());
         when(comparer.compare(eq(ASKER), anyLong(), any(), any()))
                 .thenReturn(
@@ -101,17 +103,40 @@ class AgentEquipmentCapabilityToolsTests {
         assertThat(session.assignedEquipment(141L)).containsExactly(2212L);
     }
 
-    /** 이번 답변의 대상이 아닌 객체면 비교하지 않는다. 빈 설비 목록·중복은 비교하지 않고 실패로 돌려준다. */
+    /** 후보 설비를 비우면 서버가 찾게 빈 목록으로 비교기를 부른다(418). */
+    @Test
+    void letsServerFindCandidatesWhenEquipmentIsEmpty() {
+        Result result =
+                new Result(
+                        "JB2610-0141",
+                        "BRK-210R",
+                        "진행",
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of());
+        when(comparer.compare(eq(ASKER), anyLong(), any(), any()))
+                .thenReturn(
+                        new Comparison(
+                                AgentResultCategory.FOUND,
+                                result,
+                                new LinkedHashSet<>(List.of(141L))));
+
+        tools.compareEquipmentCapability(141L, null, null);
+        tools.compareEquipmentCapability(141L, List.of(), null);
+
+        verify(comparer, org.mockito.Mockito.times(2)).compare(ASKER, 141L, List.of(), Set.of());
+    }
+
+    /** 이번 답변의 대상이 아닌 객체면 비교하지 않는다. 빈 값·중복은 비교하지 않고 실패로 돌려준다. */
     @Test
     void rejectsNonTargetsAndBadInput() {
         session.allowObjects(List.of(141L, 2210L), true);
 
         assertThat(tools.compareEquipmentCapability(141L, List.of(9999L), null))
                 .containsEntry("error", AgentQuerySession.NOT_TARGET);
-        assertThat(tools.compareEquipmentCapability(141L, List.of(), null))
-                .hasEntrySatisfying(
-                        "error",
-                        error -> assertThat((String) error).contains("equipmentIds가 없습니다"));
         assertThat(tools.compareEquipmentCapability(141L, Arrays.asList(2210L, null), null))
                 .hasEntrySatisfying("error", error -> assertThat((String) error).contains("빈 값"));
         assertThat(tools.compareEquipmentCapability(141L, List.of(2210L, 2210L), null))
