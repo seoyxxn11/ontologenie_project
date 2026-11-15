@@ -245,7 +245,7 @@ test('수집 이력 탭에서 실제 어댑터로 073 요청·074 이력·075 �
   const summary = within(
     screen.getByRole('region', { name: 'ERP 운영 DB 상태 요약' }),
   )
-  expect(await summary.findByText('전체 읽기 · 완료')).toBeInTheDocument()
+  expect(await summary.findByText('완료')).toBeInTheDocument()
   const detail = within(
     await screen.findByRole('region', { name: '수집 실행 #21 상세' }),
   )
