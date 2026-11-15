@@ -177,6 +177,7 @@ test.each([
       ),
     )
     const user = open()
+    await user.click(screen.getByRole('button', { name: '수동 검사 열기' }))
     await user.dblClick(screen.getByRole('button', { name: '수동 검사 실행' }))
     await screen.findByText(message)
     await screen.findByRole('region', { name: '검사 실행 #802 상세' })
@@ -229,6 +230,7 @@ test('046 두 번째 페이지의 ACTIVE 규칙을 찾아 LINK_MAPPINGS로 보�
     ),
   )
   const user = open()
+  await user.click(screen.getByRole('button', { name: '수동 검사 열기' }))
   await user.click(screen.getByLabelText('선택한 규칙'))
   expect(screen.getByRole('button', { name: '수동 검사 실행' })).toBeDisabled()
   await user.type(screen.getByLabelText('연결 규칙 코드'), 'WO_EQ')
@@ -263,6 +265,7 @@ test.each([403, 409, 422])(
     )
     server.use(http.post('/api/v1/checks/runs', post))
     const user = open()
+    await user.click(screen.getByRole('button', { name: '수동 검사 열기' }))
     await user.click(screen.getByRole('button', { name: '수동 검사 실행' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(
       '검사 요청이 거절되었습니다.',
@@ -281,8 +284,10 @@ test('접수 통신 실패 시 목록 확인을 안내하고 목록 새로고침
   )
   const user = open()
   await screen.findByText('조건에 맞는 검사 실행이 없습니다.')
+  await user.click(screen.getByRole('button', { name: '수동 검사 열기' }))
   await user.click(screen.getByRole('button', { name: '수동 검사 실행' }))
   await screen.findByText(/접수 여부가 불확실/)
+  await user.click(screen.getByRole('button', { name: '닫기' }))
   await user.click(screen.getByRole('button', { name: '실행 목록 새로고침' }))
   await waitFor(() => expect(get).toHaveBeenCalledTimes(2))
   expect(post).toHaveBeenCalledOnce()
@@ -300,9 +305,10 @@ test('URL의 실행을 061로 조회하고 완료 후 062의 집계·표본을 �
     http.get('/api/v1/checks/runs/:id', get),
     http.get('/api/v1/checks/runs/:id/results', results),
   )
-  open('?run=802')
+  const user = open('?run=802')
   await screen.findByText(/2초마다 상태를 확인/)
   expect(results).not.toHaveBeenCalled()
+  await user.click(await screen.findByRole('button', { name: '규칙 #12' }))
   await screen.findByText('매칭률: 40.0%')
   expect(get).toHaveBeenCalledTimes(2)
   const table = screen.getByRole('table', { name: '검사 결과 912 판정 근거' })
@@ -378,4 +384,185 @@ test('다른 실행의 061 응답은 상세나 결과로 표시하지 않는다'
   expect(
     screen.queryByRole('region', { name: '검사 결과' }),
   ).not.toBeInTheDocument()
+})
+
+test('규칙별 집계 선택과 결과 페이지 이동에 따라 해당 표본만 표시한다', async () => {
+  const pages: number[] = []
+  server.use(
+    http.get('/api/v1/checks/runs/:id', () =>
+      HttpResponse.json({ data: { ...manual, status: 'SUCCEEDED' } }),
+    ),
+    http.get('/api/v1/checks/runs/:id/results', ({ request }) => {
+      const page = Number(new URL(request.url).searchParams.get('page'))
+      pages.push(page)
+      return list(
+        page === 0
+          ? [result, { ...result, id: 913, linkMappingId: 13, sampleRows: [] }]
+          : [
+              {
+                ...result,
+                id: 914,
+                linkMappingId: 14,
+                sampleRows: [{ rawValue: '다음 페이지 근거' }],
+              },
+            ],
+        21,
+        page,
+      )
+    }),
+  )
+  const user = open('?run=802')
+  const summary = await screen.findByRole('table', { name: '규칙별 판정 집계' })
+  expect(within(summary).getAllByRole('row')).toHaveLength(3)
+  expect(
+    screen.queryByRole('table', { name: '검사 결과 912 판정 근거' }),
+  ).not.toBeInTheDocument()
+  await user.click(within(summary).getByRole('button', { name: '규칙 #13' }))
+  expect(
+    screen.queryByRole('table', { name: '검사 결과 912 판정 근거' }),
+  ).not.toBeInTheDocument()
+  expect(
+    screen.getByText('제공된 판정 근거 표본이 없습니다.'),
+  ).toBeInTheDocument()
+  const dialog = screen.getByRole('dialog', { name: '규칙 판정 근거' })
+  await user.click(within(dialog).getByRole('button', { name: '이전 규칙' }))
+  expect(
+    screen.getByRole('table', { name: '검사 결과 912 판정 근거' }),
+  ).toBeInTheDocument()
+  expect(
+    within(dialog).getByRole('button', { name: '이전 규칙' }),
+  ).toBeDisabled()
+  await user.click(within(dialog).getByRole('button', { name: '다음 규칙' }))
+  await user.click(within(dialog).getByRole('button', { name: '다음 규칙' }))
+  await screen.findByText('다음 페이지 근거')
+  expect(
+    within(dialog).getByRole('button', { name: '다음 규칙' }),
+  ).toBeDisabled()
+  await user.click(within(dialog).getByRole('button', { name: '이전 규칙' }))
+  expect(
+    screen.getByText('제공된 판정 근거 표본이 없습니다.'),
+  ).toBeInTheDocument()
+  await user.click(within(dialog).getByRole('button', { name: '이전 규칙' }))
+  expect(
+    within(dialog).getByRole('button', { name: '이전 규칙' }),
+  ).toBeDisabled()
+  await user.click(within(dialog).getByRole('button', { name: '닫기' }))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(
+    within(summary).getByRole('button', { name: '규칙 #13' }),
+  ).toHaveFocus()
+  expect(
+    within(summary).getByRole('button', { name: '규칙 #12' }),
+  ).toBeInTheDocument()
+  const results = screen.getByRole('region', { name: '검사 결과' })
+  await user.click(within(results).getByRole('button', { name: '다음 페이지' }))
+  await user.click(
+    await within(results).findByRole('button', { name: '규칙 #14' }),
+  )
+  await screen.findByText('다음 페이지 근거')
+  expect(screen.queryByText('규칙 #13')).not.toBeInTheDocument()
+  expect(pages).toEqual([0, 1])
+})
+
+test('수동 검사 창을 취소하면 요청하지 않고 선택한 실행을 유지한다', async () => {
+  const post = vi.fn(() => HttpResponse.json({ data: manual }))
+  server.use(http.post('/api/v1/checks/runs', post))
+  const user = open('?run=801')
+  await screen.findByRole('region', { name: '검사 실행 #801 상세' })
+  await user.click(screen.getByRole('button', { name: '수동 검사 열기' }))
+  expect(
+    screen.getByRole('dialog', { name: '수동 검사 실행' }),
+  ).toBeInTheDocument()
+  await user.keyboard('{Escape}')
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(
+    screen.getByRole('region', { name: '검사 실행 #801 상세' }),
+  ).toBeInTheDocument()
+  expect(post).not.toHaveBeenCalled()
+})
+
+test('43개 결과의 실제 20개 페이지 경계와 마지막 결과를 양방향 탐색한다', async () => {
+  const rows = Array.from({ length: 43 }, (_, index) => ({
+    ...result,
+    id: 12000 + index,
+    linkMappingId: 2000 + index,
+    sampleRows: [{ rawValue: `근거 ${index + 1}` }],
+  }))
+  const pages: number[] = []
+  server.use(
+    http.get('/api/v1/checks/runs/:id', () =>
+      HttpResponse.json({ data: { ...manual, status: 'SUCCEEDED' } }),
+    ),
+    http.get('/api/v1/checks/runs/:id/results', ({ request }) => {
+      const page = Number(new URL(request.url).searchParams.get('page'))
+      pages.push(page)
+      return list(rows.slice(page * 20, (page + 1) * 20), 43, page)
+    }),
+  )
+  const user = open('?run=802')
+  await user.click(await screen.findByRole('button', { name: '규칙 #2019' }))
+  const dialog = screen.getByRole('dialog', { name: '규칙 판정 근거' })
+  expect(within(dialog).getByText('20 / 43개 결과')).toBeInTheDocument()
+  await user.click(within(dialog).getByRole('button', { name: '다음 규칙' }))
+  await within(dialog).findByText('근거 21')
+  expect(within(dialog).getByText('21 / 43개 결과')).toBeInTheDocument()
+  await user.click(within(dialog).getByRole('button', { name: '이전 규칙' }))
+  expect(within(dialog).getByText('근거 20')).toBeInTheDocument()
+  await user.click(within(dialog).getByRole('button', { name: '닫기' }))
+  expect(screen.getByRole('button', { name: '규칙 #2019' })).toHaveFocus()
+  const results = screen.getByRole('region', { name: '검사 결과' })
+  await user.click(
+    within(results).getByRole('button', { name: '3페이지로 이동' }),
+  )
+  await user.click(await screen.findByRole('button', { name: '규칙 #2042' }))
+  const last = screen.getByRole('dialog', { name: '규칙 판정 근거' })
+  expect(within(last).getByText('43 / 43개 결과')).toBeInTheDocument()
+  expect(within(last).getByRole('button', { name: '다음 규칙' })).toBeDisabled()
+  for (const number of [42, 41, 40]) {
+    await user.click(within(last).getByRole('button', { name: '이전 규칙' }))
+    await within(last).findByText(`근거 ${number}`)
+  }
+  await user.keyboard('{Escape}')
+  expect(screen.getByRole('button', { name: '규칙 #2042' })).toHaveFocus()
+  expect(
+    screen.queryByRole('button', { name: '규칙 #2039' }),
+  ).not.toBeInTheDocument()
+  expect(pages).toEqual([0, 1, 2])
+})
+
+test('모달의 다음 페이지 조회 실패는 오류를 표시하고 재시도 후 이동하며 본문을 유지한다', async () => {
+  let failed = false
+  const rows = Array.from({ length: 21 }, (_, index) => ({
+    ...result,
+    id: 12000 + index,
+    linkMappingId: 2000 + index,
+    sampleRows: [{ rawValue: `실패 복구 근거 ${index}` }],
+  }))
+  server.use(
+    http.get('/api/v1/checks/runs/:id', () =>
+      HttpResponse.json({ data: { ...manual, status: 'SUCCEEDED' } }),
+    ),
+    http.get('/api/v1/checks/runs/:id/results', ({ request }) => {
+      const page = Number(new URL(request.url).searchParams.get('page'))
+      if (page === 1 && !failed) {
+        failed = true
+        return HttpResponse.error()
+      }
+      return list(rows.slice(page * 20, (page + 1) * 20), 21, page)
+    }),
+  )
+  const user = open('?run=802')
+  await user.click(await screen.findByRole('button', { name: '규칙 #2019' }))
+  const dialog = screen.getByRole('dialog', { name: '규칙 판정 근거' })
+  await user.click(within(dialog).getByRole('button', { name: '다음 규칙' }))
+  await within(dialog).findByRole('alert')
+  expect(
+    within(dialog).queryByText('실패 복구 근거 19'),
+  ).not.toBeInTheDocument()
+  await user.click(
+    within(dialog).getByRole('button', { name: '다시 불러오기' }),
+  )
+  await within(dialog).findByText('실패 복구 근거 20')
+  await user.click(within(dialog).getByRole('button', { name: '닫기' }))
+  expect(screen.getByRole('button', { name: '규칙 #2019' })).toHaveFocus()
 })

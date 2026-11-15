@@ -192,7 +192,7 @@ export default function ManualCheckForm({
       {request.error && <ErrorState error={request.error} />}
       {uncertain && (
         <p className="text-sm text-slate-600">
-          접수 여부가 불확실합니다. 다시 요청하기 전에 아래 실행 목록을
+          접수 여부가 불확실합니다. 다시 요청하기 전에 창을 닫고 실행 목록을
           새로고침해 확인해 주세요. 요청을 자동으로 다시 보내지 않습니다.
         </p>
       )}
