@@ -415,7 +415,7 @@ public class AgentResponder {
                         session, objectSearch, modelSummary, dataAccess, propertyValues));
         objectDetails.ifAvailable(
                 query -> {
-                    tools.add(new AgentObjectDetailTools(session, query));
+                    tools.add(new AgentObjectDetailTools(session, query, objectSearch));
                     if (!objectSetsEnabled) {
                         return;
                     }
