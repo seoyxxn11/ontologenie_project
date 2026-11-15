@@ -1,3 +1,4 @@
+import HistoryBack from '../../components/HistoryBack'
 import './proposalHistory.css'
 import './rules.css'
 import { formatKstDateTime } from '../../utils/dateTime'
@@ -6,7 +7,7 @@ import StatusBadge from '../../components/StatusBadge'
 import DecisionSnapshot, { DecisionOptionLink } from './DecisionSnapshot'
 import type { ProposalDecisionRecord } from './decisionApi'
 import { useQuery } from '@tanstack/react-query'
-import { Link, useParams, useSearchParams } from 'react-router'
+import { useLocation, useParams, useSearchParams } from 'react-router'
 import Button from '../../components/Button'
 import PageHeader from '../../components/PageHeader'
 import DataTable from '../../components/DataTable'
@@ -243,6 +244,7 @@ export default function ProposalHistoryPage({
 }: {
   businessApprovalSource?: BusinessApprovalSource
 }) {
+  const location = useLocation()
   const { id } = useParams()
   const [params, setParams] = useSearchParams()
   const proposalId = Number(id)
@@ -256,10 +258,6 @@ export default function ProposalHistoryPage({
     /^\d+$/.test(rawPage) && Number.isSafeInteger(Number(rawPage))
       ? Number(rawPage)
       : 0
-  const returnParams = new URLSearchParams(params)
-  returnParams.delete('view')
-  returnParams.delete('historyPage')
-  const returnSearch = returnParams.size ? `?${returnParams}` : ''
   const query = useQuery({
     queryKey: ['proposals', 'detail', proposalId],
     queryFn: ({ signal }) => fetchProposal(proposalId, signal),
@@ -276,7 +274,7 @@ export default function ProposalHistoryPage({
     next.delete('historyPage')
     if (nextView !== 'approval') next.set('view', nextView)
     if (nextPage > 0) next.set('historyPage', String(nextPage))
-    setParams(next)
+    setParams(next, { state: location.state })
   }
 
   return (
@@ -288,34 +286,11 @@ export default function ProposalHistoryPage({
         description="제안의 승인 상태, 활동 기록과 보류 건을 확인합니다."
       />
       <div className="history-navigation">
-        {' '}
-        <Link
+        <HistoryBack
           className="history-back"
-          to={
-            validId
-              ? `/admin/rules/${proposalId}${returnSearch}`
-              : '/admin/rules'
-          }
-          aria-label={
-            validId ? '제안 상세로 돌아가기' : '제안 목록으로 돌아가기'
-          }
-          data-tooltip={
-            validId ? '제안 상세로 돌아가기' : '제안 목록으로 돌아가기'
-          }
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            aria-hidden="true"
-          >
-            <path d="m12 5-7 7 7 7M5 12h14" />
-          </svg>
-        </Link>
-        <span className="history-divider" aria-hidden="true" />
+          dividerClassName="history-divider"
+          label="제안 상세로 돌아가기"
+        />
         <div
           role="group"
           aria-label="규칙 이력 보기"

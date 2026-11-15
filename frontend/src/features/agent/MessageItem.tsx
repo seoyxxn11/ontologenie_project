@@ -1,6 +1,6 @@
 import { formatKstDateTime } from '../../utils/dateTime'
 import Markdown, { type Components, type Options } from 'react-markdown'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import remarkGfm from 'remark-gfm'
 import DataTable from '../../components/DataTable'
 import { LoadingState } from '../../components/Feedback'
@@ -90,6 +90,7 @@ function sourceObjectIds(result: AgentResult) {
 }
 
 function MessageItem({ message }: { message: AgentMessage }) {
+  const historyOrigin = useLocation()
   if (message.sender === 'USER') {
     return (
       <div className="agent-user-message">
@@ -222,6 +223,12 @@ function MessageItem({ message }: { message: AgentMessage }) {
                           {result.toolCode === EXECUTION_TOOL_CODE && (
                             <Link
                               to={`/audit?objectId=${objectId}`}
+                              state={{
+                                historyReturnTo:
+                                  historyOrigin.pathname +
+                                  historyOrigin.search +
+                                  historyOrigin.hash,
+                              }}
                               className="agent-inline-link"
                             >
                               실행 이력 ↗

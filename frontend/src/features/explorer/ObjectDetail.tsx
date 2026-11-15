@@ -1,7 +1,7 @@
 import { formatKstDateTime } from '../../utils/dateTime'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useNavigate, useLocation } from 'react-router'
 import Button from '../../components/Button'
 import StatusBadge from '../../components/StatusBadge'
 import { createConversation } from '../agent/api'
@@ -37,6 +37,7 @@ type ObjectDetailContentProps = {
 }
 
 function ObjectDetailContent({ objectId }: ObjectDetailContentProps) {
+  const historyOrigin = useLocation()
   const [evidenceOpen, setEvidenceOpen] = useState(false)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -178,6 +179,12 @@ function ObjectDetailContent({ objectId }: ObjectDetailContentProps) {
         </Button>
         <Link
           to={`/audit?objectId=${object.id}`}
+          state={{
+            historyReturnTo:
+              historyOrigin.pathname +
+              historyOrigin.search +
+              historyOrigin.hash,
+          }}
           className="ui-button ui-button--secondary"
         >
           실행 이력

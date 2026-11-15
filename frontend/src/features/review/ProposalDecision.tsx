@@ -4,7 +4,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { useId, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { ApiError } from '../../api/errors'
 import Button from '../../components/Button'
 import { ErrorState } from '../../components/Feedback'
@@ -43,6 +43,7 @@ export default function ProposalDecision({
   onRefresh: () => Promise<boolean>
   historyUrl: string
 }) {
+  const historyOrigin = useLocation()
   const draftKey = `${proposal.revision}:${proposal.reviewStatus}`
   const [draft, setDraft] = useState({
     key: draftKey,
@@ -219,7 +220,16 @@ export default function ProposalDecision({
           {ambiguous && (
             <p>
               다시 결정하기 전에{' '}
-              <Link className="text-violet-700 underline" to={historyUrl}>
+              <Link
+                className="text-violet-700 underline"
+                to={historyUrl}
+                state={{
+                  historyReturnTo:
+                    historyOrigin.pathname +
+                    historyOrigin.search +
+                    historyOrigin.hash,
+                }}
+              >
                 활동 기록
               </Link>
               에서 저장 여부를 확인해 주세요.
