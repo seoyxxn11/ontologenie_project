@@ -8,8 +8,10 @@ import com.axcore.platform.ontology.domain.PropertyDefinition;
 import com.axcore.platform.ontology.domain.PropertySensitivity;
 import com.axcore.platform.ontology.dto.ObjectSearchRequest;
 import com.axcore.platform.ontology.repository.ObjectQueryRepository.PeriodFilter;
+import com.axcore.platform.ontology.repository.ObjectQueryRepository.PropertyComparison;
 import com.axcore.platform.ontology.repository.ObjectQueryRepository.PropertyFilter;
 import com.axcore.platform.ontology.repository.ObjectQueryRepository.SearchFilters;
+import com.axcore.platform.ontology.repository.ObjectQueryRepository.SortOrder;
 import com.axcore.platform.ontology.repository.PropertyDefinitionRepository;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -130,6 +132,96 @@ public class ObjectSearchFilterValidator {
             period = new PeriodFilter(property.getCode(), type, start, end);
         }
         return new SearchFilters(List.copyOf(values), period);
+    }
+
+    /**
+     * Agent 객체 목록의 속성 비교 조건(418). 두 속성 모두 그 유형에 정의돼 있고 볼 수 있어야 한다(민감 속성이면 값 조건과 같이 FORBIDDEN).
+     * 숫자끼리나 날짜·시각끼리만 비교한다. 호출자가 typeId를 볼 수 있는지 먼저 확인해야 한다(validate와 같다).
+     */
+    /** 속성 비교 조건 수 상한(418). 값 목록 상한(20)처럼 SQL 조건이 끝없이 늘지 않게 한다. */
+    static final int MAX_COMPARISONS = 5;
+
+    List<PropertyComparison> validateComparisons(
+            long typeId, List<ObjectSearchQuery.Comparison> given, DataAccess access) {
+        if (given == null || given.isEmpty()) {
+            return List.of();
+        }
+        if (given.size() > MAX_COMPARISONS) {
+            throw BusinessException.invalidField(
+                    "propertyComparisons", "속성 비교는 " + MAX_COMPARISONS + "개까지 쓸 수 있습니다.");
+        }
+        Map<String, PropertyDefinition> definitions = definitions(typeId);
+        List<PropertyComparison> comparisons = new ArrayList<>();
+        for (int index = 0; index < given.size(); index++) {
+            ObjectSearchQuery.Comparison comparison = given.get(index);
+            String field = "propertyComparisons[" + index + "]";
+            if (comparison.operator() == null
+                    || !PropertyComparison.OPERATORS.contains(comparison.operator())) {
+                throw BusinessException.invalidField(
+                        field, "비교 연산자는 " + PropertyComparison.OPERATORS + " 중 하나여야 합니다.");
+            }
+            PropertyDefinition left =
+                    requireProperty(
+                            definitions,
+                            comparison.left(),
+                            typeId,
+                            access,
+                            field,
+                            UNKNOWN_PROPERTY);
+            PropertyDefinition right =
+                    requireProperty(
+                            definitions,
+                            comparison.right(),
+                            typeId,
+                            access,
+                            field,
+                            UNKNOWN_PROPERTY);
+            if (comparableFamily(left.getDataType()) == null
+                    || !comparableFamily(left.getDataType())
+                            .equals(comparableFamily(right.getDataType()))) {
+                throw BusinessException.invalidField(field, "숫자끼리나 날짜·시각끼리만 비교할 수 있습니다.");
+            }
+            comparisons.add(
+                    new PropertyComparison(
+                            left.getCode(),
+                            left.getDataType(),
+                            comparison.operator(),
+                            right.getCode(),
+                            right.getDataType()));
+        }
+        return List.copyOf(comparisons);
+    }
+
+    /** Agent 객체 목록의 정렬 속성(418). 볼 수 없는 민감 속성으로는 정렬하지 않는다(순서로 값이 드러난다). */
+    SortOrder validateSort(long typeId, ObjectSearchQuery.Sort sort, DataAccess access) {
+        if (sort == null) {
+            return null;
+        }
+        PropertyDefinition property =
+                requireProperty(
+                        definitions(typeId),
+                        sort.property(),
+                        typeId,
+                        access,
+                        "sortBy",
+                        UNKNOWN_PROPERTY);
+        if (property.getDataType() == PropertyDataType.JSON) {
+            throw BusinessException.invalidField("sortBy", "JSON 속성으로는 정렬할 수 없습니다.");
+        }
+        return new SortOrder(property.getCode(), property.getDataType(), sort.descending());
+    }
+
+    private Map<String, PropertyDefinition> definitions(long typeId) {
+        return properties.findByObjectTypeIdOrderById(typeId).stream()
+                .collect(Collectors.toMap(PropertyDefinition::getCode, Function.identity()));
+    }
+
+    private static String comparableFamily(PropertyDataType type) {
+        return switch (type) {
+            case INTEGER, DECIMAL -> "number";
+            case DATE, DATETIME -> "date";
+            default -> null;
+        };
     }
 
     /**

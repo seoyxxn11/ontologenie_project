@@ -8,6 +8,8 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.axcore.platform.action.handler.ReassignmentProperties;
@@ -52,7 +54,8 @@ class EquipmentCapabilityComparerTests {
     private final DataAccess access = mock(DataAccess.class);
     private final ObjectDetailQuery details = mock(ObjectDetailQuery.class);
     private final EquipmentCapabilityComparer comparer =
-            new EquipmentCapabilityComparer(objects, properties(), policy, details);
+            new EquipmentCapabilityComparer(
+                    objects, properties(), policy, details, "planned_start", "due_date");
 
     private final Map<Long, ObjectRow> rows = new LinkedHashMap<>();
     private final Map<String, List<ObjectRow>> byType = new LinkedHashMap<>();
@@ -63,6 +66,8 @@ class EquipmentCapabilityComparerTests {
         when(access.canView(anyString())).thenReturn(true);
         when(details.detail(eq(ASKER), eq(DataPurpose.MODEL), anyLong()))
                 .thenAnswer(call -> detail(call.getArgument(2), "설비"));
+        when(details.links(eq(ASKER), eq(DataPurpose.MODEL), anyLong(), any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
         rows.put(WO, workOrder("진행"));
         rows.put(P101, equipment(P101, "P101", "PRS", 400));
         rows.put(P201, equipment(P201, "P201", "PRS", 300));
@@ -127,6 +132,253 @@ class EquipmentCapabilityComparerTests {
         assertThat(comparison.objectIds()).contains(WO, P101, P201, 1012L, 1013L, 5020L, 5030L);
     }
 
+    /**
+     * 후보 설비를 비우면 남은 공정에 필요한 종류(PRS)의 설비 중 지금 배정된 P103을 빼고 비교한다(418). 사용자가 후보를 말하지 않은 "옮길 설비를 찾아서"
+     * 질문에서 작업지시에 이미 연결된 설비만 비교하던 일을 막는다.
+     */
+    @Test
+    void findsCandidatesOfRequiredKindWhenNoneGiven() {
+        long p103 = 2212L;
+        rows.put(p103, equipment(p103, "P103", "PRS", 400));
+        byType.put("Equipment", List.of(rows.get(p103), rows.get(P101), rows.get(P201)));
+
+        Comparison comparison = comparer.compare(ASKER, WO, List.of(), Set.of());
+
+        assertThat(comparison.category()).isEqualTo(AgentResultCategory.FOUND);
+        assertThat(comparison.result().equipment())
+                .extracting(EquipmentResult::equipmentId, EquipmentResult::verdict)
+                .containsExactly(tuple(P101, "충족"), tuple(P201, "미충족"));
+
+        byType.remove("Equipment");
+        Comparison none = comparer.compare(ASKER, WO, List.of(), Set.of());
+        assertThat(none.category()).isEqualTo(AgentResultCategory.NO_DATA);
+        assertThat(none.result().missingInputs()).anyMatch(reason -> reason.contains("후보 설비를 찾지"));
+    }
+
+    /** 멈춘 설비의 끝나지 않은 공정의 작업지시를 찾는다(418 S4, 서버가 비교를 먼저 부를 때). 설비가 아니면 비어 있다. */
+    @Test
+    void findsUnfinishedWorkOrdersOnEquipment() {
+        long p103 = 2212L;
+        rows.put(p103, equipment(p103, "P103", "PRS", 400));
+        when(objects.findActiveByProperty(
+                        any(), eq("WorkOrderOperation"), eq("equipment_code"), any()))
+                .thenReturn(
+                        List.of(
+                                queuedOperation(2001L, "JB2610-0141", "P103", "중단"),
+                                queuedOperation(2002L, "JB2610-0146", "P103", "완료")));
+        when(objects.findActiveByProperty(any(), eq("WorkOrder"), eq("wo_no"), any()))
+                .thenAnswer(
+                        call -> {
+                            java.util.Collection<?> numbers = call.getArgument(3);
+                            assertThat(List.<Object>copyOf(numbers)).containsExactly("JB2610-0141");
+                            return List.of(rows.get(WO));
+                        });
+
+        EquipmentCapabilityComparer.StoppedWorks works = comparer.unfinishedWorkOrders(ASKER, p103);
+        assertThat(works.works())
+                .as("그 설비에 배정된 공정 순서만 함께 준다(다른 설비 공정까지 비교하지 않게)")
+                .containsExactly(new EquipmentCapabilityComparer.StoppedWork(WO, List.of("20")));
+        assertThat(works.total()).isEqualTo(1);
+        assertThat(comparer.isEquipment(ASKER, p103)).isTrue();
+        assertThat(comparer.isEquipment(ASKER, WO)).isFalse();
+        assertThat(comparer.unfinishedWorkOrders(ASKER, WO).works()).as("설비가 아닌 객체").isEmpty();
+    }
+
+    /**
+     * 조건을 충족한 대체 설비에는 그 설비에 남은 다른 작업지시(queue)를 준다(418). 옮기면 밀리는 작업이다. 끝난 공정의 작업지시와 옮길 작업지시는 빼고, 미충족
+     * 설비에는 주지 않는다.
+     */
+    @Test
+    void givesQueueOfWorkOnEquipmentThatMeetsConditions() {
+        long waiting = 145L;
+        long done = 146L;
+        ObjectRow waitingOrder =
+                new ObjectRow(
+                        waiting,
+                        "WorkOrder",
+                        "ACTIVE",
+                        "JB2610-0145",
+                        Map.of("wo_no", "JB2610-0145", "status", "대기"));
+        when(objects.findActiveByProperty(
+                        any(), eq("WorkOrderOperation"), eq("equipment_code"), any()))
+                .thenReturn(
+                        List.of(
+                                queuedOperation(2001L, "JB2610-0145", "P101", "대기"),
+                                queuedOperation(2002L, "JB2610-0146", "P101", "완료"),
+                                queuedOperation(2003L, "JB2610-0141", "P101", "대기")));
+        when(objects.findActiveByProperty(any(), eq("WorkOrderOperation"), eq("wo_no"), any()))
+                .thenAnswer(
+                        call -> {
+                            java.util.Collection<?> numbers = call.getArgument(3);
+                            return numbers.contains("JB2610-0145")
+                                    ? List.of(queuedOperation(2001L, "JB2610-0145", "P101", "대기"))
+                                    : byType.get("WorkOrderOperation");
+                        });
+        when(objects.findActiveByProperty(any(), eq("WorkOrder"), eq("wo_no"), any()))
+                .thenAnswer(
+                        call -> {
+                            java.util.Collection<?> numbers = call.getArgument(3);
+                            List<ObjectRow> found = new ArrayList<>();
+                            if (numbers.contains("JB2610-0145")) {
+                                found.add(waitingOrder);
+                            }
+                            if (numbers.contains("JB2610-0141")) {
+                                found.add(rows.get(WO));
+                            }
+                            if (numbers.contains("JB2610-0146")) {
+                                found.add(
+                                        new ObjectRow(
+                                                done,
+                                                "WorkOrder",
+                                                "ACTIVE",
+                                                "JB2610-0146",
+                                                Map.of()));
+                            }
+                            return found;
+                        });
+
+        long salesOrder = 3219L;
+        when(details.links(eq(ASKER), eq(DataPurpose.MODEL), eq(waiting), any()))
+                .thenReturn(
+                        new org.springframework.data.domain.PageImpl<>(
+                                List.of(
+                                        link(2001L, "JB2610-0145-20", "작업지시 공정"),
+                                        link(3001L, "PR-0001", "생산 실적", 7L),
+                                        link(3002L, "PR-0002", "생산 실적", 7L),
+                                        link(salesOrder, "OD-2610-019", "수주", 8L))));
+        when(details.detail(ASKER, DataPurpose.MODEL, 3001L))
+                .thenReturn(withProperties(3001L, Map.of("worker_id", "6")));
+
+        when(details.detail(ASKER, DataPurpose.MODEL, waiting))
+                .thenReturn(
+                        withProperties(
+                                waiting, Map.of("planned_start", "2026-11-02", "status", "대기")));
+        when(details.detail(ASKER, DataPurpose.MODEL, salesOrder))
+                .thenReturn(withProperties(salesOrder, Map.of("due_date", "2026-10-31")));
+
+        long ownOrder = 3221L;
+        when(details.links(eq(ASKER), eq(DataPurpose.MODEL), eq(WO), any()))
+                .thenReturn(
+                        new org.springframework.data.domain.PageImpl<>(
+                                List.of(link(ownOrder, "OD-2610-021", "수주", 8L))));
+        when(details.detail(ASKER, DataPurpose.MODEL, ownOrder))
+                .thenReturn(withProperties(ownOrder, Map.of("due_date", "2026-11-04")));
+
+        Comparison comparison = comparer.compare(ASKER, WO, List.of(P101, P201), Set.of());
+
+        assertThat(comparison.result().workOrderLinked())
+                .as("옮길 작업지시 자신의 수주·납기도 준다(멈춘 설비의 수주를 구분해 말하게)")
+                .extracting(EquipmentCapabilityComparer.LinkedObject::name)
+                .containsExactly("OD-2610-021");
+        EquipmentResult p101 = comparison.result().equipment().getFirst();
+        assertThat(p101.verdict()).isEqualTo("충족");
+        assertThat(p101.queue())
+                .extracting(
+                        EquipmentCapabilityComparer.QueuedWork::workOrderId,
+                        EquipmentCapabilityComparer.QueuedWork::workOrder)
+                .containsExactly(tuple(waiting, "JB2610-0145"));
+        assertThat(comparison.result().equipment().get(1).queue()).as("미충족 설비에는 주지 않는다").isEmpty();
+        assertThat(p101.queueTotal()).as("잘리기 전 작업지시 수").isEqualTo(1);
+        assertThat(comparison.result().equipment().get(1).queueTotal()).as("보지 않은 설비").isNull();
+        assertThat(p101.queue().getFirst().linkedTotal()).isEqualTo(1);
+        assertThat(comparison.objectIds()).as("queue 작업지시는 출처가 되어 다음 조회에 쓸 수 있다").contains(waiting);
+        assertThat(p101.queue().getFirst().linked())
+                .as("공정 배정은 빼고 수주처럼 연결된 객체를 준다")
+                .extracting(
+                        EquipmentCapabilityComparer.LinkedObject::id,
+                        EquipmentCapabilityComparer.LinkedObject::name)
+                .containsExactly(tuple(salesOrder, "OD-2610-019"));
+        assertThat(comparison.objectIds()).contains(salesOrder);
+        assertThat(p101.queue().getFirst().dueNotes())
+                .as("계획 시작일이 수주 납기보다 늦으면 알린다")
+                .singleElement()
+                .asString()
+                .contains("JB2610-0145", "2026-11-02", "OD-2610-019", "2026-10-31");
+        assertThat(comparison.objectIds())
+                .as("납기 속성이 없는 유형(생산 실적)은 넣지 않는다")
+                .doesNotContain(3001L, 3002L);
+        verify(details, never()).detail(ASKER, DataPurpose.MODEL, 3002L);
+
+        when(details.detail(ASKER, DataPurpose.MODEL, salesOrder))
+                .thenReturn(
+                        withProperties(
+                                salesOrder,
+                                new java.util.HashMap<>(
+                                        java.util.Collections.singletonMap("due_date", null)),
+                                List.of("due_date")));
+        Comparison hidden = comparer.compare(ASKER, WO, List.of(P101, P201), Set.of());
+        assertThat(hidden.result().equipment().getFirst().queue().getFirst().dueNotes())
+                .as("가린 납기는 \"위험 없음\"이 아니라 비교하지 못했다고 알린다")
+                .singleElement()
+                .asString()
+                .contains("OD-2610-019", "볼 권한이 없어");
+    }
+
+    private static com.axcore.platform.ontology.dto.ObjectLinkResponse link(
+            long relatedId, String name, String typeName) {
+        return link(relatedId, name, typeName, 1L);
+    }
+
+    private static com.axcore.platform.ontology.dto.ObjectLinkResponse link(
+            long relatedId, String name, String typeName, long typeId) {
+        return new com.axcore.platform.ontology.dto.ObjectLinkResponse(
+                1L,
+                1L,
+                "link",
+                relatedId,
+                relatedId,
+                new com.axcore.platform.ontology.dto.ObjectLinkResponse.RelatedObject(
+                        relatedId, name, typeId, typeName),
+                null,
+                "ACTIVE",
+                null,
+                null,
+                null,
+                null);
+    }
+
+    private static ObjectDetailResponse withProperties(long id, Map<String, Object> properties) {
+        return withProperties(id, properties, List.of());
+    }
+
+    private static ObjectDetailResponse withProperties(
+            long id, Map<String, Object> properties, List<String> restricted) {
+        return new ObjectDetailResponse(
+                id,
+                1L,
+                "작업",
+                "#" + id,
+                properties,
+                Map.of(),
+                restricted,
+                null,
+                null,
+                null,
+                null,
+                Map.of(),
+                null,
+                null,
+                null);
+    }
+
+    private static ObjectRow queuedOperation(
+            long id, String workOrder, String equipment, String status) {
+        return new ObjectRow(
+                id,
+                "WorkOrderOperation",
+                "ACTIVE",
+                workOrder + "-20",
+                Map.of(
+                        "wo_no",
+                        workOrder,
+                        "op_seq",
+                        20,
+                        "equipment_code",
+                        equipment,
+                        "status",
+                        status));
+    }
+
     /** 비교한 공정이 지금 배정된 설비의 ID를 준다. 재배정 계획의 정지 설비로 쓴다(2026-11-14 대화 95). */
     @Test
     void givesIdOfEquipmentTheOperationsAreAssignedTo() {
@@ -165,6 +417,11 @@ class EquipmentCapabilityComparerTests {
         assertThatThrownBy(() -> comparer.compare(ASKER, WO, List.of(operation), Set.of()))
                 .isInstanceOf(AgentQuerySession.InvalidInput.class)
                 .hasMessageContaining("equipmentIds #1012");
+
+        assertThatThrownBy(() -> comparer.compare(ASKER, operation, List.of(), Set.of()))
+                .as("후보를 비워도 다른 유형이면 고칠 방법을 준다(\"후보 없음\"으로 끝내지 않는다)")
+                .isInstanceOf(AgentQuerySession.InvalidInput.class)
+                .hasMessageContaining("workOrderId #1012");
 
         when(access.canView("WorkOrderOperation")).thenReturn(false);
         Comparison hidden = comparer.compare(ASKER, operation, List.of(P101), Set.of());
@@ -323,6 +580,11 @@ class EquipmentCapabilityComparerTests {
         assertThat(denied.category()).isEqualTo(AgentResultCategory.DENIED);
         assertThat(denied.result().missingInputs())
                 .containsExactly("비교에 필요한 Routing의 min_tonnage 값을 볼 권한이 없습니다.");
+
+        Comparison noCandidates = comparer.compare(ASKER, WO, List.of(), Set.of());
+        assertThat(noCandidates.category())
+                .as("후보를 비워도 볼 수 없는 값이면 \"후보 없음\"이 아니라 DENIED다")
+                .isEqualTo(AgentResultCategory.DENIED);
     }
 
     static ReassignmentProperties properties() {

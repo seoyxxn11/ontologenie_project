@@ -141,16 +141,47 @@ class AgentScenarioGmsTests {
     void p2FindsWhenVibrationOfP103FirstExceededLimit() {
         Run run = ask("P103 진동이 언제부터 상한을 넘었어?", PRESS_REPLY);
 
-        run.expectRead(press(), Set.of(AgentObjectDetailTools.OBJECT_LINKS));
-        run.expectRead(
-                data.object(
-                        "SensorReading",
-                        Map.of(
-                                "equipment_code", "P103",
-                                "measured_at", "2026-10-28T09:00:00",
-                                "metric", "vibration_mm_s")),
-                Set.of(AgentObjectDetailTools.OBJECT_DETAIL));
+        // 측정 기록을 하나씩 상세 조회하면 도구 호출 한도(40)에 걸린다. 객체 목록의 속성 비교(value > threshold_high)와 측정 시각 정렬로
+        // 첫 기록을 찾으면 된다(418). 그래서 어느 도구로 읽었는지가 아니라 답의 시각과 값을 본다.
+        run.expectAnswerWith("10-28", "4.9");
+        run.expectReached(
+                jdbc.sql(
+                                """
+                                select oi.id from object_instance oi
+                                join object_type ot on ot.id = oi.object_type_id
+                                where ot.code = 'SensorReading'
+                                  and oi.source_key ->> 'equipment_code' = 'P103'
+                                  and oi.source_key ->> 'metric' = 'vibration_mm_s'
+                                  and oi.source_key ->> 'measured_at' like '2026-10-28%09:00%'
+                                """)
+                        .query(Long.class)
+                        .single());
         run.log("2026-10-28 09:00:00부터 (4.90 > 상한 4.50)");
+        run.verify();
+    }
+
+    /**
+     * C1(418): "4건"이라 쓰고 표에 5행을 나열한 일이 있었다(운영 VIEWER). 답에 쓴 건수와 나열한 비가동 번호 수가 같아야 한다. 2026년 10월
+     * P103 비가동은 DT-0422·0427·0428·0431·0460 다섯 건이다.
+     */
+    @Test
+    void c1DowntimeCountMatchesListedRows() {
+        Run run = ask("2026년 10월 P103의 비가동 이력 보여줘", PRESS_REPLY);
+        String answer = run.answer == null ? "" : run.answer;
+        Set<String> listed = new TreeSet<>();
+        Matcher code = Pattern.compile("DT-[0-9]{4}").matcher(answer);
+        while (code.find()) {
+            listed.add(code.group());
+        }
+        // "전체 N건 중 M건"이면 나열한 수는 M이다. 아니면 처음 쓴 "N건"이 나열한 수다.
+        Matcher partial = Pattern.compile("([0-9]+) ?건 ?중 ?([0-9]+) ?건").matcher(answer);
+        Matcher said = Pattern.compile("([0-9]+) ?건").matcher(answer);
+        String count = partial.find() ? partial.group(2) : said.find() ? said.group(1) : null;
+        if (count != null && Integer.parseInt(count) != listed.size()) {
+            run.failures.add("답에 쓴 건수 " + count + "와 나열한 비가동 수 " + listed.size() + "가 다름");
+        }
+        run.expectAnswerWith("DT-0422", "DT-0460");
+        run.log("10월 비가동 5건(DT-0422·0427·0428·0431·0460)");
         run.verify();
     }
 
@@ -191,14 +222,19 @@ class AgentScenarioGmsTests {
     void s4FollowsP103ToWorkOrderAndSalesOrderAtRisk() {
         Run run = ask("P103이 멈춰서 납기가 위험한 수주는?", PRESS_REPLY);
 
-        // 관계 조회로 따라가도, 객체 집합(382)으로 건너도 된다.
-        run.expectStartedFrom(press());
-        // 객체 집합으로 건너면 중간 작업지시는 목록으로 보지 않아도 된다. 작업지시 유형을 거쳐 정답 수주에 닿았으면 된다.
-        run.expectReadOrPassedThrough(
-                data.object("WorkOrder", Map.of("wo_no", "JB2610-0141")), typeId("WorkOrder"));
+        long stoppedWork = data.object("WorkOrder", Map.of("wo_no", "JB2610-0141"));
+        // 서버가 납기 위험 질문으로 보고 멈춘 설비의 작업지시로 설비 조건 비교를 먼저 부른다(418). 그 결과에 멈춘 작업지시의 수주(workOrderLinked)가
+        // 있다.
+        run.expectInput(
+                AgentEquipmentCapabilityTools.COMPARE_EQUIPMENT_CAPABILITY,
+                "workOrderId",
+                stoppedWork);
         run.expectReached(data.object("SalesOrder", Map.of("so_no", "OD-2610-021")));
         // 조건 없이 모은 수주를 그대로 나열하면 출하완료 수주가 섞인다(11-13 운영 질문). 끝나지 않은 수주만 말해야 한다.
-        run.expectOnlyOrders(UNFINISHED_ORDERS_NEAR_P103, "OD-2610-021");
+        // 정답(gold S4)의 납기 위험 수주는 OD-2610-019다. JB2610-0141을 P101로 옮기면 P101에서 대기 중인 JB2610-0145(계획
+        // 시작 11-02)가
+        // 밀리고 그 수주의 납기는 10-31이다. OD-2610-021만 말하면 정답을 빠뜨린 것이다(418).
+        run.expectOnlyOrders(UNFINISHED_ORDERS_NEAR_P103, "OD-2610-019");
         run.log(
                 "멈춘 작업지시 JB2610-0141(성형·트리밍 잔량 3,200) → 수주 OD-2610-021(납기 2026-11-04). "
                         + "납기 위험 수주는 OD-2610-019(연결 작업지시 JB2610-0145 대기, 납기 2026-10-31)");

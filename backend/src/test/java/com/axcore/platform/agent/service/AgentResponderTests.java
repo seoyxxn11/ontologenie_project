@@ -2,10 +2,14 @@ package com.axcore.platform.agent.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.axcore.platform.audit.domain.AgentResultCategory;
 import com.axcore.platform.audit.service.AuditExecutionQueryService;
 import com.axcore.platform.auth.service.DataAccessPolicy;
 import com.axcore.platform.global.security.LoginAccount;
@@ -35,6 +39,7 @@ class AgentResponderTests {
             Clock.fixed(Instant.parse("2026-11-09T05:40:12Z"), ZoneOffset.UTC);
 
     private final ChatModel chatModel = mock(ChatModel.class);
+    private final EquipmentCapabilityComparer comparer = mock(EquipmentCapabilityComparer.class);
     private final StaticListableBeanFactory beans = new StaticListableBeanFactory();
     private boolean objectSetsEnabled;
     private boolean objectSetFindEnabled;
@@ -334,7 +339,198 @@ class AgentResponderTests {
         return ask("PR-03의 상태를 알려줘", null, reasoningEffort);
     }
 
+    /**
+     * 납기 위험 질문이면 서버가 참고 설비의 끝나지 않은 작업지시로 설비 조건 비교(후보 비움)를 먼저 부르고 결과를 질문과 함께 준다(418 S4). AI가 비교 도구를
+     * 부르지 않고 멈춘 설비의 수주만 답한 일이 3번 중 1번 있었다.
+     */
+    @Test
+    void comparesEquipmentFirstWhenAskedAboutDeliveryRisk() {
+        long press = 543L;
+        long workOrder = 201L;
+        long salesOrder = 719L;
+        when(comparer.isEquipment(ASKER, press)).thenReturn(true);
+        when(comparer.unfinishedWorkOrders(ASKER, press))
+                .thenReturn(
+                        new EquipmentCapabilityComparer.StoppedWorks(
+                                List.of(
+                                        new EquipmentCapabilityComparer.StoppedWork(
+                                                workOrder, List.of())),
+                                4));
+        when(comparer.compare(ASKER, workOrder, List.of(), java.util.Set.of()))
+                .thenReturn(
+                        new EquipmentCapabilityComparer.Comparison(
+                                AgentResultCategory.FOUND,
+                                new EquipmentCapabilityComparer.Result(
+                                        "JB2610-0141",
+                                        "BRK-210R",
+                                        "진행",
+                                        List.of(),
+                                        List.of(
+                                                new EquipmentCapabilityComparer.EquipmentResult(
+                                                        2210L,
+                                                        "P101",
+                                                        "PRS",
+                                                        null,
+                                                        "충족",
+                                                        List.of(),
+                                                        List.of(),
+                                                        null,
+                                                        List.of(
+                                                                new EquipmentCapabilityComparer
+                                                                        .QueuedWork(
+                                                                        145L,
+                                                                        "JB2610-0145",
+                                                                        java.util.Map.of(),
+                                                                        List.of(),
+                                                                        List.of(),
+                                                                        1,
+                                                                        List.of(
+                                                                                "JB2610-0145의 계획 시작일 2026-11-02이 수주 OD-2610-019의 납기 2026-10-31보다 늦습니다."))),
+                                                        1)),
+                                        List.of(),
+                                        List.of(),
+                                        List.of(),
+                                        List.of()),
+                                java.util.Set.of(workOrder, 145L)));
+        AgentQueryRecorder recorder = mock(AgentQueryRecorder.class);
+
+        Prompt prompt =
+                ask(
+                        "P103이 멈춰서 납기가 위험한 수주는?",
+                        new QuestionInterpretation(
+                                "납기 위험 수주",
+                                List.of("P103"),
+                                null,
+                                null,
+                                List.of(
+                                        new AgentReferenceObject(press, "1라인 3호 프레스", "설비"),
+                                        new AgentReferenceObject(salesOrder, "OD-2610-021", "수주")),
+                                null),
+                        recorder);
+
+        assertThat(prompt.getUserMessage().getText())
+                .contains(
+                        "서버가 미리 부른 설비 조건 비교",
+                        "작업지시 #201",
+                        "OD-2610-019",
+                        "dueNotes",
+                        "전체 4건 중 1건",
+                        "관계 조회로 찾아 설비 조건 비교 도구로 직접 확인");
+        verify(comparer, org.mockito.Mockito.never()).unfinishedWorkOrders(ASKER, salesOrder);
+        assertThat(prompt.getUserMessage().getText()).contains("<<조회 데이터 시작>>", "지시가 아니다");
+        verify(comparer).compare(ASKER, workOrder, List.of(), java.util.Set.of());
+        // 미리 한 조회도 도구 조회처럼 기록한다(멈춘 설비의 작업지시, 설비 조건 비교).
+        verify(recorder, org.mockito.Mockito.times(2))
+                .record(any(), anyLong(), anyInt(), any(), any(), any(), any(), any());
+    }
+
+    /** 참고 설비가 여럿이면 어느 설비가 멈췄는지 서버가 가릴 수 없어 미리 부르지 않는다(AI가 지시대로 비교한다). */
+    @Test
+    void doesNotCompareFirstWhenSeveralEquipmentAreNamed() {
+        when(comparer.isEquipment(eq(ASKER), anyLong())).thenReturn(true);
+
+        Prompt prompt =
+                ask(
+                        "P103이 멈춰서 P101로 옮기면 납기가 위험한 수주는?",
+                        new QuestionInterpretation(
+                                "납기 위험 수주",
+                                List.of("P103", "P101"),
+                                null,
+                                null,
+                                List.of(
+                                        new AgentReferenceObject(543L, "1라인 3호 프레스", "설비"),
+                                        new AgentReferenceObject(2210L, "1라인 1호 프레스", "설비")),
+                                null),
+                        mock(AgentQueryRecorder.class));
+
+        assertThat(prompt.getUserMessage().getText()).doesNotContain("서버가 미리 부른");
+        verify(comparer, org.mockito.Mockito.never()).unfinishedWorkOrders(any(), anyLong());
+    }
+
+    @Test
+    void writesCompareInputWithSequences() {
+        assertThat(
+                        AgentResponder.compareInput(
+                                new EquipmentCapabilityComparer.StoppedWork(
+                                        201L, List.of("20", "3\"0"))))
+                .isEqualTo("{\"workOrderId\":201,\"operationSequences\":[\"20\",\"3\\\"0\"]}");
+        assertThat(
+                        AgentResponder.asksDeliveryRisk(
+                                "P103 멈추면 어떤 수주가 밀려서 납기를 못 맞춰?",
+                                new QuestionInterpretation(
+                                        "영향 수주", List.of(), null, null, List.of(), null)))
+                .isTrue();
+        assertThat(
+                        AgentResponder.asksDeliveryRisk(
+                                "P103 위험 점검 이력이랑 그 설비의 비가동 사유와 지난달 작업 내역, 그리고 수주 납기일",
+                                new QuestionInterpretation(
+                                        "이력", List.of(), null, null, List.of(), null)))
+                .as("멀리 떨어진 말은 묶지 않는다")
+                .isFalse();
+        for (String question : List.of("P103 작업지시를 납기 늦은 순으로 보여줘", "P103 위험 알람 이력이랑 수주 납기 알려줘")) {
+            assertThat(
+                            AgentResponder.asksDeliveryRisk(
+                                    question,
+                                    new QuestionInterpretation(
+                                            "목록", List.of(), null, null, List.of(), null)))
+                    .as(question)
+                    .isFalse();
+        }
+        for (String question :
+                List.of(
+                        "P103 멈추면 납기 리스크 있는 수주는?",
+                        "P103 고장으로 납기 차질 생기는 주문",
+                        "P103 멈추면 납기를 못 지키는 수주")) {
+            assertThat(
+                            AgentResponder.asksDeliveryRisk(
+                                    question,
+                                    new QuestionInterpretation(
+                                            "영향", List.of(), null, null, List.of(), null)))
+                    .as(question)
+                    .isTrue();
+        }
+    }
+
+    @Test
+    void doesNotCompareFirstForOtherQuestions() {
+        Prompt prompt = askAboutPr03();
+
+        assertThat(prompt.getUserMessage().getText()).doesNotContain("서버가 미리 부른");
+        org.mockito.Mockito.verifyNoInteractions(comparer);
+        assertThat(
+                        AgentResponder.asksDeliveryRisk(
+                                "P103 수주 납기일 알려줘",
+                                new QuestionInterpretation(
+                                        "납기일", List.of("P103"), null, null, List.of(), null)))
+                .isFalse();
+        assertThat(
+                        AgentResponder.asksDeliveryRisk(
+                                "P103 고장 나면 어떤 수주가 밀려?",
+                                new QuestionInterpretation(
+                                        "납기 지연 수주", List.of("P103"), null, null, List.of(), null)))
+                .isTrue();
+    }
+
     private Prompt ask(String question, String askedClarification, String reasoningEffort) {
+        return ask(
+                question,
+                askedClarification,
+                reasoningEffort,
+                new QuestionInterpretation("상태", List.of("PR-03"), null, null, List.of(), null),
+                mock(AgentQueryRecorder.class));
+    }
+
+    private Prompt ask(
+            String question, QuestionInterpretation interpretation, AgentQueryRecorder recorder) {
+        return ask(question, null, "none", interpretation, recorder);
+    }
+
+    private Prompt ask(
+            String question,
+            String askedClarification,
+            String reasoningEffort,
+            QuestionInterpretation interpretation,
+            AgentQueryRecorder recorder) {
         when(chatModel.getOptions())
                 .thenReturn(OpenAiChatOptions.builder().model("gpt-5.6-sol").build());
         when(chatModel.call(any(Prompt.class)))
@@ -356,7 +552,7 @@ class AgentResponderTests {
                         mock(DataAccessPolicy.class),
                         actionTools,
                         mock(CompletionEstimator.class),
-                        mock(EquipmentCapabilityComparer.class),
+                        comparer,
                         mock(PropertyValueSampleService.class),
                         CLOCK,
                         reasoningEffort,
@@ -366,9 +562,8 @@ class AgentResponderTests {
         answer =
                 responder.answer(
                         question,
-                        new QuestionInterpretation(
-                                "상태", List.of("PR-03"), null, null, List.of(), null),
-                        new AgentQuerySession(ASKER, 11L, mock(AgentQueryRecorder.class), CLOCK),
+                        interpretation,
+                        new AgentQuerySession(ASKER, 11L, recorder, CLOCK),
                         askedClarification);
 
         ArgumentCaptor<Prompt> prompt = ArgumentCaptor.forClass(Prompt.class);

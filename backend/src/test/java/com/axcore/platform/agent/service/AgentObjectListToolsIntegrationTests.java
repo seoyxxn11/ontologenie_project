@@ -273,6 +273,90 @@ class AgentObjectListToolsIntegrationTests {
                         "error", error -> assertThat((String) error).contains("값을 하나 이상"));
     }
 
+    /**
+     * 같은 객체의 두 속성을 비교해 거르고 속성으로 정렬한다(418). "진동이 언제부터 상한을 넘었어?"에서 측정 기록을 하나씩 상세 조회하다 도구 호출 한도에 걸린 일이
+     * 있었다. 민감 속성으로는 정렬·비교하지 않는다(DENIED).
+     */
+    @Test
+    void comparesTwoPropertiesAndSortsByProperty() {
+        property(visible, "reading", "DECIMAL", "NORMAL");
+        property(visible, "upper", "DECIMAL", "NORMAL");
+        object(visible, "R-1", "{\"reading\":4.2,\"upper\":4.5,\"started_on\":\"2026-10-27\"}");
+        object(visible, "R-2", "{\"reading\":4.9,\"upper\":4.5,\"started_on\":\"2026-10-28\"}");
+        object(visible, "R-3", "{\"reading\":6.4,\"upper\":4.5,\"started_on\":\"2026-10-30\"}");
+        object(visible, "R-4", "{\"reading\":5.1,\"upper\":4.5,\"started_on\":\"2026-10-29\"}");
+
+        ObjectList earliest =
+                (ObjectList)
+                        tools(VIEWER)
+                                .objectList(
+                                        visible,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        List.of("reading > upper"),
+                                        "started_on",
+                                        false)
+                                .get("data");
+        ObjectList latest =
+                (ObjectList)
+                        tools(VIEWER)
+                                .objectList(
+                                        visible,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        List.of("reading>upper"),
+                                        "started_on",
+                                        true)
+                                .get("data");
+
+        assertThat(earliest.total()).isEqualTo(3L);
+        assertThat(earliest.objects())
+                .extracting(AgentQueryTools.ObjectSummary::displayName)
+                .containsExactly("R-2", "R-4", "R-3");
+        assertThat(latest.objects())
+                .extracting(AgentQueryTools.ObjectSummary::displayName)
+                .containsExactly("R-3", "R-4", "R-2");
+        assertThat(
+                        tools(VIEWER)
+                                .objectList(
+                                        visible, null, null, null, null, null, null, "cost", false))
+                .as("민감 속성으로는 정렬하지 않는다")
+                .containsEntry("resultCategory", "DENIED");
+        assertThat(
+                        tools(VIEWER)
+                                .objectList(
+                                        visible,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        List.of("reading > status"),
+                                        null,
+                                        null))
+                .hasEntrySatisfying(
+                        "error", error -> assertThat((String) error).contains("숫자끼리나 날짜"));
+        assertThat(
+                        tools(VIEWER)
+                                .objectList(
+                                        visible,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        List.of("reading ~ upper"),
+                                        null,
+                                        null))
+                .hasEntrySatisfying("error", error -> assertThat((String) error).contains("형식으로"));
+    }
+
     @Test
     void tellsWhyUnknownPropertyIsRejected() {
         Map<String, Object> reply =

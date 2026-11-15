@@ -32,10 +32,17 @@ public class AgentEquipmentCapabilityTools {
             description =
                     "작업지시의 공정을 다른 설비(대체 설비)에서 할 수 있는지 설비 조건을 비교한다. 작업지시 제품의 공정 표준에서 공정마다 필요한"
                             + " 설비 종류와 최소 능력(톤)을 찾아 후보 설비의 종류·능력과 비교하고, 설비마다 충족·미충족·미확인과 이유를"
-                            + " 돌려준다. 재배정 계획을 저장하지 않는 조회다. 금형 호환·착수 순서·납기는 비교하지 않는다.")
+                            + " 돌려준다. 조건을 충족한 설비 앞 3대에는 그 설비에 남은 다른 작업지시(queue, 계획 시작일이 이른 5건, 연결 수주 등 포함)와"
+                            + " 전체 수(queueTotal)를 함께 준다. 옮기면 이 작업들이 밀릴 수 있고, 계획 시작일이 이미 납기보다 늦으면 dueNotes로 알린다."
+                            + " 재배정 계획을 저장하지 않는 조회다. 금형 호환·착수 순서는 판정하지 않는다.")
     public Map<String, Object> compareEquipmentCapability(
             @ToolParam(description = "작업지시 객체 ID. 검색·관계 조회 결과나 참고 객체에 나온 ID만 쓴다") Long workOrderId,
-            @ToolParam(description = "후보 설비 객체 ID 목록(최대 5개). 검색·관계 조회 결과나 참고 객체에 나온 ID만 쓴다")
+            @ToolParam(
+                            description =
+                                    "후보 설비 객체 ID 목록(최대 5개). 검색·관계 조회 결과나 참고 객체에 나온 ID만 쓴다. 사용자가 후보를 말하지"
+                                            + " 않았으면 비운다. 비우면 서버가 비교할 공정에 필요한 설비 종류의 설비(지금 배정된 설비 제외, 최대 10개)를"
+                                            + " 찾아 비교한다",
+                            required = false)
                     List<Long> equipmentIds,
             @ToolParam(
                             description =
@@ -98,7 +105,8 @@ public class AgentEquipmentCapabilityTools {
     /** AI가 빈 목록·빈 값·중복을 보내면 비교하지 않고 입력 오류로 이유를 돌려준다. */
     private static List<Long> equipmentIds(List<Long> equipmentIds) {
         if (equipmentIds == null || equipmentIds.isEmpty()) {
-            throw new AgentQuerySession.InvalidInput("equipmentIds가 없습니다.", null);
+            // 비우면 서버가 후보를 찾는다(418).
+            return List.of();
         }
         if (equipmentIds.stream().anyMatch(Objects::isNull)) {
             throw new AgentQuerySession.InvalidInput("equipmentIds에 빈 값이 있습니다.", null);
