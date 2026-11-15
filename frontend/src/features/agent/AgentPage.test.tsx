@@ -25,7 +25,7 @@ beforeEach(() => {
   resetAgentMocks()
 })
 
-// 이 역할로 로그인한 상태를 넣는다. 추천 질문이 역할에 따라 달라진다(150). 기본은 생산기획자(데모 계정).
+// 이 역할로 로그인한 상태를 넣는다. 기본은 생산기획자(데모 계정).
 function SignedInAs({
   roleCode,
   children,
@@ -426,13 +426,9 @@ test('객체에서 들어오면 질문을 미리 채우고 첫 질문에 그 객
   expect(await screen.findByLabelText('업무 질문')).toHaveValue(
     '프레스 3호기에 연결된 업무 정보를 알려줘',
   )
-  // 참고 객체는 따로 표시하지 않고 추천 질문을 그 객체에 맞춘다(150).
   expect(
-    within(screen.getByRole('list', { name: '추천 질문' })).getByRole(
-      'button',
-      { name: '재배정 계획' },
-    ),
-  ).toBeInTheDocument()
+    screen.queryByRole('list', { name: '추천 질문' }),
+  ).not.toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: '보내기' }))
 
   await waitFor(() =>
@@ -469,25 +465,18 @@ test('참고 객체는 첫 질문에만 보내고, 다음 질문부터는 보내
   expect(sent[1]).toEqual({ content: '06번의 실행 이력은?' })
 })
 
-test('새 대화의 추천 질문은 입력을 채우고, 전송 후에는 숨겨 답변 공간을 확보한다', async () => {
+test('추천 질문 없이 직접 입력하고, 답변을 기다리는 동안에는 입력할 수 없다', async () => {
   const user = userEvent.setup()
   renderEnteredFromObject()
-
-  const suggestions = await screen.findByRole('list', { name: '추천 질문' })
-  await user.click(
-    within(suggestions).getByRole('button', { name: '실행 이력' }),
-  )
-
-  const input = screen.getByLabelText('업무 질문')
-  expect(input).toHaveValue('프레스 3호기의 최근 실행 이력을 알려줘')
-  expect(input).toHaveFocus()
-
-  await user.click(screen.getByRole('button', { name: '보내기' }))
-  expect(await screen.findByText(/^답변 준비 중/)).toBeInTheDocument()
+  const input = await screen.findByLabelText('업무 질문')
   expect(
     screen.queryByRole('list', { name: '추천 질문' }),
   ).not.toBeInTheDocument()
-  expect(screen.getByLabelText('업무 질문')).toBeInTheDocument()
+  await user.clear(input)
+  await user.type(input, '프레스 3호기의 최근 실행 이력을 알려줘')
+  await user.click(screen.getByRole('button', { name: '보내기' }))
+  expect(await screen.findByText(/^답변 준비 중/)).toBeInTheDocument()
+  expect(input).toBeDisabled()
 })
 
 test('첫 질문을 보내는 사이 다른 대화로 옮기면, 답이 와도 원래 대화로 되돌아가지 않는다', async () => {
@@ -561,18 +550,6 @@ test('이미 질문이 있는 대화에 남은 기록으로 들어오면 참고 
   )
 })
 
-test('계획 권한이 없는 역할이면 설비에서 들어와도 재배정 계획을 추천하지 않는다', async () => {
-  renderEnteredFromObject(2, undefined, 'VIEWER')
-
-  const suggestions = await screen.findByRole('list', { name: '추천 질문' })
-  expect(
-    within(suggestions).getByRole('button', { name: '상태 확인' }),
-  ).toBeInTheDocument()
-  expect(
-    within(suggestions).queryByRole('button', { name: '재배정 계획' }),
-  ).not.toBeInTheDocument()
-})
-
 test('질문을 보내면 메시지 영역을 맨 아래로 내리고, 위로 올려 읽는 중이면 끌어내리지 않는다', async () => {
   const user = userEvent.setup()
   renderAgentPage('/agent?conversation=1')
@@ -624,27 +601,12 @@ test('Enter로 질문을 보내고, Shift+Enter와 한글 조합 중 Enter로는
   await waitFor(() => expect(sent).toEqual([{ content: 'PR-03 상태\n알려줘' }]))
 })
 
-test('참고 객체 없이 시작하면 역할에 맞는 기본 추천 질문을 보여 준다', async () => {
-  const user = userEvent.setup()
-  // 조회 사용자는 조회 문장 다섯 개를 보고, 계획 권한이 없으므로 재배정 계획 문장은 없다.
+test('참고 객체 없이 시작해도 추천 질문 없이 빈 입력란을 보여 준다', async () => {
   renderAgentPage('/agent?conversation=2', 'VIEWER')
-
+  expect(await screen.findByLabelText('업무 질문')).toHaveValue('')
   expect(
-    await screen.findByRole('list', { name: '추천 질문' }),
-  ).toBeInTheDocument()
-  expect(
-    screen.queryByText('추천 질문 · 선택하면 질문 입력란에 채워집니다.'),
-  ).toBeNull()
-  await user.click(
-    await screen.findByRole('button', {
-      name: '정비 중 설비',
-    }),
-  )
-
-  expect(screen.getByLabelText('업무 질문')).toHaveValue(
-    '지금 정비 중인 설비 있어?',
-  )
-  expect(screen.queryByRole('button', { name: /재배정 계획/ })).toBeNull()
+    screen.queryByRole('list', { name: '추천 질문' }),
+  ).not.toBeInTheDocument()
 })
 
 test('이름·유형이 없는 예전 기록으로 들어오면 참고 객체 없이 시작한다', async () => {
@@ -679,11 +641,7 @@ test('이름·유형이 없는 예전 기록으로 들어오면 참고 객체 �
     </QueryClientProvider>,
   )
 
-  expect(
-    await screen.findByRole('button', {
-      name: 'P103 비가동',
-    }),
-  ).toBeInTheDocument()
+  expect(await screen.findByLabelText('업무 질문')).toHaveValue('')
   expect(screen.queryByText(/undefined/)).not.toBeInTheDocument()
 
   await user.type(screen.getByLabelText('업무 질문'), '설비 상태 알려줘')

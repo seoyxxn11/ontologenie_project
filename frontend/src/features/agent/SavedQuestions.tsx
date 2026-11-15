@@ -7,7 +7,7 @@ type SavedQuestionsProps = {
   onRemove: (text: string) => void
 }
 
-// 사용자가 저장한 자주 쓰는 질문(257). 추천 질문 아래 한 줄로 보이고, 누르면 문장이 입력란에 채워진다.
+// 사용자가 저장한 자주 쓰는 질문(257). 입력란 위에 보이고, 누르면 문장이 입력란에 채워진다.
 // 지우기(×)는 답변을 기다리는 중에도 할 수 있다.
 function SavedQuestions({
   questions,
