@@ -215,7 +215,6 @@ test.each(['ADMIN', 'VIEWER'] as const)(
     await detail().findByRole('heading', { name: 'P101' })
     expect(detail().getByText('권한 없음')).toBeVisible()
     expect(screen.queryByText('100000')).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '관계도 확장' }))
     await user.click(
       screen.getByRole('button', { name: '선택 객체 상세 바로 보기' }),
     )
@@ -223,10 +222,9 @@ test.each(['ADMIN', 'VIEWER'] as const)(
       expect(screen.getByRole('region', { name: '상세 정보' })).toHaveFocus(),
     )
     expect(scroll).toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: '관계도 확장' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    )
+    expect(
+      screen.queryByRole('button', { name: '관계도 확장' }),
+    ).not.toBeInTheDocument()
   },
 )
 
