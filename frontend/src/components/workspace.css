@@ -24,6 +24,7 @@
 }
 .app-frame {
   --app-header-height: 64px;
+  --app-page-padding: 24px;
   --app-panel-width: 240px;
   min-width: 0;
 }
@@ -36,7 +37,7 @@
   align-items: center;
   gap: 16px;
   border-bottom: 1px solid var(--ui-border);
-  padding: 0 24px;
+  padding: 0 var(--app-page-padding);
   background: var(--ui-surface);
 }
 .app-panel-toggle {
@@ -177,7 +178,7 @@
 .app-shell .workspace-main {
   min-width: 0;
   flex: 1;
-  padding: 24px;
+  padding: var(--app-page-padding);
 }
 .workspace-main button {
   cursor: pointer;
@@ -206,6 +207,11 @@
   border: 0;
 }
 
+@media (min-width: 1280px) {
+  .app-frame {
+    --app-page-padding: 32px;
+  }
+}
 @media (max-width: 900px) {
   .app-header > .app-panel-toggle {
     margin-left: auto;
