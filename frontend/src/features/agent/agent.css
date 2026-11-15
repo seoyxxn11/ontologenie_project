@@ -189,8 +189,8 @@
   padding: 12px 16px;
   background: var(--ui-surface-subtle);
   color: var(--ui-text);
-  font-size: 16px;
-  line-height: 24px;
+  font-size: 14px;
+  line-height: 21px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -210,8 +210,8 @@
   color: var(--ui-text);
 }
 .agent-answer-body {
-  font-size: 16px;
-  line-height: 24px;
+  font-size: 14px;
+  line-height: 21px;
   overflow-wrap: anywhere;
 }
 .agent-answer-body :is(p, ul, ol, pre, blockquote, .ui-table-container) {
@@ -489,8 +489,8 @@
   max-height: 160px;
   border: 0;
   resize: none;
-  font-size: 16px;
-  line-height: 24px;
+  font-size: 14px;
+  line-height: 21px;
 }
 .agent-composer-footer {
   padding: 0;
