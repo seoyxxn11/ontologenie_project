@@ -5,7 +5,6 @@ import Button from '../../components/Button'
 import DataTable from '../../components/DataTable'
 import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
 import PageHeader from '../../components/PageHeader'
-import StatusBadge from '../../components/StatusBadge'
 import AccessGroupEditor from './AccessGroupEditor'
 import { accessGroupText } from './accessGroups'
 import {
@@ -62,9 +61,6 @@ function DisplayPropertyEditor({
     (property) => property.sensitivity !== 'RESTRICTED',
   )
   const restrictedCount = properties.data.length - choosable.length
-  const current = properties.data.find(
-    (property) => property.id === type.displayPropertyId,
-  )
   const unchanged =
     selected ===
     (type.displayPropertyId === null ? '' : String(type.displayPropertyId))
@@ -73,28 +69,18 @@ function DisplayPropertyEditor({
 
   return (
     <form
-      className="space-y-4"
+      className="object-types-form"
+      aria-label="대표 속성 지정"
       onSubmit={(event) => {
         event.preventDefault()
         save.mutate()
       }}
     >
-      <div>
-        <h2>{type.name}</h2>
-        <p className="break-all font-mono text-slate-500">{type.code}</p>
-      </div>
-      <p>
-        현재 대표 속성:{' '}
-        {type.displayPropertyId === null
-          ? '없음 (원천 키 값을 표시 이름으로 씁니다)'
-          : current
-            ? `${current.name} (${current.code})`
-            : `속성 #${type.displayPropertyId}`}
-      </p>
       <label className="flex flex-col gap-2 font-medium">
         대표 속성
         <select
           className="object-types-property-select"
+          aria-describedby="object-types-property-help"
           value={selected}
           onChange={(event) => {
             setSelected(event.target.value)
@@ -109,6 +95,10 @@ function DisplayPropertyEditor({
           ))}
         </select>
       </label>
+      <p id="object-types-property-help" className="object-types-help">
+        객체의 표시 이름으로 사용합니다. 지정하지 않으면 원천 키 값을
+        표시합니다.
+      </p>
       {restrictedCount > 0 && (
         <p className="text-slate-500">
           민감 속성 {restrictedCount}개는 대표 속성으로 고를 수 없습니다.
@@ -126,7 +116,7 @@ function DisplayPropertyEditor({
       )}
       <div className="flex flex-wrap gap-2">
         <Button type="submit" pending={save.isPending} disabled={unchanged}>
-          저장
+          대표 속성 저장
         </Button>
         {conflict && (
           <Button
@@ -164,85 +154,108 @@ export default function ObjectTypesPage() {
     const selected = types.data.find((type) => type.id === selectedId)
     content = (
       <div className="object-types-workbench">
-        <DataTable label="객체 유형 목록" className="object-types-table">
-          <thead>
-            <tr>
-              <th className="px-4 py-3">이름·코드</th>
-              <th className="px-4 py-3">조회 그룹</th>
-              <th className="px-4 py-3">대표 속성</th>
-            </tr>
-          </thead>
-          <tbody>
-            {types.data.map((type) => (
-              <tr
-                key={type.id}
-                data-selected={type.id === selectedId || undefined}
-              >
-                <td>
-                  <Button
-                    variant="text"
-                    className="object-types-select"
-                    aria-pressed={type.id === selectedId}
-                    onClick={() => {
-                      setSelectedId(type.id)
-                      setNotice('')
-                    }}
-                  >
-                    {type.name}
-                  </Button>
-                  <p className="mt-1 break-all font-mono text-slate-500">
-                    {type.code}
-                  </p>
-                </td>
-                <td>
-                  <StatusBadge tone={type.accessGroup ? 'success' : 'warning'}>
-                    {accessGroupText(type.accessGroup)}
-                  </StatusBadge>
-                </td>
-                <td>
-                  <StatusBadge
-                    tone={
-                      type.displayPropertyId === null ? 'warning' : 'success'
-                    }
-                  >
-                    {type.displayPropertyId === null ? '없음' : '지정됨'}
-                  </StatusBadge>
-                </td>
+        <section className="object-types-list" aria-label="객체 유형 목록 영역">
+          <header className="object-types-panel-header">
+            <h2>객체 유형</h2>
+            <span className="object-types-help">{types.data.length}개</span>
+          </header>
+          <DataTable label="객체 유형 목록" className="object-types-table">
+            <colgroup>
+              <col style={{ width: '46%' }} />
+              <col style={{ width: '27%' }} />
+              <col style={{ width: '27%' }} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th className="px-4 py-3">이름·코드</th>
+                <th className="px-4 py-3">조회 그룹</th>
+                <th className="px-4 py-3">대표 속성</th>
               </tr>
-            ))}
-          </tbody>
-        </DataTable>
-        <section aria-label="유형 설정" className="management-panel space-y-4">
-          {notice && (
-            <p role="status" className="management-subpanel">
-              {notice}
-            </p>
-          )}
-          {selected ? (
-            <>
-              <DisplayPropertyEditor
-                key={`${selected.id}-${selected.rowVersion}`}
-                type={selected}
-                onSaved={() => setNotice(savedNotice)}
-              />
-              <div className="management-subpanel">
-                <AccessGroupEditor
-                  key={`group-${selected.id}-${selected.rowVersion}`}
+            </thead>
+            <tbody>
+              {types.data.map((type) => (
+                <tr
+                  key={type.id}
+                  onClick={() => {
+                    setSelectedId(type.id)
+                    setNotice('')
+                  }}
+                  data-selected={type.id === selectedId || undefined}
+                >
+                  <td>
+                    <Button
+                      variant="text"
+                      className="object-types-select"
+                      aria-pressed={type.id === selectedId}
+                    >
+                      {type.name}
+                    </Button>
+                    <p className="mt-1 break-all font-mono text-slate-500">
+                      {type.code}
+                    </p>
+                  </td>
+                  <td>
+                    <span
+                      className={
+                        type.accessGroup ? undefined : 'object-types-help'
+                      }
+                    >
+                      {accessGroupText(type.accessGroup)}
+                    </span>
+                  </td>
+                  <td>
+                    {type.displayPropertyId === null
+                      ? '원천 키 사용'
+                      : '지정됨'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </DataTable>
+        </section>
+        <section aria-label="유형 설정" className="object-types-settings">
+          <header className="object-types-panel-header">
+            <div className="object-types-identity">
+              <h2>{selected?.name ?? '유형 설정'}</h2>
+              {selected && (
+                <span className="font-mono object-types-help">
+                  {selected.code}
+                </span>
+              )}
+            </div>
+          </header>
+          <div className="object-types-settings-body">
+            {notice && (
+              <p role="status" className="object-types-notice">
+                {notice}
+              </p>
+            )}
+            {selected ? (
+              <>
+                <DisplayPropertyEditor
+                  key={`${selected.id}-${selected.rowVersion}`}
                   type={selected}
-                  onSaved={() => setNotice(groupSavedNotice)}
+                  onSaved={() => setNotice(savedNotice)}
                 />
-              </div>
-            </>
-          ) : (
-            <EmptyState message="목록에서 객체 유형을 고르세요." />
-          )}
+                <div className="object-types-group">
+                  <AccessGroupEditor
+                    key={`group-${selected.id}-${selected.rowVersion}`}
+                    type={selected}
+                    onSaved={() => setNotice(groupSavedNotice)}
+                  />
+                </div>
+              </>
+            ) : (
+              <EmptyState message="목록에서 객체 유형을 고르세요." />
+            )}
+          </div>
         </section>
       </div>
     )
   }
 
   return (
-    <div className="management-page space-y-6">
+    <div className="management-page object-types-page">
       <PageHeader
         title="객체 유형"
         description="대표 속성 값이 객체의 표시 이름이 됩니다. 업무 데이터 화면과 AI 업무 도우미는 이 이름으로 객체를 보여 주고 찾습니다. 조회 그룹이 없는 유형은 어느 역할에도 보이지 않습니다."

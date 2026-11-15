@@ -1,34 +1,171 @@
+.object-types-page {
+  height: calc(
+    100dvh - var(--app-header-height, 64px) - 2 * var(--app-page-padding, 24px)
+  );
+  min-height: 480px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
 .object-types-workbench {
   display: grid;
-  grid-template-columns: minmax(360px, 480px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: start;
-  gap: 16px;
+  gap: 20px;
+  flex: 1;
+  min-height: 0;
 }
-.object-types-table th:first-child,
-.object-types-table td:first-child {
-  border-left: 3px solid transparent;
+.object-types-list,
+.object-types-settings {
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
-.object-types-table tr[data-selected='true'] {
+.object-types-list {
+  height: 100%;
+}
+.object-types-panel-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--ui-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.object-types-identity {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.object-types-identity > * {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.object-types-list > .ui-table-container {
+  border: 0;
+  border-radius: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scroll-padding-top: 48px;
+}
+.object-types-table {
+  table-layout: fixed;
+  min-width: 440px;
+}
+.object-types-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--ui-surface-subtle);
+}
+.object-types-page .object-types-table :is(th, td) {
+  vertical-align: middle;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.object-types-table tbody tr {
+  cursor: pointer;
+}
+.object-types-table tr[data-selected='true'],
+.object-types-table tr[data-selected='true']:hover {
   background: var(--ui-brand-subtle);
 }
 .object-types-table tr[data-selected='true'] td:first-child {
-  border-left-color: var(--ui-brand-strong);
+  box-shadow: inset 2px 0 var(--ui-brand-strong);
 }
 .object-types-table .object-types-select {
+  padding: 0;
+  min-height: 24px;
+  display: block;
+  border: 0;
+  border-radius: 0;
   color: var(--ui-text);
   font-weight: 600;
   text-align: left;
+  white-space: normal;
   overflow-wrap: anywhere;
-  cursor: pointer;
 }
 .object-types-select:hover {
-  text-decoration: underline;
+  text-decoration: none;
+}
+.object-types-settings-body {
+  padding: 20px;
+  overflow: auto;
+  min-height: 0;
+}
+.object-types-form {
+  display: grid;
+  gap: 12px;
+}
+.object-types-group {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--ui-border);
+}
+.object-types-form > .flex:last-child,
+.object-types-group form > .flex:last-child {
+  justify-content: flex-end;
+}
+.object-types-help {
+  color: var(--ui-text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+.object-types-notice {
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: var(--ui-surface-subtle);
+}
+.object-types-settings :is(p, li) {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 select.object-types-property-select {
   font-weight: 400;
+  width: 100%;
+  min-width: 0;
 }
-@media (max-width: 1199px) {
+@media (max-width: 1199px), (max-height: 600px) {
+  .object-types-page {
+    height: auto;
+    min-height: 0;
+  }
   .object-types-workbench {
     grid-template-columns: minmax(0, 1fr);
   }
+  .object-types-list > .ui-table-container {
+    flex: auto;
+    max-height: 60dvh;
+  }
+  .object-types-settings {
+    max-height: none;
+  }
+  .object-types-settings-body {
+    overflow: visible;
+  }
+}
+@media (max-width: 600px) {
+  .object-types-panel-header,
+  .object-types-settings-body {
+    padding: 16px;
+  }
+}
+
+.object-types-policy summary {
+  cursor: pointer;
+  color: var(--ui-text-secondary);
+}
+.object-types-policy p {
+  margin-top: 8px;
 }
