@@ -186,12 +186,15 @@ function CompletedResults({
       ) : (
         <EmptyState message="현재 제안 개정에 해당하는 검사 결과가 없습니다." />
       )}
-      <Pagination
-        page={page}
-        size={CHECK_PAGE_SIZE}
-        totalElements={query.data.meta.totalElements}
-        onChange={setPage}
-      />
+      {query.data.meta.totalElements > CHECK_PAGE_SIZE && (
+        <Pagination
+          page={page}
+          size={CHECK_PAGE_SIZE}
+          totalElements={query.data.meta.totalElements}
+          onChange={setPage}
+          compact={compact}
+        />
+      )}
     </div>
   )
 }

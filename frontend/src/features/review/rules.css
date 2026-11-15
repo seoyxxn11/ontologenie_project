@@ -47,6 +47,9 @@
   font-size: 14px;
   line-height: 21px;
 }
+.analysis-toolbar {
+  position: relative;
+}
 .analysis-tools summary {
   min-height: 40px;
   padding: 10px 12px;
@@ -55,7 +58,7 @@
 .analysis-tools-content {
   position: absolute;
   top: 100%;
-  right: 0;
+  left: 0;
   z-index: 5;
   width: min(380px, 80vw);
   border: 1px solid var(--ui-border);
@@ -63,6 +66,14 @@
   padding: 16px;
   background: var(--ui-surface);
   box-shadow: 0 4px 16px rgb(18 18 18 / 12%);
+}
+@media (max-width: 800px) {
+  .analysis-tools {
+    position: static;
+  }
+  .analysis-tools-content {
+    width: min(380px, 100%);
+  }
 }
 .rules-tabs {
   display: flex;
@@ -158,14 +169,18 @@
   line-height: 21px;
   cursor: pointer;
 }
-.rules-extra-filters form {
+.rules-extra-filter-fields {
   padding: 8px 0 16px;
+}
+.rules-extra-filter-fields > label {
+  min-width: 0;
 }
 .rules-extra-filters select {
   width: 100%;
 }
 .rules-result-count {
   margin-top: 16px;
+  margin-bottom: 12px;
   font-size: 14px;
   font-weight: 600;
 }
@@ -231,7 +246,31 @@
 }
 .candidate-list > .ui-pagination {
   border-top: 1px solid var(--ui-border);
-  padding: 12px 8px;
+  padding: 8px;
+}
+.candidate-list .ui-pagination-controls {
+  flex-wrap: nowrap;
+  gap: 2px;
+  width: 100%;
+}
+.candidate-list .ui-pagination button {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 28px;
+  min-height: 32px;
+  height: 32px;
+  padding: 4px 0;
+  font-size: 14px;
+  line-height: 21px;
+  font-variant-numeric: tabular-nums;
+}
+.candidate-list .ui-pagination-summary {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .candidate-detail {
   min-width: 0;
@@ -264,6 +303,23 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px 16px;
+}
+.candidate-heading > .candidate-title-line {
+  grid-row: 1;
+}
+.candidate-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  font-size: 14px;
+  line-height: 21px;
+}
+.candidate-heading > p:first-child {
+  overflow-wrap: anywhere;
+}
+.candidate-rule-section > .candidate-definition {
+  margin-top: 16px;
 }
 .candidate-review-context {
   display: grid;
@@ -363,12 +419,20 @@
   text-underline-offset: 3px;
 }
 .candidate-confidence-row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px 16px;
   color: var(--ui-text-secondary);
   font-size: 14px;
   line-height: 21px;
+}
+.candidate-confidence-row > :nth-child(2) {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+.candidate-confidence-row > :nth-child(3) {
+  grid-column: 2;
+  grid-row: 1;
 }
 .candidate-confidence {
   color: var(--ui-text);
@@ -395,6 +459,120 @@
 .rule-content h3 {
   font-size: 16px;
   font-weight: 600;
+  line-height: 24px;
+}
+.rule-content > h3 {
+  margin-bottom: 12px;
+}
+.rule-conditions > li + li {
+  margin-top: 12px;
+  border-top: 1px solid var(--ui-border);
+  padding-top: 12px;
+}
+.rule-condition {
+  min-width: 0;
+}
+.rule-condition-summary {
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 21px;
+}
+.rule-condition-values {
+  display: inline-grid;
+  max-width: 100%;
+  grid-template-columns: minmax(0, max-content) auto minmax(0, max-content);
+  align-items: start;
+  gap: 24px;
+}
+.rule-condition-values dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.rule-condition-values dt {
+  margin-bottom: 0;
+  color: var(--ui-text-secondary);
+  font-size: 14px;
+  line-height: 21px;
+}
+.rule-condition-values dd {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 21px;
+}
+.rule-condition-values dd + dt {
+  margin-top: 0;
+}
+.rule-property-code {
+  font-weight: 600;
+}
+.rule-condition-operator {
+  padding-top: 29px;
+  color: var(--ui-brand-strong);
+  font-weight: 600;
+  line-height: 21px;
+}
+.candidate-check-completed > .ui-pagination {
+  align-items: flex-start;
+  padding: 0;
+}
+.candidate-check-completed > .ui-pagination .ui-pagination-controls {
+  gap: 2px;
+}
+.candidate-check-completed > .ui-pagination button {
+  min-width: 28px;
+  min-height: 32px;
+  padding: 4px 2px;
+  font-size: 14px;
+  line-height: 21px;
+}
+.candidate-check-completed > .ui-pagination button[aria-current='page'] {
+  border-color: var(--ui-input-border);
+  background: var(--ui-surface-subtle);
+  color: var(--ui-text);
+  font-weight: 600;
+}
+.rule-condition-expression {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 21px;
+}
+.rule-condition-expression summary {
+  padding: 8px 0;
+  cursor: pointer;
+}
+.rule-condition-expression code {
+  display: block;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1000px) {
+  .rule-condition-values {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .rule-condition-operator {
+    padding-top: 0;
+  }
+}
+.rule-content .ui-table {
+  table-layout: fixed;
+}
+.rule-content .ui-table :is(th, td) {
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.rule-content .ui-table :is(th, td):first-child {
+  width: 40%;
+}
+.rule-content .ui-table :is(th, td):nth-child(2) {
+  width: 24%;
+}
+.rule-content .ui-table td {
+  font-variant-numeric: tabular-nums;
   line-height: 24px;
 }
 .rule-content > div:first-child {

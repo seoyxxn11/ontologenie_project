@@ -48,6 +48,9 @@ test('후보 카드 선택 후 규칙·근거·검사·결정을 함께 확인�
   const user = userEvent.setup()
   open()
   expect(
+    screen.queryByText('분석 관리', { selector: 'summary' }),
+  ).not.toBeInTheDocument()
+  expect(
     screen.getByRole('link', { name: '수동 검사·실행 목록' }),
   ).toHaveAttribute('href', '/admin/checks')
   const list = within(
@@ -114,7 +117,7 @@ test('상세 필터를 접었다 펼쳐도 적용 전 선택을 보존한다', a
   await user.click(summary)
   expect(screen.getByLabelText('제안 출처')).toHaveValue('MANUAL')
   expect(screen.getByText('후보 3건')).toBeInTheDocument()
-  await user.click(screen.getByRole('button', { name: '검색' }))
+  await user.click(screen.getByRole('button', { name: '검색 적용' }))
   expect(await screen.findByText('후보 1건')).toBeInTheDocument()
 })
 
@@ -124,8 +127,8 @@ test('상세 필터와 브라우저 이동으로 조회 조건을 복원한다',
   await screen.findByRole('complementary')
   await user.click(screen.getByText('상세 필터', { selector: 'summary' }))
   await user.selectOptions(screen.getByLabelText('제안 출처'), 'MANUAL')
-  await user.selectOptions(screen.getByLabelText('검토 상태'), 'HELD')
-  await user.click(screen.getByRole('button', { name: '검색' }))
+
+  await user.click(screen.getByRole('button', { name: '검색 적용' }))
   expect(await screen.findByText('후보 1건')).toBeInTheDocument()
   expect(
     within(screen.getByRole('complementary')).queryByText(
@@ -137,7 +140,7 @@ test('상세 필터와 브라우저 이동으로 조회 조건을 복원한다',
   expect(await screen.findByText('후보 3건')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: '뒤로가기' }))
   expect(await screen.findByText('후보 1건')).toBeInTheDocument()
-  expect(screen.getByLabelText('검토 상태')).toHaveValue('HELD')
+  expect(screen.queryByLabelText('검토 상태')).not.toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: '앞으로가기' }))
   expect(await screen.findByText('후보 3건')).toBeInTheDocument()
 })
@@ -180,9 +183,9 @@ test('상태 탭·유형·검색을 결합하고 빈 결과에서도 전체 건�
     '없는 후보',
   )
   expect(screen.getByText('후보 1건')).toBeInTheDocument()
-  expect(screen.getByLabelText('적용된 후보 검색 조건')).not.toHaveTextContent(
-    '없는 후보',
-  )
+  expect(
+    screen.queryByLabelText('적용된 후보 검색 조건'),
+  ).not.toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: '검색 적용' }))
   expect(
     await screen.findByText(
@@ -475,4 +478,30 @@ test('목록 안 수정 링크에 검색·필터·선택 후보·페이지·분�
     'href',
     `/admin/rules/new?${new URLSearchParams(search)}`,
   )
+})
+
+test('검색줄 초기화는 검색·상세 조건을 비우고 상태와 유형 탭은 유지한다', async () => {
+  const user = userEvent.setup()
+  open(
+    '/admin/rules?reviewStatus=PENDING&group=mappings&q=없는검색어&origin=MANUAL&applyStatus=FAILED&page=2',
+  )
+  await screen.findByText('후보 0건')
+  await user.click(screen.getByText('상세 필터', { selector: 'summary' }))
+  await user.selectOptions(screen.getByLabelText('제안 출처'), 'AI')
+  const search = within(screen.getByRole('form', { name: '후보 검색 적용' }))
+  await user.click(search.getByRole('button', { name: '초기화' }))
+  expect(screen.getByRole('searchbox')).toHaveValue('')
+  expect(screen.getByLabelText('제안 출처')).toHaveValue('')
+  expect(screen.getByLabelText('반영 상태')).toHaveValue('')
+  expect(screen.getByRole('button', { name: /^검토 대기/ })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  expect(screen.getByRole('button', { name: /^매핑/ })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  expect(
+    screen.queryByLabelText('적용된 후보 검색 조건'),
+  ).not.toBeInTheDocument()
 })

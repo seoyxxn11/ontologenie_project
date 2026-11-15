@@ -18,7 +18,12 @@ import { resetProposalMocks } from '../../mocks/proposalHandlers'
 import { resetSourceMocks } from '../../mocks/sourceHandlers'
 import ProposalsPage from '../review/ProposalsPage'
 import SourcesPage from '../sources/SourcesPage'
-import { ANALYSIS_ERROR_LIMIT_MS, ANALYSIS_POLL_MS } from './AnalysisPanel'
+import AnalysisPanel, {
+  ANALYSIS_ERROR_LIMIT_MS,
+  ANALYSIS_POLL_MS,
+} from './AnalysisPanel'
+import { useState } from 'react'
+import type { AnalysisRun } from './types'
 
 afterEach(() => {
   resetSourceMocks()
@@ -48,6 +53,35 @@ function renderRules(path = '/admin/rules') {
   )
 }
 
+// 공유 분석 패널의 재분석·최근 실행 기능은 연결 규칙의 compact 화면과 분리해 검증한다.
+function ManagementHarness() {
+  const [run, setRun] = useState<AnalysisRun | undefined>()
+  const [id, setId] = useState<number | undefined>()
+  return (
+    <AnalysisPanel
+      currentId={id}
+      joined={run?.joined ?? false}
+      onSelect={setId}
+      onStarted={(next) => {
+        setRun(next)
+        setId(next.id)
+      }}
+    />
+  )
+}
+function renderManagement() {
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <MemoryRouter>
+        <ManagementHarness />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
 async function startFromRules(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: 'AI 관계 제안 받기' }))
   const dialog = screen.getByRole('dialog', { name: '분석 대상 선택' })
@@ -60,7 +94,6 @@ async function startFromRules(user: ReturnType<typeof userEvent.setup>) {
 }
 
 async function chooseReanalysis(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByText('분석 관리', { selector: 'summary' }))
   await user.click(screen.getByRole('button', { name: '변경 데이터 재분석' }))
   const dialog = within(
     screen.getByRole('dialog', { name: '변경 데이터 재분석' }),
@@ -168,7 +201,7 @@ test('새 분석 접수 실패 시 기존 조회 조건과 문제 보기를 유�
 
 test('선택 범위를 확인해 REANALYSIS로 접수하고 진행·결과와 실제 컬럼 범위를 표시한다', async () => {
   const user = userEvent.setup()
-  renderRules()
+  renderManagement()
   const dialog = await chooseReanalysis(user)
   await user.click(dialog.getByRole('button', { name: '재분석하고 후보 받기' }))
   const current = within(
@@ -217,7 +250,7 @@ test('재분석은 선택 컬럼을 전송하고 기존 INITIAL 실행에 합류
     )
   })
   server.use(http.post('/api/v1/analyses', post))
-  renderRules()
+  renderManagement()
   const dialog = await chooseReanalysis(user)
   await user.dblClick(
     dialog.getByRole('button', { name: '재분석하고 후보 받기' }),
@@ -249,7 +282,7 @@ test.each([403, 404, 409, 422])(
       ),
     )
     server.use(http.post('/api/v1/analyses', post))
-    renderRules()
+    renderManagement()
     const dialog = await chooseReanalysis(user)
     await user.click(
       dialog.getByRole('button', { name: '재분석하고 후보 받기' }),
@@ -346,8 +379,7 @@ test('같은 대상의 분석에 합류했으면 알려준다', async () => {
 
 test('최근 분석 목록에서 과거 실행을 골라 그 후보를 본다', async () => {
   const user = userEvent.setup()
-  renderRules()
-  await screen.findByRole('complementary', { name: '검토 목록' })
+  renderManagement()
 
   if (
     !screen

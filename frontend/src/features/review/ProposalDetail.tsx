@@ -210,9 +210,20 @@ export default function ProposalDetail({
           </p>
           <div className="candidate-title-line">
             <h2 className="text-xl font-semibold">{proposalTitle(item)}</h2>
-            <Link className="candidate-history" to={`${historyUrl}${search}`}>
-              이력
-            </Link>
+            <div className="candidate-header-actions">
+              {item.itemKind === 'LINK_RULE' &&
+                ['PENDING', 'HELD'].includes(item.reviewStatus) && (
+                  <Link
+                    className="candidate-history"
+                    to={`/admin/rules/${item.id}/edit?${editParams}`}
+                  >
+                    규칙 후보 수정
+                  </Link>
+                )}
+              <Link className="candidate-history" to={`${historyUrl}${search}`}>
+                이력
+              </Link>
+            </div>
           </div>
           <p className="candidate-state-line">
             <span>
@@ -245,15 +256,6 @@ export default function ProposalDetail({
               </StatusBadge>
             </span>
           </p>
-          {item.itemKind === 'LINK_RULE' &&
-            ['PENDING', 'HELD'].includes(item.reviewStatus) && (
-              <Link
-                className="inline-block text-sm text-violet-700 underline"
-                to={`/admin/rules/${item.id}/edit?${editParams}`}
-              >
-                규칙 후보 수정
-              </Link>
-            )}
         </header>
         {item.applyError && (
           <p role="alert" className="rounded-lg bg-red-50 p-4 text-red-800">
