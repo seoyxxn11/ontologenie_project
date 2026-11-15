@@ -162,8 +162,15 @@ test('선택한 대안은 승인할 때 저장되고 반영 결과·결정 이�
   expect(screen.queryByRole('button', { name: '승인' })).not.toBeInTheDocument()
   await user.click(screen.getByRole('link', { name: '이력' }))
   await user.click(await screen.findByRole('button', { name: '활동 기록' }))
-  expect(await screen.findByText('대안 ID #502')).toBeInTheDocument()
+  const historyOption = await screen.findByRole('button', { name: '대안 2' })
+  expect(historyOption).toBeInTheDocument()
   expect(screen.getByText('코드 대조 완료')).toBeInTheDocument()
+  await user.click(historyOption)
+  expect(
+    await within(screen.getByRole('dialog')).findByText(
+      '설비 코드 대문자 변환 후 연결',
+    ),
+  ).toBeVisible()
 })
 
 test.each([

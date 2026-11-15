@@ -44,8 +44,10 @@ export type ProposalDecisionRecord = {
   itemRevision: number
   decision: string
   selectedOptionId: number | null
+  selectedOptionNo?: number | null
   reason: string
   decidedBy: number
+  decidedByName?: string | null
   decidedAt: string
 }
 

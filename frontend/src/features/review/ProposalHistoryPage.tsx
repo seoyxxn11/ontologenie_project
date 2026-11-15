@@ -1,4 +1,10 @@
+import './proposalHistory.css'
+import './rules.css'
 import { formatKstDateTime } from '../../utils/dateTime'
+import { useState } from 'react'
+import StatusBadge from '../../components/StatusBadge'
+import DecisionSnapshot, { DecisionOptionLink } from './DecisionSnapshot'
+import type { ProposalDecisionRecord } from './decisionApi'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router'
 import Button from '../../components/Button'
@@ -58,14 +64,19 @@ function ApprovalStatus({ proposal }: { proposal: Proposal }) {
 }
 
 function DecisionHistory({
-  proposalId,
+  proposal,
   page,
   onPageChange,
 }: {
-  proposalId: number
+  proposal: Proposal
   page: number
   onPageChange: (page: number) => void
 }) {
+  const proposalId = proposal.id
+  const [snapshot, setSnapshot] = useState<{
+    record: ProposalDecisionRecord
+    kind: 'revision' | 'option'
+  } | null>(null)
   const query = useQuery({
     queryKey: ['proposals', 'decisions', proposalId, page],
     queryFn: ({ signal }) => fetchProposalDecisions(proposalId, page, signal),
@@ -75,94 +86,153 @@ function DecisionHistory({
     refetchOnReconnect: false,
   })
   return (
-    <section className="space-y-4" aria-label="결정 이력">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="font-semibold">검토 결정 이력</h3>
+    <section className="decision-history" aria-label="결정 이력">
+      <div className="history-identity">
+        <div>
+          <h2>{proposalTitle(proposal)}</h2>
+          <p>
+            제안 #{proposalId} · 현재 개정 {proposal.revision}
+          </p>
+        </div>
         <Button
           variant="secondary"
+          className="history-refresh"
+          aria-label="이력 새로고침"
+          data-tooltip="이력 새로고침"
           pending={query.isFetching}
           onClick={() => {
             void query.refetch()
           }}
         >
-          이력 새로고침
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            aria-hidden="true"
+          >
+            <path d="M20 7v5h-5M20 12a8 8 0 1 1-2.3-5.7L20 8" />
+          </svg>
         </Button>
       </div>
-      <p className="text-sm text-slate-600">
-        이 제안의 과거 개정을 포함한 전체 결정 이력입니다. 최신 결정부터 20개씩
-        표시하며, 시각이 같으면 결정 번호가 큰 순서입니다. 개별 문제 건의
-        보류·해소 기록과는 구분됩니다.
-      </p>
-      {query.isPending || query.isFetching || query.isPaused ? (
-        <LoadingState
-          message={
-            query.isPaused
-              ? '연결이 복구되면 결정 이력을 불러옵니다.'
-              : '결정 이력을 불러오는 중…'
-          }
-        />
-      ) : query.isError ? (
-        <ErrorState
-          error={query.error}
-          onRetry={() => {
-            void query.refetch()
-          }}
-        />
-      ) : (
-        <>
-          {!query.data.data.length ? (
-            <EmptyState message="이 페이지에 결정 이력이 없습니다." />
-          ) : (
-            <DataTable label="검토 결정 이력">
-              <thead className="bg-slate-50 text-slate-600">
-                <tr>
-                  {['처리 시각·실행자', '개정·대안', '결정', '사유'].map(
-                    (label) => (
-                      <th key={label} className="p-3">
-                        {label}
-                      </th>
-                    ),
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {query.data.data.map((record) => (
-                  <tr
-                    key={record.id}
-                    className="border-t border-slate-200 align-top"
-                  >
-                    <td className="p-3">
-                      <p>{dateTime(record.decidedAt)}</p>
-                      <p className="text-sm text-slate-500">
-                        사용자 #{record.decidedBy} · 결정 #{record.id}
-                      </p>
+      <div className="decision-results">
+        {query.isPending || query.isFetching || query.isPaused ? (
+          <LoadingState
+            message={
+              query.isPaused
+                ? '연결이 복구되면 결정 이력을 불러옵니다.'
+                : '결정 이력을 불러오는 중…'
+            }
+          />
+        ) : query.isError ? (
+          <ErrorState
+            error={query.error}
+            onRetry={() => {
+              void query.refetch()
+            }}
+          />
+        ) : !query.data.data.length ? (
+          <EmptyState message="이 페이지에 결정 이력이 없습니다." />
+        ) : (
+          <DataTable label="검토 결정 이력" className="decision-table">
+            <colgroup>
+              <col style={{ width: '22%' }} />
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '40%' }} />
+            </colgroup>
+            <thead>
+              <tr>
+                {['처리 시각', '실행자', '검토 대상', '결정', '사유'].map(
+                  (x) => (
+                    <th key={x} scope="col">
+                      {x}
+                    </th>
+                  ),
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {query.data.data.map((record) => {
+                const [date, ...time] = dateTime(record.decidedAt).split(' ')
+                return (
+                  <tr key={record.id}>
+                    <td>
+                      <p>{date}</p>
+                      <p className="history-time">{time.join(' ')}</p>
                     </td>
-                    <td className="p-3">
-                      <p>개정 {record.itemRevision}</p>
-                      <p className="text-sm text-slate-500">
-                        {record.selectedOptionId === null
-                          ? '대안 지정 없음'
-                          : `대안 ID #${record.selectedOptionId}`}
-                      </p>
+                    <td>
+                      {record.decidedByName?.trim() ||
+                        '사용자 #' + record.decidedBy}
                     </td>
-                    <td className="p-3">
-                      {decisionLabels[record.decision] ?? record.decision}
+                    <td>
+                      <button
+                        className="history-detail-link"
+                        type="button"
+                        aria-haspopup="dialog"
+                        onClick={() =>
+                          setSnapshot({ record, kind: 'revision' })
+                        }
+                      >
+                        개정 {record.itemRevision}
+                      </button>
+                      {record.selectedOptionId === null ? (
+                        <p className="history-muted">대안 지정 없음</p>
+                      ) : (
+                        <DecisionOptionLink
+                          proposalId={proposalId}
+                          record={record}
+                          onOpen={() => setSnapshot({ record, kind: 'option' })}
+                        />
+                      )}
                     </td>
-                    <td className="max-w-lg whitespace-pre-wrap break-words p-3">
-                      {record.reason}
+                    <td>
+                      <StatusBadge
+                        tone={
+                          record.decision === 'APPROVE'
+                            ? 'success'
+                            : record.decision === 'HOLD'
+                              ? 'warning'
+                              : record.decision === 'REJECT'
+                                ? 'danger'
+                                : 'neutral'
+                        }
+                      >
+                        {decisionLabels[record.decision] ?? record.decision}
+                      </StatusBadge>
                     </td>
+                    <td>{record.reason}</td>
                   </tr>
-                ))}
-              </tbody>
-            </DataTable>
-          )}
+                )
+              })}
+            </tbody>
+          </DataTable>
+        )}
+      </div>
+      {query.data &&
+        !query.isError &&
+        !query.isPending &&
+        !query.isFetching &&
+        !query.isPaused && (
           <Pagination
             page={page}
             size={DECISION_PAGE_SIZE}
             totalElements={query.data.meta.totalElements}
+            pending={query.isFetching}
             onChange={onPageChange}
           />
-        </>
+        )}
+      {snapshot && (
+        <DecisionSnapshot
+          key={snapshot.record.id + '-' + snapshot.kind}
+          proposal={proposal}
+          record={snapshot.record}
+          kind={snapshot.kind}
+          onClose={() => setSnapshot(null)}
+        />
       )}
     </section>
   )
@@ -210,19 +280,71 @@ export default function ProposalHistoryPage({
   }
 
   return (
-    <div className="management-page space-y-5">
-      <Link
-        className="text-sm text-violet-700 underline"
-        to={
-          validId ? `/admin/rules/${proposalId}${returnSearch}` : '/admin/rules'
-        }
-      >
-        {validId ? '제안 상세로 돌아가기' : '제안 목록으로 돌아가기'}
-      </Link>
+    <div
+      className={`management-page proposal-history-page ${activity ? 'proposal-history-page--activity' : ''}`}
+    >
       <PageHeader
         title="규칙 이력"
         description="제안의 승인 상태, 활동 기록과 보류 건을 확인합니다."
       />
+      <div className="history-navigation">
+        {' '}
+        <Link
+          className="history-back"
+          to={
+            validId
+              ? `/admin/rules/${proposalId}${returnSearch}`
+              : '/admin/rules'
+          }
+          aria-label={
+            validId ? '제안 상세로 돌아가기' : '제안 목록으로 돌아가기'
+          }
+          data-tooltip={
+            validId ? '제안 상세로 돌아가기' : '제안 목록으로 돌아가기'
+          }
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            aria-hidden="true"
+          >
+            <path d="m12 5-7 7 7 7M5 12h14" />
+          </svg>
+        </Link>
+        <span className="history-divider" aria-hidden="true" />
+        <div
+          role="group"
+          aria-label="규칙 이력 보기"
+          className="management-tabs"
+        >
+          {(
+            [
+              { key: 'activity', label: '활동 기록' },
+              { key: 'approval', label: '승인 상태' },
+              { key: 'business', label: '현업 승인 상태' },
+            ] as const
+          ).map((tab) => (
+            <button
+              type="button"
+              key={tab.key}
+              aria-pressed={
+                tab.key === 'activity'
+                  ? activity
+                  : tab.key === 'business'
+                    ? business
+                    : !activity && !business
+              }
+              onClick={() => changeView(tab.key)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
       {!validId ? (
         <EmptyState message="올바른 제안 주소가 아닙니다." />
       ) : query.isPending ? (
@@ -235,41 +357,22 @@ export default function ProposalHistoryPage({
           }}
         />
       ) : (
-        <section className="management-panel space-y-5">
-          <h2 className="text-xl font-semibold">{proposalTitle(query.data)}</h2>
-          <p className="text-sm text-slate-500">
-            제안 #{proposalId} · 현재 개정 {query.data.revision}
-          </p>
-          <div
-            role="group"
-            aria-label="규칙 이력 보기"
-            className="flex flex-wrap gap-2"
-          >
-            <Button
-              variant={activity || business ? 'secondary' : 'primary'}
-              aria-pressed={!activity && !business}
-              onClick={() => changeView('approval')}
-            >
-              승인 상태
-            </Button>
-            <Button
-              variant={activity ? 'primary' : 'secondary'}
-              aria-pressed={activity}
-              onClick={() => changeView('activity')}
-            >
-              활동 기록
-            </Button>
-            <Button
-              variant={business ? 'primary' : 'secondary'}
-              aria-pressed={business}
-              onClick={() => changeView('business')}
-            >
-              현업 승인 상태
-            </Button>
-          </div>
+        <section className="history-content">
+          {!activity && (
+            <div className="history-identity">
+              <div>
+                <h2>{proposalTitle(query.data)}</h2>
+                <p>
+                  제안 #{proposalId} · 현재 개정 {query.data.revision}
+                </p>
+              </div>
+            </div>
+          )}
+
           {activity ? (
             <DecisionHistory
-              proposalId={proposalId}
+              key={proposalId}
+              proposal={query.data}
               page={page}
               onPageChange={(next) => changeView('activity', next)}
             />

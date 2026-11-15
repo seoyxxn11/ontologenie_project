@@ -135,11 +135,13 @@ let savedOptions: Record<string, ProposalOption[]> = {
   '303:2': structuredClone(comparisonFixtures),
 }
 let savedDecisions: ProposalDecisionRecord[] = []
+let historicalProposals: Proposal[] = []
 
 export function resetProposalMocks() {
   proposals = structuredClone(proposalFixtures)
   savedOptions = { '303:2': structuredClone(comparisonFixtures) }
   savedDecisions = []
+  historicalProposals = []
 }
 function failed(status: number, code: string, message: string) {
   return HttpResponse.json(
@@ -207,8 +209,13 @@ export const proposalHandlers = [
       itemRevision: item.revision,
       decision,
       selectedOptionId: selectedOptionId ?? null,
+      selectedOptionNo:
+        savedOptions[`${item.id}:${item.revision}`]?.find(
+          (option) => option.id === selectedOptionId,
+        )?.optionNo ?? null,
       reason,
       decidedBy: 1,
+      decidedByName: '가상 검토자',
       decidedAt: now,
     })
     return HttpResponse.json({
@@ -238,8 +245,10 @@ export const proposalHandlers = [
         itemRevision: 1,
         decision: item.id === 301 ? 'APPROVE' : 'HOLD',
         selectedOptionId: null,
+        selectedOptionNo: null,
         reason: '대응 설비와 규칙 조건을 확인했습니다.',
         decidedBy: 1,
+        decidedByName: '가상 검토자',
         decidedAt: '2026-10-28T03:00:00Z',
       },
       ...(item.id === 303
@@ -250,8 +259,10 @@ export const proposalHandlers = [
               itemRevision: 1,
               decision: 'HOLD',
               selectedOptionId: null,
+              selectedOptionNo: null,
               reason: '원천 설비 코드를 다시 확인합니다.',
               decidedBy: 1,
+              decidedByName: '가상 검토자',
               decidedAt: '2026-10-27T03:00:00Z',
             },
           ]
@@ -370,6 +381,34 @@ export const proposalHandlers = [
       return failed(404, 'RESOURCE_NOT_FOUND', '제안을 찾을 수 없습니다.')
     return HttpResponse.json({ data: savedOptions[`${id}:${revision}`] ?? [] })
   }),
+  http.get('/api/v1/proposals/:id/revisions', ({ params, request }) => {
+    const item = proposals.find((p) => p.id === Number(params.id))
+    if (!item)
+      return failed(404, 'RESOURCE_NOT_FOUND', '제안을 찾을 수 없습니다.')
+    const search = new URL(request.url).searchParams,
+      page = Number(search.get('page') ?? 0),
+      size = Number(search.get('size') ?? 20)
+    const snapshots = [
+      ...historicalProposals.filter((p) => p.id === item.id),
+      item,
+    ].sort((a, b) => a.revision - b.revision)
+    return HttpResponse.json({
+      data: snapshots.slice(page * size, (page + 1) * size).map((p) => ({
+        revision: p.revision,
+        payload: p.payload,
+        evidence: p.evidence,
+        aiConfidence: p.aiConfidence,
+        createdBy: 1,
+        createdAt: '2026-10-28T03:00:00Z',
+      })),
+      meta: {
+        page,
+        size,
+        totalElements: snapshots.length,
+        hasNext: (page + 1) * size < snapshots.length,
+      },
+    })
+  }),
   http.post('/api/v1/proposals/:id/revisions', async ({ params, request }) => {
     await delay()
     const item = proposals.find((value) => value.id === Number(params.id))
@@ -385,6 +424,7 @@ export const proposalHandlers = [
     }
     if (body.baseRevision !== item.revision)
       return failed(409, 'REVISION_CONFLICT', '다른 사람이 먼저 수정했습니다.')
+    historicalProposals.push(structuredClone(item))
     item.revision += 1
     item.payload = body.payload
     item.evidence = body.evidence
