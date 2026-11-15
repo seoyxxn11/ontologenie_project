@@ -200,3 +200,29 @@ test('대화가 없으면 빈 안내를, 한 페이지면 비활성 페이지 �
   expect(screen.getByRole('button', { name: '이전 페이지' })).toBeDisabled()
   expect(screen.getByRole('button', { name: '다음 페이지' })).toBeDisabled()
 })
+
+test('늘어난 표시 행 높이를 페이지 크기 계산에 다시 사용하지 않는다', () => {
+  const original = window.getComputedStyle.bind(window)
+  vi.spyOn(window, 'getComputedStyle').mockImplementation((element) => {
+    const style = original(element)
+    if (element.classList.contains('agent-conversation-select')) {
+      Object.defineProperty(style, 'minHeight', { value: '36px' })
+    }
+    return style
+  })
+  render(<ConversationList {...props()} />)
+  resize(110)
+  expect(visibleTitles()).toHaveLength(3)
+  rowHeight = 55
+  resize(110)
+  expect(visibleTitles()).toHaveLength(3)
+})
+
+test('가득 찬 페이지만 늘리고 일부만 있는 마지막 페이지는 기본 높이를 유지한다', async () => {
+  render(<ConversationList {...props()} />)
+  resize(110)
+  expect(screen.getByRole('list')).toHaveAttribute('data-page-full', 'true')
+  await userEvent.click(screen.getByRole('button', { name: '마지막 페이지' }))
+  expect(visibleTitles()).toEqual(['대화 7', '대화 8'])
+  expect(screen.getByRole('list')).toHaveAttribute('data-page-full', 'false')
+})

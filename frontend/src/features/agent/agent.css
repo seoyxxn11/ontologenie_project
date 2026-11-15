@@ -68,6 +68,14 @@
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+.agent-conversation-viewport > ul {
+  display: grid;
+  grid-auto-rows: 65px;
+}
+.agent-conversation-viewport > ul[data-page-full='true'] {
+  height: 100%;
+  grid-auto-rows: minmax(65px, 1fr);
+}
 .agent-conversation-row {
   display: flex;
   align-items: center;
@@ -80,7 +88,8 @@
 }
 .agent-conversation-select {
   min-width: 0;
-  height: 64px;
+  min-height: 64px;
+  height: 100%;
   flex: 1;
   padding: 10px 8px 10px 13px;
   color: var(--ui-text);
