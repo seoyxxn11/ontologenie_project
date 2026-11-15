@@ -348,7 +348,7 @@ class Conversation47GmsTests {
                         47L,
                         mock(AgentQueryRecorder.class),
                         CLOCK);
-        session.allowObjects(interpretation.referenceObjectIds(), true);
+        session.allowObjects(interpretation.referenceObjectIds());
         String answer = responder.answer(question, interpretation, session, null);
         verify(details, atLeastOnce()).links(any(), eq(P103.id()), any());
         verify(details, atLeastOnce()).detail(any(), eq(409L));

@@ -680,8 +680,7 @@ class AgentScenarioGmsTests {
                 runs.add(new Run(question, recorder, issues, null, clarifying, Map.of()));
                 break;
             }
-            session.allowObjects(
-                    interpretation.referenceObjectIds(), interpretation.kinds().isEmpty());
+            session.allowObjects(interpretation.referenceObjectIds());
             String answer = responder.answer(question, interpretation, session, null);
             runs.add(new Run(question, recorder, issues, answer, null, Map.of()));
             if (i < questions.length - 1) {
@@ -826,7 +825,7 @@ class AgentScenarioGmsTests {
             log.info("GMS 시나리오 되묻기: {}", clarifying);
             return new Run(question, recorder, issues, null, clarifying, answerMeta);
         }
-        session.allowObjects(interpretation.referenceObjectIds(), interpretation.kinds().isEmpty());
+        session.allowObjects(interpretation.referenceObjectIds());
         String answer =
                 responder.answer(
                         question,
