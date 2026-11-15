@@ -7,6 +7,7 @@ import { expect, test, vi } from 'vitest'
 import { server } from '../../mocks/node'
 import { proposalFixtures } from '../../mocks/proposalHandlers'
 import ProposalDetail from './ProposalDetail'
+import CheckResults from './CheckResults'
 import type { CheckResult } from './checkApi'
 
 const proposal = proposalFixtures[0]
@@ -300,4 +301,75 @@ test('상태 재조회가 실패하면 이전 결과 대신 오류를 표시한�
   await user.click(screen.getByRole('button', { name: '검사 상태 새로고침' }))
   await screen.findByRole('alert')
   expect(screen.queryByText('시험 매칭률: 25.0%')).not.toBeInTheDocument()
+})
+
+test('검토 집중형은 검사 집계를 기본 노출하고 표본만 펼친다', async () => {
+  results()
+  const user = userEvent.setup()
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <MemoryRouter>
+        <CheckResults
+          proposal={proposal}
+          refreshing={false}
+          onRefresh={() => {}}
+          compact
+        />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+  expect(await screen.findByText('시험 매칭률: 25.0%')).toBeVisible()
+  expect(screen.getByText('조건 위반', { selector: 'dt' })).toBeVisible()
+  expect(
+    screen.getByRole('table', { name: '검사 결과 601 판정 근거' }),
+  ).not.toBeVisible()
+  await user.click(
+    screen.getByText('검사 상세·표본 보기', { selector: 'summary' }),
+  )
+  expect(
+    screen.getByRole('table', { name: '검사 결과 601 판정 근거' }),
+  ).toBeVisible()
+  expect(screen.getByText('대상 객체 없음')).toBeVisible()
+})
+
+test('검토 집중형에서 검사 결과 조회 실패는 접힌 표본 밖에 노출한다', async () => {
+  server.use(
+    http.get('/api/v1/checks/runs/:id/results', () =>
+      HttpResponse.json(
+        {
+          error: {
+            code: 'RESULT_ERROR',
+            message: '검사 표본 조회 실패',
+            details: {},
+            requestId: 'compact-check',
+          },
+        },
+        { status: 500 },
+      ),
+    ),
+  )
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <MemoryRouter>
+        <CheckResults
+          proposal={proposal}
+          refreshing={false}
+          onRefresh={() => {}}
+          compact
+        />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    '검사 표본 조회 실패',
+  )
+  expect(screen.getByRole('button', { name: '다시 불러오기' })).toBeVisible()
 })

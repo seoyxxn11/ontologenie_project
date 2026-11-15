@@ -44,7 +44,7 @@ function open(path = '/admin/rules', withHistoryControls = false) {
   )
 }
 
-test('후보 카드 선택과 상세 탭에서 근거·신뢰도를 확인한다', async () => {
+test('후보 카드 선택 후 규칙·근거·검사·결정을 함께 확인한다', async () => {
   const user = userEvent.setup()
   open()
   expect(
@@ -62,7 +62,11 @@ test('후보 카드 선택과 상세 탭에서 근거·신뢰도를 확인한다
   )
   await detail.findByText('신뢰도: 86.0%')
   expect(detail.getByText('검토 대기')).toHaveClass('bg-amber-50')
-  await user.click(detail.getByRole('button', { name: '제안 이유·원본' }))
+  expect(detail.getByRole('region', { name: '제안 근거' })).toBeVisible()
+  expect(detail.getByRole('region', { name: '정합성 검사' })).toBeVisible()
+  expect(
+    detail.queryByRole('group', { name: '후보 상세 보기' }),
+  ).not.toBeInTheDocument()
   expect(
     detail.getByText('작업지시의 설비 코드와 설비 원장의 코드가 대응합니다.'),
   ).toBeVisible()
@@ -74,6 +78,44 @@ test('후보 카드 선택과 상세 탭에서 근거·신뢰도를 확인한다
     await screen.findByRole('heading', { name: '직접 추가한 대체 설비 연결' }),
   ).toBeVisible()
   expect(screen.getByText('신뢰도: 제공되지 않음')).toBeVisible()
+})
+
+test('근거·검사를 확인하고 새로고침해도 작성 중인 검토 사유를 유지한다', async () => {
+  const user = userEvent.setup()
+  open('/admin/rules?candidate=303')
+  const detail = within(
+    await screen.findByRole('region', { name: '후보 검토 상세' }),
+  )
+  const reason = await detail.findByRole('textbox', {
+    name: '검토 사유 (필수)',
+  })
+  await user.type(reason, '원천 근거를 확인했습니다.')
+  expect(detail.getByRole('heading', { name: '연결·변환 규칙' })).toBeVisible()
+  expect(detail.getByRole('region', { name: '제안 근거' })).toBeVisible()
+  const check = detail.getByRole('region', { name: '정합성 검사' })
+  expect(check).toBeVisible()
+  await user.click(
+    within(check).getByRole('button', { name: '검사 상태 새로고침' }),
+  )
+  expect(
+    await detail.findByRole('button', { name: '검사 상태 새로고침' }),
+  ).toBeEnabled()
+  expect(reason).toHaveValue('원천 근거를 확인했습니다.')
+})
+
+test('상세 필터를 접었다 펼쳐도 적용 전 선택을 보존한다', async () => {
+  const user = userEvent.setup()
+  open()
+  await screen.findByRole('complementary', { name: '검토 목록' })
+  const summary = screen.getByText('상세 필터', { selector: 'summary' })
+  await user.click(summary)
+  await user.selectOptions(screen.getByLabelText('제안 출처'), 'MANUAL')
+  await user.click(summary)
+  await user.click(summary)
+  expect(screen.getByLabelText('제안 출처')).toHaveValue('MANUAL')
+  expect(screen.getByText('후보 3건')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '검색' }))
+  expect(await screen.findByText('후보 1건')).toBeInTheDocument()
 })
 
 test('상세 필터와 브라우저 이동으로 조회 조건을 복원한다', async () => {
