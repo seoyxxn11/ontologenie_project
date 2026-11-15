@@ -8,6 +8,7 @@ import com.axcore.platform.ontology.service.ObjectDetailQuery;
 import com.axcore.platform.ontology.service.ObjectEvidenceQuery;
 import com.axcore.platform.ontology.service.ObjectSearchQuery;
 import com.axcore.platform.ontology.service.PropertyValueSampleService;
+import io.micrometer.observation.ObservationRegistry;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -18,7 +19,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.ToolCallingAdvisor;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
+import org.springframework.ai.model.tool.ToolCallLimitExceededException;
+import org.springframework.ai.model.tool.ToolCallingManager;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.ObjectProvider;
@@ -332,8 +338,8 @@ public class AgentResponder {
         if (reasoningEffort != null && !reasoningEffort.isBlank()) {
             options.reasoningEffort(reasoningEffort);
         }
-        String content =
-                ChatClient.create(chatModels.getObject())
+        ChatResponse response =
+                chatClient(chatModels.getObject())
                         .prompt()
                         .system(
                                 systemPrompt(
@@ -347,13 +353,52 @@ public class AgentResponder {
                         .options(options)
                         // 도구 결과의 자유 글 속 이름·전화번호를 가린 뒤 모델에 넘긴다(414)
                         .toolCallbacks(
-                                ModelMaskingToolCallback.wrapAllRecording(session, tools(session)))
+                                ModelMaskingToolCallback.wrapAllCounted(session, tools(session)))
                         .call()
-                        .content();
+                        .chatResponse();
+        Generation result = response == null ? null : response.getResult();
+        if (result != null
+                && ToolCallLimitExceededException.FINISH_REASON.equals(
+                        result.getMetadata().getFinishReason())) {
+            // Spring AI는 한도 초과를 예외 대신 영어 안내를 본문으로 한 응답으로 돌려준다. 본문만 읽으면 그 안내가 정상 답변으로 저장됐다(Q12).
+            throw new ToolCallLimitReached(result.getOutput().getText());
+        }
+        String content = result == null ? null : result.getOutput().getText();
         if (content == null || content.isBlank()) {
             throw new IllegalStateException("AI 답변이 비어 있습니다.");
         }
         return content.strip();
+    }
+
+    /**
+     * Spring AI의 도구 호출 한도. 이번 답변의 도구 호출 한도({@link AgentQuerySession#MAX_TOOL_CALLS})를 넘은 뒤에도 AI가 계속
+     * 부를 때만 닿는 마지막 안전장치다. 닿으면 답을 맺지 못하므로 실패로 끝낸다. {@code ChatClient.create}는
+     * 설정(spring.ai.tools.limits)을 읽지 않고 라이브러리 기본값(도구당 40, 전체 150)을 써서, 여기서 직접 정한다.
+     */
+    static final int MAX_CALLS_PER_TOOL = 30;
+
+    static final int MAX_TOTAL_TOOL_CALLS = 35;
+
+    static ChatClient chatClient(ChatModel model) {
+        ToolCallingManager tools =
+                ToolCallingManager.builder()
+                        .maxCallsPerTool(MAX_CALLS_PER_TOOL)
+                        .maxTotalToolCalls(MAX_TOTAL_TOOL_CALLS)
+                        .build();
+        return ChatClient.builder(
+                        model,
+                        ObservationRegistry.NOOP,
+                        null,
+                        null,
+                        ToolCallingAdvisor.builder().toolCallingManager(tools))
+                .build();
+    }
+
+    /** 답변 AI가 Spring AI 도구 호출 한도에 닿아 답을 맺지 못했다. 답변을 실패로 끝낸다. 메시지는 기록용이고 사용자에게 보이지 않는다. */
+    static final class ToolCallLimitReached extends RuntimeException {
+        ToolCallLimitReached(String detail) {
+            super("답변 AI가 도구 호출 한도에 닿았습니다: " + detail);
+        }
     }
 
     /**

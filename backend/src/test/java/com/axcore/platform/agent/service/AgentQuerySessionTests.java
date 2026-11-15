@@ -240,18 +240,22 @@ class AgentQuerySessionTests {
     }
 
     @Test
-    void stopsObjectLookupsAtTheLimitWithoutRecording() {
+    void stopsObjectLookupsAtTheLimitAndRecordsTheRefusal() {
         session.allowObjects(List.of(301L));
 
         for (int i = 0; i < AgentQuerySession.MAX_OBJECT_LOOKUPS; i++) {
             assertThat(detail(301L)).containsEntry("resultCategory", "FOUND");
         }
 
-        // 한도를 넘으면 조회하지 않고, AI가 다른 방법을 고르거나 일부만 확인했다고 말하게 이유를 돌려준다. 데이터에 닿지 않았으므로 기록하지
-        // 않는다.
+        // 한도를 넘으면 조회하지 않고, AI가 다른 방법을 고르거나 일부만 확인했다고 말하게 이유를 돌려준다. 데이터에 닿지 않았으므로 results에는
+        // 넣지 않지만, 어디서 막혔는지 알 수 있게 거절을 실패 조회로 기록한다.
         assertThat(detail(301L)).isEqualTo(Map.of("error", AgentQuerySession.OBJECT_LOOKUP_LIMIT));
-        verify(recorder, times(AgentQuerySession.MAX_OBJECT_LOOKUPS))
-                .record(any(), anyLong(), anyInt(), any(), any(), any(), any(), any());
+        ArgumentCaptor<AgentQueryResult> recorded = ArgumentCaptor.forClass(AgentQueryResult.class);
+        verify(recorder, times(AgentQuerySession.MAX_OBJECT_LOOKUPS + 1))
+                .record(any(), anyLong(), anyInt(), any(), any(), any(), recorded.capture(), any());
+        assertThat(recorded.getValue().succeeded()).isFalse();
+        assertThat(recorded.getValue().errorMessage())
+                .isEqualTo(AgentQuerySession.OBJECT_LOOKUP_LIMIT);
         assertThat(session.results()).hasSize(AgentQuerySession.MAX_OBJECT_LOOKUPS);
         // 객체 하나가 대상이 아닌 조회(검색·목록)는 한도와 관계없다.
         assertThat(
@@ -268,6 +272,47 @@ class AgentQuerySessionTests {
                                                 List.of(),
                                                 null)))
                 .containsEntry("resultCategory", "FOUND");
+    }
+
+    /** 대상이 아닌 객체는 조회하지 않지만, 어디서 막혔는지 알 수 있게 거절 이유를 실패 조회로 기록한다. 답변의 results에는 넣지 않는다. */
+    @Test
+    void recordsRefusalOfObjectsOutsideThisAnswer() {
+        session.allowObjects(List.of(301L));
+
+        assertThat(detail(999L)).isEqualTo(Map.of("error", AgentQuerySession.NOT_TARGET));
+
+        ArgumentCaptor<AgentQueryResult> recorded = ArgumentCaptor.forClass(AgentQueryResult.class);
+        verify(recorder)
+                .record(
+                        eq(ASKER),
+                        eq(11L),
+                        eq(1),
+                        anyMap(),
+                        eq(AgentQuerySession.OBJECT_INSTANCE),
+                        eq(999L),
+                        recorded.capture(),
+                        any());
+        assertThat(recorded.getValue().succeeded()).isFalse();
+        assertThat(recorded.getValue().errorMessage()).isEqualTo(AgentQuerySession.NOT_TARGET);
+        assertThat(session.results()).isEmpty();
+    }
+
+    /** AI의 도구 호출은 답변마다 한도까지 센다. 넘은 호출은 거절을 기록하고 지금까지 결과로 답하라고 돌려준다. */
+    @Test
+    void refusesToolCallsOverTheLimit() {
+        for (int i = 0; i < AgentQuerySession.MAX_TOOL_CALLS; i++) {
+            assertThat(session.countToolCall("OBJECT_SEARCH", Map.of())).isNull();
+        }
+
+        assertThat(session.countToolCall("OBJECT_SEARCH", Map.of("toolInput", "{}")))
+                .isEqualTo(Map.of("error", AgentQuerySession.TOOL_CALL_LIMIT));
+        ArgumentCaptor<AgentQueryResult> recorded = ArgumentCaptor.forClass(AgentQueryResult.class);
+        verify(recorder)
+                .record(any(), anyLong(), anyInt(), any(), any(), any(), recorded.capture(), any());
+        assertThat(recorded.getValue().toolCode()).isEqualTo("OBJECT_SEARCH");
+        assertThat(recorded.getValue().label()).isEqualTo(AgentQuerySession.TOOL_CALL_LIMIT_LABEL);
+        assertThat(recorded.getValue().errorMessage()).isEqualTo(AgentQuerySession.TOOL_CALL_LIMIT);
+        assertThat(session.results()).isEmpty();
     }
 
     @Test

@@ -37,10 +37,14 @@ final class ModelMaskingToolCallback implements ToolCallback {
 
     private final ToolCallback delegate;
     private final AgentQuerySession session;
+    // AI가 부른 호출이면 이번 답변의 도구 호출 한도에 센다. 서버가 미리 부르는 호출(납기 위험 사전 비교)은 세지 않는다.
+    private final boolean counted;
 
-    private ModelMaskingToolCallback(ToolCallback delegate, AgentQuerySession session) {
+    private ModelMaskingToolCallback(
+            ToolCallback delegate, AgentQuerySession session, boolean counted) {
         this.delegate = delegate;
         this.session = session;
+        this.counted = counted;
     }
 
     /**
@@ -53,27 +57,41 @@ final class ModelMaskingToolCallback implements ToolCallback {
 
     /** 위와 같고, 도구 입력을 읽지 못한 호출을 이번 답변의 조회 기록에 실패로 남긴다. session이 null이면 기록하지 않고 고칠 방법만 돌려준다. */
     static ToolCallback[] wrapAllRecording(AgentQuerySession session, Object... tools) {
+        return wrap(session, false, tools);
+    }
+
+    /**
+     * 위와 같고, 호출마다 이번 답변의 도구 호출 한도({@link AgentQuerySession#MAX_TOOL_CALLS})에 센다. 한도를 넘은 호출은 부르지 않고
+     * 지금까지 결과로 답하라고 돌려준다. AI에게 주는 도구에만 쓴다.
+     */
+    static ToolCallback[] wrapAllCounted(AgentQuerySession session, Object... tools) {
+        return wrap(session, true, tools);
+    }
+
+    private static ToolCallback[] wrap(
+            AgentQuerySession session, boolean counted, Object... tools) {
         List<ToolCallback> wrapped = new ArrayList<>();
         for (Object tool : tools) {
-            collect(tool, wrapped, session);
+            collect(tool, wrapped, session, counted);
         }
         return wrapped.toArray(ToolCallback[]::new);
     }
 
-    private static void collect(Object tool, List<ToolCallback> out, AgentQuerySession session) {
+    private static void collect(
+            Object tool, List<ToolCallback> out, AgentQuerySession session, boolean counted) {
         if (tool instanceof ToolCallback callback) {
-            out.add(new ModelMaskingToolCallback(callback, session));
+            out.add(new ModelMaskingToolCallback(callback, session, counted));
         } else if (tool instanceof ToolCallback[] callbacks) {
             for (ToolCallback callback : callbacks) {
-                out.add(new ModelMaskingToolCallback(callback, session));
+                out.add(new ModelMaskingToolCallback(callback, session, counted));
             }
         } else if (tool instanceof Collection<?> items) {
             for (Object item : items) {
-                collect(item, out, session);
+                collect(item, out, session, counted);
             }
         } else {
             for (ToolCallback callback : ToolCallbacks.from(tool)) {
-                out.add(new ModelMaskingToolCallback(callback, session));
+                out.add(new ModelMaskingToolCallback(callback, session, counted));
             }
         }
     }
@@ -90,6 +108,10 @@ final class ModelMaskingToolCallback implements ToolCallback {
 
     @Override
     public String call(String toolInput) {
+        String refused = overLimit(toolInput);
+        if (refused != null) {
+            return refused;
+        }
         try {
             return masked(delegate.call(toolInput));
         } catch (RuntimeException ex) {
@@ -99,11 +121,27 @@ final class ModelMaskingToolCallback implements ToolCallback {
 
     @Override
     public String call(String toolInput, ToolContext toolContext) {
+        String refused = overLimit(toolInput);
+        if (refused != null) {
+            return refused;
+        }
         try {
             return masked(delegate.call(toolInput, toolContext));
         } catch (RuntimeException ex) {
             return unreadableInput(toolInput, ex);
         }
+    }
+
+    /** 이번 답변의 도구 호출 한도를 넘었으면 부르지 않고 AI에게 돌려줄 값을, 아니면 null을 준다. */
+    private String overLimit(String toolInput) {
+        if (!counted || session == null) {
+            return null;
+        }
+        Map<String, Object> input = new LinkedHashMap<>();
+        input.put("toolInput", toolInput == null ? null : abbreviate(toolInput));
+        Map<String, Object> reply =
+                session.countToolCall(delegate.getToolDefinition().name(), input);
+        return reply == null ? null : masked(JSON.writeValueAsString(reply));
     }
 
     /**

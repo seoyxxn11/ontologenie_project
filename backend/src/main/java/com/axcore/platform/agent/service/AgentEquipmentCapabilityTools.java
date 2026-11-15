@@ -60,7 +60,13 @@ public class AgentEquipmentCapabilityTools {
                         : equipmentIds.stream().filter(Objects::nonNull).toList();
         if ((workOrderId != null && !session.objectsAllowed(List.of(workOrderId)))
                 || !session.objectsAllowed(given)) {
-            return Map.of("error", AgentQuerySession.NOT_TARGET);
+            return session.refuse(
+                    COMPARE_EQUIPMENT_CAPABILITY,
+                    "설비 조건 비교",
+                    input,
+                    AgentQueryTools.targetTypeOf(workOrderId),
+                    workOrderId,
+                    AgentQuerySession.NOT_TARGET);
         }
         return session.run(
                 COMPARE_EQUIPMENT_CAPABILITY,

@@ -1,11 +1,13 @@
 package com.axcore.platform.agent.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -44,6 +46,53 @@ class AgentResponderTests {
     private boolean objectSetsEnabled;
     private boolean objectSetFindEnabled;
     private String answer;
+
+    /**
+     * 모델이 도구를 끝없이 부르면 이번 답변의 도구 호출 한도가 먼저 걸려 "지금까지 결과로 답하라"고 돌려준다. 그래도 계속 부르면 Spring AI 한도에 닿는데,
+     * Spring AI는 이때 영어 안내를 본문으로 한 응답을 돌려준다. 본문만 읽으면 그 안내가 정상 답변으로 저장됐다(Q12). 종료 사유로 알아채 실패로 끝낸다.
+     */
+    @Test
+    void failsInsteadOfAnsweringWithTheLibraryNoticeWhenTheModelKeepsCallingTools() {
+        AgentQueryRecorder recorder = mock(AgentQueryRecorder.class);
+        when(chatModel.getOptions())
+                .thenReturn(OpenAiChatOptions.builder().model("gpt-5.6-sol").build());
+        AssistantMessage callAgain =
+                AssistantMessage.builder()
+                        .content("")
+                        .toolCalls(
+                                List.of(
+                                        new AssistantMessage.ToolCall(
+                                                "call",
+                                                "function",
+                                                AgentModelSummaryTools.MODEL_SUMMARY,
+                                                "{}")))
+                        .build();
+        when(chatModel.call(any(Prompt.class)))
+                .thenAnswer(invocation -> new ChatResponse(List.of(new Generation(callAgain))));
+        AgentQuerySession session = new AgentQuerySession(ASKER, 11L, recorder, CLOCK);
+
+        assertThatThrownBy(
+                        () ->
+                                responder("none")
+                                        .answer(
+                                                "설비 유형 알려줘",
+                                                new QuestionInterpretation(
+                                                        "유형", List.of(), null, null, List.of(),
+                                                        null),
+                                                session,
+                                                null))
+                .isInstanceOf(AgentResponder.ToolCallLimitReached.class);
+
+        // 한도를 넘은 호출은 부르지 않고 이유를 실패 조회로 기록했다. Spring AI 한도에 닿은 마지막 호출은 실행되지 않는다.
+        ArgumentCaptor<AgentQueryResult> recorded = ArgumentCaptor.forClass(AgentQueryResult.class);
+        verify(recorder, times(AgentResponder.MAX_CALLS_PER_TOOL))
+                .record(any(), anyLong(), anyInt(), any(), any(), any(), recorded.capture(), any());
+        assertThat(recorded.getAllValues())
+                .filteredOn(
+                        result -> AgentQuerySession.TOOL_CALL_LIMIT.equals(result.errorMessage()))
+                .hasSize(AgentResponder.MAX_CALLS_PER_TOOL - AgentQuerySession.MAX_TOOL_CALLS);
+        verify(chatModel, times(AgentResponder.MAX_CALLS_PER_TOOL + 1)).call(any(Prompt.class));
+    }
 
     @Test
     void turnsOffReasoningOnlyForToolRequest() {
@@ -537,27 +586,7 @@ class AgentResponderTests {
                 .thenReturn(
                         new ChatResponse(
                                 List.of(new Generation(new AssistantMessage("실행 이력이 없습니다.")))));
-        AgentActionTools actionTools = mock(AgentActionTools.class);
-        when(actionTools.forAnswer(any(AgentQuerySession.class))).thenReturn(List.of());
-        beans.addBean("chatModel", chatModel);
-        AgentResponder responder =
-                new AgentResponder(
-                        beans.getBeanProvider(ChatModel.class),
-                        mock(AuditExecutionQueryService.class),
-                        mock(ObjectSearchQuery.class),
-                        beans.getBeanProvider(ObjectDetailQuery.class),
-                        beans.getBeanProvider(ObjectEvidenceQuery.class),
-                        beans.getBeanProvider(ObjectPathPlanner.class),
-                        mock(ModelSummaryService.class),
-                        mock(DataAccessPolicy.class),
-                        actionTools,
-                        mock(CompletionEstimator.class),
-                        comparer,
-                        mock(PropertyValueSampleService.class),
-                        CLOCK,
-                        reasoningEffort,
-                        objectSetsEnabled,
-                        objectSetFindEnabled);
+        AgentResponder responder = responder(reasoningEffort);
 
         answer =
                 responder.answer(
@@ -569,5 +598,28 @@ class AgentResponderTests {
         ArgumentCaptor<Prompt> prompt = ArgumentCaptor.forClass(Prompt.class);
         verify(chatModel).call(prompt.capture());
         return prompt.getValue();
+    }
+
+    private AgentResponder responder(String reasoningEffort) {
+        AgentActionTools actionTools = mock(AgentActionTools.class);
+        when(actionTools.forAnswer(any(AgentQuerySession.class))).thenReturn(List.of());
+        beans.addBean("chatModel", chatModel);
+        return new AgentResponder(
+                beans.getBeanProvider(ChatModel.class),
+                mock(AuditExecutionQueryService.class),
+                mock(ObjectSearchQuery.class),
+                beans.getBeanProvider(ObjectDetailQuery.class),
+                beans.getBeanProvider(ObjectEvidenceQuery.class),
+                beans.getBeanProvider(ObjectPathPlanner.class),
+                mock(ModelSummaryService.class),
+                mock(DataAccessPolicy.class),
+                actionTools,
+                mock(CompletionEstimator.class),
+                comparer,
+                mock(PropertyValueSampleService.class),
+                CLOCK,
+                reasoningEffort,
+                objectSetsEnabled,
+                objectSetFindEnabled);
     }
 }

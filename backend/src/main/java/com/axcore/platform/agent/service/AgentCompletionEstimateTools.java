@@ -71,7 +71,13 @@ public class AgentCompletionEstimateTools {
         AgentQueryTools.putIfPresent(input, "startAt", startAt);
         if ((workOrderIds != null && !session.objectsAllowed(workOrderIds))
                 || (equipmentId != null && !session.objectsAllowed(List.of(equipmentId)))) {
-            return Map.of("error", AgentQuerySession.NOT_TARGET);
+            return session.refuse(
+                    ESTIMATE_COMPLETION,
+                    "예상 완료 시각",
+                    input,
+                    null,
+                    null,
+                    AgentQuerySession.NOT_TARGET);
         }
         // 작업지시가 하나면 그 객체를 기록 대상으로 남긴다. 여럿이면 입력에만 남긴다.
         Long target =
