@@ -40,15 +40,19 @@ test('계정 목록을 표시하고 역할 필터·검색·초기화를 서버�
   const user = userEvent.setup()
   open()
   await screen.findByRole('table', { name: '계정 목록' })
+  expect(screen.getAllByRole('columnheader')).toHaveLength(4)
+  expect(
+    screen.queryByRole('columnheader', { name: '비밀번호 변경' }),
+  ).not.toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'demo-viewer' })).toBeInTheDocument()
   await user.selectOptions(screen.getByLabelText('역할'), 'VIEWER')
   await user.click(screen.getByRole('button', { name: '검색' }))
-  await screen.findByText('1건')
+  await screen.findByText('1 / 1쪽 · 1건')
   expect(
     screen.queryByRole('link', { name: 'demo-admin' }),
   ).not.toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: '초기화' }))
-  await screen.findByText('3건')
+  await screen.findByText('1 / 1쪽 · 3건')
 })
 
 test('Viewer 계정 생성 후 임시 비밀번호를 표시·캐시하지 않고 첫 로그인 변경을 안내한다', async () => {

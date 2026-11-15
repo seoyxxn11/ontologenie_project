@@ -1,3 +1,4 @@
+import './accounts.css'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
@@ -27,7 +28,7 @@ function Filters({
   const [draft, setDraft] = useState(initial)
   return (
     <form
-      className="management-filter grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_auto_auto]"
+      className="management-filter accounts-filter"
       onSubmit={(event) => {
         event.preventDefault()
         onSearch(draft)
@@ -65,7 +66,7 @@ function Filters({
           </select>
         </label>
       ))}
-      <Button type="submit" pending={pending}>
+      <Button variant="secondary" type="submit" pending={pending}>
         검색
       </Button>
       <Button
@@ -77,6 +78,12 @@ function Filters({
       >
         초기화
       </Button>
+      <Link
+        className="ui-button ui-button--primary accounts-create"
+        to="/admin/accounts/new"
+      >
+        계정 생성
+      </Link>
     </form>
   )
 }
@@ -118,73 +125,54 @@ export default function AccountsPage() {
     content = <EmptyState message="조건에 맞는 계정이 없습니다." />
   else
     content = (
-      <>
-        <DataTable label="계정 목록" className="min-w-[680px]">
-          <thead className="bg-slate-50 text-left text-sm text-slate-500">
-            <tr>
-              {['로그인 ID', '이름', '역할', '상태', '비밀번호 변경'].map(
-                (label) => (
-                  <th key={label} className="px-4 py-3">
-                    {label}
-                  </th>
-                ),
-              )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {query.data.data.map((item) => (
-              <tr key={item.id}>
-                <td className="px-4 py-3">
-                  <Link
-                    className="text-violet-700 underline"
-                    to={`${item.id}?${params}`}
-                  >
-                    {item.loginId}
-                  </Link>
-                </td>
-                <td className="px-4 py-3">{item.displayName}</td>
-                <td className="px-4 py-3">
-                  {roleLabels[item.roleCode] ?? item.roleCode}
-                </td>
-                <td className="px-4 py-3">
-                  <StatusBadge
-                    tone={item.status === 'ACTIVE' ? 'success' : 'warning'}
-                  >
-                    {statusLabels[item.status] ?? item.status}
-                  </StatusBadge>
-                </td>
-                <td className="px-4 py-3 text-sm">
-                  {item.mustChangePassword
-                    ? '첫 로그인 시 변경 필요'
-                    : '설정 완료'}
-                </td>
-              </tr>
+      <DataTable label="계정 목록" className="accounts-table">
+        <colgroup>
+          <col style={{ width: '28%' }} />
+          <col style={{ width: '25%' }} />
+          <col style={{ width: '28%' }} />
+          <col style={{ width: '19%' }} />
+        </colgroup>
+        <thead className="bg-slate-50 text-left text-sm text-slate-500">
+          <tr>
+            {['로그인 ID', '이름', '역할', '상태'].map((label) => (
+              <th key={label} className="px-4 py-3">
+                {label}
+              </th>
             ))}
-          </tbody>
-        </DataTable>
-        {query.data.meta && (
-          <Pagination
-            page={page}
-            size={ACCOUNT_PAGE_SIZE}
-            totalElements={query.data.meta.totalElements}
-            onChange={(next) => search(filters, next)}
-          />
-        )}
-      </>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {query.data.data.map((item) => (
+            <tr key={item.id}>
+              <td className="px-4 py-3">
+                <Link
+                  className="text-violet-700 underline"
+                  to={`${item.id}?${params}`}
+                >
+                  {item.loginId}
+                </Link>
+              </td>
+              <td className="px-4 py-3">{item.displayName}</td>
+              <td className="px-4 py-3">
+                {roleLabels[item.roleCode] ?? item.roleCode}
+              </td>
+              <td className="px-4 py-3">
+                <StatusBadge
+                  tone={item.status === 'ACTIVE' ? 'success' : 'warning'}
+                >
+                  {statusLabels[item.status] ?? item.status}
+                </StatusBadge>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </DataTable>
     )
   return (
-    <div className="management-page space-y-6">
+    <div className="management-page accounts-page">
       <PageHeader
         title="계정·권한"
         description="계정의 역할, 사용 상태와 비밀번호 변경 필요 여부를 확인합니다."
-        action={
-          <Link
-            className="ui-button ui-button--primary"
-            to="/admin/accounts/new"
-          >
-            계정 생성
-          </Link>
-        }
       />
       <Filters
         key={params.toString()}
@@ -192,12 +180,16 @@ export default function AccountsPage() {
         pending={query.isFetching}
         onSearch={(next) => search(next)}
       />
-      {query.isSuccess && (
-        <p className="text-sm text-slate-500">
-          {query.data.meta?.totalElements ?? query.data.data.length}건
-        </p>
+      <div className="accounts-results">{content}</div>
+      {query.isSuccess && query.data.meta && (
+        <Pagination
+          page={page}
+          size={ACCOUNT_PAGE_SIZE}
+          totalElements={query.data.meta.totalElements}
+          pending={query.isFetching}
+          onChange={(next) => search(filters, next)}
+        />
       )}
-      {content}
     </div>
   )
 }
