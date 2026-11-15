@@ -14,6 +14,7 @@ import {
   fetchActionDefinitions,
   type ActionFilters,
 } from './api'
+import './ActionDefinitionsPage.css'
 import { activeLabels, changesDataLabels } from './labels'
 
 function Filters({
@@ -28,67 +29,73 @@ function Filters({
   const [draft, setDraft] = useState(initial)
   return (
     <form
-      className="management-filter grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto_auto]"
+      className="management-filter actions-filter"
       onSubmit={(event) => {
         event.preventDefault()
         onSearch(draft)
       }}
     >
-      <label className="flex flex-col gap-2 text-sm">
-        사용 여부
-        <select
-          className="rounded-lg border p-2"
-          value={draft.isActive ?? ''}
-          onChange={(event) =>
-            setDraft({
-              ...draft,
-              isActive:
-                (event.target.value as ActionFilters['isActive']) || undefined,
-            })
-          }
+      <div className="actions-filter-group">
+        <label className="flex flex-col gap-2 text-sm">
+          사용 여부
+          <select
+            className="rounded-lg border p-2"
+            value={draft.isActive ?? ''}
+            onChange={(event) =>
+              setDraft({
+                ...draft,
+                isActive:
+                  (event.target.value as ActionFilters['isActive']) ||
+                  undefined,
+              })
+            }
+          >
+            <option value="">전체</option>
+            {Object.entries(activeLabels).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-2 text-sm">
+          데이터 변경
+          <select
+            className="rounded-lg border p-2"
+            value={draft.actionKind ?? ''}
+            onChange={(event) =>
+              setDraft({
+                ...draft,
+                actionKind:
+                  (event.target.value as ActionFilters['actionKind']) ||
+                  undefined,
+              })
+            }
+          >
+            <option value="">전체</option>
+            {Object.entries(changesDataLabels).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Button type="submit" variant="secondary" pending={pending}>
+          검색
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setDraft({})
+            onSearch({})
+          }}
         >
-          <option value="">전체</option>
-          {Object.entries(activeLabels).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="flex flex-col gap-2 text-sm">
-        데이터 변경
-        <select
-          className="rounded-lg border p-2"
-          value={draft.actionKind ?? ''}
-          onChange={(event) =>
-            setDraft({
-              ...draft,
-              actionKind:
-                (event.target.value as ActionFilters['actionKind']) ||
-                undefined,
-            })
-          }
-        >
-          <option value="">전체</option>
-          {Object.entries(changesDataLabels).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <Button type="submit" pending={pending}>
-        검색
-      </Button>
-      <Button
-        variant="secondary"
-        onClick={() => {
-          setDraft({})
-          onSearch({})
-        }}
-      >
-        초기화
-      </Button>
+          초기화
+        </Button>
+      </div>
+      <Link className="ui-button ui-button--primary" to="/admin/actions/new">
+        Action 등록
+      </Link>
     </form>
   )
 }
@@ -206,14 +213,6 @@ export default function ActionDefinitionsPage() {
       <PageHeader
         title="Action 정의"
         description="업무에 사용하는 Action의 변경 여부와 사용 상태를 확인합니다."
-        action={
-          <Link
-            className="ui-button ui-button--primary"
-            to="/admin/actions/new"
-          >
-            Action 등록
-          </Link>
-        }
       />
       <Filters
         key={params.toString()}

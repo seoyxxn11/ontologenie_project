@@ -1,6 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  Link,
+  useBeforeUnload,
+  useBlocker,
+  useLocation,
+  useParams,
+} from 'react-router'
 import { ApiError } from '../../api/errors'
 import Button from '../../components/Button'
 import PageHeader from '../../components/PageHeader'
@@ -23,6 +29,7 @@ import {
   sameJson,
   type SchemaDraft,
 } from './schemaFields'
+import './ActionDefinitionsPage.css'
 import type {
   ActionDefinition,
   ActionDefinitionChanges,
@@ -31,12 +38,19 @@ import type {
   ActionTargetKind,
 } from './types'
 
-function UsagePanel({ definition }: { definition: ActionDefinition }) {
+function UsagePanel({
+  definition,
+  stored = false,
+}: {
+  definition: ActionDefinition
+  stored?: boolean
+}) {
   const usage = agentUsage(definition)
   return (
     <section className="space-y-2 management-subpanel text-sm">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-mono text-sm text-slate-500">
+        {stored && <span className="text-slate-500">저장된 상태</span>}
+        <span className="actions-code font-mono text-sm text-slate-500">
           {definition.code}
         </span>
         <StatusBadge tone={usage.usable ? 'success' : 'warning'}>
@@ -44,10 +58,6 @@ function UsagePanel({ definition }: { definition: ActionDefinition }) {
         </StatusBadge>
       </div>
       {!usage.usable && <p>{usage.reason}</p>}
-      <p className="text-sm text-slate-500">
-        사용자별 권한은 따로 검사합니다. 필요 권한이 없는 사용자에게는 Agent가
-        이 기능을 쓰지 않습니다.
-      </p>
     </section>
   )
 }
@@ -186,6 +196,13 @@ function changesFrom(
   return changes
 }
 
+const actionTabs = [
+  ['basic', '기본 정보'],
+  ['conditions', '실행 조건'],
+  ['schema', '입력 형식'],
+] as const
+type ActionTab = (typeof actionTabs)[number][0]
+
 function ActionDefinitionForm({
   original,
   options,
@@ -196,11 +213,61 @@ function ActionDefinitionForm({
   onReload: () => void
 }) {
   const client = useQueryClient()
-  const [draft, setDraft] = useState(() => initialDraft(original))
+  const [initial] = useState(() => initialDraft(original))
+  const [draft, setDraft] = useState(initial)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [result, setResult] = useState<ActionDefinition | null>(null)
   const submitting = useRef(false)
+  const formRef = useRef<HTMLFormElement>(null)
+  const leaveRef = useRef<HTMLDivElement>(null)
+  const previousFocus = useRef<HTMLElement | null>(null)
+  const [tab, setTab] = useState<ActionTab>('basic')
+  const [technicalOpen, setTechnicalOpen] = useState(false)
+  const [invalidField, setInvalidField] = useState('')
+  const [focusError, setFocusError] = useState(0)
+  const dirty = !result && JSON.stringify(draft) !== JSON.stringify(initial)
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      (pending || dirty) &&
+      (currentLocation.pathname !== nextLocation.pathname ||
+        currentLocation.search !== nextLocation.search),
+  )
+  useEffect(() => {
+    if (blocker.state === 'blocked') {
+      previousFocus.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null
+      leaveRef.current?.querySelector('button')?.focus()
+    } else if (previousFocus.current) {
+      previousFocus.current.focus()
+      previousFocus.current = null
+    }
+  }, [blocker.state])
+  useEffect(() => {
+    if (result && blocker.state === 'blocked') blocker.reset()
+  }, [result, blocker])
+  useBeforeUnload(
+    useCallback(
+      (event) => {
+        if (dirty || pending) {
+          event.preventDefault()
+          event.returnValue = ''
+        }
+      },
+      [dirty, pending],
+    ),
+  )
+  useEffect(() => {
+    if (!focusError) return
+    const element = formRef.current?.querySelector<HTMLElement>(
+      invalidField === 'schema'
+        ? '#action-panel-schema textarea, #action-panel-schema input'
+        : `[name="${invalidField}"]`,
+    )
+    element?.focus()
+  }, [focusError, invalidField])
   const editing = original !== undefined
   const blocked =
     editing &&
@@ -213,6 +280,18 @@ function ActionDefinitionForm({
 
   function update<K extends keyof Draft>(key: K, value: Draft[K]) {
     setDraft((current) => ({ ...current, [key]: value }))
+    if (invalidField === key) {
+      setInvalidField('')
+      setError(null)
+    }
+  }
+
+  function fieldError(field: string) {
+    return invalidField === field && error ? (
+      <p id={`action-field-${field}-error`} className="ui-field-error">
+        {error.message}
+      </p>
+    ) : null
   }
 
   async function submit() {
@@ -220,6 +299,31 @@ function ActionDefinitionForm({
     const input = readInput(draft, editing)
     if (typeof input === 'string') {
       setError(new Error(input))
+      const field =
+        !editing && codeError(draft.code.trim())
+          ? 'code'
+          : !draft.name.trim() || draft.name.trim().length > 200
+            ? 'name'
+            : !draft.description.trim()
+              ? 'description'
+              : !draft.changesData
+                ? 'changesData'
+                : !draft.handlerKey.trim() ||
+                    draft.handlerKey.trim().length > 200
+                  ? 'handlerKey'
+                  : !draft.requiredPermission
+                    ? 'requiredPermission'
+                    : 'schema'
+      setInvalidField(field)
+      setTab(
+        field === 'schema'
+          ? 'schema'
+          : ['changesData', 'requiredPermission'].includes(field)
+            ? 'conditions'
+            : 'basic',
+      )
+      if (field === 'handlerKey') setTechnicalOpen(true)
+      setFocusError((value) => value + 1)
       return
     }
     let changes: ActionDefinitionChanges | undefined
@@ -233,6 +337,7 @@ function ActionDefinitionForm({
     submitting.current = true
     setPending(true)
     setError(null)
+    setInvalidField('')
     try {
       const saved = original
         ? await updateActionDefinition(original.code, changes!)
@@ -264,7 +369,8 @@ function ActionDefinitionForm({
           {editing ? 'Action 정의를 변경했습니다.' : 'Action을 등록했습니다.'}
         </h2>
         <p>
-          {result.name} · <span className="font-mono">{result.code}</span>
+          {result.name} ·{' '}
+          <span className="actions-code font-mono">{result.code}</span>
         </p>
         {!result.handlerReady && (
           <p>
@@ -287,195 +393,431 @@ function ActionDefinitionForm({
 
   return (
     <form
-      className="management-form space-y-5"
+      ref={formRef}
+      className="management-form actions-editor"
+      noValidate
       onSubmit={(event) => {
         event.preventDefault()
         void submit()
       }}
     >
-      {original && <UsagePanel definition={original} />}
-      <fieldset disabled={pending || Boolean(blocked)} className="space-y-5">
-        <label className="flex flex-col gap-2 text-sm">
-          코드
-          <input
-            className="rounded-lg border p-2 font-mono"
-            value={draft.code}
-            onChange={(event) =>
-              update('code', event.target.value.toUpperCase())
-            }
-            disabled={editing}
-            maxLength={64}
-            autoComplete="off"
-            aria-invalid={Boolean(codeViolation) || undefined}
-            aria-describedby="action-code-help"
-          />
-          <span
-            id="action-code-help"
-            className={codeViolation ? 'text-red-700' : 'text-slate-500'}
-          >
-            {codeViolation ||
-              (editing
-                ? '코드는 등록한 뒤 바꿀 수 없습니다.'
-                : '영문 대문자로 시작하고 대문자·숫자·밑줄(_)만, 64자 이하. 예: ESTIMATE_COMPLETION')}
-          </span>
-        </label>
-        <label className="flex flex-col gap-2 text-sm">
-          이름
-          <input
-            className="rounded-lg border p-2"
-            value={draft.name}
-            onChange={(event) => update('name', event.target.value)}
-            maxLength={200}
-          />
-        </label>
-        <label className="flex flex-col gap-2 text-sm">
-          설명
-          <textarea
-            className="min-h-20 rounded-lg border p-2"
-            value={draft.description}
-            onChange={(event) => update('description', event.target.value)}
-          />
-          <span className="text-slate-500">
-            Agent가 이 설명을 보고 언제 쓸지 판단합니다. 무엇을 하는지
-            구체적으로 적어 주세요.
-          </span>
-        </label>
-        <fieldset className="space-y-2 rounded-lg border p-4 text-sm">
-          <legend className="px-1 font-medium">
-            이 기능이 데이터를 만들거나 바꾸나요?
-          </legend>
-          <label className="flex items-start gap-2">
-            <input
-              type="radio"
-              name="changesData"
-              checked={draft.changesData === 'WRITE'}
-              onChange={() => update('changesData', 'WRITE')}
-            />
-            <span>
-              예
-              <span className="block text-slate-500">
-                계획·요청처럼 데이터를 만들거나 바꿉니다. Agent는 사용자가 해
-                달라고 요청할 때만 실행하고 실행 이력에 남깁니다.
-              </span>
-            </span>
-          </label>
-          <label className="flex items-start gap-2">
-            <input
-              type="radio"
-              name="changesData"
-              checked={draft.changesData === 'READ'}
-              onChange={() => update('changesData', 'READ')}
-            />
-            <span>
-              아니요
-              <span className="block text-slate-500">
-                계산하거나 찾아서 알려 주기만 합니다. 예: 예상 완료 시각 계산,
-                대체 설비 찾기.
-              </span>
-            </span>
-          </label>
-        </fieldset>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <label className="flex flex-col gap-2 text-sm">
-            대상
-            <select
-              className="rounded-lg border p-2"
-              value={draft.targetKind}
-              onChange={(event) => {
-                const kind = event.target.value as ActionTargetKind
-                setDraft((current) => ({
-                  ...current,
-                  targetKind: kind,
-                  targetObjectTypeId:
-                    kind === 'SYSTEM' ? '' : current.targetObjectTypeId,
-                }))
-              }}
-            >
-              {Object.entries(targetKindLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-2 text-sm">
-            대상 객체 유형
-            <select
-              className="rounded-lg border p-2"
-              value={draft.targetObjectTypeId}
-              disabled={draft.targetKind === 'SYSTEM'}
-              onChange={(event) =>
-                update('targetObjectTypeId', event.target.value)
-              }
-            >
-              <option value="">지정 안 함</option>
-              {options.objectTypes.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.name} ({type.code})
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-2 text-sm">
-            Handler 이름
-            <input
-              className="rounded-lg border p-2 font-mono"
-              value={draft.handlerKey}
-              onChange={(event) => update('handlerKey', event.target.value)}
-              maxLength={200}
-              autoComplete="off"
-            />
-            <span className="text-slate-500">
-              개발자가 구현할 기능 이름입니다. 보통 코드와 같게 둡니다.
-            </span>
-          </label>
-          <label className="flex flex-col gap-2 text-sm">
-            필요 권한
-            <select
-              className="rounded-lg border p-2"
-              value={draft.requiredPermission}
-              onChange={(event) =>
-                update('requiredPermission', event.target.value)
-              }
-            >
-              <option value="">권한 선택</option>
-              {permissions.map((code) => (
-                <option key={code} value={code}>
-                  {code}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <InputSchemaEditor
-          value={draft.schema}
-          onChange={(value) => update('schema', value)}
-        />
-        <label className="flex gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={draft.requiresConfirmation}
-            onChange={(event) =>
-              update('requiresConfirmation', event.target.checked)
-            }
-          />
-          실행 전에 사용자 확인 받기
-        </label>
-        <label className="flex gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={draft.isActive}
-            onChange={(event) => update('isActive', event.target.checked)}
-          />
-          사용
-        </label>
-        {original && (
-          <p className="text-sm text-slate-500">
-            수정 기준 버전 {original.rowVersion}
+      {original && <UsagePanel definition={original} stored />}
+      {blocker.state === 'blocked' && (
+        <div ref={leaveRef} role="alert" className="ui-feedback actions-leave">
+          <p>
+            {pending
+              ? '저장 요청을 처리 중입니다. 완료 후 결과를 확인해 주세요.'
+              : '저장하지 않은 변경이 있습니다.'}
           </p>
-        )}
+          <Button variant="secondary" onClick={() => blocker.reset()}>
+            편집 계속
+          </Button>
+          {!pending && (
+            <Button variant="secondary" onClick={() => blocker.proceed()}>
+              입력 폐기하고 이동
+            </Button>
+          )}
+        </div>
+      )}
+      <div className="actions-tabs" role="tablist" aria-label="Action 설정">
+        {actionTabs.map(([key, label], index) => (
+          <button
+            type="button"
+            role="tab"
+            key={key}
+            id={`action-tab-${key}`}
+            aria-controls={`action-panel-${key}`}
+            aria-selected={tab === key}
+            tabIndex={tab === key ? 0 : -1}
+            onClick={() => setTab(key)}
+            onKeyDown={(event) => {
+              const next =
+                event.key === 'Home'
+                  ? 0
+                  : event.key === 'End'
+                    ? actionTabs.length - 1
+                    : event.key === 'ArrowRight'
+                      ? (index + 1) % actionTabs.length
+                      : event.key === 'ArrowLeft'
+                        ? (index + actionTabs.length - 1) % actionTabs.length
+                        : -1
+              if (next < 0) return
+              event.preventDefault()
+              setTab(actionTabs[next][0])
+              document
+                .getElementById(`action-tab-${actionTabs[next][0]}`)
+                ?.focus()
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <fieldset
+        disabled={pending || Boolean(blocked)}
+        className="actions-editor-fields"
+      >
+        <section
+          id="action-panel-basic"
+          role="tabpanel"
+          aria-labelledby="action-tab-basic"
+          hidden={tab !== 'basic'}
+          className="actions-tabpanel"
+        >
+          <h2>기본 정보</h2>
+          {!editing && (
+            <>
+              <div className="actions-field">
+                <label className="flex flex-col gap-2 text-sm">
+                  <span
+                    className="actions-field-label"
+                    data-required={!editing}
+                  >
+                    코드
+                  </span>
+                  <input
+                    className="rounded-lg border p-2 font-mono"
+                    name="code"
+                    aria-required={!editing}
+                    aria-invalid={
+                      Boolean(codeViolation) ||
+                      invalidField === 'code' ||
+                      undefined
+                    }
+                    value={draft.code}
+                    onChange={(event) =>
+                      update('code', event.target.value.toUpperCase())
+                    }
+                    disabled={editing}
+                    maxLength={64}
+                    autoComplete="off"
+
+                    aria-describedby={
+                      invalidField === 'code'
+                        ? 'action-code-help action-field-code-error'
+                        : 'action-code-help'
+                    }
+                  />
+                  <span
+                    id="action-code-help"
+                    className={
+                      codeViolation ? 'text-red-700' : 'text-slate-500'
+                    }
+                  >
+                    {codeViolation ||
+                      (editing
+                        ? '코드는 등록한 뒤 바꿀 수 없습니다.'
+                        : '영문 대문자로 시작하고 대문자·숫자·밑줄(_)만, 64자 이하. 예: ESTIMATE_COMPLETION')}
+                  </span>
+                </label>
+                {fieldError('code')}
+              </div>
+            </>
+          )}
+
+          <div className="actions-field">
+            <label className="flex flex-col gap-2 text-sm">
+              <span className="actions-field-label" data-required>
+                이름
+              </span>
+              <input
+                className="rounded-lg border p-2"
+                name="name"
+                aria-required={true}
+                aria-invalid={invalidField === 'name' || undefined}
+                aria-describedby={
+                  invalidField === 'name'
+                    ? 'action-field-name-error'
+                    : undefined
+                }
+                value={draft.name}
+                onChange={(event) => update('name', event.target.value)}
+                maxLength={200}
+              />
+            </label>
+            {fieldError('name')}
+          </div>
+          <div className="actions-field">
+            <label className="flex flex-col gap-2 text-sm">
+              <span className="actions-field-label" data-required>
+                설명
+              </span>
+              <textarea
+                className="min-h-20 rounded-lg border p-2"
+                name="description"
+                aria-required={true}
+                aria-invalid={invalidField === 'description' || undefined}
+                aria-describedby={
+                  invalidField === 'description'
+                    ? 'action-field-description-error'
+                    : undefined
+                }
+                value={draft.description}
+                onChange={(event) => update('description', event.target.value)}
+              />
+              <span className="text-slate-500">
+                Agent가 이 설명을 보고 언제 쓸지 판단합니다. 무엇을 하는지
+                구체적으로 적어 주세요.
+              </span>
+            </label>
+            {fieldError('description')}
+          </div>
+          <details
+            className="actions-disclosure"
+            open={technicalOpen}
+            onToggle={(event) => setTechnicalOpen(event.currentTarget.open)}
+          >
+            <summary>개발 연결 설정</summary>
+            <div className="actions-fields">
+              {editing && (
+                <>
+                  <div className="actions-field">
+                    <label className="flex flex-col gap-2 text-sm">
+                      <span
+                        className="actions-field-label"
+                        data-required={!editing}
+                      >
+                        코드
+                      </span>
+                      <input
+                        className="rounded-lg border p-2 font-mono"
+                        name="code"
+                        aria-required={!editing}
+                        aria-invalid={
+                          Boolean(codeViolation) ||
+                          invalidField === 'code' ||
+                          undefined
+                        }
+                        value={draft.code}
+                        onChange={(event) =>
+                          update('code', event.target.value.toUpperCase())
+                        }
+                        disabled={editing}
+                        maxLength={64}
+                        autoComplete="off"
+
+                        aria-describedby={
+                          invalidField === 'code'
+                            ? 'action-code-help action-field-code-error'
+                            : 'action-code-help'
+                        }
+                      />
+                      <span
+                        id="action-code-help"
+                        className={
+                          codeViolation ? 'text-red-700' : 'text-slate-500'
+                        }
+                      >
+                        {codeViolation ||
+                          (editing
+                            ? '코드는 등록한 뒤 바꿀 수 없습니다.'
+                            : '영문 대문자로 시작하고 대문자·숫자·밑줄(_)만, 64자 이하. 예: ESTIMATE_COMPLETION')}
+                      </span>
+                    </label>
+                    {fieldError('code')}
+                  </div>
+                </>
+              )}
+              <div className="actions-field">
+                <label className="flex flex-col gap-2 text-sm">
+                  <span className="actions-field-label" data-required>
+                    Handler 이름
+                  </span>
+                  <input
+                    className="rounded-lg border p-2 font-mono"
+                    name="handlerKey"
+                    aria-required={true}
+                    aria-invalid={invalidField === 'handlerKey' || undefined}
+                    aria-describedby={
+                      invalidField === 'handlerKey'
+                        ? 'action-field-handlerKey-error'
+                        : undefined
+                    }
+                    value={draft.handlerKey}
+                    onChange={(event) =>
+                      update('handlerKey', event.target.value)
+                    }
+                    maxLength={200}
+                    autoComplete="off"
+                  />
+                  <span className="text-slate-500">
+                    개발자가 구현할 기능 이름입니다. 보통 코드와 같게 둡니다.
+                  </span>
+                </label>
+                {fieldError('handlerKey')}
+              </div>
+            </div>
+          </details>
+        </section>
+        <section
+          id="action-panel-conditions"
+          role="tabpanel"
+          aria-labelledby="action-tab-conditions"
+          hidden={tab !== 'conditions'}
+          className="actions-tabpanel"
+        >
+          <h2>실행 조건</h2>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="actions-field">
+              <label className="flex flex-col gap-2 text-sm">
+                <span className="actions-field-label" data-required>
+                  데이터 변경
+                </span>
+                <select
+                  name="changesData"
+                  aria-required={true}
+                  aria-invalid={invalidField === 'changesData' || undefined}
+                  aria-describedby={
+                    invalidField === 'changesData'
+                      ? 'action-field-changesData-error'
+                      : undefined
+                  }
+                  value={draft.changesData}
+                  onChange={(event) =>
+                    update(
+                      'changesData',
+                      event.target.value as Draft['changesData'],
+                    )
+                  }
+                >
+                  <option value="">선택</option>
+                  <option value="WRITE">데이터를 바꿈</option>
+                  <option value="READ">데이터를 바꾸지 않음</option>
+                </select>
+              </label>
+              {fieldError('changesData')}
+            </div>
+
+            <label className="flex flex-col gap-2 text-sm">
+              대상
+              <select
+                className="rounded-lg border p-2"
+                value={draft.targetKind}
+                onChange={(event) => {
+                  const kind = event.target.value as ActionTargetKind
+                  setDraft((current) => ({
+                    ...current,
+                    targetKind: kind,
+                    targetObjectTypeId:
+                      kind === 'SYSTEM' ? '' : current.targetObjectTypeId,
+                  }))
+                }}
+              >
+                {Object.entries(targetKindLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-2 text-sm">
+              대상 객체 유형
+              <select
+                className="rounded-lg border p-2"
+                value={draft.targetObjectTypeId}
+                disabled={draft.targetKind === 'SYSTEM'}
+                aria-describedby={
+                  draft.targetKind === 'SYSTEM'
+                    ? 'action-system-help'
+                    : undefined
+                }
+                onChange={(event) =>
+                  update('targetObjectTypeId', event.target.value)
+                }
+              >
+                <option value="">지정 안 함</option>
+                {options.objectTypes.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.name} ({type.code})
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="actions-field">
+              <label className="flex flex-col gap-2 text-sm">
+                <span className="actions-field-label" data-required>
+                  필요 권한
+                </span>
+                <select
+                  className="rounded-lg border p-2"
+                  name="requiredPermission"
+                  aria-required={true}
+                  aria-invalid={
+                    invalidField === 'requiredPermission' || undefined
+                  }
+                  aria-describedby={
+                    invalidField === 'requiredPermission'
+                      ? 'action-field-requiredPermission-error'
+                      : undefined
+                  }
+                  value={draft.requiredPermission}
+                  onChange={(event) =>
+                    update('requiredPermission', event.target.value)
+                  }
+                >
+                  <option value="">권한 선택</option>
+                  {permissions.map((code) => (
+                    <option key={code} value={code}>
+                      {code}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {fieldError('requiredPermission')}
+            </div>
+          </div>
+          {draft.targetKind === 'SYSTEM' && (
+            <p id="action-system-help" className="text-sm text-slate-500">
+              시스템 전체가 대상이므로 객체 유형을 지정하지 않습니다.
+            </p>
+          )}
+          <label className="flex gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={draft.requiresConfirmation}
+              onChange={(event) =>
+                update('requiresConfirmation', event.target.checked)
+              }
+            />
+            실행 전에 사용자 확인 받기
+          </label>
+          <label className="flex gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={draft.isActive}
+              onChange={(event) => update('isActive', event.target.checked)}
+            />
+            사용
+          </label>
+          <details className="actions-disclosure">
+            <summary>권한·실행 기준</summary>
+            <p>
+              계획·요청처럼 데이터를 만드는 기능은 사용자의 명시적 요청이 있을
+              때 실행하고 이력에 남깁니다. 계산·조회 기능은 결과만 알려 줍니다.
+              필요 권한은 사용자별로 따로 확인합니다.
+            </p>
+          </details>
+        </section>
+        <section
+          id="action-panel-schema"
+          role="tabpanel"
+          aria-labelledby="action-tab-schema"
+          hidden={tab !== 'schema'}
+          className="actions-tabpanel"
+        >
+          <InputSchemaEditor
+            value={draft.schema}
+            onChange={(value) => update('schema', value)}
+          />
+          {fieldError('schema')}
+        </section>
       </fieldset>
-      {error && <ErrorState error={error} />}
+      {error && !invalidField && (
+        <div id="action-form-error">
+          <ErrorState error={error} />
+        </div>
+      )}
       {Boolean(blocked) && (
         <>
           <p className="text-sm">
@@ -487,13 +829,19 @@ function ActionDefinitionForm({
           </Button>
         </>
       )}
-      <p className="text-sm text-slate-500">
+      <p className="actions-save-help text-sm text-slate-500">
         통신 오류가 발생하면 자동 재전송하지 않습니다. 목록에서 처리 여부를
         확인한 뒤 다시 시도하세요.
       </p>
-      <Button type="submit" pending={pending} disabled={Boolean(blocked)}>
-        {editing ? '변경 저장' : 'Action 등록'}
-      </Button>
+      <div className="actions-save-row">
+        <p className="text-sm text-slate-500">
+          {original ? `수정 기준 버전 ${original.rowVersion} · ` : ''}
+          {dirty ? '저장하지 않은 변경 있음' : '변경사항 없음'}
+        </p>
+        <Button type="submit" pending={pending} disabled={Boolean(blocked)}>
+          {editing ? '변경 저장' : 'Action 등록'}
+        </Button>
+      </div>
     </form>
   )
 }
@@ -546,7 +894,7 @@ export default function ActionDefinitionEditorPage() {
       />
     )
   return (
-    <div className="management-page space-y-5">
+    <div className="management-page actions-definition-page space-y-5">
       <Link
         className="text-sm text-violet-700 underline"
         to={`/admin/actions${location.search}`}
