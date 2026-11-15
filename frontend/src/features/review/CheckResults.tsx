@@ -31,10 +31,12 @@ export function Result({
   result,
   candidate = true,
   compact = false,
+  samplesOnly = false,
 }: {
   result: CheckResult
   candidate?: boolean
   compact?: boolean
+  samplesOnly?: boolean
 }) {
   const samples = (
     <>
@@ -93,6 +95,25 @@ export function Result({
       )}
     </>
   )
+  if (samplesOnly)
+    return (
+      <section className="checks-samples" aria-label="선택한 규칙의 판정 근거">
+        <h3>
+          결과 #{result.id}
+          {result.linkMappingId == null
+            ? ''
+            : ` · 연결 규칙 #${result.linkMappingId}`}{' '}
+          · 판정 근거 표본
+        </h3>
+        <p className="text-sm">
+          {candidate ? '시험 매칭률' : '매칭률'}:{' '}
+          {result.matchRate == null || !Number.isFinite(result.matchRate)
+            ? '계산할 수 없음'
+            : `${(result.matchRate * 100).toFixed(1)}%`}
+        </p>
+        {samples}
+      </section>
+    )
   return (
     <article
       className={
