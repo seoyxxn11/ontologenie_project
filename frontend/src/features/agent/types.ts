@@ -74,7 +74,7 @@ export type QuestionRequest = {
   context?: Record<string, unknown>
 }
 
-// 첫 질문과 함께 보내는 참고 객체. 추천 질문 문장을 그 객체에 맞추는 데도 쓴다(150).
+// 첫 질문과 함께 보내는 참고 객체.
 export type ReferenceObject = {
   id: number
   name: string

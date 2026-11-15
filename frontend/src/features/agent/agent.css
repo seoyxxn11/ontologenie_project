@@ -389,6 +389,15 @@
 .agent-actions .ui-button {
   margin: 8px 0;
 }
+.agent-actions .agent-plan-toggle {
+  /* 클릭 영역은 유지하고 좌우 패딩 16px와 테두리 1px만큼 글자 시작점을 맞춘다. */
+  margin-inline-start: -17px;
+  text-underline-offset: 3px;
+}
+.agent-actions .agent-plan-toggle:is(:hover, :active):not(:disabled) {
+  background: transparent;
+  text-decoration: underline;
+}
 .agent-composer {
   flex-shrink: 0;
   border-top: 1px solid var(--ui-border);

@@ -9,18 +9,15 @@ import AgentIconButton from './AgentIconButton'
 import { useAuth } from '../auth/auth-context'
 import SavedQuestions from './SavedQuestions'
 import { MAX_SAVED_QUESTIONS, useSavedQuestions } from './savedQuestionStore'
-import SuggestedQuestions from './SuggestedQuestions'
-import { suggestedQuestions } from './suggestions'
 import type { ReferenceObject } from './types'
 
 type ChatComposerProps = {
   disabled: boolean
-  showSuggestions?: boolean
   initialDraft?: string
   draftValue?: string
   onDraftChange?: (draft: string) => void
   focusRequest?: number
-  // 첫 질문 전까지의 참고 객체. 추천 질문을 그 객체에 맞춘다. 없으면 null(150).
+  // 첫 질문 전까지 입력란 위에 표시할 참고 객체. 없으면 null.
   reference?: ReferenceObject | null
   onSend: (content: string) => Promise<void>
 }
@@ -33,7 +30,6 @@ function resizeInput(input: HTMLTextAreaElement) {
 
 function ChatComposer({
   disabled,
-  showSuggestions = true,
   initialDraft = '',
   draftValue,
   onDraftChange,
@@ -104,7 +100,7 @@ function ChatComposer({
     void send()
   }
 
-  // 추천 질문을 고르면 입력란에 채우고 바로 고쳐 쓸 수 있게 입력란으로 옮긴다.
+  // 저장한 질문을 고르면 입력란에 채우고 바로 고쳐 쓸 수 있게 입력란으로 옮긴다.
   function handlePick(text: string) {
     setDraft(text)
     inputRef.current?.focus()
@@ -113,13 +109,6 @@ function ChatComposer({
   return (
     <form onSubmit={handleSubmit} className="agent-composer">
       <div className="agent-composer-inner">
-        {showSuggestions && (
-          <SuggestedQuestions
-            questions={suggestedQuestions(reference, account?.roleCode ?? null)}
-            disabled={disabled}
-            onPick={handlePick}
-          />
-        )}
         <SavedQuestions
           questions={saved.questions}
           disabled={disabled}

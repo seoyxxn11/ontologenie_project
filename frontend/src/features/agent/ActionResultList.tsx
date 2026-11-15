@@ -65,6 +65,7 @@ function ActionResultList({ actions }: { actions: AgentAction[] }) {
               {planId !== null && (
                 <Button
                   variant="text"
+                  className="agent-plan-toggle"
                   aria-expanded={open}
                   onClick={() => setOpenPlanId(open ? null : planId)}
                 >
