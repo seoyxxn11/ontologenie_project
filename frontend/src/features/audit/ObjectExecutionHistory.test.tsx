@@ -300,24 +300,30 @@ test('객체 실행 상세에서 성공 결과·차단 이유·실패 이유와 
   renderHistory()
   await screen.findByText('3건')
   const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1)
-  for (const row of rows) {
-    await user.click(within(row).getByText('내용 보기'))
+  for (const [index, row] of rows.entries()) {
+    const trigger = within(row).getByText('내용 보기')
+    await user.click(trigger)
+    const dialog = within(await screen.findByRole('dialog'))
+    if (index === 0) {
+      expect(await dialog.findByText('재배정 계획 번호')).toBeVisible()
+      expect(dialog.getByText('1', { exact: true })).toBeVisible()
+      expect(dialog.getByText(/"planId": 1/)).not.toBeVisible()
+      await user.click(dialog.getByText('기술 정보 · JSON'))
+      expect(dialog.getByText(/"planId": 1/)).toBeVisible()
+    } else if (index === 1)
+      expect(await dialog.findByText('설비 조건 불일치')).toBeVisible()
+    else {
+      expect(await dialog.findByText('외부 응답 시간 초과')).toBeVisible()
+      await user.click(dialog.getByText('입력값', { selector: 'summary' }))
+      expect(dialog.getByText('권한으로 가림', { exact: true })).toBeVisible()
+      expect(
+        dialog.getByText(/"unitCost": "\(권한으로 가림\)"/),
+      ).not.toBeVisible()
+      await user.click(dialog.getByText('기술 정보 · JSON'))
+      expect(dialog.getByText(/"unitCost": "\(권한으로 가림\)"/)).toBeVisible()
+    }
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
   }
-  expect(await within(rows[0]).findByText('재배정 계획 번호')).toBeVisible()
-  expect(within(rows[0]).getByText('1', { exact: true })).toBeVisible()
-  expect(within(rows[0]).getByText(/"planId": 1/)).not.toBeVisible()
-  expect(await within(rows[1]).findByText('설비 조건 불일치')).toBeVisible()
-  expect(await within(rows[2]).findByText('외부 응답 시간 초과')).toBeVisible()
-  expect(
-    within(rows[2]).getByText('권한으로 가림', { exact: true }),
-  ).toBeVisible()
-  expect(
-    within(rows[2]).getByText(/"unitCost": "\(권한으로 가림\)"/),
-  ).not.toBeVisible()
-  for (const row of [rows[0], rows[2]])
-    await user.click(within(row).getByText('기술 정보 · JSON'))
-  expect(within(rows[0]).getByText(/"planId": 1/)).toBeVisible()
-  expect(
-    within(rows[2]).getByText(/"unitCost": "\(권한으로 가림\)"/),
-  ).toBeVisible()
 })

@@ -5,7 +5,7 @@ import DataTable from '../../components/DataTable'
 import Pagination from '../../components/Pagination'
 import { LoadingState, EmptyState, ErrorState } from '../../components/Feedback'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   fetchAuditExecutions,
   fetchObjectExecutions,
@@ -82,11 +82,11 @@ function scopeText(
   return '조회 범위: 권한에 따라 볼 수 있는 실행 이력'
 }
 
-// 종류 탭. 데이터 작업(DATA_JOB)은 [전체]에서만 보인다.
+// 기본 종류 선택. 전체 페이지에서는 데이터 작업을 추가로 구분한다.
 const categoryTabs: { value: ExecutionCategory | ''; label: string }[] = [
   { value: '', label: '전체' },
-  { value: 'ANALYSIS', label: categoryLabels.ANALYSIS },
   { value: 'OPERATION', label: categoryLabels.OPERATION },
+  { value: 'ANALYSIS', label: categoryLabels.ANALYSIS },
   { value: 'CHANGE', label: categoryLabels.CHANGE },
 ]
 
@@ -96,12 +96,16 @@ type ExecutionHistoryProps = {
   objectId?: number
   targetLabel?: string
   target?: { type: string; id: number }
+  navigation?: ReactNode
+  fullPage?: boolean
 }
 
 function ExecutionHistory({
   objectId,
   targetLabel,
   target,
+  navigation,
+  fullPage = false,
 }: ExecutionHistoryProps) {
   const [category, setCategory] = useState<ExecutionCategory | ''>('')
   const [fromDate, setFromDate] = useState('')
@@ -175,12 +179,16 @@ function ExecutionHistory({
     content = <EmptyState message="조건에 맞는 이력이 없습니다." />
   } else {
     content = (
-      <DataTable label="실행 이력" className="table-fixed min-w-[640px]">
+      <DataTable
+        label="실행 이력"
+        className="audit-table table-fixed min-w-[900px]"
+      >
         <thead className="bg-slate-50 text-sm text-slate-500">
           <tr>
-            <th className="w-[22%] px-3 py-2 font-normal">시각·실행자</th>
-            <th className="w-[24%] px-3 py-2 font-normal">동작·대상</th>
-            <th className="w-[12%] px-3 py-2 font-normal">결과</th>
+            <th className="w-[22%] px-3 py-2 font-normal">실행 시각</th>
+            <th className="w-[26%] px-3 py-2 font-normal">실행자</th>
+            <th className="w-[28%] px-3 py-2 font-normal">업무·대상</th>
+            <th className="w-[10%] px-3 py-2 font-normal">결과</th>
             <th className="px-3 py-2 font-normal">상세</th>
           </tr>
         </thead>
@@ -191,9 +199,29 @@ function ExecutionHistory({
               <tr key={execution.id}>
                 <td className="px-3 py-3">
                   <p>{formatKstDateTime(requestedAt)}</p>
-                  <p className="text-sm text-slate-500">
-                    {actorLabel(execution)}
-                  </p>
+                </td>
+                <td className="px-3 py-3">
+                  {fullPage ? (
+                    <>
+                      <p className="font-semibold">
+                        {execution.actorType === 'SYSTEM'
+                          ? '시스템'
+                          : (execution.actorName ??
+                            (execution.actorId
+                              ? `사용자 #${execution.actorId}`
+                              : actorTypeLabels[execution.actorType]))}
+                      </p>
+                      {execution.actorType !== 'SYSTEM' && (
+                        <p className="text-sm text-slate-500">
+                          {actorTypeLabels[execution.actorType]}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-slate-500">
+                      {actorLabel(execution)}
+                    </p>
+                  )}
                 </td>
                 <td className="px-3 py-3">
                   <p>{actionLabel(execution)}</p>
@@ -224,7 +252,7 @@ function ExecutionHistory({
                   </StatusBadge>
                 </td>
                 <td className="px-3 py-3">
-                  <ExecutionDetail execution={execution} />
+                  <ExecutionDetail execution={execution} modal={fullPage} />
                 </td>
               </tr>
             )
@@ -235,29 +263,41 @@ function ExecutionHistory({
   }
 
   return (
-    <div className="management-detail">
-      {/* 종류 탭은 096 전체 목록에서만 쓴다. 객체(080)나 대상(규칙 활동 기록 등)을 고른 화면에서는 숨긴다. */}
-      {objectId === undefined && target === undefined && (
-        <div
-          role="group"
-          aria-label="실행 이력 종류"
-          className="management-tabs mb-4"
-        >
-          {categoryTabs.map((tab) => (
-            <button
-              key={tab.value}
-              type="button"
-              aria-pressed={category === tab.value}
-              onClick={() => {
-                setCategory(tab.value)
-                setPage(0)
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      )}
+    <div className={`management-detail ${fullPage ? 'audit-history' : ''}`}>
+      <div className="audit-navigation">
+        {navigation}
+        {/* 종류 탭은 096 전체 목록에서만 쓴다. 객체(080)나 대상(규칙 활동 기록 등)을 고른 화면에서는 숨긴다. */}
+        {objectId === undefined && target === undefined && (
+          <div
+            role="group"
+            aria-label="실행 이력 종류"
+            className="management-tabs mb-4"
+          >
+            {(fullPage
+              ? [
+                  ...categoryTabs,
+                  {
+                    value: 'DATA_JOB' as const,
+                    label: categoryLabels.DATA_JOB,
+                  },
+                ]
+              : categoryTabs
+            ).map((tab) => (
+              <button
+                key={tab.value}
+                type="button"
+                aria-pressed={category === tab.value}
+                onClick={() => {
+                  setCategory(tab.value)
+                  setPage(0)
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <form
         className={`management-filter grid items-end gap-3 text-sm ${
           targetLabel
@@ -325,19 +365,21 @@ function ExecutionHistory({
           {formError}
         </p>
       )}
-      <p className="mt-2 text-sm text-slate-500">
-        {`${scopeText(objectId, target !== undefined, executionPage?.meta?.scope)} · Agent 조회 기록은 제외됩니다.`}
-      </p>
-      {executionPage && !isError && (
-        <p className="mt-3 text-sm text-slate-500">
-          {`${executionPage.meta?.totalElements ?? executionPage.data.length}건`}
+      <div className={fullPage ? 'audit-context' : ''}>
+        <p className="mt-2 text-sm text-slate-500">
+          {`${scopeText(objectId, target !== undefined, executionPage?.meta?.scope)} · Agent 조회 기록은 제외됩니다.`}
         </p>
-      )}
-      <div className="mt-2 text-sm">{content}</div>
+        {executionPage && !isError && (
+          <p className="mt-3 text-sm text-slate-500">
+            {`${executionPage.meta?.totalElements ?? executionPage.data.length}건`}
+          </p>
+        )}
+      </div>
+      <div className="audit-results mt-2 text-sm">{content}</div>
       {executionPage?.meta &&
         executionPage.meta.totalElements > 0 &&
         !isError && (
-          <div className="mt-4">
+          <div className="audit-pagination mt-4">
             <Pagination
               page={executionPage.meta.page}
               size={executionPage.meta.size}
