@@ -455,11 +455,11 @@ test('참고 객체는 첫 질문에만 보내고, 다음 질문부터는 보내
   const input = screen.getByLabelText('업무 질문')
   expect(await screen.findByText(SAMPLE_ANSWER)).toBeInTheDocument()
   await waitFor(() => expect(input).toBeEnabled())
-  // 미리 채운 질문을 다시 채우지 않고, 추천 질문도 기본 예시로 돌아간다.
+  // 미리 채운 질문을 다시 채우지 않고, 대화 중 추천 질문은 숨긴다.
   expect(input).toHaveValue('')
   expect(
-    screen.getByRole('button', { name: 'P103 비가동' }),
-  ).toBeInTheDocument()
+    screen.queryByRole('list', { name: '추천 질문' }),
+  ).not.toBeInTheDocument()
 
   await user.type(input, '06번의 실행 이력은?')
   await user.click(screen.getByRole('button', { name: '보내기' }))
@@ -469,7 +469,7 @@ test('참고 객체는 첫 질문에만 보내고, 다음 질문부터는 보내
   expect(sent[1]).toEqual({ content: '06번의 실행 이력은?' })
 })
 
-test('추천 질문을 고르면 입력란에 채우고, 답변을 기다리는 동안에는 고를 수 없다', async () => {
+test('새 대화의 추천 질문은 입력을 채우고, 전송 후에는 숨겨 답변 공간을 확보한다', async () => {
   const user = userEvent.setup()
   renderEnteredFromObject()
 
@@ -483,14 +483,11 @@ test('추천 질문을 고르면 입력란에 채우고, 답변을 기다리는 
   expect(input).toHaveFocus()
 
   await user.click(screen.getByRole('button', { name: '보내기' }))
-  // 처리 중인 답변이 화면에 보이는 동안(RUNNING) 추천 질문을 누를 수 없다.
-  // 첫 질문을 보냈으므로 추천 질문은 기본 예시로 바뀌어 있다.
   expect(await screen.findByText(/^답변 준비 중/)).toBeInTheDocument()
   expect(
-    await within(suggestions).findByRole('button', {
-      name: 'P103 비가동',
-    }),
-  ).toBeDisabled()
+    screen.queryByRole('list', { name: '추천 질문' }),
+  ).not.toBeInTheDocument()
+  expect(screen.getByLabelText('업무 질문')).toBeInTheDocument()
 })
 
 test('첫 질문을 보내는 사이 다른 대화로 옮기면, 답이 와도 원래 대화로 되돌아가지 않는다', async () => {
@@ -553,8 +550,8 @@ test('이미 질문이 있는 대화에 남은 기록으로 들어오면 참고 
   const input = await screen.findByLabelText('업무 질문')
   expect(input).toHaveValue('')
   expect(
-    screen.getByRole('button', { name: 'P103 비가동' }),
-  ).toBeInTheDocument()
+    screen.queryByRole('list', { name: '추천 질문' }),
+  ).not.toBeInTheDocument()
 
   await user.type(input, '06번의 실행 이력은?')
   await user.click(screen.getByRole('button', { name: '보내기' }))

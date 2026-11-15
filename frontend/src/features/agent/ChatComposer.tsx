@@ -15,6 +15,7 @@ import type { ReferenceObject } from './types'
 
 type ChatComposerProps = {
   disabled: boolean
+  showSuggestions?: boolean
   initialDraft?: string
   draftValue?: string
   onDraftChange?: (draft: string) => void
@@ -32,6 +33,7 @@ function resizeInput(input: HTMLTextAreaElement) {
 
 function ChatComposer({
   disabled,
+  showSuggestions = true,
   initialDraft = '',
   draftValue,
   onDraftChange,
@@ -111,11 +113,13 @@ function ChatComposer({
   return (
     <form onSubmit={handleSubmit} className="agent-composer">
       <div className="agent-composer-inner">
-        <SuggestedQuestions
-          questions={suggestedQuestions(reference, account?.roleCode ?? null)}
-          disabled={disabled}
-          onPick={handlePick}
-        />
+        {showSuggestions && (
+          <SuggestedQuestions
+            questions={suggestedQuestions(reference, account?.roleCode ?? null)}
+            disabled={disabled}
+            onPick={handlePick}
+          />
+        )}
         <SavedQuestions
           questions={saved.questions}
           disabled={disabled}
@@ -127,9 +131,6 @@ function ChatComposer({
             {reference.typeName} · {reference.name}
           </p>
         )}
-        <div className="agent-composer-label">
-          <label htmlFor="agent-input">업무 질문</label>
-        </div>
         <div className="agent-input-box">
           <textarea
             id="agent-input"

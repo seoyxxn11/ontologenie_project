@@ -219,6 +219,7 @@ function ConversationPanel({
       )}
       {composerReady && (
         <ChatComposer
+          showSuggestions={messages.length === 0 && !sending}
           draftValue={storedDraft?.content ?? entry?.draft ?? ''}
           onDraftChange={(content) =>
             onDraftChange(conversation.id, content, entry)
