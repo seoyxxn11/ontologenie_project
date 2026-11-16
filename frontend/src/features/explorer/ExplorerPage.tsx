@@ -12,7 +12,6 @@ import {
   fetchObjectLinkGroups,
   fetchObjects,
   fetchObjectTypes,
-  OBJECT_PAGE_SIZE,
   type ObjectFilters,
 } from './api'
 import ObjectCard from './ObjectCard'
@@ -25,6 +24,7 @@ import TypeRelations from './TypeRelations'
 import { formatCount, formatObjectKey, withAndParticle } from './format'
 import { positiveId, readSearchState, writeSearchState } from './searchState'
 import './explorer.css'
+import useExplorerLayout from './useExplorerLayout'
 
 // 유형 관계도는 그래프 라이브러리(React Flow)가 커서, 처음 화면에 그릴 때 따로 받아 온다.
 const ModelGraph = lazy(() => import('./ModelGraph'))
@@ -33,6 +33,7 @@ const ModelGraph = lazy(() => import('./ModelGraph'))
 const parseObjectId = positiveId
 
 function ExplorerPage() {
+  const { height, pageSize, setGraphPanel, setListPanel } = useExplorerLayout()
   // 고른 객체는 주소의 ?object=에 둔다. Agent 답변의 [객체 열기], 새로고침, 뒤로 가기가 같은 객체를 연다(151).
   const [searchParams, setSearchParams] = useSearchParams()
   const selectedId = parseObjectId(searchParams.get('object'))
@@ -127,8 +128,8 @@ function ExplorerPage() {
     refetch: refetchObjects,
     isPlaceholderData,
   } = useQuery({
-    queryKey: ['objects', filters, page],
-    queryFn: () => fetchObjects(filters, page),
+    queryKey: ['objects', filters, page, pageSize],
+    queryFn: () => fetchObjects(filters, page, pageSize),
     placeholderData: keepPreviousData,
   })
 
@@ -205,7 +206,7 @@ function ExplorerPage() {
   useEffect(() => {
     if (isFetching || isPlaceholderData || isError || totalCount === undefined)
       return
-    const lastPage = Math.max(0, Math.ceil(totalCount / OBJECT_PAGE_SIZE) - 1)
+    const lastPage = Math.max(0, Math.ceil(totalCount / pageSize) - 1)
     if (page > lastPage)
       setSearchParams(writeSearchState(searchParams, filters, lastPage), {
         replace: true,
@@ -213,6 +214,7 @@ function ExplorerPage() {
   }, [
     page,
     totalCount,
+    pageSize,
     isFetching,
     isPlaceholderData,
     isError,
@@ -299,6 +301,8 @@ function ExplorerPage() {
       <div className="explorer-workbench">
         <section
           aria-label="객체 목록"
+          ref={setListPanel}
+          style={height === undefined ? undefined : { height }}
           className="explorer-panel explorer-list"
         >
           {showRelated ? (
@@ -309,6 +313,7 @@ function ExplorerPage() {
               group={relatedGroup}
               selectedId={selectedId}
               vanished={groupsQuery.isSuccess && !group}
+              pageSize={pageSize}
               onSelect={inspectObject}
               onReturn={() => selectObject(anchorId)}
             />
@@ -335,12 +340,9 @@ function ExplorerPage() {
                 <Pagination
                   page={Math.min(
                     isPlaceholderData ? (objectPage.meta?.page ?? page) : page,
-                    Math.max(
-                      0,
-                      Math.ceil((totalCount ?? 0) / OBJECT_PAGE_SIZE) - 1,
-                    ),
+                    Math.max(0, Math.ceil((totalCount ?? 0) / pageSize) - 1),
                   )}
-                  size={OBJECT_PAGE_SIZE}
+                  size={pageSize}
                   totalElements={totalCount ?? 0}
                   onChange={(next) =>
                     setSearchParams(
@@ -356,7 +358,11 @@ function ExplorerPage() {
           )}
         </section>
 
-        <section aria-label="관계도" className="explorer-panel explorer-graph">
+        <section
+          ref={setGraphPanel}
+          aria-label="관계도"
+          className="explorer-panel explorer-graph"
+        >
           <div className="explorer-panel-heading">
             <h2>{graphTitle}</h2>
             <div className="explorer-panel-actions">

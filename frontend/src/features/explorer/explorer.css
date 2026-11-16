@@ -52,7 +52,7 @@
   margin-top: 32px;
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr) 292px;
-  align-items: stretch;
+  align-items: start;
   gap: 16px;
 }
 .explorer-panel {
@@ -784,4 +784,39 @@
   min-width: 0;
   max-width: 100%;
   flex-shrink: 1;
+}
+
+.explorer-list {
+  --explorer-row-min-height: 80px;
+  overflow: hidden;
+}
+.explorer-list:has(.explorer-related-context) {
+  --explorer-row-min-height: 72px;
+}
+.explorer-list .explorer-object-list {
+  grid-auto-rows: minmax(var(--explorer-row-min-height), 1fr);
+}
+.explorer-list .explorer-object-row {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: var(--explorer-row-min-height);
+  overflow: hidden;
+}
+.explorer-list .explorer-object-name,
+.explorer-list .explorer-object-meta > span,
+.explorer-list .explorer-object-row > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.explorer-list .explorer-panel-heading {
+  flex-shrink: 0;
+}
+
+@container explorer-page (max-width: 600px) {
+  .explorer-list {
+    --explorer-row-min-height: 48px;
+  }
 }

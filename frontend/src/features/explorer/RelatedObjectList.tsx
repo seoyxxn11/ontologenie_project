@@ -20,6 +20,7 @@ type Props = {
   anchorName: string
   group: LinkGroup
   selectedId: number | null
+  pageSize?: number
   vanished: boolean
   onSelect: (id: number) => void
   onReturn: () => void
@@ -62,7 +63,13 @@ function ListHeading({
 }
 
 function RelatedObjectPage(props: Omit<Props, 'vanished'>) {
-  const { objectId, group, selectedId, onSelect } = props
+  const {
+    objectId,
+    group,
+    selectedId,
+    onSelect,
+    pageSize = OBJECT_PAGE_SIZE,
+  } = props
   const [params, setParams] = useSearchParams()
   const page = Math.min(positiveId(params.get('relatedPage')) ?? 0, 2147483647)
   function setPage(nextPage: number, replace = false) {
@@ -73,13 +80,13 @@ function RelatedObjectPage(props: Omit<Props, 'vanished'>) {
   }
   const client = useQueryClient()
   const query = useQuery({
-    queryKey: ['objects', objectId, 'related', group.key, page],
+    queryKey: ['objects', objectId, 'related', group.key, page, pageSize],
     queryFn: () =>
       fetchObjectLinks(
         objectId,
         page,
         { linkTypeId: group.linkTypeId, direction: group.direction },
-        OBJECT_PAGE_SIZE,
+        pageSize,
       ),
     placeholderData: keepPreviousData,
   })
@@ -109,7 +116,7 @@ function RelatedObjectPage(props: Omit<Props, 'vanished'>) {
 
   useEffect(() => {
     if (query.isFetching || query.isPlaceholderData || query.isError) return
-    const last = Math.max(0, Math.ceil(total / OBJECT_PAGE_SIZE) - 1)
+    const last = Math.max(0, Math.ceil(total / pageSize) - 1)
     if (page > last) {
       const next = new URLSearchParams(params)
       if (last > 0) next.set('relatedPage', String(last))
@@ -119,6 +126,7 @@ function RelatedObjectPage(props: Omit<Props, 'vanished'>) {
   }, [
     page,
     total,
+    pageSize,
     query.isFetching,
     query.isPlaceholderData,
     query.isError,
@@ -160,9 +168,9 @@ function RelatedObjectPage(props: Omit<Props, 'vanished'>) {
             query.isPlaceholderData || query.isError
               ? (data.meta?.page ?? page)
               : page,
-            Math.max(0, Math.ceil(total / OBJECT_PAGE_SIZE) - 1),
+            Math.max(0, Math.ceil(total / pageSize) - 1),
           )}
-          size={OBJECT_PAGE_SIZE}
+          size={pageSize}
           totalElements={total}
           onChange={(next) => setPage(next)}
           pending={query.isFetching}
