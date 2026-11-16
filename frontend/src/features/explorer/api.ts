@@ -19,7 +19,11 @@ export type ObjectFilters = {
 }
 
 // 076 권한 범위 객체 검색
-export function fetchObjects(filters: ObjectFilters, page = 0) {
+export function fetchObjects(
+  filters: ObjectFilters,
+  page = 0,
+  size = OBJECT_PAGE_SIZE,
+) {
   const params = new URLSearchParams()
   if (filters.q) {
     params.set('q', filters.q)
@@ -31,7 +35,7 @@ export function fetchObjects(filters: ObjectFilters, page = 0) {
     params.set(`propertyValues[${code}]`, value)
   }
   params.set('page', String(page))
-  params.set('size', String(OBJECT_PAGE_SIZE))
+  params.set('size', String(size))
   return apiGet<ObjectInstance[]>(`/objects?${params}`)
 }
 
