@@ -207,6 +207,15 @@
   position: sticky;
   top: 16px;
 }
+@media (min-width: 761px) {
+  .candidate-workbench > .candidate-detail-region {
+    /* 상세 본문이 목록을 기준으로 정한 행 높이를 늘리지 않게 한다. */
+    contain: size;
+    align-self: stretch;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
 .candidate-cards {
   max-height: max(320px, calc(100dvh - 180px));
   overflow-y: auto;
