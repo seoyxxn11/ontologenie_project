@@ -333,7 +333,7 @@ test('서버에서는 100건씩 모든 쪽을 받아 집계·검색하고 화면
   expect(list.getByText('2 / 6쪽 · 101건')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: '검색 적용' }))
   expect(await screen.findByText('후보 1건')).toBeInTheDocument()
-  expect(list.getByText('1 / 1쪽 · 1건')).toBeInTheDocument()
+  expect(list.getByText('총 1건')).toBeInTheDocument()
   expect(screen.getByLabelText('적용된 후보 검색 조건')).toHaveTextContent(
     '검색어: 후보 100',
   )

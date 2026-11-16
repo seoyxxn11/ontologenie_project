@@ -102,7 +102,7 @@ test('다음 페이지에서 기간·상태 검색과 초기화를 하면 첫 �
   await user.selectOptions(screen.getByLabelText('결과'), 'SUCCEEDED')
   await user.click(screen.getByRole('button', { name: '검색' }))
 
-  expect(await screen.findByText('1 / 1쪽 · 1건')).toBeInTheDocument()
+  expect(await screen.findByText('총 1건')).toBeInTheDocument()
   expect(Object.fromEntries(requests.at(-1)!)).toEqual({
     page: '0',
     size: '20',
@@ -128,7 +128,7 @@ test('공용 096 화면도 페이지 이동 후 종류를 바꾸면 첫 페이�
   await user.click(screen.getByRole('button', { name: '다음 페이지' }))
   await screen.findByText('2 / 2쪽 · 21건')
   await user.click(screen.getByRole('button', { name: '업무 실행' }))
-  expect(await screen.findByText('1 / 1쪽 · 1건')).toBeInTheDocument()
+  expect(await screen.findByText('총 1건')).toBeInTheDocument()
   expect(requests.at(-1)?.get('page')).toBe('0')
   expect(requests.at(-1)?.get('category')).toBe('OPERATION')
 })
@@ -298,7 +298,7 @@ test('객체 실행 상세에서 성공 결과·차단 이유·실패 이유와 
   )
   const user = userEvent.setup()
   renderHistory()
-  await screen.findByText(/ · 3건$/)
+  await screen.findByText('총 3건')
   const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1)
   for (const [index, row] of rows.entries()) {
     const trigger = within(row).getByText('내용 보기')

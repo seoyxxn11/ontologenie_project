@@ -53,7 +53,7 @@ test('객체 번호가 있으면 그 객체의 실행 이력을 보여준다', a
   renderAuditPage('/audit?objectId=301')
 
   expect(screen.getByRole('heading', { name: '실행 이력' })).toBeInTheDocument()
-  expect(await screen.findByText(/ · 3건$/)).toBeInTheDocument()
+  expect(await screen.findByText('총 3건')).toBeInTheDocument()
   expect(await screen.findByDisplayValue('프레스 3호기')).toBeInTheDocument()
   await openDetails('차단')
   expect(
@@ -75,7 +75,7 @@ test('객체 번호가 있으면 그 객체의 실행 이력을 보여준다', a
 test('객체 번호가 없으면 내 실행 이력을 보여준다', async () => {
   renderAuditPage('/audit')
 
-  expect(await screen.findByText(/ · 4건$/)).toBeInTheDocument()
+  expect(await screen.findByText('총 4건')).toBeInTheDocument()
   expect(screen.getByText('sync_run #77')).toBeInTheDocument()
   expect(screen.queryByLabelText('대상')).not.toBeInTheDocument()
   expect(
@@ -89,7 +89,7 @@ test('관리자는 같은 실행 이력에서 다른 사람의 실행과 변경 
   mockUser.roleCode = 'ADMIN'
   renderAuditPage('/audit')
 
-  expect(await screen.findByText(/ · 6건$/)).toBeInTheDocument()
+  expect(await screen.findByText('총 6건')).toBeInTheDocument()
   expect(
     screen.getByText(
       '조회 범위: 관리자에게 허용된 전체 실행 이력 · Agent 조회 기록은 제외됩니다.',
@@ -109,7 +109,7 @@ test('관리자는 같은 실행 이력에서 다른 사람의 실행과 변경 
 test('동작·실행자·대상을 이름으로 보여주고, 이름이 없는 대상은 번호로 보여준다', async () => {
   renderAuditPage('/audit')
 
-  expect(await screen.findByText(/ · 4건$/)).toBeInTheDocument()
+  expect(await screen.findByText('총 4건')).toBeInTheDocument()
   expect(
     screen.getAllByText('업무 실행 · 재배정 계획 생성').length,
   ).toBeGreaterThan(0)
@@ -124,11 +124,11 @@ test('동작·실행자·대상을 이름으로 보여주고, 이름이 없는 �
 test('종류 탭을 누르면 그 종류의 실행만 보여준다', async () => {
   const user = userEvent.setup()
   renderAuditPage('/audit')
-  await screen.findByText(/ · 4건$/)
+  await screen.findByText('총 4건')
 
   await user.click(screen.getByRole('button', { name: '업무 실행' }))
 
-  expect(await screen.findByText(/ · 3건$/)).toBeInTheDocument()
+  expect(await screen.findByText('총 3건')).toBeInTheDocument()
   expect(screen.queryByText('sync_run #77')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: '업무 실행' })).toHaveAttribute(
     'aria-pressed',
@@ -136,12 +136,12 @@ test('종류 탭을 누르면 그 종류의 실행만 보여준다', async () =>
   )
 
   await user.click(screen.getByRole('button', { name: '전체' }))
-  expect(await screen.findByText(/ · 4건$/)).toBeInTheDocument()
+  expect(await screen.findByText('총 4건')).toBeInTheDocument()
 })
 
 test('실패한 실행은 실패 이유를, 권한으로 가린 값은 가림 표시를 보여준다', async () => {
   renderAuditPage('/audit')
-  await screen.findByText(/ · 4건$/)
+  await screen.findByText('총 4건')
 
   await openDetails('실패')
   expect(await screen.findByText('실패 이유')).toBeInTheDocument()
@@ -177,32 +177,32 @@ test('서버가 조회 범위를 주지 않으면 권한에 따른 범위라고 
 test('결과로 검색하고 초기화하면 다시 전체를 보여준다', async () => {
   const user = userEvent.setup()
   renderAuditPage('/audit?objectId=301')
-  await screen.findByText(/ · 3건$/)
+  await screen.findByText('총 3건')
 
   await user.selectOptions(screen.getByLabelText('결과'), 'BLOCKED')
   await user.click(screen.getByRole('button', { name: '검색' }))
-  expect(await screen.findByText(/ · 1건$/)).toBeInTheDocument()
+  expect(await screen.findByText('총 1건')).toBeInTheDocument()
 
   await user.click(screen.getByRole('button', { name: '초기화' }))
-  expect(await screen.findByText(/ · 3건$/)).toBeInTheDocument()
+  expect(await screen.findByText('총 3건')).toBeInTheDocument()
 })
 
 test('기간으로 검색하면 그 기간의 이력만 보여준다', async () => {
   const user = userEvent.setup()
   renderAuditPage('/audit?objectId=301')
-  await screen.findByText(/ · 3건$/)
+  await screen.findByText('총 3건')
 
   await user.type(screen.getByLabelText('시작일'), '2026-10-26')
   await user.type(screen.getByLabelText('종료일'), '2026-10-26')
   await user.click(screen.getByRole('button', { name: '검색' }))
 
-  expect(await screen.findByText(/ · 1건$/)).toBeInTheDocument()
+  expect(await screen.findByText('총 1건')).toBeInTheDocument()
 })
 
 test('시작일이 종료일보다 늦으면 검색하지 않고 안내한다', async () => {
   const user = userEvent.setup()
   renderAuditPage('/audit?objectId=301')
-  await screen.findByText(/ · 3건$/)
+  await screen.findByText('총 3건')
 
   await user.type(screen.getByLabelText('시작일'), '2026-10-27')
   await user.type(screen.getByLabelText('종료일'), '2026-10-26')
@@ -211,7 +211,7 @@ test('시작일이 종료일보다 늦으면 검색하지 않고 안내한다', 
   expect(screen.getByRole('alert')).toHaveTextContent(
     '종료일은 시작일 이후로 선택해 주세요.',
   )
-  expect(screen.getByText(/ · 3건$/)).toBeInTheDocument()
+  expect(screen.getByText('총 3건')).toBeInTheDocument()
 })
 
 test('실행 이력 조회가 실패하면 오류 안내를 보여준다', async () => {
@@ -249,9 +249,9 @@ test('직접 접속하거나 종류를 바꿔도 복귀 화살표는 표시하�
 test('데이터 작업을 따로 조회하고 초기화해도 선택 종류를 유지한다', async () => {
   const user = userEvent.setup()
   renderAuditPage('/audit')
-  await screen.findByText(/ · 4건$/)
+  await screen.findByText('총 4건')
   await user.click(screen.getByRole('button', { name: '데이터 작업' }))
-  expect(await screen.findByText(/ · 1건$/)).toBeInTheDocument()
+  expect(await screen.findByText('총 1건')).toBeInTheDocument()
   expect(screen.getByText('sync_run #77')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: '초기화' }))
   expect(screen.getByRole('button', { name: '데이터 작업' })).toHaveAttribute(
@@ -263,7 +263,7 @@ test('데이터 작업을 따로 조회하고 초기화해도 선택 종류를 �
 test('상세를 닫으면 검색 입력과 목록을 유지하고 호출 버튼에 포커스를 돌린다', async () => {
   const user = userEvent.setup()
   renderAuditPage('/audit')
-  await screen.findByText(/ · 4건$/)
+  await screen.findByText('총 4건')
   await user.type(screen.getByLabelText('시작일'), '2026-10-01')
   const trigger = screen.getAllByRole('button', { name: '내용 보기' })[0]
   await user.click(trigger)

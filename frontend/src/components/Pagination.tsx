@@ -24,8 +24,12 @@ function Pagination({
     if (!pending && page !== currentPage) onChange(currentPage)
   }, [page, currentPage, totalPages, pending, onChange])
 
-  if (totalPages <= 0) {
-    return <p className="ui-pagination-empty">0건</p>
+  if (totalPages <= 1) {
+    return showSummary ? (
+      <p className="ui-pagination-empty" aria-live="polite" aria-atomic="true">
+        {totalPages > 0 ? `총 ${totalElements}건` : '0건'}
+      </p>
+    ) : null
   }
   const start = Math.max(0, Math.min(currentPage - 2, totalPages - 5))
   const pages = Array.from(

@@ -690,7 +690,7 @@ test('마지막 페이지의 유일한 문제를 상태 변경하면 첫 페이�
     await screen.findByRole('button', { name: '#1 · 미연결' }),
   ).toBeInTheDocument()
   expect(pages).toEqual([1, 1, 0])
-  expect(screen.getByText('1 / 1쪽 · 20건')).toBeInTheDocument()
+  expect(screen.getByText('총 20건')).toBeInTheDocument()
 })
 
 test('확인중인 미연결 문제에서 058을 호출하고 연결 결과를 표시한다', async () => {
