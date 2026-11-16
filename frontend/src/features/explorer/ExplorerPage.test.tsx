@@ -526,6 +526,82 @@ test('상세 조회 권한이 없으면 서버가 준 안내를 보여준다', a
   ).toBeInTheDocument()
 })
 
+test('상세 조회가 서버 오류로 실패하면 다시 불러오기로 복구한다', async () => {
+  server.use(
+    http.get(
+      '/api/v1/objects/301',
+      () =>
+        HttpResponse.json(
+          {
+            error: {
+              code: 'INTERNAL_ERROR',
+              message: '서버 오류가 발생했습니다.',
+              details: {},
+              requestId: 'mock-request-id',
+            },
+          },
+          { status: 500 },
+        ),
+      { once: true },
+    ),
+  )
+  const user = userEvent.setup()
+  renderExplorerPage()
+
+  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
+  const retries = await screen.findAllByRole('button', {
+    name: '다시 불러오기',
+  })
+  await user.click(retries[0])
+
+  expect(
+    await screen.findByRole('heading', { name: '프레스 3호기' }),
+  ).toBeInTheDocument()
+})
+
+test('상세 권한 오류에는 다시 불러오기를 보여 주지 않는다', async () => {
+  server.use(
+    http.get('/api/v1/objects/301', () =>
+      HttpResponse.json(
+        {
+          error: {
+            code: 'FORBIDDEN',
+            message: '요청을 실행할 권한이 없습니다.',
+            details: {},
+            requestId: 'mock-request-id',
+          },
+        },
+        { status: 403 },
+      ),
+    ),
+  )
+  const user = userEvent.setup()
+  renderExplorerPage()
+
+  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
+
+  expect((await screen.findAllByRole('alert')).length).toBeGreaterThan(0)
+  expect(
+    screen.queryByRole('button', { name: '다시 불러오기' }),
+  ).not.toBeInTheDocument()
+})
+
+test('상세를 다시 읽다 실패해도 마지막으로 받은 내용을 유지한다', async () => {
+  const user = userEvent.setup()
+  const client = renderExplorerPage()
+
+  await user.click(await screen.findByRole('button', { name: /프레스 3호기/ }))
+  await screen.findByRole('heading', { name: '프레스 3호기' })
+  server.use(
+    http.get('/api/v1/objects/301', () =>
+      HttpResponse.json({}, { status: 500 }),
+    ),
+  )
+  await client.refetchQueries({ queryKey: ['objects', 301] })
+
+  expect(screen.getByRole('heading', { name: '프레스 3호기' })).toBeVisible()
+})
+
 async function openEvidenceDialog(objectName: RegExp) {
   const user = userEvent.setup()
   renderExplorerPage()

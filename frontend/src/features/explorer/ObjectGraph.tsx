@@ -1,6 +1,7 @@
 import { useId, useLayoutEffect, useRef } from 'react'
 import { formatCount, formatObjectCode, formatObjectKey } from './format'
 import { useQuery } from '@tanstack/react-query'
+import { ErrorState } from '../../components/Feedback'
 import { fetchObject, fetchObjectLinkGroups } from './api'
 import {
   arrowLine,
@@ -53,12 +54,22 @@ function ObjectGraphContent({
     return <p className="text-slate-500">관계도를 불러오는 중…</p>
   }
 
-  if (objectQuery.isError) {
-    return <p className="text-red-600">{objectQuery.error.message}</p>
+  if (objectQuery.isError && !objectQuery.data) {
+    return (
+      <ErrorState
+        error={objectQuery.error}
+        onRetry={() => void objectQuery.refetch()}
+      />
+    )
   }
 
   if (groupsQuery.isError && !groupsQuery.data) {
-    return <p className="text-red-600">{groupsQuery.error.message}</p>
+    return (
+      <ErrorState
+        error={groupsQuery.error}
+        onRetry={() => void groupsQuery.refetch()}
+      />
+    )
   }
 
   const object = objectQuery.data

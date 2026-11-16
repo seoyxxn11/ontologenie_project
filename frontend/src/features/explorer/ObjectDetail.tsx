@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router'
 import Button from '../../components/Button'
+import { ErrorState } from '../../components/Feedback'
 import StatusBadge from '../../components/StatusBadge'
 import { createConversation } from '../agent/api'
 import type { AgentConversation, AgentEntryState } from '../agent/types'
@@ -46,6 +47,7 @@ function ObjectDetailContent({ objectId }: ObjectDetailContentProps) {
     isPending,
     isError,
     error,
+    refetch,
   } = useQuery({
     queryKey: ['objects', objectId],
     queryFn: () => fetchObject(objectId),
@@ -89,8 +91,9 @@ function ObjectDetailContent({ objectId }: ObjectDetailContentProps) {
     return <p className="text-slate-500">상세 정보를 불러오는 중…</p>
   }
 
-  if (isError) {
-    return <p className="text-red-600">{error.message}</p>
+  // 다시 읽기만 실패하면 마지막으로 받은 상세를 그대로 보여 준다.
+  if (isError && !object) {
+    return <ErrorState error={error} onRetry={() => void refetch()} />
   }
 
   const source = object.sourceSystemName
