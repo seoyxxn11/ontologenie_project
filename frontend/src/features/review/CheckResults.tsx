@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import Button from '../../components/Button'
 import DataTable from '../../components/DataTable'
 import Pagination from '../../components/Pagination'
@@ -236,6 +236,8 @@ export default function CheckResults({
   onRefresh: () => void
 }) {
   const run = proposal.latestCheck
+  const location = useLocation()
+  const returnState = { historyReturnTo: location.pathname + location.search }
   if (!requiresCandidateCheck(proposal))
     return (
       <section className="space-y-2 management-panel" aria-label="정합성 검사">
@@ -257,7 +259,11 @@ export default function CheckResults({
         <details className="candidate-check-details">
           <summary>검사 안내·수동 검사</summary>
           <div className="flex flex-wrap items-center gap-3">
-            <Link to="/admin/checks" className="text-sm underline">
+            <Link
+              to="/admin/checks"
+              state={returnState}
+              className="text-sm underline"
+            >
               수동 검사·실행 목록
             </Link>
             <p className="text-sm text-slate-500">
@@ -268,7 +274,11 @@ export default function CheckResults({
         </details>
       ) : (
         <div className="flex flex-wrap items-center gap-3">
-          <Link to="/admin/checks" className="text-sm underline">
+          <Link
+            to="/admin/checks"
+            state={returnState}
+            className="text-sm underline"
+          >
             수동 검사·실행 목록
           </Link>
           <p className="text-sm text-slate-500">
