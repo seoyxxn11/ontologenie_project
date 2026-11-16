@@ -5,6 +5,10 @@ import './index.css'
 import App from './App.tsx'
 import { ApiError } from './api/errors'
 import { prepareDevelopmentApi } from './developmentApi'
+import { trackUiMotionInput } from './components/uiMotion'
+
+const stopTrackingUiMotion = trackUiMotionInput()
+if (import.meta.hot) import.meta.hot.dispose(stopTrackingUiMotion)
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,12 +23,17 @@ const queryClient = new QueryClient({
 })
 
 prepareDevelopmentApi()
-  .then((ready) => {
+  .then(async (ready) => {
     if (!ready) return
+    const preview =
+      import.meta.env.DEV && new URLSearchParams(location.search).has('uiQa')
+        ? await (await import('./mocks/uiPreview')).prepareUiPreview()
+        : null
     createRoot(document.getElementById('root')!).render(
       <StrictMode>
         <QueryClientProvider client={queryClient}>
           <App />
+          {preview}
         </QueryClientProvider>
       </StrictMode>,
     )

@@ -1,0 +1,37 @@
+.ui-preview-tools {
+  position: fixed;
+  z-index: 300;
+  bottom: 8px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100vw - 16px);
+  overflow-x: auto;
+  border: 1px solid #b8b8b8;
+  border-radius: 8px;
+  padding: 4px 8px;
+  background: #eee;
+  color: #222;
+  font: 12px / 18px system-ui;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+.ui-preview-tools :is(button, select, a) {
+  flex-shrink: 0;
+  min-height: 30px;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+  padding: 4px 8px;
+  background: #eee;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.ui-preview-tools button[aria-pressed='true'] {
+  background: white;
+  font-weight: 700;
+}
+.ui-preview-tools span {
+  color: #555;
+}

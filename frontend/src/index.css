@@ -2,4 +2,5 @@
 @import './features/review/rules.css';
 @import './components/workspace.css';
 @import './components/ui.css';
+@import './components/uiMotion.css';
 @import './components/management.css';
