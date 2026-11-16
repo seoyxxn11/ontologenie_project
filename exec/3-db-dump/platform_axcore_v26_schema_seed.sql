@@ -1,0 +1,5606 @@
+--
+-- PostgreSQL database dump
+--
+
+\restrict vta38cNcm6x8O9t1qWfPXk1K578ihawnVyeWqGeOgoz3wQI4yUBxZ3DVmYAjmKU
+
+-- Dumped from database version 18.6 (Debian 18.6-1.pgdg13+2)
+-- Dumped by pg_dump version 18.6 (Debian 18.6-1.pgdg13+2)
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- Name: platform; Type: SCHEMA; Schema: -; Owner: -
+--
+
+CREATE SCHEMA platform;
+
+
+--
+-- Name: pg_trgm; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA platform;
+
+
+--
+-- Name: EXTENSION pg_trgm; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION pg_trgm IS 'text similarity measurement and index searching based on trigrams';
+
+
+--
+-- Name: guard_immutable_row(); Type: FUNCTION; Schema: platform; Owner: -
+--
+
+CREATE FUNCTION platform.guard_immutable_row() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'platform', 'pg_temp'
+    AS $$
+BEGIN
+    RAISE EXCEPTION '% 행은 만든 뒤 수정·삭제할 수 없습니다. 새 revision을 만드세요', TG_TABLE_NAME;
+END $$;
+
+
+--
+-- Name: guard_link_mapping_condition(); Type: FUNCTION; Schema: platform; Owner: -
+--
+
+CREATE FUNCTION platform.guard_link_mapping_condition() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'platform', 'pg_temp'
+    AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        -- now()는 트랜잭션 시작 시각이므로, 같은 트랜잭션에서 만든 규칙에만 항목을 추가할 수 있다
+        IF NOT EXISTS (SELECT 1 FROM link_mapping m WHERE m.id = NEW.link_mapping_id AND m.created_at = now()) THEN
+            RAISE EXCEPTION '이미 만들어진 규칙 개정본(%)에는 비교 항목을 추가할 수 없습니다', NEW.link_mapping_id;
+        END IF;
+        RETURN NEW;
+    END IF;
+    RAISE EXCEPTION '규칙 비교 항목은 수정·삭제할 수 없습니다. 새 revision을 만드세요';
+END $$;
+
+
+--
+-- Name: guard_link_mapping_update(); Type: FUNCTION; Schema: platform; Owner: -
+--
+
+CREATE FUNCTION platform.guard_link_mapping_update() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'platform', 'pg_temp'
+    AS $$
+BEGIN
+    IF (NEW.link_type_id, NEW.code, NEW.revision, NEW.source_filter, NEW.target_filter, NEW.description,
+        NEW.origin, NEW.proposal_item_id, NEW.created_at, NEW.created_by)
+       IS DISTINCT FROM
+       (OLD.link_type_id, OLD.code, OLD.revision, OLD.source_filter, OLD.target_filter, OLD.description,
+        OLD.origin, OLD.proposal_item_id, OLD.created_at, OLD.created_by) THEN
+        RAISE EXCEPTION 'link_mapping % 개정본의 내용은 바꿀 수 없습니다. 새 revision을 만드세요', OLD.id;
+    END IF;
+    IF OLD.status = 'RETIRED' AND NEW.status = 'ACTIVE' THEN
+        RAISE EXCEPTION 'RETIRED 개정본을 다시 ACTIVE로 바꿀 수 없습니다';
+    END IF;
+    RETURN NEW;
+END $$;
+
+
+--
+-- Name: guard_object_source_mapping_key(); Type: FUNCTION; Schema: platform; Owner: -
+--
+
+CREATE FUNCTION platform.guard_object_source_mapping_key() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO 'platform', 'pg_temp'
+    AS $$
+BEGIN
+    IF (NEW.key_columns IS DISTINCT FROM OLD.key_columns
+        OR NEW.source_resource_id IS DISTINCT FROM OLD.source_resource_id
+        OR NEW.object_type_id IS DISTINCT FROM OLD.object_type_id)
+       AND EXISTS (SELECT 1 FROM object_instance WHERE source_mapping_id = OLD.id) THEN
+        RAISE EXCEPTION '객체가 만들어진 매핑(%)의 키 컬럼·원천 자원·객체 유형은 바꿀 수 없습니다. 매핑을 새로 만드세요', OLD.id;
+    END IF;
+    RETURN NEW;
+END $$;
+
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: account; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.account (
+    id bigint NOT NULL,
+    login_id character varying(100) NOT NULL,
+    display_name character varying(100) NOT NULL,
+    password_hash character varying(255) NOT NULL,
+    role_id bigint NOT NULL,
+    status character varying(20) DEFAULT 'ACTIVE'::character varying NOT NULL,
+    must_change_password boolean DEFAULT true NOT NULL,
+    password_changed_at timestamp with time zone,
+    failed_login_count integer DEFAULT 0 NOT NULL,
+    last_login_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by bigint,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by bigint,
+    row_version integer DEFAULT 0 NOT NULL,
+    CONSTRAINT ck_account_failures CHECK ((failed_login_count >= 0)),
+    CONSTRAINT ck_account_status CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'LOCKED'::character varying, 'DISABLED'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE account; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.account IS '공개 가입 없음(D01). 계정은 지우지 않고 DISABLED로 둔다(D06). 사용자당 역할 하나';
+
+
+--
+-- Name: account_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.account ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.account_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: action_definition; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.action_definition (
+    id bigint NOT NULL,
+    code character varying(100) NOT NULL,
+    name character varying(200) NOT NULL,
+    description text NOT NULL,
+    target_kind character varying(20) NOT NULL,
+    target_object_type_id bigint,
+    handler_key character varying(200),
+    input_schema jsonb DEFAULT '{}'::jsonb NOT NULL,
+    action_kind character varying(10) NOT NULL,
+    requires_confirmation boolean DEFAULT true NOT NULL,
+    required_permission character varying(100) NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by bigint,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by bigint,
+    row_version integer DEFAULT 0 NOT NULL,
+    action_mode character varying(10) NOT NULL,
+    CONSTRAINT ck_action_definition_handler CHECK ((((action_mode)::text = 'EXECUTE'::text) = (handler_key IS NOT NULL))),
+    CONSTRAINT ck_action_definition_kind CHECK (((action_kind)::text = ANY ((ARRAY['READ'::character varying, 'WRITE'::character varying])::text[]))),
+    CONSTRAINT ck_action_definition_mode CHECK (((action_mode)::text = ANY ((ARRAY['EXECUTE'::character varying, 'RECORD'::character varying])::text[]))),
+    CONSTRAINT ck_action_definition_schema CHECK ((jsonb_typeof(input_schema) = 'object'::text)),
+    CONSTRAINT ck_action_definition_target CHECK ((((target_kind)::text = 'OBJECT'::text) OR (target_object_type_id IS NULL))),
+    CONSTRAINT ck_action_definition_target_kind CHECK (((target_kind)::text = ANY ((ARRAY['OBJECT'::character varying, 'SYSTEM'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE action_definition; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.action_definition IS '실행 가능한 기능의 계약. 실행 이력은 운영 ERD. [미정 U9] 온톨로지 AI·에이전트 AI Action 구분';
+
+
+--
+-- Name: COLUMN action_definition.target_object_type_id; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.action_definition.target_object_type_id IS 'OBJECT Action이 받는 객체 유형. 비우면 유형을 정하지 않은 것이고 입력 객체의 유형은 Handler가 검사한다. SYSTEM이면 늘 NULL';
+
+
+--
+-- Name: COLUMN action_definition.handler_key; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.action_definition.handler_key IS '091이 실행할 Handler 이름. EXECUTE일 때만 있다(ck_action_definition_handler)';
+
+
+--
+-- Name: COLUMN action_definition.action_mode; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.action_definition.action_mode IS 'EXECUTE = 업무 Action(091 → Handler), RECORD = 관리 Action(도메인 API가 직접 실행, 감사 기록 연결용). 등록 뒤 바꾸지 않는다. RECORD 정의는 Flyway로만 넣는다';
+
+
+--
+-- Name: action_definition_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.action_definition ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.action_definition_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: action_execution; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.action_execution (
+    id bigint NOT NULL,
+    request_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    event_kind character varying(30) NOT NULL,
+    action_definition_id bigint,
+    actor_type character varying(10) NOT NULL,
+    actor_id bigint,
+    actor_role_code character varying(20),
+    checked_permission_code character varying(100),
+    entry_point character varying(20) NOT NULL,
+    target_type character varying(50),
+    target_id bigint,
+    input jsonb DEFAULT '{}'::jsonb NOT NULL,
+    status character varying(20) NOT NULL,
+    result_category character varying(20),
+    blocked_reason text,
+    result jsonb DEFAULT '{}'::jsonb NOT NULL,
+    data_as_of timestamp with time zone,
+    agent_message_id bigint,
+    tool_code character varying(100),
+    sequence_no integer,
+    duration_ms integer,
+    requested_at timestamp with time zone DEFAULT now() NOT NULL,
+    finished_at timestamp with time zone,
+    CONSTRAINT ck_action_execution_action CHECK ((((event_kind)::text <> 'ACTION'::text) OR (action_definition_id IS NOT NULL))),
+    CONSTRAINT ck_action_execution_actor CHECK (((actor_type)::text = ANY ((ARRAY['USER'::character varying, 'AGENT'::character varying, 'SYSTEM'::character varying])::text[]))),
+    CONSTRAINT ck_action_execution_agent CHECK ((((actor_type)::text <> 'AGENT'::text) OR (agent_message_id IS NOT NULL))),
+    CONSTRAINT ck_action_execution_block CHECK ((((status)::text <> 'BLOCKED'::text) OR (blocked_reason IS NOT NULL))),
+    CONSTRAINT ck_action_execution_blockkind CHECK ((((status)::text <> 'BLOCKED'::text) OR ((event_kind)::text = 'ACTION'::text))),
+    CONSTRAINT ck_action_execution_category CHECK ((((((event_kind)::text = 'AGENT_QUERY'::text) AND ((status)::text = 'SUCCEEDED'::text)) = (result_category IS NOT NULL)) AND ((result_category IS NULL) OR ((result_category)::text = ANY ((ARRAY['FOUND'::character varying, 'NO_DATA'::character varying, 'UNLINKED'::character varying, 'DENIED'::character varying])::text[]))))),
+    CONSTRAINT ck_action_execution_done CHECK ((((status)::text = 'RUNNING'::text) = (finished_at IS NULL))),
+    CONSTRAINT ck_action_execution_entry CHECK (((entry_point)::text = ANY ((ARRAY['WEB'::character varying, 'AGENT'::character varying, 'BATCH'::character varying, 'SYSTEM'::character varying, 'INTERNAL'::character varying])::text[]))),
+    CONSTRAINT ck_action_execution_kind CHECK (((event_kind)::text = ANY ((ARRAY['ACTION'::character varying, 'AGENT_QUERY'::character varying, 'SYNC_RUN'::character varying, 'CHECK_RUN'::character varying, 'ANALYSIS_RUN'::character varying, 'SOURCE_CHECK'::character varying, 'SOURCE_PREVIEW'::character varying, 'HOLD_AUTO_RESOLVE'::character varying, 'RESTRICTED_VIEW'::character varying])::text[]))),
+    CONSTRAINT ck_action_execution_ms CHECK (((duration_ms IS NULL) OR (duration_ms >= 0))),
+    CONSTRAINT ck_action_execution_person CHECK ((((actor_type)::text = 'SYSTEM'::text) OR (actor_id IS NOT NULL))),
+    CONSTRAINT ck_action_execution_query CHECK ((((event_kind)::text <> 'AGENT_QUERY'::text) OR ((agent_message_id IS NOT NULL) AND (tool_code IS NOT NULL) AND (sequence_no IS NOT NULL)))),
+    CONSTRAINT ck_action_execution_seq CHECK (((sequence_no IS NULL) OR (sequence_no > 0))),
+    CONSTRAINT ck_action_execution_status CHECK (((status)::text = ANY ((ARRAY['RUNNING'::character varying, 'SUCCEEDED'::character varying, 'BLOCKED'::character varying, 'FAILED'::character varying])::text[]))),
+    CONSTRAINT ck_action_execution_target CHECK (((target_type IS NULL) = (target_id IS NULL)))
+);
+
+
+--
+-- Name: TABLE action_execution; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.action_execution IS '로그 단일 테이블(노션 O4 메모, 2026-10-27). 주요 동작(FN-LOG-01)을 모두 남긴다: Action 실행·차단(검증에서 막힌 요청 포함), Agent 조회, 수집·검사·분석·연결 검사·원천 표본 작업, 보류 건 자동 해소. 실행 당시 역할·검사 권한은 코드 스냅샷. 관리자 화면(S09)은 이 표를 조회하되 Agent 조회는 보여주지 않는다(결정 7). 작업의 진행 상태 자체는 sync_run·check_run·analysis_run·source_connection_check·source_preview에 둔다';
+
+
+--
+-- Name: action_execution_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.action_execution ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.action_execution_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: agent_conversation; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.agent_conversation (
+    id bigint NOT NULL,
+    account_id bigint NOT NULL,
+    title character varying(200),
+    started_at timestamp with time zone DEFAULT now() NOT NULL,
+    last_message_at timestamp with time zone DEFAULT now() NOT NULL,
+    summary text,
+    summarized_until_message_id bigint,
+    deleted_at timestamp with time zone,
+    summary_access_scope text,
+    CONSTRAINT ck_agent_conversation_summary CHECK (((summary IS NULL) = (summarized_until_message_id IS NULL)))
+);
+
+
+--
+-- Name: COLUMN agent_conversation.summary; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.agent_conversation.summary IS '최근 대화 원문 범위 밖의 오래된 대화 요약(333). 물어본 대상·기간·주제만 남기고 조회 결과 숫자는 넣지 않는다. 질문 해석 AI에만 넘기며, 이전 답변에서 확정한 조건과 다르면 조건을 따른다. NULL이면 아직 요약할 대화가 없다';
+
+
+--
+-- Name: COLUMN agent_conversation.summarized_until_message_id; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.agent_conversation.summarized_until_message_id IS '요약에 넣은 마지막 메시지 ID(agent_message.id, 333). 다음 요약은 이 뒤의 메시지만 이전 요약에 합친다. 같은 대화의 요약이 동시에 만들어지면 이 값이 읽은 때와 같을 때만 저장해 나중 것이 앞선 것을 덮지 않게 한다. 메시지는 대화와 함께만 지워지므로 외래 키는 두지 않는다';
+
+
+--
+-- Name: COLUMN agent_conversation.deleted_at; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.agent_conversation.deleted_at IS '사용자가 대화를 지운 시각. NULL이면 지우지 않은 대화다. 지운 대화와 메시지는 감사 기록(action_execution·reassignment_plan)이 가리킬 수 있어 행을 지우지 않고 본인 화면에서만 숨긴다';
+
+
+--
+-- Name: COLUMN agent_conversation.summary_access_scope; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.agent_conversation.summary_access_scope IS '요약을 만든 권한 범위(JSON: 원천 정책 지문, 보이는 유형마다 민감 값 열람 여부·민감 속성). 지금 범위가 이보다 줄었으면 요약을 모델에 넘기지 않고 다음 요약 때 버린다. NULL이면 이 기능 전에 만든 요약이다';
+
+
+--
+-- Name: agent_conversation_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.agent_conversation ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.agent_conversation_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: agent_message; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.agent_message (
+    id bigint NOT NULL,
+    conversation_id bigint NOT NULL,
+    sender character varying(10) NOT NULL,
+    content text NOT NULL,
+    context jsonb DEFAULT '{}'::jsonb NOT NULL,
+    answer_meta jsonb DEFAULT '{}'::jsonb NOT NULL,
+    status character varying(20),
+    error_message text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ck_agent_message_error CHECK (((NOT ((status)::text IS DISTINCT FROM 'FAILED'::text)) = (error_message IS NOT NULL))),
+    CONSTRAINT ck_agent_message_json CHECK (((jsonb_typeof(context) = 'object'::text) AND (jsonb_typeof(answer_meta) = 'object'::text))),
+    CONSTRAINT ck_agent_message_sender CHECK (((sender)::text = ANY ((ARRAY['USER'::character varying, 'AGENT'::character varying])::text[]))),
+    CONSTRAINT ck_agent_message_status CHECK (((((sender)::text = 'AGENT'::text) = (status IS NOT NULL)) AND ((status IS NULL) OR ((status)::text = ANY ((ARRAY['RUNNING'::character varying, 'SUCCEEDED'::character varying, 'FAILED'::character varying])::text[])))))
+);
+
+
+--
+-- Name: TABLE agent_message; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.agent_message IS '대화 메시지. 질문·답변은 대화 기록이고 감사 대상이 아니다. 조회 도구 호출은 action_execution(AGENT_QUERY)에 남는다(2026-10-27)';
+
+
+--
+-- Name: COLUMN agent_message.answer_meta; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.agent_message.answer_meta IS 'AGENT: RUNNING이면 {stage}, 끝나면 정보별 결과(results[])·동기화 상태(syncStatus)·출처·기준 시점';
+
+
+--
+-- Name: COLUMN agent_message.status; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.agent_message.status IS 'AGENT: RUNNING(처리 중) / SUCCEEDED / FAILED(LLM 호출 실패·시간 초과 등 답변 자체 실패). USER면 NULL';
+
+
+--
+-- Name: agent_message_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.agent_message ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.agent_message_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: analysis_run; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.analysis_run (
+    id bigint NOT NULL,
+    run_kind character varying(20) NOT NULL,
+    analysis_range jsonb DEFAULT '{}'::jsonb NOT NULL,
+    work_key character varying(300) NOT NULL,
+    status character varying(20) DEFAULT 'QUEUED'::character varying NOT NULL,
+    requested_by bigint NOT NULL,
+    based_on_sync_run_id bigint,
+    requested_at timestamp with time zone DEFAULT now() NOT NULL,
+    started_at timestamp with time zone,
+    finished_at timestamp with time zone,
+    result_summary jsonb DEFAULT '{}'::jsonb NOT NULL,
+    error_message text,
+    CONSTRAINT ck_analysis_run_error CHECK ((((status)::text <> 'FAILED'::text) OR (error_message IS NOT NULL))),
+    CONSTRAINT ck_analysis_run_finished CHECK ((((status)::text = ANY ((ARRAY['SUCCEEDED'::character varying, 'FAILED'::character varying])::text[])) = (finished_at IS NOT NULL))),
+    CONSTRAINT ck_analysis_run_kind CHECK (((run_kind)::text = ANY ((ARRAY['INITIAL'::character varying, 'REANALYSIS'::character varying])::text[]))),
+    CONSTRAINT ck_analysis_run_status CHECK (((status)::text = ANY ((ARRAY['QUEUED'::character varying, 'RUNNING'::character varying, 'SUCCEEDED'::character varying, 'FAILED'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE analysis_run; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.analysis_run IS 'AI 분석·추출·후보 생성 실행. REANALYSIS = 원천이 바뀐 뒤 고른 테이블을 다시 분석(테이블 전체). 같은 work_key가 대기·실행 중이면 새로 만들지 않고 합류한다(A4)';
+
+
+--
+-- Name: COLUMN analysis_run.work_key; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.analysis_run.work_key IS '[A4] 원천 + 대상 테이블·문서 + 고른 컬럼(없으면 전체)을 정규화한 키. 같은 키가 대기·실행 중이면 합류';
+
+
+--
+-- Name: analysis_run_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.analysis_run ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.analysis_run_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: analysis_run_target; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.analysis_run_target (
+    analysis_run_id bigint NOT NULL,
+    source_resource_id bigint NOT NULL
+);
+
+
+--
+-- Name: TABLE analysis_run_target; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.analysis_run_target IS '관리자가 고른 분석 대상 표·문서·메모(FN-SRC-03)';
+
+
+--
+-- Name: batch_job_execution; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.batch_job_execution (
+    job_execution_id bigint NOT NULL,
+    version bigint,
+    job_instance_id bigint NOT NULL,
+    create_time timestamp without time zone NOT NULL,
+    start_time timestamp without time zone,
+    end_time timestamp without time zone,
+    status character varying(10),
+    exit_code character varying(2500),
+    exit_message character varying(2500),
+    last_updated timestamp without time zone
+);
+
+
+--
+-- Name: batch_job_execution_context; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.batch_job_execution_context (
+    job_execution_id bigint NOT NULL,
+    short_context character varying(2500) NOT NULL,
+    serialized_context text
+);
+
+
+--
+-- Name: batch_job_execution_params; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.batch_job_execution_params (
+    job_execution_id bigint NOT NULL,
+    parameter_name character varying(100) NOT NULL,
+    parameter_type character varying(100) NOT NULL,
+    parameter_value character varying(2500),
+    identifying character(1) NOT NULL
+);
+
+
+--
+-- Name: batch_job_execution_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+CREATE SEQUENCE platform.batch_job_execution_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: batch_job_instance; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.batch_job_instance (
+    job_instance_id bigint NOT NULL,
+    version bigint,
+    job_name character varying(100) NOT NULL,
+    job_key character varying(32) NOT NULL
+);
+
+
+--
+-- Name: batch_job_instance_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+CREATE SEQUENCE platform.batch_job_instance_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: batch_step_execution; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.batch_step_execution (
+    step_execution_id bigint NOT NULL,
+    version bigint NOT NULL,
+    step_name character varying(100) NOT NULL,
+    job_execution_id bigint NOT NULL,
+    create_time timestamp without time zone NOT NULL,
+    start_time timestamp without time zone,
+    end_time timestamp without time zone,
+    status character varying(10),
+    commit_count bigint,
+    read_count bigint,
+    filter_count bigint,
+    write_count bigint,
+    read_skip_count bigint,
+    write_skip_count bigint,
+    process_skip_count bigint,
+    rollback_count bigint,
+    exit_code character varying(2500),
+    exit_message character varying(2500),
+    last_updated timestamp without time zone
+);
+
+
+--
+-- Name: batch_step_execution_context; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.batch_step_execution_context (
+    step_execution_id bigint NOT NULL,
+    short_context character varying(2500) NOT NULL,
+    serialized_context text
+);
+
+
+--
+-- Name: batch_step_execution_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+CREATE SEQUENCE platform.batch_step_execution_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: cdc_offset; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.cdc_offset (
+    topic character varying(249) NOT NULL,
+    partition_no integer NOT NULL,
+    data_source_id bigint NOT NULL,
+    next_offset bigint NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    last_txid xid8,
+    last_commit_at timestamp with time zone,
+    last_message_at timestamp with time zone,
+    processing_lag_ms integer,
+    healthy_since timestamp with time zone,
+    recovery_reason character varying(40),
+    recovery_at timestamp with time zone,
+    resume_after timestamp with time zone,
+    CONSTRAINT ck_cdc_offset_lag CHECK (((processing_lag_ms IS NULL) OR (processing_lag_ms >= 0))),
+    CONSTRAINT ck_cdc_offset_next CHECK ((next_offset >= 0)),
+    CONSTRAINT ck_cdc_offset_partition CHECK ((partition_no >= 0)),
+    CONSTRAINT ck_cdc_offset_recovery CHECK (((recovery_reason IS NULL) = (recovery_at IS NULL))),
+    CONSTRAINT ck_cdc_offset_recovery_reason CHECK (((recovery_reason IS NULL) OR ((recovery_reason)::text = ANY ((ARRAY['SLOT_LOST'::character varying, 'OFFSET_EXPIRED'::character varying, 'EPOCH_UNCERTAIN'::character varying, 'TRANSACTION_TOO_LARGE'::character varying, 'PROTOCOL_ERROR'::character varying, 'SOURCE_CHANGED'::character varying, 'APPLY_FAILED'::character varying])::text[])))),
+    CONSTRAINT ck_cdc_offset_recovery_unhealthy CHECK (((recovery_reason IS NULL) OR (healthy_since IS NULL))),
+    CONSTRAINT ck_cdc_offset_resume CHECK (((resume_after IS NULL) OR (recovery_reason IS NULL)))
+);
+
+
+--
+-- Name: TABLE cdc_offset; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.cdc_offset IS 'CDC 소비자의 원천별 상태와 체크포인트. 원천마다 토픽 하나({data_source.code}.all)·파티션 1개라 원천마다 한 행이다(V12, 316). 소비자는 원천 트랜잭션(BEGIN~END)을 객체에 반영하는 같은 트랜잭션에서 이 행을 쓴다. 재시작하면 Kafka에 커밋한 위치가 아니라 next_offset으로 위치를 잡는다. 복제 슬롯이 깨졌거나 next_offset이 토픽 보관 기간을 넘었으면 recovery_reason을 남기고 그 원천의 CDC 테이블을 전체 다시 읽어 복구한다(199)';
+
+
+--
+-- Name: COLUMN cdc_offset.next_offset; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.cdc_offset.next_offset IS '다음에 읽을 offset. 반영을 마친 원천 트랜잭션의 END 다음(또는 트랜잭션 밖 heartbeat 다음)이다. 원천 트랜잭션 중간을 가리키지 않는다';
+
+
+--
+-- Name: COLUMN cdc_offset.updated_at; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.cdc_offset.updated_at IS '마지막으로 이 행을 저장한 시각';
+
+
+--
+-- Name: COLUMN cdc_offset.last_txid; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.cdc_offset.last_txid IS '마지막으로 반영한 원천 트랜잭션의 번호(epoch를 복원한 xid8). 다음 이벤트 txId(32비트)의 epoch 복원 기준값이다. NULL이면 처음 시작이라 원천 pg_current_snapshot()의 xmax를 쓴다. 객체의 옛 적재 스냅샷은 기준값으로 쓰지 않는다';
+
+
+--
+-- Name: COLUMN cdc_offset.last_commit_at; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.cdc_offset.last_commit_at IS '마지막으로 반영한 원천 트랜잭션의 원천 커밋 시각(source.ts_ms, 원천 서버 시계). 화면 기준 시점·data_basis 표시용이고 판정 근거가 아니다';
+
+
+--
+-- Name: COLUMN cdc_offset.last_message_at; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.cdc_offset.last_message_at IS '변경·트랜잭션 경계·heartbeat 중 마지막으로 받은 메시지 시각(플랫폼 시계). 변경이 없는 원천도 커넥터가 살아 있음을 안다';
+
+
+--
+-- Name: COLUMN cdc_offset.processing_lag_ms; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.cdc_offset.processing_lag_ms IS '최근 반영한 원천 트랜잭션의 처리 지연(Debezium ts_ms − source.ts_ms)';
+
+
+--
+-- Name: COLUMN cdc_offset.healthy_since; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.cdc_offset.healthy_since IS '수집이 정상이 된 시각. NULL이면 지금 비정상(커넥터 멈춤, 소비·처리 지연 기준 초과, 메시지 끊김, 복구 필요). 확인 대기의 실질 대기 시작은 max(처음 본 시각, 출발·도착 원천의 healthy_since)다';
+
+
+--
+-- Name: COLUMN cdc_offset.recovery_reason; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.cdc_offset.recovery_reason IS '복구(그 원천의 CDC 테이블 전체 다시 읽기)가 필요한 이유. SLOT_LOST 복제 슬롯 유실·재생성(원천 교체 뒤 관리자가 커넥터를 새 DB에 맞췄다고 알린 경우 포함), OFFSET_EXPIRED 보관 기간 초과, EPOCH_UNCERTAIN txId epoch를 확신할 수 없음, TRANSACTION_TOO_LARGE 원천 트랜잭션이 상한 초과, PROTOCOL_ERROR 메시지 순서·모양 오류, APPLY_FAILED 같은 위치의 반영이 연속으로 실패(V16), SOURCE_CHANGED 원천 접속 정보(host·port·database)가 바뀜(API 012). SOURCE_CHANGED는 커넥터를 새 DB에 맞출 때까지 다시 읽지 않는다. 그 밖의 이유는 켜진 매핑이 있는 CDC 테이블이 모두 recovery_at 뒤에 시작한 전체 읽기로 적재되면 그 저장 트랜잭션에서 풀린다(199). NULL이면 복구 필요 없음';
+
+
+--
+-- Name: COLUMN cdc_offset.recovery_at; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.cdc_offset.recovery_at IS '복구가 필요해진 시각. 이 시각보다 먼저 시작한 전체 읽기는 복구 원인보다 옛 스냅샷이라 다시 읽은 것으로 치지 않는다(loaded_lsn을 채우지 않음)';
+
+
+--
+-- Name: COLUMN cdc_offset.resume_after; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.cdc_offset.resume_after IS '복구를 푼 뒤 이어 받을 기준 시각(V14, 199). 그 원천을 다시 읽은 전체 읽기 중 가장 이른 시작 시각이다. 소비자는 이 시각 뒤에 토픽에 쓰인 첫 메시지(Kafka offsetsForTimes)로 가서 처음 만나는 BEGIN부터 반영하고, 그 BEGIN을 next_offset으로 저장하며 이 칸을 비운다. NULL이면 next_offset부터 읽는다';
+
+
+--
+-- Name: check_result; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.check_result (
+    id bigint NOT NULL,
+    check_run_id bigint NOT NULL,
+    link_mapping_id bigint,
+    proposal_item_id bigint,
+    proposal_item_revision integer,
+    previous_result_id bigint,
+    total_count integer NOT NULL,
+    matched_count integer DEFAULT 0 NOT NULL,
+    unmatched_count integer DEFAULT 0 NOT NULL,
+    duplicate_count integer DEFAULT 0 NOT NULL,
+    violation_count integer DEFAULT 0 NOT NULL,
+    sample_rows jsonb DEFAULT '[]'::jsonb NOT NULL,
+    excluded_target_count integer DEFAULT 0 NOT NULL,
+    CONSTRAINT ck_check_result_counts CHECK (((total_count >= 0) AND (matched_count >= 0) AND (unmatched_count >= 0) AND (duplicate_count >= 0) AND (violation_count >= 0) AND ((((matched_count + unmatched_count) + duplicate_count) + violation_count) = total_count))),
+    CONSTRAINT ck_check_result_excluded_targets CHECK ((excluded_target_count >= 0)),
+    CONSTRAINT ck_check_result_revision CHECK (((proposal_item_id IS NULL) = (proposal_item_revision IS NULL))),
+    CONSTRAINT ck_check_result_target CHECK (((link_mapping_id IS NULL) <> (proposal_item_id IS NULL)))
+);
+
+
+--
+-- Name: TABLE check_result; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.check_result IS '규칙별 시험 적용 결과. 검사한 원천(출발) 행마다 하나의 분류: 정상·미연결(대상 0개)·중복·조건 위반. 겹치면 조건 위반 > 중복 > 미연결 > 정상 순. 정상과 중복은 규칙이 속한 link_type.cardinality의 도착 쪽으로 가른다: 도착이 ONE(ONE_TO_ONE·MANY_TO_ONE)이면 대상 1개가 정상이고 2개 이상은 중복, 도착이 MANY(ONE_TO_MANY·MANY_TO_MANY)면 대상 1개 이상이 정상. 원천 키 중복은 언제나 중복. 건수는 모두 출발 행 수이고 만들어지는 연결 수는 저장하지 않는다(필요하면 object_link를 센다). 승인 전 후보 매칭률은 matched_count/total_count로 계산한다(원천 전체 행 기준). 검사 결과에는 AI 신뢰도를 넣지 않고, 신뢰도는 검토 화면에서 proposal_revision.ai_confidence를 별도 칸으로 보여준다. 둘을 합친 점수는 만들지 않는다 [결정 O1]';
+
+
+--
+-- Name: COLUMN check_result.excluded_target_count; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.check_result.excluded_target_count IS '비교값으로 바꾸지 못해(단일 값이 아님·변환 실패) 대응 후보에서 뺀 도착 행 수(388). 출발 행 분류에는 들어가지 않는다';
+
+
+--
+-- Name: check_result_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.check_result ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.check_result_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: check_run; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.check_run (
+    id bigint NOT NULL,
+    trigger_kind character varying(20) NOT NULL,
+    status character varying(20) DEFAULT 'QUEUED'::character varying NOT NULL,
+    scope jsonb DEFAULT '{}'::jsonb NOT NULL,
+    work_key character varying(300) NOT NULL,
+    data_basis jsonb DEFAULT '{}'::jsonb NOT NULL,
+    sync_run_id bigint,
+    compared_to_run_id bigint,
+    requested_by bigint,
+    requested_at timestamp with time zone DEFAULT now() NOT NULL,
+    started_at timestamp with time zone,
+    finished_at timestamp with time zone,
+    error_message text,
+    CONSTRAINT ck_check_run_basis CHECK ((jsonb_typeof(data_basis) = 'object'::text)),
+    CONSTRAINT ck_check_run_error CHECK ((((status)::text <> 'FAILED'::text) OR (error_message IS NOT NULL))),
+    CONSTRAINT ck_check_run_finished CHECK ((((status)::text = ANY ((ARRAY['SUCCEEDED'::character varying, 'FAILED'::character varying])::text[])) = (finished_at IS NOT NULL))),
+    CONSTRAINT ck_check_run_manual CHECK ((((trigger_kind)::text = ANY ((ARRAY['SYNC'::character varying, 'CANDIDATE'::character varying])::text[])) OR (requested_by IS NOT NULL))),
+    CONSTRAINT ck_check_run_reverify CHECK ((((trigger_kind)::text <> 'REVERIFY'::text) OR (compared_to_run_id IS NOT NULL))),
+    CONSTRAINT ck_check_run_started CHECK ((((status)::text = 'QUEUED'::text) = (started_at IS NULL))),
+    CONSTRAINT ck_check_run_status CHECK (((status)::text = ANY ((ARRAY['QUEUED'::character varying, 'RUNNING'::character varying, 'SUCCEEDED'::character varying, 'FAILED'::character varying])::text[]))),
+    CONSTRAINT ck_check_run_sync CHECK ((((trigger_kind)::text = 'SYNC'::text) OR (sync_run_id IS NULL))),
+    CONSTRAINT ck_check_run_trigger CHECK (((trigger_kind)::text = ANY ((ARRAY['MANUAL'::character varying, 'SYNC'::character varying, 'REVERIFY'::character varying, 'CANDIDATE'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE check_run; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.check_run IS '서버 정합성 검사 실행. 수동·SYNC·재검증·후보 자동 시험 모두 기록. 수집(전체 읽기·CDC)은 연결만 계산하고 issue를 만들지 않는다. issue는 배치가 모아서 요청하는 SYNC 검사가 만든다: 같은 원천 규칙은 바로 판정, 원천 사이 규칙의 미연결은 확인 대기(link_check_pending)를 거친다(V12). 후보 시험은 원천 전체 행 기준(표본 아님). 같은 work_key가 실행 중이면 합류하고, 같은 work_key로 성공한 실행이 있으면 다시 돌리지 않고 그 결과를 쓴다(A4)';
+
+
+--
+-- Name: COLUMN check_run.data_basis; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.check_run.data_basis IS '[A4] 시작 시점의 기준: 관계된 원천 테이블별 마지막 성공 수집 실행 id. 같은 기준이면 성공한 결과를 다시 쓴다';
+
+
+--
+-- Name: COLUMN check_run.sync_run_id; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.check_run.sync_run_id IS 'SYNC 검사가 특정 수집 실행 하나를 기준으로 했을 때만. 배치가 모아서 돌리는 SYNC는 비우고 data_basis(원천 자원별 마지막 성공 수집 실행, 원천별 마지막 반영 원천 트랜잭션)로 기준을 남긴다';
+
+
+--
+-- Name: check_run_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.check_run ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.check_run_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: data_source; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.data_source (
+    id bigint NOT NULL,
+    code character varying(100) NOT NULL,
+    name character varying(200) NOT NULL,
+    source_kind character varying(20) NOT NULL,
+    connection_config jsonb DEFAULT '{}'::jsonb NOT NULL,
+    connection_status character varying(20) DEFAULT 'UNVERIFIED'::character varying NOT NULL,
+    last_checked_at timestamp with time zone,
+    sync_enabled boolean DEFAULT false NOT NULL,
+    sync_interval_minutes integer,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by bigint,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by bigint,
+    row_version integer DEFAULT 0 NOT NULL,
+    CONSTRAINT ck_data_source_config CHECK (((jsonb_typeof(connection_config) = 'object'::text) AND (NOT (connection_config ?| ARRAY['password'::text, 'secret'::text, 'api_key'::text])))),
+    CONSTRAINT ck_data_source_interval CHECK (((sync_interval_minutes IS NULL) OR (sync_interval_minutes > 0))),
+    CONSTRAINT ck_data_source_kind CHECK (((source_kind)::text = ANY ((ARRAY['POSTGRES'::character varying, 'CSV'::character varying, 'DOCUMENT'::character varying])::text[]))),
+    CONSTRAINT ck_data_source_status CHECK (((connection_status)::text = ANY ((ARRAY['UNVERIFIED'::character varying, 'CONNECTED'::character varying, 'FAILED'::character varying])::text[]))),
+    CONSTRAINT ck_data_source_sync CHECK (((NOT sync_enabled) OR (sync_interval_minutes IS NOT NULL)))
+);
+
+
+--
+-- Name: TABLE data_source; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.data_source IS '원천 시스템(ERP, MES 등)과 연결 상태. 수집 방식은 원천 테이블마다(source_resource.sync_strategy), CDC 체크포인트는 cdc_offset. 자동 수집 주기는 FULL_COMPARE 테이블에만 쓴다';
+
+
+--
+-- Name: COLUMN data_source.source_kind; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.data_source.source_kind IS 'POSTGRES = 원천 DB 직접 접속(보안 그룹·pg_hba는 플랫폼 서버 IP만 허용). 스키마는 information_schema로 읽고, 변경은 Debezium이 WAL에서 읽는다(V5). 원천에 변경 이력 테이블을 만들지 않는다';
+
+
+--
+-- Name: data_source_credential; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.data_source_credential (
+    id bigint NOT NULL,
+    data_source_id bigint NOT NULL,
+    purpose character varying(10) NOT NULL,
+    username character varying(200) NOT NULL,
+    secret_ciphertext bytea NOT NULL,
+    secret_nonce bytea NOT NULL,
+    key_version integer NOT NULL,
+    rotated_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by bigint,
+    CONSTRAINT ck_data_source_credential_key CHECK ((key_version > 0)),
+    CONSTRAINT ck_data_source_credential_nonce CHECK ((octet_length(secret_nonce) = 12)),
+    CONSTRAINT ck_data_source_credential_purpose CHECK (((purpose)::text = ANY ((ARRAY['SYNC'::character varying, 'AI'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE data_source_credential; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.data_source_credential IS '원천 접속 계정. 비밀번호는 암호문만 저장하고 화면·API·로그에는 내보내지 않는다(A1, B10). SYNC = 조회 전용(전체 읽기·연결 검사), AI = 분석. CDC 복제 계정은 Kafka Connect가 쓰므로 여기 두지 않고 서버 .env·config provider로만 넘긴다(V5)';
+
+
+--
+-- Name: data_source_credential_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.data_source_credential ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.data_source_credential_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: data_source_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.data_source ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.data_source_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: entity_change; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.entity_change (
+    id bigint NOT NULL,
+    action_execution_id bigint NOT NULL,
+    table_name character varying(63) NOT NULL,
+    row_key jsonb NOT NULL,
+    change_kind character varying(10) NOT NULL,
+    before_data jsonb,
+    after_data jsonb,
+    CONSTRAINT ck_entity_change_after CHECK ((((change_kind)::text = 'DELETE'::text) = (after_data IS NULL))),
+    CONSTRAINT ck_entity_change_before CHECK ((((change_kind)::text = 'INSERT'::text) = (before_data IS NULL))),
+    CONSTRAINT ck_entity_change_key CHECK (((jsonb_typeof(row_key) = 'object'::text) AND (row_key <> '{}'::jsonb))),
+    CONSTRAINT ck_entity_change_kind CHECK (((change_kind)::text = ANY ((ARRAY['INSERT'::character varying, 'UPDATE'::character varying, 'DELETE'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE entity_change; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.entity_change IS '실행으로 바뀐 행의 반영 전후 내용(FN-LOG-03). 행은 table_name + row_key(그 테이블 PK 컬럼 이름과 값)로 식별';
+
+
+--
+-- Name: entity_change_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.entity_change ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.entity_change_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: flyway_schema_history; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.flyway_schema_history (
+    installed_rank integer NOT NULL,
+    version character varying(50),
+    description character varying(200) NOT NULL,
+    type character varying(20) NOT NULL,
+    script character varying(1000) NOT NULL,
+    checksum integer,
+    installed_by character varying(100) NOT NULL,
+    installed_on timestamp without time zone DEFAULT now() NOT NULL,
+    execution_time integer NOT NULL,
+    success boolean NOT NULL
+);
+
+
+--
+-- Name: issue; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.issue (
+    id bigint NOT NULL,
+    issue_kind character varying(20) NOT NULL,
+    status character varying(30) DEFAULT 'NEW'::character varying NOT NULL,
+    dedupe_key character varying(300) NOT NULL,
+    link_mapping_id bigint,
+    proposal_item_id bigint,
+    object_instance_id bigint,
+    raw_value text,
+    transformed_value text,
+    failure_reason text NOT NULL,
+    evidence jsonb DEFAULT '{}'::jsonb NOT NULL,
+    detected_check_run_id bigint NOT NULL,
+    resolved_check_run_id bigint,
+    resolved_outcome character varying(10),
+    forwarded_at timestamp with time zone,
+    forwarded_by bigint,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    row_version integer DEFAULT 0 NOT NULL,
+    CONSTRAINT ck_issue_forward CHECK (((forwarded_at IS NULL) = (forwarded_by IS NULL))),
+    CONSTRAINT ck_issue_kind CHECK (((issue_kind)::text = ANY ((ARRAY['UNMATCHED'::character varying, 'DUPLICATE'::character varying, 'VIOLATION'::character varying])::text[]))),
+    CONSTRAINT ck_issue_outcome CHECK ((((resolved_check_run_id IS NULL) AND (resolved_outcome IS NULL)) OR ((resolved_check_run_id IS NOT NULL) AND ((resolved_outcome)::text = 'PASSED'::text)))),
+    CONSTRAINT ck_issue_resolved CHECK ((((status)::text = 'RESOLVED'::text) = (resolved_check_run_id IS NOT NULL))),
+    CONSTRAINT ck_issue_status CHECK (((status)::text = ANY ((ARRAY['NEW'::character varying, 'CHECKING'::character varying, 'FIXED_PENDING_REVERIFY'::character varying, 'RESOLVED'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE issue; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.issue IS '정합성 문제. 상태: 신규 → 확인중 → 조치완료·재검증대기 → 해결(FN-ISS-03). 담당자 배정 없음. 규칙이 잇지 못한 출발도 문제로 기록하고 수동 연결은 문제에서 정한다(366·238, 보류 건은 V22에서 삭제). DB 보장: 해결이면 이 문제를 그 검사에서 검증해 PASSED한 기록이 있음. Handler 보장: 그 검사가 REVERIFY·SUCCEEDED이고 최신 수정 자료를 대상으로 했음. 해결로 바꾸는 것은 관리자다(2026-10-27 결정, 시나리오 S5-6): 재검증이 통과해도 자동으로 해결되지 않는다. 원천 사이 규칙의 미연결은 확인 대기(link_check_pending)에서 승격된 것만 issue가 된다(V12)';
+
+
+--
+-- Name: issue_history; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.issue_history (
+    id bigint NOT NULL,
+    issue_id bigint NOT NULL,
+    from_status character varying(30),
+    to_status character varying(30) NOT NULL,
+    note text,
+    check_run_id bigint,
+    changed_by bigint,
+    changed_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ck_issue_history_from CHECK (((from_status IS NULL) OR ((from_status)::text = ANY ((ARRAY['NEW'::character varying, 'CHECKING'::character varying, 'FIXED_PENDING_REVERIFY'::character varying, 'RESOLVED'::character varying])::text[])))),
+    CONSTRAINT ck_issue_history_resolver CHECK ((((to_status)::text <> 'RESOLVED'::text) OR (changed_by IS NOT NULL))),
+    CONSTRAINT ck_issue_history_to CHECK (((to_status)::text = ANY ((ARRAY['NEW'::character varying, 'CHECKING'::character varying, 'FIXED_PENDING_REVERIFY'::character varying, 'RESOLVED'::character varying])::text[]))),
+    CONSTRAINT ck_issue_history_who CHECK (((changed_by IS NOT NULL) OR (check_run_id IS NOT NULL)))
+);
+
+
+--
+-- Name: issue_history_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.issue_history ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.issue_history_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: issue_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.issue ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.issue_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: issue_verification; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.issue_verification (
+    issue_id bigint NOT NULL,
+    check_run_id bigint NOT NULL,
+    outcome character varying(10) NOT NULL,
+    detail jsonb DEFAULT '{}'::jsonb NOT NULL,
+    checked_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ck_issue_verification_outcome CHECK (((outcome)::text = ANY ((ARRAY['PASSED'::character varying, 'FAILED'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE issue_verification; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.issue_verification IS '재검증에서 문제 하나를 다시 검사한 결과. 해결(RESOLVED)은 PASSED 기록을 가리켜야 한다';
+
+
+--
+-- Name: link_check_pending; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.link_check_pending (
+    id bigint NOT NULL,
+    link_mapping_id bigint NOT NULL,
+    source_object_id bigint NOT NULL,
+    status character varying(20) DEFAULT 'WAITING'::character varying NOT NULL,
+    first_seen_at timestamp with time zone DEFAULT now() NOT NULL,
+    last_check_run_id bigint NOT NULL,
+    closed_at timestamp with time zone,
+    close_reason character varying(20),
+    issue_id bigint,
+    CONSTRAINT ck_link_check_pending_closed CHECK ((((status)::text = 'WAITING'::text) = (closed_at IS NULL))),
+    CONSTRAINT ck_link_check_pending_issue CHECK ((((status)::text = 'PROMOTED'::text) = (issue_id IS NOT NULL))),
+    CONSTRAINT ck_link_check_pending_reason CHECK (((((status)::text = 'WAITING'::text) AND (close_reason IS NULL)) OR (((status)::text = 'TRANSIENT'::text) AND ((close_reason)::text = ANY ((ARRAY['LINKED'::character varying, 'SOURCE_DELETED'::character varying, 'RULE_RETIRED'::character varying])::text[]))) OR (((status)::text = 'PROMOTED'::text) AND ((close_reason)::text = 'PROMOTED'::text)))),
+    CONSTRAINT ck_link_check_pending_status CHECK (((status)::text = ANY ((ARRAY['WAITING'::character varying, 'TRANSIENT'::character varying, 'PROMOTED'::character varying])::text[]))),
+    CONSTRAINT ck_link_check_pending_time CHECK (((closed_at IS NULL) OR (closed_at >= first_seen_at)))
+);
+
+
+--
+-- Name: TABLE link_check_pending; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.link_check_pending IS '확인 대기(결정 8장 ②). 원천 사이 규칙(ERP ↔ MES)과 FULL_COMPARE 표가 걸린 규칙에서 SYNC가 찾은 미연결을 바로 issue로 만들지 않고 둔다. 그 사이 연결되거나 출발 객체가 지워지면 일시 불일치(TRANSIENT)로 닫고, 출발·도착 원천이 정상인 채로 대기 시간이 지나도 안 맞으면 issue(UNMATCHED)로 올린다(PROMOTED). 실질 대기 시작은 max(first_seen_at, 양쪽 원천의 cdc_offset.healthy_since). 승격과 issue 등록은 한 트랜잭션이다. 원천 사이 issue의 의미는 "수집이 정상인 상태에서 지속된 불일치 관찰"이다. 같은 원천 규칙은 대기 없이 바로 판정한다';
+
+
+--
+-- Name: COLUMN link_check_pending.link_mapping_id; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.link_check_pending.link_mapping_id IS '미연결을 찾은 규칙 개정본. 개정본이 RETIRED가 되면 TRANSIENT·RULE_RETIRED로 닫는다';
+
+
+--
+-- Name: COLUMN link_check_pending.status; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.link_check_pending.status IS 'WAITING 대기, TRANSIENT 일시 불일치로 자동 종료, PROMOTED issue로 승격';
+
+
+--
+-- Name: COLUMN link_check_pending.first_seen_at; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.link_check_pending.first_seen_at IS '처음 미연결로 본 시각';
+
+
+--
+-- Name: COLUMN link_check_pending.last_check_run_id; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.link_check_pending.last_check_run_id IS '마지막으로 이 대기를 확인한 SYNC 검사';
+
+
+--
+-- Name: COLUMN link_check_pending.close_reason; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.link_check_pending.close_reason IS 'LINKED 연결됨, SOURCE_DELETED 출발 객체가 원천에서 지워짐, RULE_RETIRED 규칙 개정본이 바뀜, PROMOTED 승격';
+
+
+--
+-- Name: COLUMN link_check_pending.issue_id; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.link_check_pending.issue_id IS '승격해 만든 issue';
+
+
+--
+-- Name: link_check_pending_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.link_check_pending ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.link_check_pending_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: link_mapping; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.link_mapping (
+    id bigint NOT NULL,
+    link_type_id bigint NOT NULL,
+    code character varying(100) NOT NULL,
+    revision integer NOT NULL,
+    source_filter jsonb DEFAULT '{}'::jsonb NOT NULL,
+    target_filter jsonb DEFAULT '{}'::jsonb NOT NULL,
+    description text,
+    status character varying(20) DEFAULT 'ACTIVE'::character varying NOT NULL,
+    retired_at timestamp with time zone,
+    origin character varying(20) DEFAULT 'MANUAL'::character varying NOT NULL,
+    proposal_item_id bigint,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by bigint,
+    CONSTRAINT ck_link_mapping_filters CHECK (((jsonb_typeof(source_filter) = 'object'::text) AND (jsonb_typeof(target_filter) = 'object'::text))),
+    CONSTRAINT ck_link_mapping_origin CHECK (((origin)::text = ANY ((ARRAY['AI_PROPOSAL'::character varying, 'MANUAL'::character varying, 'SEED'::character varying])::text[]))),
+    CONSTRAINT ck_link_mapping_proposal CHECK ((((origin)::text <> 'AI_PROPOSAL'::text) OR (proposal_item_id IS NOT NULL))),
+    CONSTRAINT ck_link_mapping_retired CHECK ((((status)::text = 'RETIRED'::text) = (retired_at IS NOT NULL))),
+    CONSTRAINT ck_link_mapping_revision CHECK ((revision > 0)),
+    CONSTRAINT ck_link_mapping_status CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'RETIRED'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE link_mapping; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.link_mapping IS '관계 연결 규칙 개정본. 생성 후 내용 불변(status, retired_at만 변경). [결정 U10] 승인 전 규칙은 운영 ERD 제안 항목에만 두고, 여기에는 승인된 개정본만 넣는다';
+
+
+--
+-- Name: link_mapping_condition; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.link_mapping_condition (
+    id bigint NOT NULL,
+    link_mapping_id bigint NOT NULL,
+    source_property_id bigint NOT NULL,
+    target_property_id bigint NOT NULL,
+    sequence_no integer NOT NULL,
+    operator character varying(20) DEFAULT 'EQ'::character varying NOT NULL,
+    source_transforms jsonb DEFAULT '[]'::jsonb NOT NULL,
+    target_transforms jsonb DEFAULT '[]'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by bigint,
+    CONSTRAINT ck_link_mapping_condition_op CHECK (((operator)::text = 'EQ'::text)),
+    CONSTRAINT ck_link_mapping_condition_seq CHECK ((sequence_no > 0)),
+    CONSTRAINT ck_link_mapping_condition_transforms CHECK (((jsonb_typeof(source_transforms) = 'array'::text) AND (jsonb_typeof(target_transforms) = 'array'::text)))
+);
+
+
+--
+-- Name: TABLE link_mapping_condition; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.link_mapping_condition IS '규칙의 속성 비교 항목. 항목끼리 AND. 속성이 관계 유형 양 끝 유형에 속하는지는 Handler가 검사';
+
+
+--
+-- Name: link_mapping_condition_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.link_mapping_condition ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.link_mapping_condition_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: link_mapping_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.link_mapping ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.link_mapping_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: link_type; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.link_type (
+    id bigint NOT NULL,
+    code character varying(100) NOT NULL,
+    name character varying(200) NOT NULL,
+    source_type_id bigint NOT NULL,
+    target_type_id bigint NOT NULL,
+    cardinality character varying(20) NOT NULL,
+    description text NOT NULL,
+    origin character varying(20) DEFAULT 'MANUAL'::character varying NOT NULL,
+    proposal_item_id bigint,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by bigint,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by bigint,
+    row_version integer DEFAULT 0 NOT NULL,
+    CONSTRAINT ck_link_type_cardinality CHECK (((cardinality)::text = ANY ((ARRAY['ONE_TO_ONE'::character varying, 'ONE_TO_MANY'::character varying, 'MANY_TO_ONE'::character varying, 'MANY_TO_MANY'::character varying])::text[]))),
+    CONSTRAINT ck_link_type_origin CHECK (((origin)::text = ANY ((ARRAY['AI_PROPOSAL'::character varying, 'MANUAL'::character varying, 'SEED'::character varying])::text[]))),
+    CONSTRAINT ck_link_type_proposal CHECK ((((origin)::text <> 'AI_PROPOSAL'::text) OR (proposal_item_id IS NOT NULL)))
+);
+
+
+--
+-- Name: TABLE link_type; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.link_type IS '객체 유형 사이 관계의 의미. 실행 규칙은 link_mapping';
+
+
+--
+-- Name: COLUMN link_type.cardinality; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.link_type.cardinality IS '출발 기준으로 읽는다(MANY_TO_ONE = 출발 여럿이 도착 하나). 정합성 검사는 도착 쪽(ONE / MANY)으로 정상과 중복을 가른다(check_result). 바꿔도 기존 연결이 새 관계 수를 지키는지는 검사하지 않는다(MVP)';
+
+
+--
+-- Name: link_type_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.link_type ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.link_type_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: object_instance; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.object_instance (
+    id bigint NOT NULL,
+    object_type_id bigint NOT NULL,
+    source_mapping_id bigint,
+    source_key jsonb,
+    display_name character varying(300) NOT NULL,
+    properties jsonb DEFAULT '{}'::jsonb NOT NULL,
+    status character varying(30) DEFAULT 'ACTIVE'::character varying NOT NULL,
+    first_collected_at timestamp with time zone DEFAULT now() NOT NULL,
+    last_synced_at timestamp with time zone,
+    last_sync_run_id bigint,
+    created_by bigint,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    source_lsn bigint,
+    source_txid xid8,
+    loaded_snapshot pg_snapshot,
+    loaded_gen bigint,
+    CONSTRAINT ck_object_instance_key CHECK (((source_key IS NULL) OR (jsonb_typeof(source_key) = 'object'::text))),
+    CONSTRAINT ck_object_instance_load CHECK (((source_mapping_id IS NOT NULL) OR ((source_txid IS NULL) AND (loaded_snapshot IS NULL) AND (loaded_gen IS NULL)))),
+    CONSTRAINT ck_object_instance_load_pair CHECK (((loaded_snapshot IS NULL) = (loaded_gen IS NULL))),
+    CONSTRAINT ck_object_instance_lsn CHECK (((source_lsn IS NULL) OR ((source_mapping_id IS NOT NULL) AND (source_lsn >= 0)))),
+    CONSTRAINT ck_object_instance_platform CHECK (((source_mapping_id IS NOT NULL) OR ((status)::text = 'ACTIVE'::text))),
+    CONSTRAINT ck_object_instance_properties CHECK ((jsonb_typeof(properties) = 'object'::text)),
+    CONSTRAINT ck_object_instance_source CHECK (((source_mapping_id IS NULL) = (source_key IS NULL))),
+    CONSTRAINT ck_object_instance_status CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'DELETED_AT_SOURCE'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE object_instance; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.object_instance IS '실제 객체. 수집이 반복돼도 id를 유지한다(지우고 다시 넣지 않음). 재배정 계획은 운영 ERD의 reassignment_plan에 저장';
+
+
+--
+-- Name: COLUMN object_instance.id; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.object_instance.id IS '내부 식별자. 원천 객체는 (source_mapping_id, source_key)로 찾는다';
+
+
+--
+-- Name: COLUMN object_instance.properties; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.object_instance.properties IS '속성 코드 → 값. 자료형별 형식: STRING 문자열, INTEGER 정수, DECIMAL 숫자 또는 숫자 문자열, DATE YYYY-MM-DD, TIME HH:MM[:SS], DATETIME 시간대가 붙은 ISO 8601 문자열, BOOLEAN 참거짓, JSON 아무 값. 속성 정의를 바꿀 때 기존 값과 이 형식으로 대조한다';
+
+
+--
+-- Name: COLUMN object_instance.last_synced_at; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.object_instance.last_synced_at IS '내용이 마지막으로 바뀐(추가·수정·삭제 표시) 시각. 값이 안 바뀐 행은 수집해도 이 값과 last_sync_run_id를 바꾸지 않는다(전체 읽기는 loaded_snapshot·loaded_gen만 갱신). 테이블을 마지막으로 읽은 시각은 sync_run_resource. 업무 값의 기준일은 temporal_role=AS_OF 속성으로 따로 표시한다';
+
+
+--
+-- Name: COLUMN object_instance.last_sync_run_id; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.object_instance.last_sync_run_id IS '내용을 마지막으로 바꾼 수집 실행. 같은 원천의 실행인지는 배치가 검사한다';
+
+
+--
+-- Name: COLUMN object_instance.source_lsn; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.object_instance.source_lsn IS 'CDC 테이블에서 이 객체에 마지막으로 반영한 이벤트의 LSN. 같은 이벤트가 다시 오면(재전송) 이 값 이하는 반영하지 않는다. 전체 읽기는 이 값을 바꾸지 않는다. FULL_COMPARE 테이블과 플랫폼 객체는 NULL';
+
+
+--
+-- Name: COLUMN object_instance.source_txid; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.object_instance.source_txid IS '이 객체에 마지막으로 반영한 원천 트랜잭션 번호(xid8). Debezium txId(32비트)는 소비자가 갱신하는 최신 기준값으로 epoch를 복원해 넣는다. 전체 읽기는 이 번호가 자기 스냅샷에서 보일 때만 객체를 덮어쓴다';
+
+
+--
+-- Name: COLUMN object_instance.loaded_snapshot; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.object_instance.loaded_snapshot IS '이 객체를 마지막으로 적재한 전체 읽기의 스냅샷(pg_current_snapshot). CDC 이벤트의 번호가 이 스냅샷에서 보이면 이미 적재값에 들어 있으므로 건너뛴다. 값이 같아도 전체 읽기마다 갱신한다';
+
+
+--
+-- Name: COLUMN object_instance.loaded_gen; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.object_instance.loaded_gen IS '이 객체를 마지막으로 적재한 전체 읽기의 세대(sync_run.id). 옛 세대 적재가 새 세대 적재를 덮지 않게 한다';
+
+
+--
+-- Name: object_instance_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.object_instance ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.object_instance_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: object_link; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.object_link (
+    id bigint NOT NULL,
+    link_type_id bigint NOT NULL,
+    source_object_id bigint NOT NULL,
+    target_object_id bigint NOT NULL,
+    origin character varying(20) NOT NULL,
+    link_mapping_id bigint,
+    status character varying(20) DEFAULT 'ACTIVE'::character varying NOT NULL,
+    inactivated_at timestamp with time zone,
+    evidence jsonb DEFAULT '{}'::jsonb NOT NULL,
+    confirmed_by bigint,
+    proposal_item_id bigint,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ck_object_link_confirm CHECK ((((origin)::text = 'RULE'::text) OR (confirmed_by IS NOT NULL))),
+    CONSTRAINT ck_object_link_document CHECK ((((origin)::text <> 'DOCUMENT'::text) OR (COALESCE((evidence ->> 'expression_kind'::text), ''::text) = ANY (ARRAY['OBSERVED'::text, 'ESTIMATED'::text])))),
+    CONSTRAINT ck_object_link_evidence CHECK ((jsonb_typeof(evidence) = 'object'::text)),
+    CONSTRAINT ck_object_link_inactive CHECK ((((status)::text = 'INACTIVE'::text) = (inactivated_at IS NOT NULL))),
+    CONSTRAINT ck_object_link_origin CHECK (((origin)::text = ANY ((ARRAY['RULE'::character varying, 'DOCUMENT'::character varying, 'MANUAL'::character varying])::text[]))),
+    CONSTRAINT ck_object_link_rule CHECK ((((origin)::text <> 'RULE'::text) OR (link_mapping_id IS NOT NULL))),
+    CONSTRAINT ck_object_link_self CHECK ((source_object_id <> target_object_id)),
+    CONSTRAINT ck_object_link_status CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'INACTIVE'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE object_link; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.object_link IS '확정된 객체 간 연결. 조회는 status=ACTIVE만. 출처는 RULE(규칙)·MANUAL(문제에서 관리자가 정함)·DOCUMENT(문서 근거). 검토 중 후보는 운영 ERD. 양 끝 객체 유형이 관계 유형과 맞는지는 Handler가 검사';
+
+
+--
+-- Name: COLUMN object_link.status; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.object_link.status IS '[결정 U6] MVP는 새 개정본을 활성화하는 트랜잭션 안에서 동기 재조정한다(데이터가 커지면 비동기 재조정으로 전환). 새 규칙에서도 성립하면 ACTIVE 유지 + link_mapping_id를 새 개정본으로, 성립하지 않으면 INACTIVE(지우지 않음). MANUAL·DOCUMENT 연결은 재조정 대상이 아니다';
+
+
+--
+-- Name: COLUMN object_link.evidence; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.object_link.evidence IS '원천 키·변환 결과. DOCUMENT면 {원문 구간, 사건, 시간 표현, expression_kind}. [결정 U8 2026-10-27] expression_kind는 OBSERVED(관찰)·ESTIMATED(추정)만. 부정 표현은 연결하지 않고 분석 결과에만 남는다. ESTIMATED 연결은 Agent가 "추정"이라고 말한다';
+
+
+--
+-- Name: object_link_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.object_link ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.object_link_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: object_source_mapping; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.object_source_mapping (
+    id bigint NOT NULL,
+    source_resource_id bigint NOT NULL,
+    object_type_id bigint NOT NULL,
+    key_columns jsonb NOT NULL,
+    row_filter jsonb DEFAULT '{}'::jsonb NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    origin character varying(20) DEFAULT 'MANUAL'::character varying NOT NULL,
+    proposal_item_id bigint,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by bigint,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by bigint,
+    row_version integer DEFAULT 0 NOT NULL,
+    CONSTRAINT ck_object_source_mapping_filter CHECK ((jsonb_typeof(row_filter) = 'object'::text)),
+    CONSTRAINT ck_object_source_mapping_keys CHECK (((jsonb_typeof(key_columns) = 'array'::text) AND (jsonb_array_length(key_columns) > 0))),
+    CONSTRAINT ck_object_source_mapping_origin CHECK (((origin)::text = ANY ((ARRAY['AI_PROPOSAL'::character varying, 'MANUAL'::character varying, 'SEED'::character varying])::text[]))),
+    CONSTRAINT ck_object_source_mapping_proposal CHECK ((((origin)::text <> 'AI_PROPOSAL'::text) OR (proposal_item_id IS NOT NULL)))
+);
+
+
+--
+-- Name: TABLE object_source_mapping; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.object_source_mapping IS '원천 자원의 행에서 어떤 객체 유형을 만들지와 원천 키. 관리자가 직접 편집한다(2026-10-27). 객체가 만들어진 뒤에는 키 컬럼을 바꿀 수 없다(트리거). 컬럼·변환·행 조건을 바꾸면 그 테이블을 전체 다시 읽어 새 매핑을 적용한다(CDC 테이블은 loaded_lsn을 비워 다시 읽기를 요청하고, 그동안에도 CDC 이벤트는 계속 반영한다)';
+
+
+--
+-- Name: COLUMN object_source_mapping.is_active; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.object_source_mapping.is_active IS '수집 중지. 객체가 있으면 매핑을 지울 수 없으므로(RESTRICT) 더 이상 가져오지 않을 때는 false로 둔다';
+
+
+--
+-- Name: object_source_mapping_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.object_source_mapping ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.object_source_mapping_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: object_type; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.object_type (
+    id bigint NOT NULL,
+    code character varying(100) NOT NULL,
+    name character varying(200) NOT NULL,
+    description text,
+    synonyms jsonb DEFAULT '[]'::jsonb NOT NULL,
+    access_group character varying(100),
+    display_property_id bigint,
+    origin character varying(20) DEFAULT 'MANUAL'::character varying NOT NULL,
+    proposal_item_id bigint,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by bigint,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by bigint,
+    row_version integer DEFAULT 0 NOT NULL,
+    CONSTRAINT ck_object_type_origin CHECK (((origin)::text = ANY ((ARRAY['AI_PROPOSAL'::character varying, 'MANUAL'::character varying, 'SEED'::character varying])::text[]))),
+    CONSTRAINT ck_object_type_proposal CHECK ((((origin)::text <> 'AI_PROPOSAL'::text) OR (proposal_item_id IS NOT NULL))),
+    CONSTRAINT ck_object_type_synonyms CHECK ((jsonb_typeof(synonyms) = 'array'::text))
+);
+
+
+--
+-- Name: TABLE object_type; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.object_type IS '업무 대상의 종류. 예: EQUIPMENT(설비)';
+
+
+--
+-- Name: COLUMN object_type.code; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.object_type.code IS '프로그램용 코드. 한 번 쓰이면 바꾸지 않는다';
+
+
+--
+-- Name: object_type_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.object_type ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.object_type_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: permission; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.permission (
+    id bigint NOT NULL,
+    code character varying(100) NOT NULL,
+    name character varying(200) NOT NULL,
+    description text
+);
+
+
+--
+-- Name: TABLE permission; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.permission IS '서버가 검사하는 권한 코드. action_definition.required_permission이 참조. [미정 U5] 코드 목록은 FN-ADM-04에서 구체화';
+
+
+--
+-- Name: permission_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.permission ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.permission_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: property_definition; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.property_definition (
+    id bigint NOT NULL,
+    object_type_id bigint NOT NULL,
+    code character varying(100) NOT NULL,
+    name character varying(200) NOT NULL,
+    data_type character varying(20) NOT NULL,
+    description text,
+    is_identifier boolean DEFAULT false NOT NULL,
+    is_required boolean DEFAULT false NOT NULL,
+    unit character varying(50),
+    constraints jsonb DEFAULT '{}'::jsonb NOT NULL,
+    sensitivity character varying(20) DEFAULT 'NORMAL'::character varying NOT NULL,
+    temporal_role character varying(20),
+    origin character varying(20) DEFAULT 'MANUAL'::character varying NOT NULL,
+    proposal_item_id bigint,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by bigint,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by bigint,
+    row_version integer DEFAULT 0 NOT NULL,
+    CONSTRAINT ck_property_definition_constraints CHECK ((jsonb_typeof(constraints) = 'object'::text)),
+    CONSTRAINT ck_property_definition_data_type CHECK (((data_type)::text = ANY ((ARRAY['STRING'::character varying, 'INTEGER'::character varying, 'DECIMAL'::character varying, 'DATE'::character varying, 'TIME'::character varying, 'DATETIME'::character varying, 'BOOLEAN'::character varying, 'JSON'::character varying])::text[]))),
+    CONSTRAINT ck_property_definition_origin CHECK (((origin)::text = ANY ((ARRAY['AI_PROPOSAL'::character varying, 'MANUAL'::character varying, 'SEED'::character varying])::text[]))),
+    CONSTRAINT ck_property_definition_proposal CHECK ((((origin)::text <> 'AI_PROPOSAL'::text) OR (proposal_item_id IS NOT NULL))),
+    CONSTRAINT ck_property_definition_sensitivity CHECK (((sensitivity)::text = ANY ((ARRAY['NORMAL'::character varying, 'RESTRICTED'::character varying])::text[]))),
+    CONSTRAINT ck_property_definition_temporal CHECK (((temporal_role IS NULL) OR (((temporal_role)::text = ANY ((ARRAY['AS_OF'::character varying, 'EVENT_TIME'::character varying])::text[])) AND ((data_type)::text = ANY ((ARRAY['DATE'::character varying, 'TIME'::character varying, 'DATETIME'::character varying])::text[])))))
+);
+
+
+--
+-- Name: TABLE property_definition; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.property_definition IS '객체 유형의 속성과 값 형식. 실제 값은 object_instance.properties';
+
+
+--
+-- Name: COLUMN property_definition.code; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.property_definition.code IS 'properties JSON의 키. 활성 뒤 변경 금지, 바꾸려면 새 속성';
+
+
+--
+-- Name: COLUMN property_definition.constraints; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.property_definition.constraints IS '네 항목만 받는다: min·max(INTEGER·DECIMAL 범위, 경계 포함), maxLength(STRING 최대 글자 수, 1 이상), allowedValues(허용값 배열, JSON·BOOLEAN 제외). 다른 키, 자료형에 맞지 않는 항목, min > max는 API가 거부한다';
+
+
+--
+-- Name: COLUMN property_definition.temporal_role; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.property_definition.temporal_role IS 'AS_OF=이 객체 값의 업무 기준일(예: 장부가 기준일), EVENT_TIME=사건 발생 시각. 답변의 기준 시점은 이 속성으로, 수집 시점은 객체의 last_synced_at과 그 원천의 소비 지연(cdc_offset.updated_at)으로 구분한다';
+
+
+--
+-- Name: property_definition_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.property_definition ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.property_definition_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: property_restriction_history; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.property_restriction_history (
+    object_type_id bigint NOT NULL,
+    property_code character varying(100) NOT NULL,
+    restricted_until timestamp with time zone NOT NULL
+);
+
+
+--
+-- Name: TABLE property_restriction_history; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.property_restriction_history IS '민감(RESTRICTED)에서 내린 속성. 마지막으로 내린 시각만 둔다. 이 시각 전에 만든 저장된 사본(계획 스냅샷·실행 감사·검사 결과)은 이 속성을 민감으로 보고 가린다(431)';
+
+
+--
+-- Name: COLUMN property_restriction_history.restricted_until; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.property_restriction_history.restricted_until IS '마지막으로 민감에서 내린 시각. 이 전에 저장한 사본의 이 속성 값은 민감 값이다';
+
+
+--
+-- Name: property_source_mapping; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.property_source_mapping (
+    id bigint NOT NULL,
+    source_mapping_id bigint NOT NULL,
+    source_resource_id bigint NOT NULL,
+    property_definition_id bigint NOT NULL,
+    source_column_id bigint,
+    source_path text,
+    transform_steps jsonb DEFAULT '[]'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by bigint,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by bigint,
+    row_version integer DEFAULT 0 NOT NULL,
+    CONSTRAINT ck_property_source_mapping_source CHECK (((source_column_id IS NULL) <> (source_path IS NULL))),
+    CONSTRAINT ck_property_source_mapping_transforms CHECK ((jsonb_typeof(transform_steps) = 'array'::text))
+);
+
+
+--
+-- Name: TABLE property_source_mapping; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.property_source_mapping IS '원천 컬럼 값을 객체 속성에 넣는 방법. 속성이 매핑의 객체 유형에 속하는지는 Handler가 검사';
+
+
+--
+-- Name: property_source_mapping_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.property_source_mapping ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.property_source_mapping_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: proposal_item; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.proposal_item (
+    id bigint NOT NULL,
+    analysis_run_id bigint,
+    origin character varying(20) NOT NULL,
+    item_kind character varying(30) NOT NULL,
+    revision integer DEFAULT 1 NOT NULL,
+    payload jsonb NOT NULL,
+    evidence jsonb DEFAULT '{}'::jsonb NOT NULL,
+    ai_confidence numeric(5,4),
+    review_status character varying(20) DEFAULT 'PENDING'::character varying NOT NULL,
+    apply_status character varying(20) DEFAULT 'NOT_APPLIED'::character varying NOT NULL,
+    apply_error text,
+    applied_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by bigint,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by bigint,
+    row_version integer DEFAULT 0 NOT NULL,
+    CONSTRAINT ck_proposal_item_ai CHECK ((((origin)::text <> 'AI'::text) OR (analysis_run_id IS NOT NULL))),
+    CONSTRAINT ck_proposal_item_applied CHECK ((((apply_status)::text <> 'APPLIED'::text) OR (((review_status)::text = 'APPROVED'::text) AND (applied_at IS NOT NULL)))),
+    CONSTRAINT ck_proposal_item_apply CHECK (((apply_status)::text = ANY ((ARRAY['NOT_APPLIED'::character varying, 'APPLIED'::character varying, 'FAILED'::character varying])::text[]))),
+    CONSTRAINT ck_proposal_item_conf CHECK (((ai_confidence IS NULL) OR ((ai_confidence >= (0)::numeric) AND (ai_confidence <= (1)::numeric)))),
+    CONSTRAINT ck_proposal_item_failed CHECK ((((apply_status)::text <> 'FAILED'::text) OR (apply_error IS NOT NULL))),
+    CONSTRAINT ck_proposal_item_kind CHECK (((item_kind)::text = ANY ((ARRAY['OBJECT_TYPE'::character varying, 'PROPERTY'::character varying, 'LINK_TYPE'::character varying, 'OBJECT_MAPPING'::character varying, 'PROPERTY_MAPPING'::character varying, 'LINK_RULE'::character varying, 'DOCUMENT_LINK'::character varying])::text[]))),
+    CONSTRAINT ck_proposal_item_manual CHECK ((((origin)::text <> 'MANUAL'::text) OR (created_by IS NOT NULL))),
+    CONSTRAINT ck_proposal_item_origin CHECK (((origin)::text = ANY ((ARRAY['AI'::character varying, 'MANUAL'::character varying])::text[]))),
+    CONSTRAINT ck_proposal_item_payload CHECK ((jsonb_typeof(payload) = 'object'::text)),
+    CONSTRAINT ck_proposal_item_review CHECK (((review_status)::text = ANY ((ARRAY['PENDING'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying, 'HELD'::character varying])::text[]))),
+    CONSTRAINT ck_proposal_item_revision CHECK ((revision > 0))
+);
+
+
+--
+-- Name: TABLE proposal_item; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.proposal_item IS 'AI 제안 또는 관리자가 직접 추가한 연결 규칙(FN-REV-02). 검토 상태와 반영 상태를 따로 관리(FN-REV-04). 승인하면 즉시 반영(FN-REV-06)';
+
+
+--
+-- Name: COLUMN proposal_item.payload; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.proposal_item.payload IS '현재 revision의 내용(조회용 사본). 아직 없는 정의는 code로 참조한다. 검사·결정의 기준은 proposal_revision';
+
+
+--
+-- Name: proposal_item_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.proposal_item ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.proposal_item_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: proposal_option; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.proposal_option (
+    id bigint NOT NULL,
+    proposal_item_id bigint NOT NULL,
+    revision integer NOT NULL,
+    option_no integer NOT NULL,
+    payload jsonb NOT NULL,
+    evidence jsonb DEFAULT '{}'::jsonb NOT NULL,
+    ai_confidence numeric(5,4),
+    CONSTRAINT ck_proposal_option_conf CHECK (((ai_confidence IS NULL) OR ((ai_confidence >= (0)::numeric) AND (ai_confidence <= (1)::numeric)))),
+    CONSTRAINT ck_proposal_option_no CHECK ((option_no > 0))
+);
+
+
+--
+-- Name: TABLE proposal_option; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.proposal_option IS '같은 대상에 후보가 여럿일 때의 선택지(FN-REV-03). revision별로 고정되며 수정·삭제 불가';
+
+
+--
+-- Name: proposal_option_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.proposal_option ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.proposal_option_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: proposal_revision; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.proposal_revision (
+    proposal_item_id bigint NOT NULL,
+    revision integer NOT NULL,
+    payload jsonb NOT NULL,
+    evidence jsonb DEFAULT '{}'::jsonb NOT NULL,
+    ai_confidence numeric(5,4),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by bigint,
+    CONSTRAINT ck_proposal_revision_conf CHECK (((ai_confidence IS NULL) OR ((ai_confidence >= (0)::numeric) AND (ai_confidence <= (1)::numeric)))),
+    CONSTRAINT ck_proposal_revision_no CHECK ((revision > 0)),
+    CONSTRAINT ck_proposal_revision_payload CHECK ((jsonb_typeof(payload) = 'object'::text))
+);
+
+
+--
+-- Name: TABLE proposal_revision; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.proposal_revision IS '후보의 revision별 불변 내용. 후보를 고치면 새 revision 행을 추가하고 proposal_item.revision·payload를 그 값으로 바꾼다';
+
+
+--
+-- Name: reassignment_plan; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.reassignment_plan (
+    id bigint NOT NULL,
+    status character varying(20) DEFAULT 'CREATED'::character varying NOT NULL,
+    from_equipment_id bigint NOT NULL,
+    selection_basis jsonb DEFAULT '{}'::jsonb NOT NULL,
+    data_as_of timestamp with time zone NOT NULL,
+    action_execution_id bigint NOT NULL,
+    agent_conversation_id bigint,
+    created_by bigint NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ck_reassignment_plan_status CHECK (((status)::text = 'CREATED'::text))
+);
+
+
+--
+-- Name: TABLE reassignment_plan; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.reassignment_plan IS '재배정 계획. 승인 없이 생성·저장하고 원천 MES 배정은 바꾸지 않는다(S4, 결정 O3). 향후 적용은 관리자가 관여한다. 헤더는 정지 설비, 대체 설비는 항목별 [확인 O7]. 설비·작업지시 객체 유형 검사는 Handler';
+
+
+--
+-- Name: reassignment_plan_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.reassignment_plan ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.reassignment_plan_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: reassignment_plan_item; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.reassignment_plan_item (
+    id bigint NOT NULL,
+    plan_id bigint NOT NULL,
+    work_order_id bigint NOT NULL,
+    operation_code character varying(50),
+    from_equipment_id bigint NOT NULL,
+    to_equipment_id bigint NOT NULL,
+    source_snapshot jsonb DEFAULT '{}'::jsonb NOT NULL,
+    CONSTRAINT ck_reassignment_plan_item_equip CHECK ((from_equipment_id <> to_equipment_id))
+);
+
+
+--
+-- Name: reassignment_plan_item_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.reassignment_plan_item ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.reassignment_plan_item_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: review_decision; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.review_decision (
+    id bigint NOT NULL,
+    proposal_item_id bigint NOT NULL,
+    item_revision integer NOT NULL,
+    decision character varying(20) NOT NULL,
+    selected_option_id bigint,
+    reason text NOT NULL,
+    decided_by bigint NOT NULL,
+    decided_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ck_review_decision CHECK (((decision)::text = ANY ((ARRAY['APPROVE'::character varying, 'REJECT'::character varying, 'HOLD'::character varying])::text[]))),
+    CONSTRAINT ck_review_decision_reason CHECK ((length(btrim(reason)) > 0))
+);
+
+
+--
+-- Name: TABLE review_decision; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.review_decision IS '승인·거절·보류 결정과 사유. 결정할 때마다 한 행(이력). Admin만 결정, 승인은 같은 revision의 성공한 검사 결과가 있고 그 revision이 현재 revision일 때만(Handler)';
+
+
+--
+-- Name: review_decision_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.review_decision ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.review_decision_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: role; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.role (
+    id bigint NOT NULL,
+    code character varying(30) NOT NULL,
+    name character varying(100) NOT NULL,
+    CONSTRAINT ck_role_code CHECK (((code)::text = ANY ((ARRAY['ADMIN'::character varying, 'PLANNER'::character varying, 'MAINTENANCE'::character varying, 'VIEWER'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE role; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.role IS '역할 4개 고정(최종 시나리오 S7). 역할 추가·편집 화면은 두지 않는다';
+
+
+--
+-- Name: role_data_scope; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.role_data_scope (
+    role_id bigint NOT NULL,
+    access_group character varying(100) NOT NULL,
+    can_view_restricted boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: TABLE role_data_scope; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.role_data_scope IS '역할별 조회 범위(U5, V13 초기값·V21 수정, 384). 모든 역할(ADMIN 포함)은 object_type.access_group이 이 표에 있는 유형만 본다. 그룹이 없는 유형은 아무도 보지 않는다. 민감(RESTRICTED) 값은 can_view_restricted=true일 때만 보고, 외부 모델로 보내는 값은 이 값과 관계없이 가린다. 역할 이름으로 나누지 않으므로 역할을 추가하거나 MAINTENANCE를 쓰려면 이 표에 행을 넣는다. 행 단위 제한은 MVP 밖';
+
+
+--
+-- Name: role_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.role ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.role_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: role_permission; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.role_permission (
+    role_id bigint NOT NULL,
+    permission_id bigint NOT NULL
+);
+
+
+--
+-- Name: source_column; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.source_column (
+    id bigint NOT NULL,
+    source_resource_id bigint NOT NULL,
+    column_name character varying(200) NOT NULL,
+    source_data_type character varying(100) NOT NULL,
+    is_nullable boolean NOT NULL,
+    is_key_part boolean DEFAULT false NOT NULL,
+    ordinal_position integer NOT NULL,
+    source_comment text,
+    is_present boolean DEFAULT true NOT NULL,
+    last_seen_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ck_source_column_position CHECK ((ordinal_position > 0))
+);
+
+
+--
+-- Name: TABLE source_column; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.source_column IS '원천 컬럼 스냅샷(SYNC 계정 기준). 원천에서 사라져도 지우지 않고 is_present=false. 금지 컬럼은 원천 권한으로 막혀 여기 나타나지 않는다(2026-10-27: 민감 칸 삭제)';
+
+
+--
+-- Name: COLUMN source_column.is_present; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.source_column.is_present IS '컬럼 목록을 성공적으로 읽었을 때만 false로 바꾼다. 조회 실패·권한 제한은 컬럼 삭제로 보지 않는다';
+
+
+--
+-- Name: source_column_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.source_column ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.source_column_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: source_connection_check; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.source_connection_check (
+    id bigint NOT NULL,
+    data_source_id bigint NOT NULL,
+    status character varying(20) DEFAULT 'QUEUED'::character varying NOT NULL,
+    requested_by bigint NOT NULL,
+    requested_at timestamp with time zone DEFAULT now() NOT NULL,
+    started_at timestamp with time zone,
+    finished_at timestamp with time zone,
+    result jsonb DEFAULT '{}'::jsonb NOT NULL,
+    error_message text,
+    CONSTRAINT ck_source_connection_check_error CHECK ((((status)::text <> 'FAILED'::text) OR (error_message IS NOT NULL))),
+    CONSTRAINT ck_source_connection_check_finished CHECK ((((status)::text = ANY ((ARRAY['SUCCEEDED'::character varying, 'FAILED'::character varying])::text[])) = (finished_at IS NOT NULL))),
+    CONSTRAINT ck_source_connection_check_result CHECK ((jsonb_typeof(result) = 'object'::text)),
+    CONSTRAINT ck_source_connection_check_started CHECK ((((status)::text = 'QUEUED'::text) = (started_at IS NULL))),
+    CONSTRAINT ck_source_connection_check_status CHECK (((status)::text = ANY ((ARRAY['QUEUED'::character varying, 'RUNNING'::character varying, 'SUCCEEDED'::character varying, 'FAILED'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE source_connection_check; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.source_connection_check IS '원천 연결 검사 작업. 성공하면 data_source.connection_status와 source_resource·source_column(카탈로그)을 갱신한다. 원천마다 대기·실행 중인 검사는 하나';
+
+
+--
+-- Name: source_connection_check_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.source_connection_check ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.source_connection_check_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: source_delete_mark; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.source_delete_mark (
+    source_resource_id bigint NOT NULL,
+    source_key jsonb NOT NULL,
+    source_txid xid8 NOT NULL,
+    source_lsn bigint NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ck_source_delete_mark_key CHECK ((jsonb_typeof(source_key) = 'object'::text)),
+    CONSTRAINT ck_source_delete_mark_lsn CHECK ((source_lsn >= 0))
+);
+
+
+--
+-- Name: TABLE source_delete_mark; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.source_delete_mark IS '플랫폼에 객체가 없는 원천 행의 삭제 흔적. CDC 소비자가 d 이벤트에 맞는 객체를 하나도 찾지 못하면 남긴다. 전체 읽기는 객체를 새로 만들기 전에 확인해, 흔적의 번호가 자기 스냅샷에서 안 보이면(읽은 뒤에 지워진 행) 만들지 않는다. 전체 읽기가 끝나면 그 스냅샷에서 보이는 흔적은 지운다';
+
+
+--
+-- Name: source_load_failure; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.source_load_failure (
+    id bigint NOT NULL,
+    source_resource_id bigint NOT NULL,
+    object_source_mapping_id bigint NOT NULL,
+    source_key jsonb,
+    column_name character varying(200) NOT NULL,
+    property_definition_id bigint,
+    reason character varying(30) NOT NULL,
+    status character varying(10) DEFAULT 'OPEN'::character varying NOT NULL,
+    occurrences integer DEFAULT 1 NOT NULL,
+    first_seen_at timestamp with time zone DEFAULT now() NOT NULL,
+    last_seen_at timestamp with time zone DEFAULT now() NOT NULL,
+    last_sync_run_id bigint NOT NULL,
+    closed_at timestamp with time zone,
+    CONSTRAINT ck_source_load_failure_closed CHECK ((((status)::text = 'CLOSED'::text) = (closed_at IS NOT NULL))),
+    CONSTRAINT ck_source_load_failure_count CHECK ((occurrences > 0)),
+    CONSTRAINT ck_source_load_failure_key CHECK (((source_key IS NULL) OR (jsonb_typeof(source_key) = 'object'::text))),
+    CONSTRAINT ck_source_load_failure_reason CHECK (((reason)::text = ANY ((ARRAY['KEY_MISSING'::character varying, 'KEY_UNSUPPORTED'::character varying, 'VALUE_CONVERSION'::character varying, 'UNSUPPORTED_TYPE'::character varying])::text[]))),
+    CONSTRAINT ck_source_load_failure_seen CHECK ((last_seen_at >= first_seen_at)),
+    CONSTRAINT ck_source_load_failure_status CHECK (((status)::text = ANY ((ARRAY['OPEN'::character varying, 'CLOSED'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE source_load_failure; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.source_load_failure IS '수집 실패 기록(결정 9.2). 전체 읽기(197)·CDC(198)가 객체로 만들지 못한 원천 행(키 없음·키 형식 미지원)과 속성 값 변환 실패. 원천 행 값은 복사하지 않고 키와 실패 컬럼만 남긴다. issue로 올리지 않는다(issue는 연결 규칙·후보에서 나온 정합성 문제). 도착 표의 연결 기준 컬럼에 열린 기록이 있으면 그 규칙의 미연결 판정을 보류한다(설계 검토 R5). 074 수집 이력에서 보여 준다';
+
+
+--
+-- Name: COLUMN source_load_failure.source_key; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.source_load_failure.source_key IS '원천 키(컬럼 → 키 문자열). 키를 만들지 못한 행이면 NULL';
+
+
+--
+-- Name: COLUMN source_load_failure.column_name; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.source_load_failure.column_name IS '실패한 원천 컬럼. 키 실패면 그 키 컬럼';
+
+
+--
+-- Name: COLUMN source_load_failure.property_definition_id; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.source_load_failure.property_definition_id IS '속성 값 변환 실패면 그 속성. 키 실패면 NULL';
+
+
+--
+-- Name: COLUMN source_load_failure.reason; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.source_load_failure.reason IS 'KEY_MISSING 키 값 없음, KEY_UNSUPPORTED 키로 쓸 수 없는 형식, VALUE_CONVERSION 속성 자료형으로 바꾸지 못함, UNSUPPORTED_TYPE 지원하지 않는 원천 형식(bytea·배열 등)';
+
+
+--
+-- Name: COLUMN source_load_failure.status; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.source_load_failure.status IS 'OPEN 실패 중, CLOSED 같은 키·속성이 다시 성공적으로 쓰였거나 다음 전체 읽기에서 다시 나오지 않음';
+
+
+--
+-- Name: COLUMN source_load_failure.occurrences; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.source_load_failure.occurrences IS '열린 동안 같은 실패를 본 횟수. 실행마다 행을 새로 만들지 않는다';
+
+
+--
+-- Name: COLUMN source_load_failure.last_sync_run_id; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.source_load_failure.last_sync_run_id IS '마지막으로 이 실패를 본 수집 실행';
+
+
+--
+-- Name: source_load_failure_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.source_load_failure ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.source_load_failure_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: source_preview; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.source_preview (
+    id bigint NOT NULL,
+    source_resource_id bigint NOT NULL,
+    preview_kind character varying(20) NOT NULL,
+    request jsonb DEFAULT '{}'::jsonb NOT NULL,
+    row_limit smallint DEFAULT 20 NOT NULL,
+    status character varying(20) DEFAULT 'QUEUED'::character varying NOT NULL,
+    requested_by bigint NOT NULL,
+    requested_at timestamp with time zone DEFAULT now() NOT NULL,
+    started_at timestamp with time zone,
+    finished_at timestamp with time zone,
+    result jsonb,
+    error_message text,
+    expires_at timestamp with time zone DEFAULT (now() + '01:00:00'::interval) NOT NULL,
+    CONSTRAINT ck_source_preview_error CHECK ((((status)::text = 'FAILED'::text) = (error_message IS NOT NULL))),
+    CONSTRAINT ck_source_preview_expires CHECK ((expires_at > requested_at)),
+    CONSTRAINT ck_source_preview_finished CHECK ((((status)::text = ANY ((ARRAY['SUCCEEDED'::character varying, 'FAILED'::character varying])::text[])) = (finished_at IS NOT NULL))),
+    CONSTRAINT ck_source_preview_kind CHECK (((preview_kind)::text = ANY ((ARRAY['SAMPLE'::character varying, 'MAPPING_PREVIEW'::character varying])::text[]))),
+    CONSTRAINT ck_source_preview_limit CHECK (((row_limit >= 1) AND (row_limit <= 20))),
+    CONSTRAINT ck_source_preview_request CHECK (((jsonb_typeof(request) = 'object'::text) AND (((preview_kind)::text <> 'MAPPING_PREVIEW'::text) OR (request ? 'mapping'::text)))),
+    CONSTRAINT ck_source_preview_result CHECK (((((status)::text = 'SUCCEEDED'::text) = (result IS NOT NULL)) AND ((result IS NULL) OR (jsonb_typeof(result) = 'object'::text)))),
+    CONSTRAINT ck_source_preview_started CHECK ((((status)::text = 'QUEUED'::text) = (started_at IS NULL))),
+    CONSTRAINT ck_source_preview_status CHECK (((status)::text = ANY ((ARRAY['QUEUED'::character varying, 'RUNNING'::character varying, 'SUCCEEDED'::character varying, 'FAILED'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE source_preview; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.source_preview IS '원천 표본(016)·매핑 미리보기 작업. 짧게 쓰고 버리는 표라 이력은 action_execution(SOURCE_PREVIEW: 누가 어느 테이블을 봤는지, 행 값은 넣지 않음)에 남긴다';
+
+
+--
+-- Name: source_preview_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.source_preview ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.source_preview_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: source_resource; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.source_resource (
+    id bigint NOT NULL,
+    data_source_id bigint NOT NULL,
+    resource_key character varying(300) NOT NULL,
+    resource_kind character varying(20) NOT NULL,
+    source_metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    is_readable boolean DEFAULT false NOT NULL,
+    last_seen_at timestamp with time zone DEFAULT now() NOT NULL,
+    sync_strategy character varying(20) DEFAULT 'FULL_COMPARE'::character varying NOT NULL,
+    loaded_lsn bigint,
+    full_load_done_gen bigint,
+    CONSTRAINT ck_source_resource_cdc_kind CHECK ((((sync_strategy)::text <> 'CDC'::text) OR ((resource_kind)::text = 'TABLE'::text))),
+    CONSTRAINT ck_source_resource_kind CHECK (((resource_kind)::text = ANY ((ARRAY['TABLE'::character varying, 'VIEW'::character varying, 'DOCUMENT_SET'::character varying, 'FILE'::character varying])::text[]))),
+    CONSTRAINT ck_source_resource_load_gen CHECK (((full_load_done_gen IS NULL) OR ((sync_strategy)::text = 'CDC'::text))),
+    CONSTRAINT ck_source_resource_lsn CHECK (((loaded_lsn IS NULL) OR (((sync_strategy)::text = 'CDC'::text) AND (loaded_lsn >= 0)))),
+    CONSTRAINT ck_source_resource_metadata CHECK ((jsonb_typeof(source_metadata) = 'object'::text)),
+    CONSTRAINT ck_source_resource_strategy CHECK (((sync_strategy)::text = ANY ((ARRAY['CDC'::character varying, 'FULL_COMPARE'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE source_resource; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.source_resource IS '원천 안의 표·뷰·문서 집합. 연결 확인 때 읽을 수 있는 자원 목록';
+
+
+--
+-- Name: COLUMN source_resource.sync_strategy; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.source_resource.sync_strategy IS 'CDC(변경 이벤트로 반영) / FULL_COMPARE(전체를 읽고 저장값과 비교). CDC는 원천 PostgreSQL의 TABLE만 가능하다(원천 종류는 배치가 검사). 같은 테이블의 매핑은 모두 이 방식을 따른다';
+
+
+--
+-- Name: COLUMN source_resource.loaded_lsn; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.source_resource.loaded_lsn IS 'CDC 테이블을 마지막으로 전체 읽기한 시점의 원천 LSN(참고·표시용, 판단에 쓰지 않는다). NULL이면 다시 전체 읽기가 필요하다: 첫 적재 전, 매핑 변경·TRUNCATE·TOAST 값 유지 불가 뒤, 복구. 배치 감시 작업이 켜진 매핑이 있는 NULL 테이블을 RECOVERY로 다시 읽는다. 원천 교체(SOURCE_CHANGED)는 커넥터를 맞추기 전에 읽으면 안 되므로 비우지 않고, 관리자가 맞췄다고 알릴 때 비운다. 원천이 복구 중이면 recovery_at보다 먼저 시작한 전체 읽기는 이 값을 채우지 않는다. CDC 이벤트는 이 값과 무관하게 항상 반영한다(V11)';
+
+
+--
+-- Name: COLUMN source_resource.full_load_done_gen; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.source_resource.full_load_done_gen IS '이 CDC 테이블에서 끝난 전체 읽기 중 가장 새 세대(sync_run.id). 이보다 옛 세대 적재는 객체를 쓰지 않는다. 옛 적재에는 새 적재보다 새로운 정보가 없고, 새 적재가 지운 삭제 흔적을 되살리지 않기 위해서다(V11)';
+
+
+--
+-- Name: source_resource_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.source_resource ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.source_resource_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: spring_session; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.spring_session (
+    primary_id character(36) NOT NULL,
+    session_id character(36) NOT NULL,
+    creation_time bigint NOT NULL,
+    last_access_time bigint NOT NULL,
+    max_inactive_interval integer NOT NULL,
+    expiry_time bigint NOT NULL,
+    principal_name character varying(100)
+);
+
+
+--
+-- Name: spring_session_attributes; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.spring_session_attributes (
+    session_primary_id character(36) NOT NULL,
+    attribute_name character varying(200) NOT NULL,
+    attribute_bytes bytea NOT NULL
+);
+
+
+--
+-- Name: sync_run; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.sync_run (
+    id bigint NOT NULL,
+    data_source_id bigint NOT NULL,
+    trigger_kind character varying(20) NOT NULL,
+    status character varying(20) DEFAULT 'QUEUED'::character varying NOT NULL,
+    requested_at timestamp with time zone DEFAULT now() NOT NULL,
+    started_at timestamp with time zone,
+    heartbeat_at timestamp with time zone,
+    finished_at timestamp with time zone,
+    error_message text,
+    requested_by bigint,
+    CONSTRAINT ck_sync_run_error CHECK ((((status)::text <> 'FAILED'::text) OR (error_message IS NOT NULL))),
+    CONSTRAINT ck_sync_run_finished CHECK ((((status)::text = ANY ((ARRAY['SUCCEEDED'::character varying, 'FAILED'::character varying])::text[])) = (finished_at IS NOT NULL))),
+    CONSTRAINT ck_sync_run_requester CHECK ((((trigger_kind)::text = ANY ((ARRAY['SCHEDULED'::character varying, 'CDC'::character varying, 'RECOVERY'::character varying])::text[])) OR (requested_by IS NOT NULL))),
+    CONSTRAINT ck_sync_run_started CHECK ((((status)::text = 'QUEUED'::text) = (started_at IS NULL))),
+    CONSTRAINT ck_sync_run_status CHECK (((status)::text = ANY ((ARRAY['QUEUED'::character varying, 'RUNNING'::character varying, 'SUCCEEDED'::character varying, 'FAILED'::character varying])::text[]))),
+    CONSTRAINT ck_sync_run_time CHECK (((finished_at IS NULL) OR (finished_at >= started_at))),
+    CONSTRAINT ck_sync_run_trigger CHECK (((trigger_kind)::text = ANY ((ARRAY['SCHEDULED'::character varying, 'MANUAL'::character varying, 'ON_DEMAND'::character varying, 'CDC'::character varying, 'RECOVERY'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE sync_run; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.sync_run IS '원천 수집 한 번(FN-BAT-02~04). CDC = 소비자가 한 트랜잭션으로 반영한 이벤트 묶음 하나(변경이 없으면 만들지 않음). MANUAL = 관리자가 요청한 전체 다시 읽기(API 073, CDC 테이블은 FULL만), SCHEDULED = FULL_COMPARE 원천의 주기 수집, ON_DEMAND = Agent 질문에 필요한 FULL_COMPARE 테이블만, RECOVERY = 배치 감시 작업이 요청자 없이 넣는 CDC 테이블 전체 다시 읽기(첫 적재, 매핑 변경·TRUNCATE 뒤, 복구). 넣은 이유는 접수 감사 기록에 이유 코드(FIRST_LOAD·RECOVERY·RELOAD_REQUESTED)로 남긴다. CDC 외에는 작업 표 방식이다: 백엔드·감시 작업이 QUEUED로 넣고 배치가 가져가 RUNNING으로 바꾼다. 테이블별 구간·건수는 sync_run_resource';
+
+
+--
+-- Name: sync_run_id_seq; Type: SEQUENCE; Schema: platform; Owner: -
+--
+
+ALTER TABLE platform.sync_run ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME platform.sync_run_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: sync_run_resource; Type: TABLE; Schema: platform; Owner: -
+--
+
+CREATE TABLE platform.sync_run_resource (
+    sync_run_id bigint NOT NULL,
+    data_source_id bigint NOT NULL,
+    source_resource_id bigint NOT NULL,
+    mode character varying(20) NOT NULL,
+    status character varying(20) DEFAULT 'QUEUED'::character varying NOT NULL,
+    rows_read integer DEFAULT 0 NOT NULL,
+    rows_upserted integer DEFAULT 0 NOT NULL,
+    rows_deleted integer DEFAULT 0 NOT NULL,
+    started_at timestamp with time zone,
+    finished_at timestamp with time zone,
+    error_message text,
+    from_lsn bigint,
+    to_lsn bigint,
+    CONSTRAINT ck_sync_run_resource_counts CHECK (((rows_read >= 0) AND (rows_upserted >= 0) AND (rows_deleted >= 0))),
+    CONSTRAINT ck_sync_run_resource_error CHECK ((((status)::text <> 'FAILED'::text) OR (error_message IS NOT NULL))),
+    CONSTRAINT ck_sync_run_resource_finished CHECK ((((status)::text = ANY ((ARRAY['QUEUED'::character varying, 'RUNNING'::character varying])::text[])) = (finished_at IS NULL))),
+    CONSTRAINT ck_sync_run_resource_lsn CHECK ((((from_lsn IS NULL) OR (from_lsn >= 0)) AND ((to_lsn IS NULL) OR (to_lsn >= 0)))),
+    CONSTRAINT ck_sync_run_resource_mode CHECK (((mode)::text = ANY ((ARRAY['FULL'::character varying, 'INCREMENTAL'::character varying])::text[]))),
+    CONSTRAINT ck_sync_run_resource_range CHECK (((from_lsn IS NULL) OR (to_lsn IS NULL) OR (to_lsn >= from_lsn))),
+    CONSTRAINT ck_sync_run_resource_started CHECK ((((status)::text = 'QUEUED'::text) = (started_at IS NULL))),
+    CONSTRAINT ck_sync_run_resource_status CHECK (((status)::text = ANY ((ARRAY['QUEUED'::character varying, 'RUNNING'::character varying, 'SUCCEEDED'::character varying, 'FAILED'::character varying, 'SKIPPED'::character varying])::text[])))
+);
+
+
+--
+-- Name: TABLE sync_run_resource; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON TABLE platform.sync_run_resource IS '수집 실행의 테이블별 방식·구간·건수·상태. FULL = 전체 읽기, INCREMENTAL = CDC 이벤트 반영. CDC 묶음의 행은 반영이 끝난 상태(SUCCEEDED)로 바로 넣으므로 같은 테이블의 전체 읽기와 대기·실행 중 유일 조건이 겹치지 않는다. SKIPPED = 잠금을 받고 다시 확인했더니 그 사이 다른 실행이 이미 읽었음(중복 방지, A4)';
+
+
+--
+-- Name: COLUMN sync_run_resource.mode; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.sync_run_resource.mode IS 'FULL = 테이블 전체 읽기(첫 적재·매핑 변경·복구·FULL_COMPARE), INCREMENTAL = CDC 이벤트 반영';
+
+
+--
+-- Name: COLUMN sync_run_resource.from_lsn; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.sync_run_resource.from_lsn IS 'INCREMENTAL: 이 묶음에서 반영한 첫 이벤트의 LSN. FULL이면 NULL';
+
+
+--
+-- Name: COLUMN sync_run_resource.to_lsn; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.sync_run_resource.to_lsn IS 'INCREMENTAL: 이 묶음에서 반영한 마지막 이벤트의 LSN. FULL(CDC 테이블): 읽기 시점의 원천 LSN(source_resource.loaded_lsn이 되는 값, 참고용). 전체 읽기와 이벤트의 경계는 객체의 loaded_snapshot으로 판단한다';
+
+
+--
+-- Data for Name: account; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.account (id, login_id, display_name, password_hash, role_id, status, must_change_password, password_changed_at, failed_login_count, last_login_at, created_at, created_by, updated_at, updated_by, row_version) FROM stdin;
+\.
+
+
+--
+-- Data for Name: action_definition; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.action_definition (id, code, name, description, target_kind, target_object_type_id, handler_key, input_schema, action_kind, requires_confirmation, required_permission, is_active, created_at, created_by, updated_at, updated_by, row_version, action_mode) FROM stdin;
+1	CREATE_ACCOUNT	계정 생성	관리자가 새 계정을 만든다(API 005). 계정 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ACCOUNT_MANAGE	t	2026-11-16 02:43:26.06098+00	\N	2026-11-16 02:43:26.06098+00	\N	0	RECORD
+2	UPDATE_ACCOUNT	계정·역할 변경	관리자가 계정의 이름·역할·상태를 바꾼다(API 007). 계정 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ACCOUNT_MANAGE	t	2026-11-16 02:43:26.06098+00	\N	2026-11-16 02:43:26.06098+00	\N	0	RECORD
+3	RESET_ACCOUNT_PASSWORD	관리자 비밀번호 초기화	관리자가 계정의 비밀번호를 임시 비밀번호로 바꾼다(API 103). 계정 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ACCOUNT_MANAGE	t	2026-11-16 02:43:26.06098+00	\N	2026-11-16 02:43:26.06098+00	\N	0	RECORD
+4	CREATE_REASSIGNMENT_PLAN	재배정 계획 생성	정지 설비의 작업지시·공정을 대체 설비로 옮기는 계획을 저장한다. 원천 MES 배정은 바꾸지 않는다.	OBJECT	\N	CREATE_REASSIGNMENT_PLAN	{"type": "object", "required": ["fromEquipmentId", "items", "dataAsOf"], "properties": {"items": {"type": "array", "items": {"type": "object", "required": ["workOrderId", "toEquipmentId"], "properties": {"workOrderId": {"type": "integer", "minimum": 1}, "operationCode": {"type": ["string", "null"], "maxLength": 50}, "toEquipmentId": {"type": "integer", "minimum": 1}}}, "minItems": 1}, "dataAsOf": {"type": "string", "format": "date-time"}, "selectionBasis": {"type": "object"}, "fromEquipmentId": {"type": "integer", "minimum": 1}}}	WRITE	f	PLAN_CREATE	t	2026-11-16 02:43:26.137322+00	\N	2026-11-16 02:43:26.137322+00	\N	0	EXECUTE
+5	REGISTER_SOURCE	원천 등록	관리자가 원천과 접속 계정을 등록한다(API 010). 원천 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	SOURCE_MANAGE	t	2026-11-16 02:43:26.137322+00	\N	2026-11-16 02:43:26.137322+00	\N	0	RECORD
+6	UPDATE_SOURCE	원천 정보 변경	관리자가 원천 이름·접속 설정·접속 계정을 바꾼다(API 012). 원천 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	SOURCE_MANAGE	t	2026-11-16 02:43:26.137322+00	\N	2026-11-16 02:43:26.137322+00	\N	0	RECORD
+7	CREATE_ACTION_DEFINITION	Action 정의 등록	관리자가 업무 Action 정의를 등록한다(API 088). Action API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ACTION_DEFINITION_MANAGE	t	2026-11-16 02:43:26.137322+00	\N	2026-11-16 02:43:26.137322+00	\N	0	RECORD
+8	UPDATE_ACTION_DEFINITION	Action 정의 수정	관리자가 업무 Action 정의를 수정한다(API 090). Action API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ACTION_DEFINITION_MANAGE	t	2026-11-16 02:43:26.137322+00	\N	2026-11-16 02:43:26.137322+00	\N	0	RECORD
+9	UPDATE_SYNC_SCHEDULE	원천별 수집 주기 설정	관리자가 원천의 자동 수집 여부와 주기를 바꾼다(API 072). 수집 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	SYNC_SCHEDULE_MANAGE	t	2026-11-16 02:43:26.137322+00	\N	2026-11-16 02:43:26.137322+00	\N	0	RECORD
+10	DECIDE_PROPOSAL	후보 승인·거절·보류	관리자가 후보를 승인·거절·보류한다(API 054). 검토 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	PROPOSAL_DECIDE	t	2026-11-16 02:43:26.137322+00	\N	2026-11-16 02:43:26.137322+00	\N	0	RECORD
+11	CREATE_OBJECT_TYPE	객체 유형 등록	관리자가 객체 유형을 직접 등록한다(API 022). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
+12	UPDATE_OBJECT_TYPE	객체 유형 수정	관리자가 객체 유형의 이름·설명·동의어·접근 그룹·표시 속성을 바꾼다(API 024). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
+13	DELETE_OBJECT_TYPE	객체 유형 삭제	관리자가 쓰이지 않는 객체 유형을 지운다(API 025). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
+14	CREATE_PROPERTY	속성 등록	관리자가 객체 유형에 속성을 직접 등록한다(API 027). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
+15	UPDATE_PROPERTY	속성 수정	관리자가 속성의 이름·자료형·제약·민감도 등을 바꾼다(API 028). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
+16	DELETE_PROPERTY	속성 삭제	관리자가 쓰이지 않는 속성을 지운다(API 029). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
+17	CREATE_LINK_TYPE	관계 유형 등록	관리자가 관계 유형을 직접 등록한다(API 031). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
+18	UPDATE_LINK_TYPE	관계 유형 수정	관리자가 관계 유형의 이름·설명·관계 수 등을 바꾼다(API 032). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
+19	DELETE_LINK_TYPE	관계 유형 삭제	관리자가 쓰이지 않는 관계 유형을 지운다(API 033). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
+20	CREATE_OBJECT_MAPPING	객체 매핑 등록	관리자가 원천 표와 객체 유형의 매핑을 직접 등록한다(API 035). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
+21	UPDATE_OBJECT_MAPPING	객체 매핑 수정	관리자가 객체 매핑의 원천 표·키·켜짐 여부를 바꾼다(API 036). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
+22	CREATE_PROPERTY_MAPPING	속성 매핑 등록	관리자가 원천 컬럼과 속성의 매핑을 직접 등록한다(API 038). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
+23	UPDATE_PROPERTY_MAPPING	속성 매핑 수정	관리자가 속성 매핑의 원천 컬럼·변환 단계를 바꾼다(API 039). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
+24	DELETE_PROPERTY_MAPPING	속성 매핑 삭제	관리자가 속성 매핑을 지운다(API 101). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
+25	CREATE_ISSUE_MANUAL_LINK	미연결 문제 수동 연결	관리자가 미연결 문제 상세에서 도착 객체와 연결한다(API 058). 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ISSUE_MANUAL_LINK	t	2026-11-16 02:43:26.409653+00	\N	2026-11-16 02:43:26.409653+00	\N	0	RECORD
+\.
+
+
+--
+-- Data for Name: action_execution; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.action_execution (id, request_id, event_kind, action_definition_id, actor_type, actor_id, actor_role_code, checked_permission_code, entry_point, target_type, target_id, input, status, result_category, blocked_reason, result, data_as_of, agent_message_id, tool_code, sequence_no, duration_ms, requested_at, finished_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: agent_conversation; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.agent_conversation (id, account_id, title, started_at, last_message_at, summary, summarized_until_message_id, deleted_at, summary_access_scope) FROM stdin;
+\.
+
+
+--
+-- Data for Name: agent_message; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.agent_message (id, conversation_id, sender, content, context, answer_meta, status, error_message, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: analysis_run; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.analysis_run (id, run_kind, analysis_range, work_key, status, requested_by, based_on_sync_run_id, requested_at, started_at, finished_at, result_summary, error_message) FROM stdin;
+\.
+
+
+--
+-- Data for Name: analysis_run_target; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.analysis_run_target (analysis_run_id, source_resource_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: batch_job_execution; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.batch_job_execution (job_execution_id, version, job_instance_id, create_time, start_time, end_time, status, exit_code, exit_message, last_updated) FROM stdin;
+\.
+
+
+--
+-- Data for Name: batch_job_execution_context; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.batch_job_execution_context (job_execution_id, short_context, serialized_context) FROM stdin;
+\.
+
+
+--
+-- Data for Name: batch_job_execution_params; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.batch_job_execution_params (job_execution_id, parameter_name, parameter_type, parameter_value, identifying) FROM stdin;
+\.
+
+
+--
+-- Data for Name: batch_job_instance; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.batch_job_instance (job_instance_id, version, job_name, job_key) FROM stdin;
+\.
+
+
+--
+-- Data for Name: batch_step_execution; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.batch_step_execution (step_execution_id, version, step_name, job_execution_id, create_time, start_time, end_time, status, commit_count, read_count, filter_count, write_count, read_skip_count, write_skip_count, process_skip_count, rollback_count, exit_code, exit_message, last_updated) FROM stdin;
+\.
+
+
+--
+-- Data for Name: batch_step_execution_context; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.batch_step_execution_context (step_execution_id, short_context, serialized_context) FROM stdin;
+\.
+
+
+--
+-- Data for Name: cdc_offset; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.cdc_offset (topic, partition_no, data_source_id, next_offset, updated_at, last_txid, last_commit_at, last_message_at, processing_lag_ms, healthy_since, recovery_reason, recovery_at, resume_after) FROM stdin;
+\.
+
+
+--
+-- Data for Name: check_result; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.check_result (id, check_run_id, link_mapping_id, proposal_item_id, proposal_item_revision, previous_result_id, total_count, matched_count, unmatched_count, duplicate_count, violation_count, sample_rows, excluded_target_count) FROM stdin;
+\.
+
+
+--
+-- Data for Name: check_run; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.check_run (id, trigger_kind, status, scope, work_key, data_basis, sync_run_id, compared_to_run_id, requested_by, requested_at, started_at, finished_at, error_message) FROM stdin;
+\.
+
+
+--
+-- Data for Name: data_source; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.data_source (id, code, name, source_kind, connection_config, connection_status, last_checked_at, sync_enabled, sync_interval_minutes, created_at, created_by, updated_at, updated_by, row_version) FROM stdin;
+\.
+
+
+--
+-- Data for Name: data_source_credential; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.data_source_credential (id, data_source_id, purpose, username, secret_ciphertext, secret_nonce, key_version, rotated_at, created_by) FROM stdin;
+\.
+
+
+--
+-- Data for Name: entity_change; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.entity_change (id, action_execution_id, table_name, row_key, change_kind, before_data, after_data) FROM stdin;
+\.
+
+
+--
+-- Data for Name: flyway_schema_history; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.flyway_schema_history (installed_rank, version, description, type, script, checksum, installed_by, installed_on, execution_time, success) FROM stdin;
+0	\N	<< Flyway Schema Creation >>	SCHEMA	"platform"	\N	axcore	2026-11-16 02:43:25.517291	0	t
+1	1	create ontology core	SQL	V1__create_ontology_core.sql	-1373187552	axcore	2026-11-16 02:43:25.547346	80	t
+2	2	create operations	SQL	V2__create_operations.sql	750752606	axcore	2026-11-16 02:43:25.742487	73	t
+3	3	add cross domain constraints	SQL	V3__add_cross_domain_constraints.sql	-1408328860	axcore	2026-11-16 02:43:25.87447	25	t
+4	4	create spring session	SQL	V4__create_spring_session.sql	-1311745729	axcore	2026-11-16 02:43:25.930194	6	t
+5	5	switch source sync to cdc	SQL	V5__switch_source_sync_to_cdc.sql	583136016	axcore	2026-11-16 02:43:25.97307	12	t
+6	6	create spring batch metadata	SQL	V6__create_spring_batch_metadata.sql	-43429806	axcore	2026-11-16 02:43:25.999373	8	t
+7	7	add account action definitions	SQL	V7__add_account_action_definitions.sql	-1322818323	axcore	2026-11-16 02:43:26.040142	3	t
+8	8	allow running agent message	SQL	V8__allow_running_agent_message.sql	-1575073470	axcore	2026-11-16 02:43:26.067279	3	t
+9	9	add action definition mode	SQL	V9__add_action_definition_mode.sql	-2084365037	axcore	2026-11-16 02:43:26.099321	4	t
+10	10	add action definitions	SQL	V10__add_action_definitions.sql	-166588881	axcore	2026-11-16 02:43:26.130985	3	t
+11	11	judge full load by snapshot	SQL	V11__judge_full_load_by_snapshot.sql	1186728447	axcore	2026-11-16 02:43:26.14396	6	t
+12	12	track cdc consumer and pending checks	SQL	V12__track_cdc_consumer_and_pending_checks.sql	-1766531630	axcore	2026-11-16 02:43:26.178125	14	t
+13	13	seed role data scope	SQL	V13__seed_role_data_scope.sql	147465302	axcore	2026-11-16 02:43:26.222072	3	t
+14	14	resume cdc after recovery	SQL	V14__resume_cdc_after_recovery.sql	735742092	axcore	2026-11-16 02:43:26.256176	3	t
+15	15	add agent conversation summary	SQL	V15__add_agent_conversation_summary.sql	1566169318	axcore	2026-11-16 02:43:26.289606	2	t
+16	16	allow apply failed recovery	SQL	V16__allow_apply_failed_recovery.sql	-1452440330	axcore	2026-11-16 02:43:26.299733	2	t
+17	17	one active rule per link type	SQL	V17__one_active_rule_per_link_type.sql	1405235801	axcore	2026-11-16 02:43:26.328231	3	t
+18	18	add definition edit actions	SQL	V18__add_definition_edit_actions.sql	1612414833	axcore	2026-11-16 02:43:26.363664	3	t
+19	19	add issue manual link action	SQL	V19__add_issue_manual_link_action.sql	32477048	axcore	2026-11-16 02:43:26.394792	2	t
+20	20	add check result excluded targets	SQL	V20__add_check_result_excluded_targets.sql	1887927097	axcore	2026-11-16 02:43:26.415126	2	t
+21	21	separate admin data scope	SQL	V21__separate_admin_data_scope.sql	-1741527675	axcore	2026-11-16 02:43:26.425816	3	t
+22	22	drop held items	SQL	V22__drop_held_items.sql	1502156411	axcore	2026-11-16 02:43:26.465786	5	t
+23	23	add restricted view event	SQL	V23__add_restricted_view_event.sql	-1252236669	axcore	2026-11-16 02:43:26.487967	2	t
+24	24	add agent conversation deleted at	SQL	V24__add_agent_conversation_deleted_at.sql	-1590374105	axcore	2026-11-16 02:43:26.500819	3	t
+25	25	add agent conversation summary scope	SQL	V25__add_agent_conversation_summary_scope.sql	-724658801	axcore	2026-11-16 02:43:26.519573	2	t
+26	26	add property restriction history	SQL	V26__add_property_restriction_history.sql	602473121	axcore	2026-11-16 02:43:26.555664	4	t
+\.
+
+
+--
+-- Data for Name: issue; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.issue (id, issue_kind, status, dedupe_key, link_mapping_id, proposal_item_id, object_instance_id, raw_value, transformed_value, failure_reason, evidence, detected_check_run_id, resolved_check_run_id, resolved_outcome, forwarded_at, forwarded_by, created_at, updated_at, row_version) FROM stdin;
+\.
+
+
+--
+-- Data for Name: issue_history; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.issue_history (id, issue_id, from_status, to_status, note, check_run_id, changed_by, changed_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: issue_verification; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.issue_verification (issue_id, check_run_id, outcome, detail, checked_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: link_check_pending; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.link_check_pending (id, link_mapping_id, source_object_id, status, first_seen_at, last_check_run_id, closed_at, close_reason, issue_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: link_mapping; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.link_mapping (id, link_type_id, code, revision, source_filter, target_filter, description, status, retired_at, origin, proposal_item_id, created_at, created_by) FROM stdin;
+\.
+
+
+--
+-- Data for Name: link_mapping_condition; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.link_mapping_condition (id, link_mapping_id, source_property_id, target_property_id, sequence_no, operator, source_transforms, target_transforms, created_at, created_by) FROM stdin;
+\.
+
+
+--
+-- Data for Name: link_type; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.link_type (id, code, name, source_type_id, target_type_id, cardinality, description, origin, proposal_item_id, created_at, created_by, updated_at, updated_by, row_version) FROM stdin;
+\.
+
+
+--
+-- Data for Name: object_instance; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.object_instance (id, object_type_id, source_mapping_id, source_key, display_name, properties, status, first_collected_at, last_synced_at, last_sync_run_id, created_by, updated_at, source_lsn, source_txid, loaded_snapshot, loaded_gen) FROM stdin;
+\.
+
+
+--
+-- Data for Name: object_link; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.object_link (id, link_type_id, source_object_id, target_object_id, origin, link_mapping_id, status, inactivated_at, evidence, confirmed_by, proposal_item_id, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: object_source_mapping; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.object_source_mapping (id, source_resource_id, object_type_id, key_columns, row_filter, is_active, origin, proposal_item_id, created_at, created_by, updated_at, updated_by, row_version) FROM stdin;
+\.
+
+
+--
+-- Data for Name: object_type; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.object_type (id, code, name, description, synonyms, access_group, display_property_id, origin, proposal_item_id, created_at, created_by, updated_at, updated_by, row_version) FROM stdin;
+\.
+
+
+--
+-- Data for Name: permission; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.permission (id, code, name, description) FROM stdin;
+1	ACCOUNT_MANAGE	계정 관리	계정 생성·변경·비밀번호 초기화 (API 005·007·103)
+2	PLAN_CREATE	재배정 계획 생성	재배정 계획 생성 Action 실행 (API 091)
+3	PROPOSAL_DECIDE	후보 결정	후보 승인·거절·보류 (API 054)
+4	SOURCE_MANAGE	원천 관리	원천 등록·변경 (API 010·012)
+5	ACTION_DEFINITION_MANAGE	Action 정의 관리	Action 정의 등록·수정 (API 088·090)
+6	SYNC_SCHEDULE_MANAGE	수집 주기 관리	원천별 수집 주기 설정 (API 072)
+7	ONTOLOGY_MANAGE	온톨로지 정의 관리	객체 유형·속성·관계 유형·객체 매핑·속성 매핑의 등록·수정·삭제 (API 022·024·025·027~029·031~033·035·036·038·039·101)
+8	ISSUE_MANUAL_LINK	미연결 문제 수동 연결	미연결 문제에서 도착 객체를 직접 연결 (API 058)
+\.
+
+
+--
+-- Data for Name: property_definition; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.property_definition (id, object_type_id, code, name, data_type, description, is_identifier, is_required, unit, constraints, sensitivity, temporal_role, origin, proposal_item_id, created_at, created_by, updated_at, updated_by, row_version) FROM stdin;
+\.
+
+
+--
+-- Data for Name: property_restriction_history; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.property_restriction_history (object_type_id, property_code, restricted_until) FROM stdin;
+\.
+
+
+--
+-- Data for Name: property_source_mapping; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.property_source_mapping (id, source_mapping_id, source_resource_id, property_definition_id, source_column_id, source_path, transform_steps, created_at, created_by, updated_at, updated_by, row_version) FROM stdin;
+\.
+
+
+--
+-- Data for Name: proposal_item; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.proposal_item (id, analysis_run_id, origin, item_kind, revision, payload, evidence, ai_confidence, review_status, apply_status, apply_error, applied_at, created_at, created_by, updated_at, updated_by, row_version) FROM stdin;
+\.
+
+
+--
+-- Data for Name: proposal_option; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.proposal_option (id, proposal_item_id, revision, option_no, payload, evidence, ai_confidence) FROM stdin;
+\.
+
+
+--
+-- Data for Name: proposal_revision; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.proposal_revision (proposal_item_id, revision, payload, evidence, ai_confidence, created_at, created_by) FROM stdin;
+\.
+
+
+--
+-- Data for Name: reassignment_plan; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.reassignment_plan (id, status, from_equipment_id, selection_basis, data_as_of, action_execution_id, agent_conversation_id, created_by, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: reassignment_plan_item; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.reassignment_plan_item (id, plan_id, work_order_id, operation_code, from_equipment_id, to_equipment_id, source_snapshot) FROM stdin;
+\.
+
+
+--
+-- Data for Name: review_decision; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.review_decision (id, proposal_item_id, item_revision, decision, selected_option_id, reason, decided_by, decided_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: role; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.role (id, code, name) FROM stdin;
+1	ADMIN	온톨로지 관리자
+2	PLANNER	생산기획자
+3	MAINTENANCE	정비 담당
+4	VIEWER	영업 담당
+\.
+
+
+--
+-- Data for Name: role_data_scope; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.role_data_scope (role_id, access_group, can_view_restricted) FROM stdin;
+2	SALES_SUPPLY	t
+2	PRODUCTION	t
+4	SALES_SUPPLY	f
+4	PRODUCTION	f
+1	PRODUCTION	f
+1	SALES_SUPPLY	f
+\.
+
+
+--
+-- Data for Name: role_permission; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.role_permission (role_id, permission_id) FROM stdin;
+1	1
+1	2
+1	3
+1	4
+1	5
+1	6
+2	2
+1	7
+1	8
+\.
+
+
+--
+-- Data for Name: source_column; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.source_column (id, source_resource_id, column_name, source_data_type, is_nullable, is_key_part, ordinal_position, source_comment, is_present, last_seen_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: source_connection_check; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.source_connection_check (id, data_source_id, status, requested_by, requested_at, started_at, finished_at, result, error_message) FROM stdin;
+\.
+
+
+--
+-- Data for Name: source_delete_mark; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.source_delete_mark (source_resource_id, source_key, source_txid, source_lsn, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: source_load_failure; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.source_load_failure (id, source_resource_id, object_source_mapping_id, source_key, column_name, property_definition_id, reason, status, occurrences, first_seen_at, last_seen_at, last_sync_run_id, closed_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: source_preview; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.source_preview (id, source_resource_id, preview_kind, request, row_limit, status, requested_by, requested_at, started_at, finished_at, result, error_message, expires_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: source_resource; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.source_resource (id, data_source_id, resource_key, resource_kind, source_metadata, is_readable, last_seen_at, sync_strategy, loaded_lsn, full_load_done_gen) FROM stdin;
+\.
+
+
+--
+-- Data for Name: spring_session; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.spring_session (primary_id, session_id, creation_time, last_access_time, max_inactive_interval, expiry_time, principal_name) FROM stdin;
+\.
+
+
+--
+-- Data for Name: spring_session_attributes; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.spring_session_attributes (session_primary_id, attribute_name, attribute_bytes) FROM stdin;
+\.
+
+
+--
+-- Data for Name: sync_run; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.sync_run (id, data_source_id, trigger_kind, status, requested_at, started_at, heartbeat_at, finished_at, error_message, requested_by) FROM stdin;
+\.
+
+
+--
+-- Data for Name: sync_run_resource; Type: TABLE DATA; Schema: platform; Owner: -
+--
+
+COPY platform.sync_run_resource (sync_run_id, data_source_id, source_resource_id, mode, status, rows_read, rows_upserted, rows_deleted, started_at, finished_at, error_message, from_lsn, to_lsn) FROM stdin;
+\.
+
+
+--
+-- Name: account_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.account_id_seq', 1, false);
+
+
+--
+-- Name: action_definition_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.action_definition_id_seq', 25, true);
+
+
+--
+-- Name: action_execution_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.action_execution_id_seq', 1, false);
+
+
+--
+-- Name: agent_conversation_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.agent_conversation_id_seq', 1, false);
+
+
+--
+-- Name: agent_message_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.agent_message_id_seq', 1, false);
+
+
+--
+-- Name: analysis_run_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.analysis_run_id_seq', 1, false);
+
+
+--
+-- Name: batch_job_execution_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.batch_job_execution_seq', 1, false);
+
+
+--
+-- Name: batch_job_instance_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.batch_job_instance_seq', 1, false);
+
+
+--
+-- Name: batch_step_execution_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.batch_step_execution_seq', 1, false);
+
+
+--
+-- Name: check_result_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.check_result_id_seq', 1, false);
+
+
+--
+-- Name: check_run_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.check_run_id_seq', 1, false);
+
+
+--
+-- Name: data_source_credential_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.data_source_credential_id_seq', 1, false);
+
+
+--
+-- Name: data_source_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.data_source_id_seq', 1, false);
+
+
+--
+-- Name: entity_change_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.entity_change_id_seq', 1, false);
+
+
+--
+-- Name: issue_history_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.issue_history_id_seq', 1, false);
+
+
+--
+-- Name: issue_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.issue_id_seq', 1, false);
+
+
+--
+-- Name: link_check_pending_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.link_check_pending_id_seq', 1, false);
+
+
+--
+-- Name: link_mapping_condition_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.link_mapping_condition_id_seq', 1, false);
+
+
+--
+-- Name: link_mapping_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.link_mapping_id_seq', 1, false);
+
+
+--
+-- Name: link_type_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.link_type_id_seq', 1, false);
+
+
+--
+-- Name: object_instance_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.object_instance_id_seq', 1, false);
+
+
+--
+-- Name: object_link_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.object_link_id_seq', 1, false);
+
+
+--
+-- Name: object_source_mapping_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.object_source_mapping_id_seq', 1, false);
+
+
+--
+-- Name: object_type_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.object_type_id_seq', 1, false);
+
+
+--
+-- Name: permission_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.permission_id_seq', 8, true);
+
+
+--
+-- Name: property_definition_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.property_definition_id_seq', 1, false);
+
+
+--
+-- Name: property_source_mapping_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.property_source_mapping_id_seq', 1, false);
+
+
+--
+-- Name: proposal_item_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.proposal_item_id_seq', 1, false);
+
+
+--
+-- Name: proposal_option_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.proposal_option_id_seq', 1, false);
+
+
+--
+-- Name: reassignment_plan_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.reassignment_plan_id_seq', 1, false);
+
+
+--
+-- Name: reassignment_plan_item_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.reassignment_plan_item_id_seq', 1, false);
+
+
+--
+-- Name: review_decision_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.review_decision_id_seq', 1, false);
+
+
+--
+-- Name: role_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.role_id_seq', 4, true);
+
+
+--
+-- Name: source_column_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.source_column_id_seq', 1, false);
+
+
+--
+-- Name: source_connection_check_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.source_connection_check_id_seq', 1, false);
+
+
+--
+-- Name: source_load_failure_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.source_load_failure_id_seq', 1, false);
+
+
+--
+-- Name: source_preview_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.source_preview_id_seq', 1, false);
+
+
+--
+-- Name: source_resource_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.source_resource_id_seq', 1, false);
+
+
+--
+-- Name: sync_run_id_seq; Type: SEQUENCE SET; Schema: platform; Owner: -
+--
+
+SELECT pg_catalog.setval('platform.sync_run_id_seq', 1, false);
+
+
+--
+-- Name: account account_login_id_key; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.account
+    ADD CONSTRAINT account_login_id_key UNIQUE (login_id);
+
+
+--
+-- Name: account account_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.account
+    ADD CONSTRAINT account_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: action_definition action_definition_code_key; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.action_definition
+    ADD CONSTRAINT action_definition_code_key UNIQUE (code);
+
+
+--
+-- Name: action_definition action_definition_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.action_definition
+    ADD CONSTRAINT action_definition_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: action_execution action_execution_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.action_execution
+    ADD CONSTRAINT action_execution_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: action_execution action_execution_request_id_key; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.action_execution
+    ADD CONSTRAINT action_execution_request_id_key UNIQUE (request_id);
+
+
+--
+-- Name: agent_conversation agent_conversation_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.agent_conversation
+    ADD CONSTRAINT agent_conversation_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: agent_message agent_message_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.agent_message
+    ADD CONSTRAINT agent_message_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: analysis_run analysis_run_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.analysis_run
+    ADD CONSTRAINT analysis_run_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: analysis_run_target analysis_run_target_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.analysis_run_target
+    ADD CONSTRAINT analysis_run_target_pkey PRIMARY KEY (analysis_run_id, source_resource_id);
+
+
+--
+-- Name: batch_job_execution_context batch_job_execution_context_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.batch_job_execution_context
+    ADD CONSTRAINT batch_job_execution_context_pkey PRIMARY KEY (job_execution_id);
+
+
+--
+-- Name: batch_job_execution batch_job_execution_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.batch_job_execution
+    ADD CONSTRAINT batch_job_execution_pkey PRIMARY KEY (job_execution_id);
+
+
+--
+-- Name: batch_job_instance batch_job_instance_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.batch_job_instance
+    ADD CONSTRAINT batch_job_instance_pkey PRIMARY KEY (job_instance_id);
+
+
+--
+-- Name: batch_step_execution_context batch_step_execution_context_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.batch_step_execution_context
+    ADD CONSTRAINT batch_step_execution_context_pkey PRIMARY KEY (step_execution_id);
+
+
+--
+-- Name: batch_step_execution batch_step_execution_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.batch_step_execution
+    ADD CONSTRAINT batch_step_execution_pkey PRIMARY KEY (step_execution_id);
+
+
+--
+-- Name: cdc_offset cdc_offset_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.cdc_offset
+    ADD CONSTRAINT cdc_offset_pkey PRIMARY KEY (topic, partition_no);
+
+
+--
+-- Name: check_result check_result_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.check_result
+    ADD CONSTRAINT check_result_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: check_run check_run_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.check_run
+    ADD CONSTRAINT check_run_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: data_source data_source_code_key; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.data_source
+    ADD CONSTRAINT data_source_code_key UNIQUE (code);
+
+
+--
+-- Name: data_source_credential data_source_credential_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.data_source_credential
+    ADD CONSTRAINT data_source_credential_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: data_source data_source_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.data_source
+    ADD CONSTRAINT data_source_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: entity_change entity_change_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.entity_change
+    ADD CONSTRAINT entity_change_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: flyway_schema_history flyway_schema_history_pk; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.flyway_schema_history
+    ADD CONSTRAINT flyway_schema_history_pk PRIMARY KEY (installed_rank);
+
+
+--
+-- Name: issue_history issue_history_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.issue_history
+    ADD CONSTRAINT issue_history_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: issue issue_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.issue
+    ADD CONSTRAINT issue_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: issue_verification issue_verification_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.issue_verification
+    ADD CONSTRAINT issue_verification_pkey PRIMARY KEY (issue_id, check_run_id);
+
+
+--
+-- Name: batch_job_instance job_inst_un; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.batch_job_instance
+    ADD CONSTRAINT job_inst_un UNIQUE (job_name, job_key);
+
+
+--
+-- Name: link_check_pending link_check_pending_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_check_pending
+    ADD CONSTRAINT link_check_pending_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: link_mapping_condition link_mapping_condition_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_mapping_condition
+    ADD CONSTRAINT link_mapping_condition_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: link_mapping link_mapping_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_mapping
+    ADD CONSTRAINT link_mapping_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: link_type link_type_code_key; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_type
+    ADD CONSTRAINT link_type_code_key UNIQUE (code);
+
+
+--
+-- Name: link_type link_type_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_type
+    ADD CONSTRAINT link_type_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: object_instance object_instance_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_instance
+    ADD CONSTRAINT object_instance_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: object_link object_link_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_link
+    ADD CONSTRAINT object_link_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: object_source_mapping object_source_mapping_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_source_mapping
+    ADD CONSTRAINT object_source_mapping_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: object_type object_type_code_key; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_type
+    ADD CONSTRAINT object_type_code_key UNIQUE (code);
+
+
+--
+-- Name: object_type object_type_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_type
+    ADD CONSTRAINT object_type_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: permission permission_code_key; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.permission
+    ADD CONSTRAINT permission_code_key UNIQUE (code);
+
+
+--
+-- Name: permission permission_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.permission
+    ADD CONSTRAINT permission_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: property_definition property_definition_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.property_definition
+    ADD CONSTRAINT property_definition_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: property_restriction_history property_restriction_history_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.property_restriction_history
+    ADD CONSTRAINT property_restriction_history_pkey PRIMARY KEY (object_type_id, property_code);
+
+
+--
+-- Name: property_source_mapping property_source_mapping_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.property_source_mapping
+    ADD CONSTRAINT property_source_mapping_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: proposal_item proposal_item_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.proposal_item
+    ADD CONSTRAINT proposal_item_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: proposal_option proposal_option_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.proposal_option
+    ADD CONSTRAINT proposal_option_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: proposal_revision proposal_revision_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.proposal_revision
+    ADD CONSTRAINT proposal_revision_pkey PRIMARY KEY (proposal_item_id, revision);
+
+
+--
+-- Name: reassignment_plan reassignment_plan_action_execution_id_key; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.reassignment_plan
+    ADD CONSTRAINT reassignment_plan_action_execution_id_key UNIQUE (action_execution_id);
+
+
+--
+-- Name: reassignment_plan_item reassignment_plan_item_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.reassignment_plan_item
+    ADD CONSTRAINT reassignment_plan_item_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: reassignment_plan reassignment_plan_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.reassignment_plan
+    ADD CONSTRAINT reassignment_plan_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: review_decision review_decision_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.review_decision
+    ADD CONSTRAINT review_decision_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: role role_code_key; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.role
+    ADD CONSTRAINT role_code_key UNIQUE (code);
+
+
+--
+-- Name: role_data_scope role_data_scope_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.role_data_scope
+    ADD CONSTRAINT role_data_scope_pkey PRIMARY KEY (role_id, access_group);
+
+
+--
+-- Name: role_permission role_permission_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.role_permission
+    ADD CONSTRAINT role_permission_pkey PRIMARY KEY (role_id, permission_id);
+
+
+--
+-- Name: role role_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.role
+    ADD CONSTRAINT role_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: source_column source_column_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_column
+    ADD CONSTRAINT source_column_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: source_connection_check source_connection_check_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_connection_check
+    ADD CONSTRAINT source_connection_check_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: source_delete_mark source_delete_mark_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_delete_mark
+    ADD CONSTRAINT source_delete_mark_pkey PRIMARY KEY (source_resource_id, source_key);
+
+
+--
+-- Name: source_load_failure source_load_failure_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_load_failure
+    ADD CONSTRAINT source_load_failure_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: source_preview source_preview_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_preview
+    ADD CONSTRAINT source_preview_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: source_resource source_resource_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_resource
+    ADD CONSTRAINT source_resource_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: spring_session_attributes spring_session_attributes_pk; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.spring_session_attributes
+    ADD CONSTRAINT spring_session_attributes_pk PRIMARY KEY (session_primary_id, attribute_name);
+
+
+--
+-- Name: spring_session spring_session_pk; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.spring_session
+    ADD CONSTRAINT spring_session_pk PRIMARY KEY (primary_id);
+
+
+--
+-- Name: sync_run sync_run_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.sync_run
+    ADD CONSTRAINT sync_run_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: sync_run_resource sync_run_resource_pkey; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.sync_run_resource
+    ADD CONSTRAINT sync_run_resource_pkey PRIMARY KEY (sync_run_id, source_resource_id);
+
+
+--
+-- Name: data_source_credential uq_data_source_credential; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.data_source_credential
+    ADD CONSTRAINT uq_data_source_credential UNIQUE (data_source_id, purpose);
+
+
+--
+-- Name: issue_verification uq_issue_verification_outcome; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.issue_verification
+    ADD CONSTRAINT uq_issue_verification_outcome UNIQUE (issue_id, check_run_id, outcome);
+
+
+--
+-- Name: link_mapping_condition uq_link_mapping_condition; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_mapping_condition
+    ADD CONSTRAINT uq_link_mapping_condition UNIQUE (link_mapping_id, sequence_no);
+
+
+--
+-- Name: link_mapping uq_link_mapping_revision; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_mapping
+    ADD CONSTRAINT uq_link_mapping_revision UNIQUE (code, revision);
+
+
+--
+-- Name: link_mapping uq_link_mapping_type; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_mapping
+    ADD CONSTRAINT uq_link_mapping_type UNIQUE (id, link_type_id);
+
+
+--
+-- Name: object_link uq_object_link; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_link
+    ADD CONSTRAINT uq_object_link UNIQUE (link_type_id, source_object_id, target_object_id);
+
+
+--
+-- Name: object_source_mapping uq_object_source_mapping_res; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_source_mapping
+    ADD CONSTRAINT uq_object_source_mapping_res UNIQUE (id, source_resource_id);
+
+
+--
+-- Name: object_source_mapping uq_object_source_mapping_type; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_source_mapping
+    ADD CONSTRAINT uq_object_source_mapping_type UNIQUE (id, object_type_id);
+
+
+--
+-- Name: property_definition uq_property_definition_code; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.property_definition
+    ADD CONSTRAINT uq_property_definition_code UNIQUE (object_type_id, code);
+
+
+--
+-- Name: property_definition uq_property_definition_type; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.property_definition
+    ADD CONSTRAINT uq_property_definition_type UNIQUE (object_type_id, id);
+
+
+--
+-- Name: property_source_mapping uq_property_source_mapping; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.property_source_mapping
+    ADD CONSTRAINT uq_property_source_mapping UNIQUE (source_mapping_id, property_definition_id);
+
+
+--
+-- Name: proposal_option uq_proposal_option; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.proposal_option
+    ADD CONSTRAINT uq_proposal_option UNIQUE (proposal_item_id, revision, option_no);
+
+
+--
+-- Name: proposal_option uq_proposal_option_item; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.proposal_option
+    ADD CONSTRAINT uq_proposal_option_item UNIQUE (id, proposal_item_id, revision);
+
+
+--
+-- Name: reassignment_plan uq_reassignment_plan_from; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.reassignment_plan
+    ADD CONSTRAINT uq_reassignment_plan_from UNIQUE (id, from_equipment_id);
+
+
+--
+-- Name: reassignment_plan_item uq_reassignment_plan_item; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.reassignment_plan_item
+    ADD CONSTRAINT uq_reassignment_plan_item UNIQUE NULLS NOT DISTINCT (plan_id, work_order_id, operation_code);
+
+
+--
+-- Name: source_column uq_source_column; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_column
+    ADD CONSTRAINT uq_source_column UNIQUE (source_resource_id, column_name);
+
+
+--
+-- Name: source_column uq_source_column_resource; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_column
+    ADD CONSTRAINT uq_source_column_resource UNIQUE (id, source_resource_id);
+
+
+--
+-- Name: source_resource uq_source_resource; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_resource
+    ADD CONSTRAINT uq_source_resource UNIQUE (data_source_id, resource_key);
+
+
+--
+-- Name: source_resource uq_source_resource_source; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_resource
+    ADD CONSTRAINT uq_source_resource_source UNIQUE (id, data_source_id);
+
+
+--
+-- Name: sync_run uq_sync_run_source; Type: CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.sync_run
+    ADD CONSTRAINT uq_sync_run_source UNIQUE (id, data_source_id);
+
+
+--
+-- Name: flyway_schema_history_s_idx; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX flyway_schema_history_s_idx ON platform.flyway_schema_history USING btree (success);
+
+
+--
+-- Name: ix_account_role; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_account_role ON platform.account USING btree (role_id);
+
+
+--
+-- Name: ix_action_definition_target; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_action_definition_target ON platform.action_definition USING btree (target_object_type_id);
+
+
+--
+-- Name: ix_action_execution_actor; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_action_execution_actor ON platform.action_execution USING btree (actor_id, requested_at DESC);
+
+
+--
+-- Name: ix_action_execution_definition; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_action_execution_definition ON platform.action_execution USING btree (action_definition_id, requested_at DESC);
+
+
+--
+-- Name: ix_action_execution_kind; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_action_execution_kind ON platform.action_execution USING btree (event_kind, requested_at DESC);
+
+
+--
+-- Name: ix_action_execution_requested; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_action_execution_requested ON platform.action_execution USING btree (requested_at DESC);
+
+
+--
+-- Name: ix_action_execution_target; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_action_execution_target ON platform.action_execution USING btree (target_type, target_id);
+
+
+--
+-- Name: ix_agent_conversation_account; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_agent_conversation_account ON platform.agent_conversation USING btree (account_id, last_message_at DESC);
+
+
+--
+-- Name: ix_agent_message_conversation; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_agent_message_conversation ON platform.agent_message USING btree (conversation_id, created_at);
+
+
+--
+-- Name: ix_analysis_run_requested; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_analysis_run_requested ON platform.analysis_run USING btree (requested_at DESC);
+
+
+--
+-- Name: ix_analysis_run_target_res; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_analysis_run_target_res ON platform.analysis_run_target USING btree (source_resource_id);
+
+
+--
+-- Name: ix_cdc_offset_source; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_cdc_offset_source ON platform.cdc_offset USING btree (data_source_id);
+
+
+--
+-- Name: ix_check_result_mapping; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_check_result_mapping ON platform.check_result USING btree (link_mapping_id);
+
+
+--
+-- Name: ix_check_result_proposal; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_check_result_proposal ON platform.check_result USING btree (proposal_item_id);
+
+
+--
+-- Name: ix_check_result_run; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_check_result_run ON platform.check_result USING btree (check_run_id);
+
+
+--
+-- Name: ix_check_run_started; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_check_run_started ON platform.check_run USING btree (started_at DESC);
+
+
+--
+-- Name: ix_check_run_sync; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_check_run_sync ON platform.check_run USING btree (sync_run_id);
+
+
+--
+-- Name: ix_check_run_work_key; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_check_run_work_key ON platform.check_run USING btree (work_key, finished_at DESC);
+
+
+--
+-- Name: ix_entity_change_execution; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_entity_change_execution ON platform.entity_change USING btree (action_execution_id);
+
+
+--
+-- Name: ix_entity_change_row; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_entity_change_row ON platform.entity_change USING btree (table_name, row_key);
+
+
+--
+-- Name: ix_issue_history_issue; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_issue_history_issue ON platform.issue_history USING btree (issue_id, changed_at);
+
+
+--
+-- Name: ix_issue_mapping; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_issue_mapping ON platform.issue USING btree (link_mapping_id);
+
+
+--
+-- Name: ix_issue_object; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_issue_object ON platform.issue USING btree (object_instance_id);
+
+
+--
+-- Name: ix_issue_status; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_issue_status ON platform.issue USING btree (status, issue_kind);
+
+
+--
+-- Name: ix_issue_verification_run; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_issue_verification_run ON platform.issue_verification USING btree (check_run_id);
+
+
+--
+-- Name: ix_link_check_pending_first_seen; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_link_check_pending_first_seen ON platform.link_check_pending USING btree (first_seen_at) WHERE ((status)::text = 'WAITING'::text);
+
+
+--
+-- Name: ix_link_check_pending_issue; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_link_check_pending_issue ON platform.link_check_pending USING btree (issue_id) WHERE (issue_id IS NOT NULL);
+
+
+--
+-- Name: ix_link_mapping_condition_src; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_link_mapping_condition_src ON platform.link_mapping_condition USING btree (source_property_id);
+
+
+--
+-- Name: ix_link_mapping_condition_tgt; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_link_mapping_condition_tgt ON platform.link_mapping_condition USING btree (target_property_id);
+
+
+--
+-- Name: ix_link_mapping_type; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_link_mapping_type ON platform.link_mapping USING btree (link_type_id);
+
+
+--
+-- Name: ix_link_type_source; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_link_type_source ON platform.link_type USING btree (source_type_id);
+
+
+--
+-- Name: ix_link_type_target; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_link_type_target ON platform.link_type USING btree (target_type_id);
+
+
+--
+-- Name: ix_object_instance_name_trgm; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_object_instance_name_trgm ON platform.object_instance USING gin (display_name platform.gin_trgm_ops);
+
+
+--
+-- Name: ix_object_instance_properties; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_object_instance_properties ON platform.object_instance USING gin (properties jsonb_path_ops);
+
+
+--
+-- Name: ix_object_instance_sync_run; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_object_instance_sync_run ON platform.object_instance USING btree (last_sync_run_id);
+
+
+--
+-- Name: ix_object_instance_type_status; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_object_instance_type_status ON platform.object_instance USING btree (object_type_id, status);
+
+
+--
+-- Name: ix_object_link_mapping; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_object_link_mapping ON platform.object_link USING btree (link_mapping_id);
+
+
+--
+-- Name: ix_object_link_source; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_object_link_source ON platform.object_link USING btree (source_object_id, link_type_id) WHERE ((status)::text = 'ACTIVE'::text);
+
+
+--
+-- Name: ix_object_link_target; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_object_link_target ON platform.object_link USING btree (target_object_id, link_type_id) WHERE ((status)::text = 'ACTIVE'::text);
+
+
+--
+-- Name: ix_object_source_mapping_res; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_object_source_mapping_res ON platform.object_source_mapping USING btree (source_resource_id);
+
+
+--
+-- Name: ix_object_source_mapping_type; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_object_source_mapping_type ON platform.object_source_mapping USING btree (object_type_id);
+
+
+--
+-- Name: ix_property_definition_type; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_property_definition_type ON platform.property_definition USING btree (object_type_id);
+
+
+--
+-- Name: ix_property_source_mapping_col; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_property_source_mapping_col ON platform.property_source_mapping USING btree (source_column_id);
+
+
+--
+-- Name: ix_property_source_mapping_prop; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_property_source_mapping_prop ON platform.property_source_mapping USING btree (property_definition_id);
+
+
+--
+-- Name: ix_property_source_mapping_res; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_property_source_mapping_res ON platform.property_source_mapping USING btree (source_resource_id);
+
+
+--
+-- Name: ix_proposal_item_run; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_proposal_item_run ON platform.proposal_item USING btree (analysis_run_id);
+
+
+--
+-- Name: ix_proposal_item_status; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_proposal_item_status ON platform.proposal_item USING btree (review_status, apply_status);
+
+
+--
+-- Name: ix_proposal_option_item; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_proposal_option_item ON platform.proposal_option USING btree (proposal_item_id, revision);
+
+
+--
+-- Name: ix_reassignment_item_plan; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_reassignment_item_plan ON platform.reassignment_plan_item USING btree (plan_id, from_equipment_id);
+
+
+--
+-- Name: ix_reassignment_item_wo; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_reassignment_item_wo ON platform.reassignment_plan_item USING btree (work_order_id);
+
+
+--
+-- Name: ix_reassignment_plan_creator; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_reassignment_plan_creator ON platform.reassignment_plan USING btree (created_by, created_at DESC);
+
+
+--
+-- Name: ix_reassignment_plan_from; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_reassignment_plan_from ON platform.reassignment_plan USING btree (from_equipment_id);
+
+
+--
+-- Name: ix_review_decision_item; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_review_decision_item ON platform.review_decision USING btree (proposal_item_id, decided_at DESC);
+
+
+--
+-- Name: ix_role_permission_perm; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_role_permission_perm ON platform.role_permission USING btree (permission_id);
+
+
+--
+-- Name: ix_source_column_resource; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_source_column_resource ON platform.source_column USING btree (source_resource_id);
+
+
+--
+-- Name: ix_source_load_failure_resource; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_source_load_failure_resource ON platform.source_load_failure USING btree (source_resource_id) WHERE ((status)::text = 'OPEN'::text);
+
+
+--
+-- Name: ix_source_load_failure_run; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_source_load_failure_run ON platform.source_load_failure USING btree (last_sync_run_id);
+
+
+--
+-- Name: ix_source_preview_expires; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_source_preview_expires ON platform.source_preview USING btree (expires_at);
+
+
+--
+-- Name: ix_source_preview_queue; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_source_preview_queue ON platform.source_preview USING btree (requested_at) WHERE ((status)::text = 'QUEUED'::text);
+
+
+--
+-- Name: ix_source_preview_resource; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_source_preview_resource ON platform.source_preview USING btree (source_resource_id);
+
+
+--
+-- Name: ix_sync_run_resource_resource; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_sync_run_resource_resource ON platform.sync_run_resource USING btree (source_resource_id, started_at DESC);
+
+
+--
+-- Name: ix_sync_run_source_requested; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX ix_sync_run_source_requested ON platform.sync_run USING btree (data_source_id, requested_at DESC);
+
+
+--
+-- Name: spring_session_ix1; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE UNIQUE INDEX spring_session_ix1 ON platform.spring_session USING btree (session_id);
+
+
+--
+-- Name: spring_session_ix2; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX spring_session_ix2 ON platform.spring_session USING btree (expiry_time);
+
+
+--
+-- Name: spring_session_ix3; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE INDEX spring_session_ix3 ON platform.spring_session USING btree (principal_name);
+
+
+--
+-- Name: uq_action_execution_query; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_action_execution_query ON platform.action_execution USING btree (agent_message_id, sequence_no) WHERE ((event_kind)::text = 'AGENT_QUERY'::text);
+
+
+--
+-- Name: uq_agent_message_running; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_agent_message_running ON platform.agent_message USING btree (conversation_id) WHERE ((status)::text = 'RUNNING'::text);
+
+
+--
+-- Name: uq_analysis_run_active; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_analysis_run_active ON platform.analysis_run USING btree (work_key) WHERE ((status)::text = ANY ((ARRAY['QUEUED'::character varying, 'RUNNING'::character varying])::text[]));
+
+
+--
+-- Name: uq_check_run_active; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_check_run_active ON platform.check_run USING btree (work_key) WHERE ((status)::text = ANY ((ARRAY['QUEUED'::character varying, 'RUNNING'::character varying])::text[]));
+
+
+--
+-- Name: uq_issue_open; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_issue_open ON platform.issue USING btree (dedupe_key) WHERE ((status)::text <> 'RESOLVED'::text);
+
+
+--
+-- Name: uq_link_check_pending_waiting; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_link_check_pending_waiting ON platform.link_check_pending USING btree (link_mapping_id, source_object_id) WHERE ((status)::text = 'WAITING'::text);
+
+
+--
+-- Name: uq_link_mapping_active; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_link_mapping_active ON platform.link_mapping USING btree (code) WHERE ((status)::text = 'ACTIVE'::text);
+
+
+--
+-- Name: uq_link_mapping_active_link_type; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_link_mapping_active_link_type ON platform.link_mapping USING btree (link_type_id) WHERE ((status)::text = 'ACTIVE'::text);
+
+
+--
+-- Name: INDEX uq_link_mapping_active_link_type; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON INDEX platform.uq_link_mapping_active_link_type IS '관계 유형마다 반영 중인 규칙은 하나(367). 규칙 충돌 예방. 규칙 코드마다 반영 중 개정본 하나(uq_link_mapping_active)와 함께 관계 유형·규칙 코드가 1:1이 된다';
+
+
+--
+-- Name: uq_object_instance_source; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_object_instance_source ON platform.object_instance USING btree (source_mapping_id, source_key) WHERE (source_mapping_id IS NOT NULL);
+
+
+--
+-- Name: uq_source_connection_check_active; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_source_connection_check_active ON platform.source_connection_check USING btree (data_source_id) WHERE ((status)::text = ANY ((ARRAY['QUEUED'::character varying, 'RUNNING'::character varying])::text[]));
+
+
+--
+-- Name: uq_source_load_failure_open; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_source_load_failure_open ON platform.source_load_failure USING btree (object_source_mapping_id, source_key, column_name, reason) NULLS NOT DISTINCT WHERE ((status)::text = 'OPEN'::text);
+
+
+--
+-- Name: uq_sync_run_resource_active; Type: INDEX; Schema: platform; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_sync_run_resource_active ON platform.sync_run_resource USING btree (source_resource_id) WHERE ((status)::text = ANY ((ARRAY['QUEUED'::character varying, 'RUNNING'::character varying])::text[]));
+
+
+--
+-- Name: link_mapping_condition trg_link_mapping_condition_guard; Type: TRIGGER; Schema: platform; Owner: -
+--
+
+CREATE TRIGGER trg_link_mapping_condition_guard BEFORE INSERT OR DELETE OR UPDATE ON platform.link_mapping_condition FOR EACH ROW EXECUTE FUNCTION platform.guard_link_mapping_condition();
+
+
+--
+-- Name: link_mapping trg_link_mapping_guard; Type: TRIGGER; Schema: platform; Owner: -
+--
+
+CREATE TRIGGER trg_link_mapping_guard BEFORE UPDATE ON platform.link_mapping FOR EACH ROW EXECUTE FUNCTION platform.guard_link_mapping_update();
+
+
+--
+-- Name: object_source_mapping trg_object_source_mapping_key; Type: TRIGGER; Schema: platform; Owner: -
+--
+
+CREATE TRIGGER trg_object_source_mapping_key BEFORE UPDATE ON platform.object_source_mapping FOR EACH ROW EXECUTE FUNCTION platform.guard_object_source_mapping_key();
+
+
+--
+-- Name: proposal_option trg_proposal_option_immutable; Type: TRIGGER; Schema: platform; Owner: -
+--
+
+CREATE TRIGGER trg_proposal_option_immutable BEFORE DELETE OR UPDATE ON platform.proposal_option FOR EACH ROW EXECUTE FUNCTION platform.guard_immutable_row();
+
+
+--
+-- Name: proposal_revision trg_proposal_revision_immutable; Type: TRIGGER; Schema: platform; Owner: -
+--
+
+CREATE TRIGGER trg_proposal_revision_immutable BEFORE DELETE OR UPDATE ON platform.proposal_revision FOR EACH ROW EXECUTE FUNCTION platform.guard_immutable_row();
+
+
+--
+-- Name: account account_created_by_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.account
+    ADD CONSTRAINT account_created_by_fkey FOREIGN KEY (created_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: account account_role_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.account
+    ADD CONSTRAINT account_role_id_fkey FOREIGN KEY (role_id) REFERENCES platform.role(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: account account_updated_by_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.account
+    ADD CONSTRAINT account_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: action_definition action_definition_target_object_type_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.action_definition
+    ADD CONSTRAINT action_definition_target_object_type_id_fkey FOREIGN KEY (target_object_type_id) REFERENCES platform.object_type(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: action_execution action_execution_action_definition_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.action_execution
+    ADD CONSTRAINT action_execution_action_definition_id_fkey FOREIGN KEY (action_definition_id) REFERENCES platform.action_definition(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: action_execution action_execution_actor_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.action_execution
+    ADD CONSTRAINT action_execution_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: action_execution action_execution_agent_message_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.action_execution
+    ADD CONSTRAINT action_execution_agent_message_id_fkey FOREIGN KEY (agent_message_id) REFERENCES platform.agent_message(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: agent_conversation agent_conversation_account_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.agent_conversation
+    ADD CONSTRAINT agent_conversation_account_id_fkey FOREIGN KEY (account_id) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: agent_message agent_message_conversation_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.agent_message
+    ADD CONSTRAINT agent_message_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES platform.agent_conversation(id) ON DELETE CASCADE;
+
+
+--
+-- Name: analysis_run analysis_run_based_on_sync_run_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.analysis_run
+    ADD CONSTRAINT analysis_run_based_on_sync_run_id_fkey FOREIGN KEY (based_on_sync_run_id) REFERENCES platform.sync_run(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: analysis_run analysis_run_requested_by_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.analysis_run
+    ADD CONSTRAINT analysis_run_requested_by_fkey FOREIGN KEY (requested_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: analysis_run_target analysis_run_target_analysis_run_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.analysis_run_target
+    ADD CONSTRAINT analysis_run_target_analysis_run_id_fkey FOREIGN KEY (analysis_run_id) REFERENCES platform.analysis_run(id) ON DELETE CASCADE;
+
+
+--
+-- Name: analysis_run_target analysis_run_target_source_resource_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.analysis_run_target
+    ADD CONSTRAINT analysis_run_target_source_resource_id_fkey FOREIGN KEY (source_resource_id) REFERENCES platform.source_resource(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: cdc_offset cdc_offset_data_source_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.cdc_offset
+    ADD CONSTRAINT cdc_offset_data_source_id_fkey FOREIGN KEY (data_source_id) REFERENCES platform.data_source(id) ON DELETE CASCADE;
+
+
+--
+-- Name: check_result check_result_check_run_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.check_result
+    ADD CONSTRAINT check_result_check_run_id_fkey FOREIGN KEY (check_run_id) REFERENCES platform.check_run(id) ON DELETE CASCADE;
+
+
+--
+-- Name: check_result check_result_link_mapping_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.check_result
+    ADD CONSTRAINT check_result_link_mapping_id_fkey FOREIGN KEY (link_mapping_id) REFERENCES platform.link_mapping(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: check_result check_result_previous_result_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.check_result
+    ADD CONSTRAINT check_result_previous_result_id_fkey FOREIGN KEY (previous_result_id) REFERENCES platform.check_result(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: check_result check_result_proposal_item_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.check_result
+    ADD CONSTRAINT check_result_proposal_item_id_fkey FOREIGN KEY (proposal_item_id) REFERENCES platform.proposal_item(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: check_run check_run_compared_to_run_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.check_run
+    ADD CONSTRAINT check_run_compared_to_run_id_fkey FOREIGN KEY (compared_to_run_id) REFERENCES platform.check_run(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: check_run check_run_requested_by_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.check_run
+    ADD CONSTRAINT check_run_requested_by_fkey FOREIGN KEY (requested_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: check_run check_run_sync_run_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.check_run
+    ADD CONSTRAINT check_run_sync_run_id_fkey FOREIGN KEY (sync_run_id) REFERENCES platform.sync_run(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: data_source_credential data_source_credential_data_source_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.data_source_credential
+    ADD CONSTRAINT data_source_credential_data_source_id_fkey FOREIGN KEY (data_source_id) REFERENCES platform.data_source(id) ON DELETE CASCADE;
+
+
+--
+-- Name: entity_change entity_change_action_execution_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.entity_change
+    ADD CONSTRAINT entity_change_action_execution_id_fkey FOREIGN KEY (action_execution_id) REFERENCES platform.action_execution(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: action_definition fk_action_definition_created_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.action_definition
+    ADD CONSTRAINT fk_action_definition_created_by FOREIGN KEY (created_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: action_definition fk_action_definition_permission; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.action_definition
+    ADD CONSTRAINT fk_action_definition_permission FOREIGN KEY (required_permission) REFERENCES platform.permission(code) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: action_definition fk_action_definition_updated_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.action_definition
+    ADD CONSTRAINT fk_action_definition_updated_by FOREIGN KEY (updated_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: check_result fk_check_result_revision; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.check_result
+    ADD CONSTRAINT fk_check_result_revision FOREIGN KEY (proposal_item_id, proposal_item_revision) REFERENCES platform.proposal_revision(proposal_item_id, revision) ON DELETE RESTRICT;
+
+
+--
+-- Name: data_source fk_data_source_created_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.data_source
+    ADD CONSTRAINT fk_data_source_created_by FOREIGN KEY (created_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: data_source_credential fk_data_source_credential_created_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.data_source_credential
+    ADD CONSTRAINT fk_data_source_credential_created_by FOREIGN KEY (created_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: data_source fk_data_source_updated_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.data_source
+    ADD CONSTRAINT fk_data_source_updated_by FOREIGN KEY (updated_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: issue fk_issue_resolved_verification; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.issue
+    ADD CONSTRAINT fk_issue_resolved_verification FOREIGN KEY (id, resolved_check_run_id, resolved_outcome) REFERENCES platform.issue_verification(issue_id, check_run_id, outcome) ON DELETE RESTRICT;
+
+
+--
+-- Name: link_mapping_condition fk_link_mapping_condition_created_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_mapping_condition
+    ADD CONSTRAINT fk_link_mapping_condition_created_by FOREIGN KEY (created_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: link_mapping fk_link_mapping_created_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_mapping
+    ADD CONSTRAINT fk_link_mapping_created_by FOREIGN KEY (created_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: link_mapping fk_link_mapping_proposal_item; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_mapping
+    ADD CONSTRAINT fk_link_mapping_proposal_item FOREIGN KEY (proposal_item_id) REFERENCES platform.proposal_item(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: link_type fk_link_type_created_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_type
+    ADD CONSTRAINT fk_link_type_created_by FOREIGN KEY (created_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: link_type fk_link_type_proposal_item; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_type
+    ADD CONSTRAINT fk_link_type_proposal_item FOREIGN KEY (proposal_item_id) REFERENCES platform.proposal_item(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: link_type fk_link_type_updated_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_type
+    ADD CONSTRAINT fk_link_type_updated_by FOREIGN KEY (updated_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: object_instance fk_object_instance_created_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_instance
+    ADD CONSTRAINT fk_object_instance_created_by FOREIGN KEY (created_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: object_instance fk_object_instance_mapping; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_instance
+    ADD CONSTRAINT fk_object_instance_mapping FOREIGN KEY (source_mapping_id, object_type_id) REFERENCES platform.object_source_mapping(id, object_type_id) ON DELETE RESTRICT;
+
+
+--
+-- Name: object_link fk_object_link_confirmed_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_link
+    ADD CONSTRAINT fk_object_link_confirmed_by FOREIGN KEY (confirmed_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: object_link fk_object_link_mapping; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_link
+    ADD CONSTRAINT fk_object_link_mapping FOREIGN KEY (link_mapping_id, link_type_id) REFERENCES platform.link_mapping(id, link_type_id) ON DELETE RESTRICT;
+
+
+--
+-- Name: object_link fk_object_link_proposal_item; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_link
+    ADD CONSTRAINT fk_object_link_proposal_item FOREIGN KEY (proposal_item_id) REFERENCES platform.proposal_item(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: object_source_mapping fk_object_source_mapping_created_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_source_mapping
+    ADD CONSTRAINT fk_object_source_mapping_created_by FOREIGN KEY (created_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: object_source_mapping fk_object_source_mapping_proposal_item; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_source_mapping
+    ADD CONSTRAINT fk_object_source_mapping_proposal_item FOREIGN KEY (proposal_item_id) REFERENCES platform.proposal_item(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: object_source_mapping fk_object_source_mapping_updated_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_source_mapping
+    ADD CONSTRAINT fk_object_source_mapping_updated_by FOREIGN KEY (updated_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: object_type fk_object_type_created_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_type
+    ADD CONSTRAINT fk_object_type_created_by FOREIGN KEY (created_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: object_type fk_object_type_display_property; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_type
+    ADD CONSTRAINT fk_object_type_display_property FOREIGN KEY (id, display_property_id) REFERENCES platform.property_definition(object_type_id, id) ON DELETE RESTRICT;
+
+
+--
+-- Name: object_type fk_object_type_proposal_item; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_type
+    ADD CONSTRAINT fk_object_type_proposal_item FOREIGN KEY (proposal_item_id) REFERENCES platform.proposal_item(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: object_type fk_object_type_updated_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_type
+    ADD CONSTRAINT fk_object_type_updated_by FOREIGN KEY (updated_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: property_definition fk_property_definition_created_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.property_definition
+    ADD CONSTRAINT fk_property_definition_created_by FOREIGN KEY (created_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: property_definition fk_property_definition_proposal_item; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.property_definition
+    ADD CONSTRAINT fk_property_definition_proposal_item FOREIGN KEY (proposal_item_id) REFERENCES platform.proposal_item(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: property_definition fk_property_definition_updated_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.property_definition
+    ADD CONSTRAINT fk_property_definition_updated_by FOREIGN KEY (updated_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: property_source_mapping fk_property_source_mapping_column; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.property_source_mapping
+    ADD CONSTRAINT fk_property_source_mapping_column FOREIGN KEY (source_column_id, source_resource_id) REFERENCES platform.source_column(id, source_resource_id) ON DELETE RESTRICT;
+
+
+--
+-- Name: property_source_mapping fk_property_source_mapping_created_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.property_source_mapping
+    ADD CONSTRAINT fk_property_source_mapping_created_by FOREIGN KEY (created_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: property_source_mapping fk_property_source_mapping_mapping; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.property_source_mapping
+    ADD CONSTRAINT fk_property_source_mapping_mapping FOREIGN KEY (source_mapping_id, source_resource_id) REFERENCES platform.object_source_mapping(id, source_resource_id) ON DELETE RESTRICT;
+
+
+--
+-- Name: property_source_mapping fk_property_source_mapping_updated_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.property_source_mapping
+    ADD CONSTRAINT fk_property_source_mapping_updated_by FOREIGN KEY (updated_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: proposal_item fk_proposal_item_current_revision; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.proposal_item
+    ADD CONSTRAINT fk_proposal_item_current_revision FOREIGN KEY (id, revision) REFERENCES platform.proposal_revision(proposal_item_id, revision) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: proposal_option fk_proposal_option_revision; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.proposal_option
+    ADD CONSTRAINT fk_proposal_option_revision FOREIGN KEY (proposal_item_id, revision) REFERENCES platform.proposal_revision(proposal_item_id, revision) ON DELETE RESTRICT;
+
+
+--
+-- Name: reassignment_plan_item fk_reassignment_plan_item_plan; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.reassignment_plan_item
+    ADD CONSTRAINT fk_reassignment_plan_item_plan FOREIGN KEY (plan_id, from_equipment_id) REFERENCES platform.reassignment_plan(id, from_equipment_id) ON DELETE CASCADE;
+
+
+--
+-- Name: review_decision fk_review_decision_option; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.review_decision
+    ADD CONSTRAINT fk_review_decision_option FOREIGN KEY (selected_option_id, proposal_item_id, item_revision) REFERENCES platform.proposal_option(id, proposal_item_id, revision) ON DELETE RESTRICT;
+
+
+--
+-- Name: review_decision fk_review_decision_revision; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.review_decision
+    ADD CONSTRAINT fk_review_decision_revision FOREIGN KEY (proposal_item_id, item_revision) REFERENCES platform.proposal_revision(proposal_item_id, revision) ON DELETE RESTRICT;
+
+
+--
+-- Name: source_connection_check fk_source_connection_check_requested_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_connection_check
+    ADD CONSTRAINT fk_source_connection_check_requested_by FOREIGN KEY (requested_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: source_preview fk_source_preview_requested_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_preview
+    ADD CONSTRAINT fk_source_preview_requested_by FOREIGN KEY (requested_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: sync_run fk_sync_run_requested_by; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.sync_run
+    ADD CONSTRAINT fk_sync_run_requested_by FOREIGN KEY (requested_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: sync_run_resource fk_sync_run_resource_resource; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.sync_run_resource
+    ADD CONSTRAINT fk_sync_run_resource_resource FOREIGN KEY (source_resource_id, data_source_id) REFERENCES platform.source_resource(id, data_source_id) ON DELETE RESTRICT;
+
+
+--
+-- Name: sync_run_resource fk_sync_run_resource_run; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.sync_run_resource
+    ADD CONSTRAINT fk_sync_run_resource_run FOREIGN KEY (sync_run_id, data_source_id) REFERENCES platform.sync_run(id, data_source_id) ON DELETE CASCADE;
+
+
+--
+-- Name: issue issue_detected_check_run_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.issue
+    ADD CONSTRAINT issue_detected_check_run_id_fkey FOREIGN KEY (detected_check_run_id) REFERENCES platform.check_run(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: issue issue_forwarded_by_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.issue
+    ADD CONSTRAINT issue_forwarded_by_fkey FOREIGN KEY (forwarded_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: issue_history issue_history_changed_by_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.issue_history
+    ADD CONSTRAINT issue_history_changed_by_fkey FOREIGN KEY (changed_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: issue_history issue_history_check_run_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.issue_history
+    ADD CONSTRAINT issue_history_check_run_id_fkey FOREIGN KEY (check_run_id) REFERENCES platform.check_run(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: issue_history issue_history_issue_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.issue_history
+    ADD CONSTRAINT issue_history_issue_id_fkey FOREIGN KEY (issue_id) REFERENCES platform.issue(id) ON DELETE CASCADE;
+
+
+--
+-- Name: issue issue_link_mapping_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.issue
+    ADD CONSTRAINT issue_link_mapping_id_fkey FOREIGN KEY (link_mapping_id) REFERENCES platform.link_mapping(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: issue issue_object_instance_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.issue
+    ADD CONSTRAINT issue_object_instance_id_fkey FOREIGN KEY (object_instance_id) REFERENCES platform.object_instance(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: issue issue_proposal_item_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.issue
+    ADD CONSTRAINT issue_proposal_item_id_fkey FOREIGN KEY (proposal_item_id) REFERENCES platform.proposal_item(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: issue issue_resolved_check_run_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.issue
+    ADD CONSTRAINT issue_resolved_check_run_id_fkey FOREIGN KEY (resolved_check_run_id) REFERENCES platform.check_run(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: issue_verification issue_verification_check_run_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.issue_verification
+    ADD CONSTRAINT issue_verification_check_run_id_fkey FOREIGN KEY (check_run_id) REFERENCES platform.check_run(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: issue_verification issue_verification_issue_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.issue_verification
+    ADD CONSTRAINT issue_verification_issue_id_fkey FOREIGN KEY (issue_id) REFERENCES platform.issue(id) ON DELETE CASCADE;
+
+
+--
+-- Name: batch_job_execution_context job_exec_ctx_fk; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.batch_job_execution_context
+    ADD CONSTRAINT job_exec_ctx_fk FOREIGN KEY (job_execution_id) REFERENCES platform.batch_job_execution(job_execution_id);
+
+
+--
+-- Name: batch_job_execution_params job_exec_params_fk; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.batch_job_execution_params
+    ADD CONSTRAINT job_exec_params_fk FOREIGN KEY (job_execution_id) REFERENCES platform.batch_job_execution(job_execution_id);
+
+
+--
+-- Name: batch_step_execution job_exec_step_fk; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.batch_step_execution
+    ADD CONSTRAINT job_exec_step_fk FOREIGN KEY (job_execution_id) REFERENCES platform.batch_job_execution(job_execution_id);
+
+
+--
+-- Name: batch_job_execution job_inst_exec_fk; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.batch_job_execution
+    ADD CONSTRAINT job_inst_exec_fk FOREIGN KEY (job_instance_id) REFERENCES platform.batch_job_instance(job_instance_id);
+
+
+--
+-- Name: link_check_pending link_check_pending_issue_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_check_pending
+    ADD CONSTRAINT link_check_pending_issue_id_fkey FOREIGN KEY (issue_id) REFERENCES platform.issue(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: link_check_pending link_check_pending_last_check_run_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_check_pending
+    ADD CONSTRAINT link_check_pending_last_check_run_id_fkey FOREIGN KEY (last_check_run_id) REFERENCES platform.check_run(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: link_check_pending link_check_pending_link_mapping_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_check_pending
+    ADD CONSTRAINT link_check_pending_link_mapping_id_fkey FOREIGN KEY (link_mapping_id) REFERENCES platform.link_mapping(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: link_check_pending link_check_pending_source_object_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_check_pending
+    ADD CONSTRAINT link_check_pending_source_object_id_fkey FOREIGN KEY (source_object_id) REFERENCES platform.object_instance(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: link_mapping_condition link_mapping_condition_link_mapping_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_mapping_condition
+    ADD CONSTRAINT link_mapping_condition_link_mapping_id_fkey FOREIGN KEY (link_mapping_id) REFERENCES platform.link_mapping(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: link_mapping_condition link_mapping_condition_source_property_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_mapping_condition
+    ADD CONSTRAINT link_mapping_condition_source_property_id_fkey FOREIGN KEY (source_property_id) REFERENCES platform.property_definition(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: link_mapping_condition link_mapping_condition_target_property_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_mapping_condition
+    ADD CONSTRAINT link_mapping_condition_target_property_id_fkey FOREIGN KEY (target_property_id) REFERENCES platform.property_definition(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: link_mapping link_mapping_link_type_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_mapping
+    ADD CONSTRAINT link_mapping_link_type_id_fkey FOREIGN KEY (link_type_id) REFERENCES platform.link_type(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: link_type link_type_source_type_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_type
+    ADD CONSTRAINT link_type_source_type_id_fkey FOREIGN KEY (source_type_id) REFERENCES platform.object_type(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: link_type link_type_target_type_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.link_type
+    ADD CONSTRAINT link_type_target_type_id_fkey FOREIGN KEY (target_type_id) REFERENCES platform.object_type(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: object_instance object_instance_last_sync_run_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_instance
+    ADD CONSTRAINT object_instance_last_sync_run_id_fkey FOREIGN KEY (last_sync_run_id) REFERENCES platform.sync_run(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: object_instance object_instance_object_type_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_instance
+    ADD CONSTRAINT object_instance_object_type_id_fkey FOREIGN KEY (object_type_id) REFERENCES platform.object_type(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: object_link object_link_link_type_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_link
+    ADD CONSTRAINT object_link_link_type_id_fkey FOREIGN KEY (link_type_id) REFERENCES platform.link_type(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: object_link object_link_source_object_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_link
+    ADD CONSTRAINT object_link_source_object_id_fkey FOREIGN KEY (source_object_id) REFERENCES platform.object_instance(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: object_link object_link_target_object_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_link
+    ADD CONSTRAINT object_link_target_object_id_fkey FOREIGN KEY (target_object_id) REFERENCES platform.object_instance(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: object_source_mapping object_source_mapping_object_type_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_source_mapping
+    ADD CONSTRAINT object_source_mapping_object_type_id_fkey FOREIGN KEY (object_type_id) REFERENCES platform.object_type(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: object_source_mapping object_source_mapping_source_resource_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.object_source_mapping
+    ADD CONSTRAINT object_source_mapping_source_resource_id_fkey FOREIGN KEY (source_resource_id) REFERENCES platform.source_resource(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: property_definition property_definition_object_type_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.property_definition
+    ADD CONSTRAINT property_definition_object_type_id_fkey FOREIGN KEY (object_type_id) REFERENCES platform.object_type(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: property_restriction_history property_restriction_history_object_type_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.property_restriction_history
+    ADD CONSTRAINT property_restriction_history_object_type_id_fkey FOREIGN KEY (object_type_id) REFERENCES platform.object_type(id) ON DELETE CASCADE;
+
+
+--
+-- Name: property_source_mapping property_source_mapping_property_definition_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.property_source_mapping
+    ADD CONSTRAINT property_source_mapping_property_definition_id_fkey FOREIGN KEY (property_definition_id) REFERENCES platform.property_definition(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: proposal_item proposal_item_analysis_run_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.proposal_item
+    ADD CONSTRAINT proposal_item_analysis_run_id_fkey FOREIGN KEY (analysis_run_id) REFERENCES platform.analysis_run(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: proposal_item proposal_item_created_by_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.proposal_item
+    ADD CONSTRAINT proposal_item_created_by_fkey FOREIGN KEY (created_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: proposal_item proposal_item_updated_by_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.proposal_item
+    ADD CONSTRAINT proposal_item_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: proposal_revision proposal_revision_created_by_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.proposal_revision
+    ADD CONSTRAINT proposal_revision_created_by_fkey FOREIGN KEY (created_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: proposal_revision proposal_revision_proposal_item_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.proposal_revision
+    ADD CONSTRAINT proposal_revision_proposal_item_id_fkey FOREIGN KEY (proposal_item_id) REFERENCES platform.proposal_item(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: reassignment_plan reassignment_plan_action_execution_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.reassignment_plan
+    ADD CONSTRAINT reassignment_plan_action_execution_id_fkey FOREIGN KEY (action_execution_id) REFERENCES platform.action_execution(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: reassignment_plan reassignment_plan_agent_conversation_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.reassignment_plan
+    ADD CONSTRAINT reassignment_plan_agent_conversation_id_fkey FOREIGN KEY (agent_conversation_id) REFERENCES platform.agent_conversation(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: reassignment_plan reassignment_plan_created_by_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.reassignment_plan
+    ADD CONSTRAINT reassignment_plan_created_by_fkey FOREIGN KEY (created_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: reassignment_plan reassignment_plan_from_equipment_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.reassignment_plan
+    ADD CONSTRAINT reassignment_plan_from_equipment_id_fkey FOREIGN KEY (from_equipment_id) REFERENCES platform.object_instance(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: reassignment_plan_item reassignment_plan_item_to_equipment_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.reassignment_plan_item
+    ADD CONSTRAINT reassignment_plan_item_to_equipment_id_fkey FOREIGN KEY (to_equipment_id) REFERENCES platform.object_instance(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: reassignment_plan_item reassignment_plan_item_work_order_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.reassignment_plan_item
+    ADD CONSTRAINT reassignment_plan_item_work_order_id_fkey FOREIGN KEY (work_order_id) REFERENCES platform.object_instance(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: review_decision review_decision_decided_by_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.review_decision
+    ADD CONSTRAINT review_decision_decided_by_fkey FOREIGN KEY (decided_by) REFERENCES platform.account(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: role_data_scope role_data_scope_role_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.role_data_scope
+    ADD CONSTRAINT role_data_scope_role_id_fkey FOREIGN KEY (role_id) REFERENCES platform.role(id) ON DELETE CASCADE;
+
+
+--
+-- Name: role_permission role_permission_permission_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.role_permission
+    ADD CONSTRAINT role_permission_permission_id_fkey FOREIGN KEY (permission_id) REFERENCES platform.permission(id) ON DELETE CASCADE;
+
+
+--
+-- Name: role_permission role_permission_role_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.role_permission
+    ADD CONSTRAINT role_permission_role_id_fkey FOREIGN KEY (role_id) REFERENCES platform.role(id) ON DELETE CASCADE;
+
+
+--
+-- Name: source_column source_column_source_resource_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_column
+    ADD CONSTRAINT source_column_source_resource_id_fkey FOREIGN KEY (source_resource_id) REFERENCES platform.source_resource(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: source_connection_check source_connection_check_data_source_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_connection_check
+    ADD CONSTRAINT source_connection_check_data_source_id_fkey FOREIGN KEY (data_source_id) REFERENCES platform.data_source(id) ON DELETE CASCADE;
+
+
+--
+-- Name: source_delete_mark source_delete_mark_source_resource_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_delete_mark
+    ADD CONSTRAINT source_delete_mark_source_resource_id_fkey FOREIGN KEY (source_resource_id) REFERENCES platform.source_resource(id) ON DELETE CASCADE;
+
+
+--
+-- Name: source_load_failure source_load_failure_last_sync_run_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_load_failure
+    ADD CONSTRAINT source_load_failure_last_sync_run_id_fkey FOREIGN KEY (last_sync_run_id) REFERENCES platform.sync_run(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: source_load_failure source_load_failure_object_source_mapping_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_load_failure
+    ADD CONSTRAINT source_load_failure_object_source_mapping_id_fkey FOREIGN KEY (object_source_mapping_id) REFERENCES platform.object_source_mapping(id) ON DELETE CASCADE;
+
+
+--
+-- Name: source_load_failure source_load_failure_property_definition_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_load_failure
+    ADD CONSTRAINT source_load_failure_property_definition_id_fkey FOREIGN KEY (property_definition_id) REFERENCES platform.property_definition(id) ON DELETE CASCADE;
+
+
+--
+-- Name: source_load_failure source_load_failure_source_resource_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_load_failure
+    ADD CONSTRAINT source_load_failure_source_resource_id_fkey FOREIGN KEY (source_resource_id) REFERENCES platform.source_resource(id) ON DELETE CASCADE;
+
+
+--
+-- Name: source_preview source_preview_source_resource_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_preview
+    ADD CONSTRAINT source_preview_source_resource_id_fkey FOREIGN KEY (source_resource_id) REFERENCES platform.source_resource(id) ON DELETE CASCADE;
+
+
+--
+-- Name: source_resource source_resource_data_source_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.source_resource
+    ADD CONSTRAINT source_resource_data_source_id_fkey FOREIGN KEY (data_source_id) REFERENCES platform.data_source(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: spring_session_attributes spring_session_attributes_fk; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.spring_session_attributes
+    ADD CONSTRAINT spring_session_attributes_fk FOREIGN KEY (session_primary_id) REFERENCES platform.spring_session(primary_id) ON DELETE CASCADE;
+
+
+--
+-- Name: batch_step_execution_context step_exec_ctx_fk; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.batch_step_execution_context
+    ADD CONSTRAINT step_exec_ctx_fk FOREIGN KEY (step_execution_id) REFERENCES platform.batch_step_execution(step_execution_id);
+
+
+--
+-- Name: sync_run sync_run_data_source_id_fkey; Type: FK CONSTRAINT; Schema: platform; Owner: -
+--
+
+ALTER TABLE ONLY platform.sync_run
+    ADD CONSTRAINT sync_run_data_source_id_fkey FOREIGN KEY (data_source_id) REFERENCES platform.data_source(id) ON DELETE RESTRICT;
+
+
+--
+-- PostgreSQL database dump complete
+--
+
+\unrestrict vta38cNcm6x8O9t1qWfPXk1K578ihawnVyeWqGeOgoz3wQI4yUBxZ3DVmYAjmKU
+
