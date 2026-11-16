@@ -1,0 +1,153 @@
+{
+  "source": "results.json",
+  "status": "COMPLETED",
+  "started_at": "2026-11-16T11:42:13.915824+00:00",
+  "finished_at": "2026-11-16T11:43:14.091505+00:00",
+  "warmup_requests": 7,
+  "measurement_requests": 280,
+  "all_http_status": 200,
+  "logout_succeeded": true,
+  "cases": [
+    {
+      "target": "object_search",
+      "concurrency": 1,
+      "n": 20,
+      "mean_ms": 1284.2644750053296,
+      "p95_ms": 1567.7960999892093,
+      "failures": 0,
+      "observed_peak_in_flight": 1,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "object_search",
+      "concurrency": 5,
+      "n": 20,
+      "mean_ms": 3783.979144998011,
+      "p95_ms": 4121.845999965444,
+      "failures": 0,
+      "observed_peak_in_flight": 5,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "object_detail",
+      "concurrency": 1,
+      "n": 20,
+      "mean_ms": 61.166479997336864,
+      "p95_ms": 84.63950001168996,
+      "failures": 0,
+      "observed_peak_in_flight": 1,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "object_detail",
+      "concurrency": 5,
+      "n": 20,
+      "mean_ms": 72.57180499145761,
+      "p95_ms": 84.17829999234527,
+      "failures": 0,
+      "observed_peak_in_flight": 5,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "object_links",
+      "concurrency": 1,
+      "n": 20,
+      "mean_ms": 111.81026000122074,
+      "p95_ms": 149.40709999063984,
+      "failures": 0,
+      "observed_peak_in_flight": 1,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "object_links",
+      "concurrency": 5,
+      "n": 20,
+      "mean_ms": 252.47296500310767,
+      "p95_ms": 612.195800000336,
+      "failures": 0,
+      "observed_peak_in_flight": 5,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "ai_proposals",
+      "concurrency": 1,
+      "n": 20,
+      "mean_ms": 97.82523000030778,
+      "p95_ms": 112.90890001691878,
+      "failures": 0,
+      "observed_peak_in_flight": 1,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "ai_proposals",
+      "concurrency": 5,
+      "n": 20,
+      "mean_ms": 126.13029500062112,
+      "p95_ms": 153.62050000112504,
+      "failures": 0,
+      "observed_peak_in_flight": 5,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "issues",
+      "concurrency": 1,
+      "n": 20,
+      "mean_ms": 67.4897399963811,
+      "p95_ms": 81.51799999177456,
+      "failures": 0,
+      "observed_peak_in_flight": 1,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "issues",
+      "concurrency": 5,
+      "n": 20,
+      "mean_ms": 81.92350499739405,
+      "p95_ms": 99.49300001608208,
+      "failures": 0,
+      "observed_peak_in_flight": 5,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "analysis_status",
+      "concurrency": 1,
+      "n": 20,
+      "mean_ms": 54.124824999598786,
+      "p95_ms": 70.17969997832552,
+      "failures": 0,
+      "observed_peak_in_flight": 1,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "analysis_status",
+      "concurrency": 5,
+      "n": 20,
+      "mean_ms": 67.78181499976199,
+      "p95_ms": 79.99559998279437,
+      "failures": 0,
+      "observed_peak_in_flight": 5,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "agent_messages",
+      "concurrency": 1,
+      "n": 20,
+      "mean_ms": 75.32756000291556,
+      "p95_ms": 90.60639998642728,
+      "failures": 0,
+      "observed_peak_in_flight": 1,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "agent_messages",
+      "concurrency": 5,
+      "n": 20,
+      "mean_ms": 96.5982149966294,
+      "p95_ms": 116.92060000495985,
+      "failures": 0,
+      "observed_peak_in_flight": 5,
+      "nfr_result": "UNDEFINED_TARGET"
+    }
+  ],
+  "verification": "All 280 samples, summary statistics and observed overlapping request intervals checked independently."
+}

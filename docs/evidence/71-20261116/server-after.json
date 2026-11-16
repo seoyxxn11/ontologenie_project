@@ -1,0 +1,65 @@
+{
+  "measurement_window": {
+    "start": "2026-11-16T11:42:13.915824+00:00",
+    "end": "2026-11-16T11:43:14.091505+00:00"
+  },
+  "nginx_status_counts": [
+    {
+      "method": "GET",
+      "status": "200",
+      "count": 291
+    },
+    {
+      "method": "POST",
+      "status": "204",
+      "count": 1
+    }
+  ],
+  "nginx_504_count": 0,
+  "nginx_scope": "all backend_routing events in measurement window; no URI/body/credentials collected",
+  "containers_after": [
+    {
+      "container": "nginx",
+      "status": "running",
+      "health": null,
+      "started_at": "2026-11-16T06:08:34.263955811Z",
+      "oom_killed": false
+    },
+    {
+      "container": "backend",
+      "status": "running",
+      "health": "healthy",
+      "started_at": "2026-11-16T04:54:07.535716189Z",
+      "oom_killed": false
+    },
+    {
+      "container": "ai",
+      "status": "running",
+      "health": "healthy",
+      "started_at": "2026-11-14T13:25:25.337474889Z",
+      "oom_killed": false
+    },
+    {
+      "container": "postgres",
+      "status": "running",
+      "health": "healthy",
+      "started_at": "2026-10-28T04:54:05.846112852Z",
+      "oom_killed": false
+    },
+    {
+      "container": "grafana",
+      "status": "running",
+      "health": "healthy",
+      "started_at": "2026-11-10T06:35:06.675159075Z",
+      "oom_killed": false
+    }
+  ],
+  "data_counts_after": {
+    "objects": 3397,
+    "analysis_runs": 5,
+    "agent_messages": 576,
+    "action_executions": 2107,
+    "proposals": 132,
+    "issues": 6
+  }
+}

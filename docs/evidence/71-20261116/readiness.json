@@ -1,0 +1,37 @@
+{
+  "issue": "S15P31C106-71",
+  "recorded_at": "2026-11-16T11:38:02.536255+00:00",
+  "scope": "readiness observations only; not performance samples",
+  "ssh_reachable": true,
+  "backend_health_http_status": 200,
+  "containers_healthy": [
+    "backend",
+    "ai",
+    "postgres",
+    "grafana"
+  ],
+  "containers_running": [
+    "nginx",
+    "alloy",
+    "loki"
+  ],
+  "loki_host_13100_probe": "unreachable; not used by selected measurement method",
+  "connected_sources": 2,
+  "source_resources": 29,
+  "object_types": 25,
+  "objects": 3397,
+  "selected_object_ids_present": [
+    3,
+    731
+  ],
+  "analysis_25_status": "SUCCEEDED",
+  "conversation_146_messages": 2,
+  "ai_proposals": 132,
+  "issues": 6,
+  "nginx_request_time_logged": false,
+  "nginx_upstream_response_time_logged": false,
+  "backend_http_histogram_present": false,
+  "backend_http_quantiles_present": false,
+  "nfr_numeric_target": null,
+  "nfr_source": "https://app.notion.com/p/40dbdf14d2d88190afe3fb8c27bc4a5a#a407842b9c9c4e16914b5c805e2891d9"
+}

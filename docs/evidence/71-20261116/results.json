@@ -1,0 +1,3121 @@
+{
+  "issue": "S15P31C106-71",
+  "origin": "https://ontologenie.com",
+  "started_at": "2026-11-16T11:42:13.915824+00:00",
+  "status": "COMPLETED",
+  "scope": "authenticated GET; includes DNS/TCP/TLS/body; new connection per request",
+  "samples_per_case": 20,
+  "concurrencies": [
+    1,
+    5
+  ],
+  "percentile_method": "nearest-rank; successful responses only; errors separate",
+  "nfr_source": "Notion plan v1.0 draft, section 13: numeric target undefined",
+  "probes": [
+    {
+      "target": "object_search",
+      "started_at": "2026-11-16T11:42:13.929827+00:00",
+      "ok": true,
+      "http_status": 200,
+      "elapsed_ms": 1306.3633000128902,
+      "bytes": 10743,
+      "rows": 20
+    },
+    {
+      "target": "object_detail",
+      "started_at": "2026-11-16T11:42:15.255060+00:00",
+      "ok": true,
+      "http_status": 200,
+      "elapsed_ms": 81.35829999810085,
+      "bytes": 766,
+      "rows": 1
+    },
+    {
+      "target": "object_links",
+      "started_at": "2026-11-16T11:42:15.354929+00:00",
+      "ok": true,
+      "http_status": 200,
+      "elapsed_ms": 108.37860003812239,
+      "bytes": 12693,
+      "rows": 20
+    },
+    {
+      "target": "ai_proposals",
+      "started_at": "2026-11-16T11:42:15.479364+00:00",
+      "ok": true,
+      "http_status": 200,
+      "elapsed_ms": 98.51470001740381,
+      "bytes": 38337,
+      "rows": 20
+    },
+    {
+      "target": "issues",
+      "started_at": "2026-11-16T11:42:15.596052+00:00",
+      "ok": true,
+      "http_status": 200,
+      "elapsed_ms": 92.23300003213808,
+      "bytes": 4795,
+      "rows": 6
+    },
+    {
+      "target": "analysis_status",
+      "started_at": "2026-11-16T11:42:15.703440+00:00",
+      "ok": true,
+      "http_status": 200,
+      "elapsed_ms": 68.4639000101015,
+      "bytes": 851,
+      "rows": 1
+    },
+    {
+      "target": "agent_messages",
+      "started_at": "2026-11-16T11:42:15.790905+00:00",
+      "ok": true,
+      "http_status": 200,
+      "elapsed_ms": 53.2283999491483,
+      "bytes": 3179,
+      "rows": 2
+    }
+  ],
+  "cases": [
+    {
+      "target": "object_search",
+      "method": "GET",
+      "path": "/api/v1/objects?q=P103&page=0&size=20",
+      "concurrency": 1,
+      "samples": [
+        {
+          "index": 0,
+          "wave": 0,
+          "started_at": "2026-11-16T11:42:15.861504+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 1297.2391999792308,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 1,
+          "wave": 1,
+          "started_at": "2026-11-16T11:42:17.174282+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 1271.74220001325,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 2,
+          "wave": 2,
+          "started_at": "2026-11-16T11:42:18.461595+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 1341.2214999552816,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 3,
+          "wave": 3,
+          "started_at": "2026-11-16T11:42:19.816803+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 1217.177200014703,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 4,
+          "wave": 4,
+          "started_at": "2026-11-16T11:42:21.056950+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 1214.7784000262618,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 5,
+          "wave": 5,
+          "started_at": "2026-11-16T11:42:22.286917+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 1153.4529000055045,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 6,
+          "wave": 6,
+          "started_at": "2026-11-16T11:42:23.454578+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 1158.3527000038885,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 7,
+          "wave": 7,
+          "started_at": "2026-11-16T11:42:24.627322+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 1388.7741999933496,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 8,
+          "wave": 8,
+          "started_at": "2026-11-16T11:42:26.028813+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 1320.127000042703,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 9,
+          "wave": 9,
+          "started_at": "2026-11-16T11:42:27.363305+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 1273.4220999991521,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 10,
+          "wave": 10,
+          "started_at": "2026-11-16T11:42:28.653281+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 1302.511100017,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 11,
+          "wave": 11,
+          "started_at": "2026-11-16T11:42:29.971960+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 1222.648399998434,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 12,
+          "wave": 12,
+          "started_at": "2026-11-16T11:42:31.209713+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 1167.928600043524,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 13,
+          "wave": 13,
+          "started_at": "2026-11-16T11:42:32.391330+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 1198.1994999805465,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 14,
+          "wave": 14,
+          "started_at": "2026-11-16T11:42:33.604253+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 1242.928599996958,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 15,
+          "wave": 15,
+          "started_at": "2026-11-16T11:42:34.863075+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 1029.6183000318706,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 16,
+          "wave": 16,
+          "started_at": "2026-11-16T11:42:35.906189+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 1406.7958000232466,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 17,
+          "wave": 17,
+          "started_at": "2026-11-16T11:42:37.328396+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 1260.7007999904454,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 18,
+          "wave": 18,
+          "started_at": "2026-11-16T11:42:38.603142+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 1649.8749000020325,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 19,
+          "wave": 19,
+          "started_at": "2026-11-16T11:42:40.266375+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 1567.7960999892093,
+          "bytes": 10743,
+          "rows": 20
+        }
+      ],
+      "expected": 20,
+      "attempts": 20,
+      "successes": 20,
+      "failures": 0,
+      "complete": true,
+      "success_mean_ms": 1284.2644750053296,
+      "success_p95_ms": 1567.7960999892093,
+      "nfr_target_ms": null,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "object_search",
+      "method": "GET",
+      "path": "/api/v1/objects?q=P103&page=0&size=20",
+      "concurrency": 5,
+      "samples": [
+        {
+          "index": 0,
+          "wave": 0,
+          "started_at": "2026-11-16T11:42:41.892193+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 3837.528999953065,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 1,
+          "wave": 0,
+          "started_at": "2026-11-16T11:42:41.886194+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 4176.24749999959,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 2,
+          "wave": 0,
+          "started_at": "2026-11-16T11:42:41.886194+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 4121.845999965444,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 3,
+          "wave": 0,
+          "started_at": "2026-11-16T11:42:41.886194+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 4104.548800038174,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 4,
+          "wave": 0,
+          "started_at": "2026-11-16T11:42:41.871679+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 3816.513199999463,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 5,
+          "wave": 1,
+          "started_at": "2026-11-16T11:42:46.100136+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 3920.0293999747373,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 6,
+          "wave": 1,
+          "started_at": "2026-11-16T11:42:46.105648+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 3279.623799957335,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 7,
+          "wave": 1,
+          "started_at": "2026-11-16T11:42:46.100136+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 3896.5687000309117,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 8,
+          "wave": 1,
+          "started_at": "2026-11-16T11:42:46.100136+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 4013.6021000216715,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 9,
+          "wave": 1,
+          "started_at": "2026-11-16T11:42:46.100136+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 3374.8789000092074,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 10,
+          "wave": 2,
+          "started_at": "2026-11-16T11:42:50.153447+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 4061.661599960644,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 11,
+          "wave": 2,
+          "started_at": "2026-11-16T11:42:50.144445+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 3858.4042000002228,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 12,
+          "wave": 2,
+          "started_at": "2026-11-16T11:42:50.159948+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 3577.979599998798,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 13,
+          "wave": 2,
+          "started_at": "2026-11-16T11:42:50.153447+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 4045.367199985776,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 14,
+          "wave": 2,
+          "started_at": "2026-11-16T11:42:50.145446+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 3623.5219999798574,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 15,
+          "wave": 3,
+          "started_at": "2026-11-16T11:42:54.250707+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 3672.844900051132,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 16,
+          "wave": 3,
+          "started_at": "2026-11-16T11:42:54.257709+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 3730.622700008098,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 17,
+          "wave": 3,
+          "started_at": "2026-11-16T11:42:54.252707+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 3546.745900006499,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 18,
+          "wave": 3,
+          "started_at": "2026-11-16T11:42:54.258709+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 3659.811899997294,
+          "bytes": 10743,
+          "rows": 20
+        },
+        {
+          "index": 19,
+          "wave": 3,
+          "started_at": "2026-11-16T11:42:54.238704+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 3361.2355000223033,
+          "bytes": 10743,
+          "rows": 20
+        }
+      ],
+      "expected": 20,
+      "attempts": 20,
+      "successes": 20,
+      "failures": 0,
+      "complete": true,
+      "success_mean_ms": 3783.979144998011,
+      "success_p95_ms": 4121.845999965444,
+      "nfr_target_ms": null,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "object_detail",
+      "method": "GET",
+      "path": "/api/v1/objects/3",
+      "concurrency": 1,
+      "samples": [
+        {
+          "index": 0,
+          "wave": 0,
+          "started_at": "2026-11-16T11:42:58.004826+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 84.63950001168996,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 1,
+          "wave": 1,
+          "started_at": "2026-11-16T11:42:58.103672+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 69.53209999483079,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 2,
+          "wave": 2,
+          "started_at": "2026-11-16T11:42:58.188060+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 98.03809999721125,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 3,
+          "wave": 3,
+          "started_at": "2026-11-16T11:42:58.301740+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 58.87480004457757,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 4,
+          "wave": 4,
+          "started_at": "2026-11-16T11:42:58.375596+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 74.21960000647232,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 5,
+          "wave": 5,
+          "started_at": "2026-11-16T11:42:58.464447+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 56.31780001567677,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 6,
+          "wave": 6,
+          "started_at": "2026-11-16T11:42:58.535160+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 70.20229997579008,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 7,
+          "wave": 7,
+          "started_at": "2026-11-16T11:42:58.620849+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 50.47830002149567,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 8,
+          "wave": 8,
+          "started_at": "2026-11-16T11:42:58.685697+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 56.261499994434416,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 9,
+          "wave": 9,
+          "started_at": "2026-11-16T11:42:58.756041+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 52.41350003052503,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 10,
+          "wave": 10,
+          "started_at": "2026-11-16T11:42:58.823230+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 47.15030000079423,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 11,
+          "wave": 11,
+          "started_at": "2026-11-16T11:42:58.885502+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 49.20239996863529,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 12,
+          "wave": 12,
+          "started_at": "2026-11-16T11:42:58.950505+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 53.39600000297651,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 13,
+          "wave": 13,
+          "started_at": "2026-11-16T11:42:59.018039+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 64.88999997964129,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 14,
+          "wave": 14,
+          "started_at": "2026-11-16T11:42:59.110853+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 59.22819999977946,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 15,
+          "wave": 15,
+          "started_at": "2026-11-16T11:42:59.184352+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 56.99309997726232,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 16,
+          "wave": 16,
+          "started_at": "2026-11-16T11:42:59.256869+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 61.46529997931793,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 17,
+          "wave": 17,
+          "started_at": "2026-11-16T11:42:59.333695+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 60.758099949453026,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 18,
+          "wave": 18,
+          "started_at": "2026-11-16T11:42:59.410231+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 51.78799998247996,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 19,
+          "wave": 19,
+          "started_at": "2026-11-16T11:42:59.475773+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 47.48070001369342,
+          "bytes": 766,
+          "rows": 1
+        }
+      ],
+      "expected": 20,
+      "attempts": 20,
+      "successes": 20,
+      "failures": 0,
+      "complete": true,
+      "success_mean_ms": 61.166479997336864,
+      "success_p95_ms": 84.63950001168996,
+      "nfr_target_ms": null,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "object_detail",
+      "method": "GET",
+      "path": "/api/v1/objects/3",
+      "concurrency": 5,
+      "samples": [
+        {
+          "index": 0,
+          "wave": 0,
+          "started_at": "2026-11-16T11:42:59.566248+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 68.19969997741282,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 1,
+          "wave": 0,
+          "started_at": "2026-11-16T11:42:59.566248+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 64.8704000050202,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 2,
+          "wave": 0,
+          "started_at": "2026-11-16T11:42:59.572249+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 72.92730000335723,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 3,
+          "wave": 0,
+          "started_at": "2026-11-16T11:42:59.566248+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 60.02819997956976,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 4,
+          "wave": 0,
+          "started_at": "2026-11-16T11:42:59.550248+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 77.4366999976337,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 5,
+          "wave": 1,
+          "started_at": "2026-11-16T11:42:59.681984+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 81.911500019487,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 6,
+          "wave": 1,
+          "started_at": "2026-11-16T11:42:59.689984+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 74.11210000282153,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 7,
+          "wave": 1,
+          "started_at": "2026-11-16T11:42:59.696497+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 77.68799999030307,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 8,
+          "wave": 1,
+          "started_at": "2026-11-16T11:42:59.689984+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 69.08499996643513,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 9,
+          "wave": 1,
+          "started_at": "2026-11-16T11:42:59.689984+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 66.45310000749305,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 10,
+          "wave": 2,
+          "started_at": "2026-11-16T11:42:59.812429+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 84.17829999234527,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 11,
+          "wave": 2,
+          "started_at": "2026-11-16T11:42:59.819432+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 81.0854000155814,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 12,
+          "wave": 2,
+          "started_at": "2026-11-16T11:42:59.813426+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 67.51180003629997,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 13,
+          "wave": 2,
+          "started_at": "2026-11-16T11:42:59.813426+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 79.99969995580614,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 14,
+          "wave": 2,
+          "started_at": "2026-11-16T11:42:59.798426+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 92.09489997010678,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 15,
+          "wave": 3,
+          "started_at": "2026-11-16T11:42:59.937715+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 78.90939997741953,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 16,
+          "wave": 3,
+          "started_at": "2026-11-16T11:42:59.943715+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 61.420599988196045,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 17,
+          "wave": 3,
+          "started_at": "2026-11-16T11:42:59.937715+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 50.867200014181435,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 18,
+          "wave": 3,
+          "started_at": "2026-11-16T11:42:59.937715+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 61.55789998592809,
+          "bytes": 766,
+          "rows": 1
+        },
+        {
+          "index": 19,
+          "wave": 3,
+          "started_at": "2026-11-16T11:42:59.937715+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 81.09889994375408,
+          "bytes": 766,
+          "rows": 1
+        }
+      ],
+      "expected": 20,
+      "attempts": 20,
+      "successes": 20,
+      "failures": 0,
+      "complete": true,
+      "success_mean_ms": 72.57180499145761,
+      "success_p95_ms": 84.17829999234527,
+      "nfr_target_ms": null,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "object_links",
+      "method": "GET",
+      "path": "/api/v1/objects/3/links?page=0&size=20",
+      "concurrency": 1,
+      "samples": [
+        {
+          "index": 0,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:00.036541+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 130.90599997667596,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 1,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:00.182318+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 149.40709999063984,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 2,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:00.347033+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 134.42150002811104,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 3,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:00.496814+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 131.50070002302527,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 4,
+          "wave": 4,
+          "started_at": "2026-11-16T11:43:00.643070+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 102.79419994913042,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 5,
+          "wave": 5,
+          "started_at": "2026-11-16T11:43:00.761620+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 105.90250004315749,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 6,
+          "wave": 6,
+          "started_at": "2026-11-16T11:43:00.882760+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 85.56840004166588,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 7,
+          "wave": 7,
+          "started_at": "2026-11-16T11:43:00.984711+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 112.63460002373904,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 8,
+          "wave": 8,
+          "started_at": "2026-11-16T11:43:01.126323+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 111.8927999632433,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 9,
+          "wave": 9,
+          "started_at": "2026-11-16T11:43:01.255065+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 100.18130001844838,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 10,
+          "wave": 10,
+          "started_at": "2026-11-16T11:43:01.370478+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 86.10990003217012,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 11,
+          "wave": 11,
+          "started_at": "2026-11-16T11:43:01.472366+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 110.372599971015,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 12,
+          "wave": 12,
+          "started_at": "2026-11-16T11:43:01.596728+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 149.80499999364838,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 13,
+          "wave": 13,
+          "started_at": "2026-11-16T11:43:01.761488+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 112.73319995962083,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 14,
+          "wave": 14,
+          "started_at": "2026-11-16T11:43:01.888814+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 88.57179997721687,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 15,
+          "wave": 15,
+          "started_at": "2026-11-16T11:43:01.990589+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 94.7617000201717,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 16,
+          "wave": 16,
+          "started_at": "2026-11-16T11:43:02.100860+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 100.56110000004992,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 17,
+          "wave": 17,
+          "started_at": "2026-11-16T11:43:02.216609+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 108.29910001484677,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 18,
+          "wave": 18,
+          "started_at": "2026-11-16T11:43:02.341553+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 120.58510002680123,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 19,
+          "wave": 19,
+          "started_at": "2026-11-16T11:43:02.477437+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 99.19659997103736,
+          "bytes": 12693,
+          "rows": 20
+        }
+      ],
+      "expected": 20,
+      "attempts": 20,
+      "successes": 20,
+      "failures": 0,
+      "complete": true,
+      "success_mean_ms": 111.81026000122074,
+      "success_p95_ms": 149.40709999063984,
+      "nfr_target_ms": null,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "object_links",
+      "method": "GET",
+      "path": "/api/v1/objects/3/links?page=0&size=20",
+      "concurrency": 5,
+      "samples": [
+        {
+          "index": 0,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:02.627178+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 141.16639998974279,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 1,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:02.627178+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 223.178599961102,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 2,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:02.628184+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 182.0888000074774,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 3,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:02.633972+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 140.74150001397356,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 4,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:02.613673+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 220.02459998475388,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 5,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:02.894735+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 208.28399999300018,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 6,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:02.888227+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 583.5042000398971,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 7,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:02.889227+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 203.91689997632056,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 8,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:02.888227+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 182.59830004535615,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 9,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:02.888227+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 207.05010002711788,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 10,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:03.513987+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 104.96729996521026,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 11,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:03.514995+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 417.4450999707915,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 12,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:03.514995+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 134.77760000387207,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 13,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:03.519993+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 146.94930001860484,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 14,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:03.499467+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 150.43710003374144,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 15,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:03.971495+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 181.84189999010414,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 16,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:03.972495+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 198.5293000470847,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 17,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:03.977491+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 629.0636999765411,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 18,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:03.972495+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 612.195800000336,
+          "bytes": 12693,
+          "rows": 20
+        },
+        {
+          "index": 19,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:03.972495+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 180.6988000171259,
+          "bytes": 12693,
+          "rows": 20
+        }
+      ],
+      "expected": 20,
+      "attempts": 20,
+      "successes": 20,
+      "failures": 0,
+      "complete": true,
+      "success_mean_ms": 252.47296500310767,
+      "success_p95_ms": 612.195800000336,
+      "nfr_target_ms": null,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "ai_proposals",
+      "method": "GET",
+      "path": "/api/v1/proposals?origin=AI&page=0&size=20",
+      "concurrency": 1,
+      "samples": [
+        {
+          "index": 0,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:04.625335+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 98.62390003399923,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 1,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:04.738662+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 104.66390004148707,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 2,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:04.857869+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 108.38310001417994,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 3,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:04.982476+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 85.56530001806095,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 4,
+          "wave": 4,
+          "started_at": "2026-11-16T11:43:05.082713+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 103.11739996541291,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 5,
+          "wave": 5,
+          "started_at": "2026-11-16T11:43:05.201224+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 88.64610001910478,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 6,
+          "wave": 6,
+          "started_at": "2026-11-16T11:43:05.306792+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 90.24140000110492,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 7,
+          "wave": 7,
+          "started_at": "2026-11-16T11:43:05.412017+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 91.21579997008666,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 8,
+          "wave": 8,
+          "started_at": "2026-11-16T11:43:05.516849+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 112.90890001691878,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 9,
+          "wave": 9,
+          "started_at": "2026-11-16T11:43:05.647114+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 96.85989998979494,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 10,
+          "wave": 10,
+          "started_at": "2026-11-16T11:43:05.758962+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 101.90650000004098,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 11,
+          "wave": 11,
+          "started_at": "2026-11-16T11:43:05.882303+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 91.3492999970913,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 12,
+          "wave": 12,
+          "started_at": "2026-11-16T11:43:05.988723+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 84.15769995190203,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 13,
+          "wave": 13,
+          "started_at": "2026-11-16T11:43:06.088312+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 106.1158999800682,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 14,
+          "wave": 14,
+          "started_at": "2026-11-16T11:43:06.210823+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 150.68590000737458,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 15,
+          "wave": 15,
+          "started_at": "2026-11-16T11:43:06.377381+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 92.97190001234412,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 16,
+          "wave": 16,
+          "started_at": "2026-11-16T11:43:06.485440+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 84.28099995944649,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 17,
+          "wave": 17,
+          "started_at": "2026-11-16T11:43:06.585649+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 79.71640001051128,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 18,
+          "wave": 18,
+          "started_at": "2026-11-16T11:43:06.685977+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 102.41580003639683,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 19,
+          "wave": 19,
+          "started_at": "2026-11-16T11:43:06.802418+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 82.67849998082966,
+          "bytes": 38337,
+          "rows": 20
+        }
+      ],
+      "expected": 20,
+      "attempts": 20,
+      "successes": 20,
+      "failures": 0,
+      "complete": true,
+      "success_mean_ms": 97.82523000030778,
+      "success_p95_ms": 112.90890001691878,
+      "nfr_target_ms": null,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "ai_proposals",
+      "method": "GET",
+      "path": "/api/v1/proposals?origin=AI&page=0&size=20",
+      "concurrency": 5,
+      "samples": [
+        {
+          "index": 0,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:06.925421+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 142.35919999191537,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 1,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:06.933152+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 112.33669996727258,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 2,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:06.933152+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 130.40770002407953,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 3,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:06.938682+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 120.57929998263717,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 4,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:06.912372+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 135.24099998176098,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 5,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:07.104799+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 121.43030000152066,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 6,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:07.103799+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 116.5725999744609,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 7,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:07.110799+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 153.62050000112504,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 8,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:07.104799+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 112.50129999825731,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 9,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:07.096785+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 169.76410005008802,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 10,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:07.301704+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 106.28440004074946,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 11,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:07.303707+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 96.83630004292354,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 12,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:07.309703+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 114.27199997706339,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 13,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:07.301704+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 112.36500000813976,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 14,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:07.301704+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 128.97000001976267,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 15,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:07.468308+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 145.21659997990355,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 16,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:07.468308+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 107.25150001235306,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 17,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:07.468308+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 115.34630000824109,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 18,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:07.474304+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 130.8191999560222,
+          "bytes": 38337,
+          "rows": 20
+        },
+        {
+          "index": 19,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:07.468308+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 150.43189999414608,
+          "bytes": 38337,
+          "rows": 20
+        }
+      ],
+      "expected": 20,
+      "attempts": 20,
+      "successes": 20,
+      "failures": 0,
+      "complete": true,
+      "success_mean_ms": 126.13029500062112,
+      "success_p95_ms": 153.62050000112504,
+      "nfr_target_ms": null,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "issues",
+      "method": "GET",
+      "path": "/api/v1/issues?page=0&size=20",
+      "concurrency": 1,
+      "samples": [
+        {
+          "index": 0,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:07.636854+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 60.50150003284216,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 1,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:07.711403+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 93.59260002383962,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 2,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:07.820786+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 80.08139999583364,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 3,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:07.917472+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 71.60809997003525,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 4,
+          "wave": 4,
+          "started_at": "2026-11-16T11:43:08.003103+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 72.33130000531673,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 5,
+          "wave": 5,
+          "started_at": "2026-11-16T11:43:08.091013+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 65.5453999643214,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 6,
+          "wave": 6,
+          "started_at": "2026-11-16T11:43:08.171325+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 78.25629995204508,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 7,
+          "wave": 7,
+          "started_at": "2026-11-16T11:43:08.265865+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 51.806400006171316,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 8,
+          "wave": 8,
+          "started_at": "2026-11-16T11:43:08.332342+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 57.52129998290911,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 9,
+          "wave": 9,
+          "started_at": "2026-11-16T11:43:08.404162+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 58.22310002986342,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 10,
+          "wave": 10,
+          "started_at": "2026-11-16T11:43:08.476156+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 68.47289996221662,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 11,
+          "wave": 11,
+          "started_at": "2026-11-16T11:43:08.559466+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 67.33400002121925,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 12,
+          "wave": 12,
+          "started_at": "2026-11-16T11:43:08.641531+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 81.51799999177456,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 13,
+          "wave": 13,
+          "started_at": "2026-11-16T11:43:08.739056+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 63.39649995788932,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 14,
+          "wave": 14,
+          "started_at": "2026-11-16T11:43:08.816143+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 61.14909995812923,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 15,
+          "wave": 15,
+          "started_at": "2026-11-16T11:43:08.892576+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 53.65159997018054,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 16,
+          "wave": 16,
+          "started_at": "2026-11-16T11:43:08.971729+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 75.87479997891933,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 17,
+          "wave": 17,
+          "started_at": "2026-11-16T11:43:09.061691+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 56.87160004163161,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 18,
+          "wave": 18,
+          "started_at": "2026-11-16T11:43:09.133092+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 71.970000048168,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 19,
+          "wave": 19,
+          "started_at": "2026-11-16T11:43:09.220106+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 60.088900034315884,
+          "bytes": 4795,
+          "rows": 6
+        }
+      ],
+      "expected": 20,
+      "attempts": 20,
+      "successes": 20,
+      "failures": 0,
+      "complete": true,
+      "success_mean_ms": 67.4897399963811,
+      "success_p95_ms": 81.51799999177456,
+      "nfr_target_ms": null,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "issues",
+      "method": "GET",
+      "path": "/api/v1/issues?page=0&size=20",
+      "concurrency": 5,
+      "samples": [
+        {
+          "index": 0,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:09.320181+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 86.42599999438971,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 1,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:09.320181+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 97.31579996878281,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 2,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:09.326187+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 86.9047999731265,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 3,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:09.300179+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 99.49300001608208,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 4,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:09.320181+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 62.2834000387229,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 5,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:09.440679+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 112.06770001444966,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 6,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:09.454675+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 89.09119997406378,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 7,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:09.454675+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 85.15329996589571,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 8,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:09.460676+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 89.97999998973683,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 9,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:09.454675+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 91.07389999553561,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 10,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:09.582380+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 63.44329996500164,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 11,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:09.596476+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 80.4148000315763,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 12,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:09.590888+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 57.562400004826486,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 13,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:09.589888+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 94.17120000580326,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 14,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:09.582380+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 67.39909999305382,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 15,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:09.724883+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 90.79290000954643,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 16,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:09.724883+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 76.06279995525256,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 17,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:09.731317+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 53.0564000364393,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 18,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:09.726314+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 81.3573999912478,
+          "bytes": 4795,
+          "rows": 6
+        },
+        {
+          "index": 19,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:09.726314+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 74.42070002434775,
+          "bytes": 4795,
+          "rows": 6
+        }
+      ],
+      "expected": 20,
+      "attempts": 20,
+      "successes": 20,
+      "failures": 0,
+      "complete": true,
+      "success_mean_ms": 81.92350499739405,
+      "success_p95_ms": 99.49300001608208,
+      "nfr_target_ms": null,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "analysis_status",
+      "method": "GET",
+      "path": "/api/v1/analyses/25",
+      "concurrency": 1,
+      "samples": [
+        {
+          "index": 0,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:09.835558+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 52.39099997561425,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 1,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:09.904070+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 49.308500019833446,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 2,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:09.967214+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 48.961699998471886,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 3,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:10.031559+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 47.20700002508238,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 4,
+          "wave": 4,
+          "started_at": "2026-11-16T11:43:10.096238+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 50.14040000969544,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 5,
+          "wave": 5,
+          "started_at": "2026-11-16T11:43:10.159881+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 66.96610001381487,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 6,
+          "wave": 6,
+          "started_at": "2026-11-16T11:43:10.242677+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 46.66709998855367,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 7,
+          "wave": 7,
+          "started_at": "2026-11-16T11:43:10.305605+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 59.81940001947805,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 8,
+          "wave": 8,
+          "started_at": "2026-11-16T11:43:10.381986+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 47.76079999282956,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 9,
+          "wave": 9,
+          "started_at": "2026-11-16T11:43:10.445456+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 48.955699952784926,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 10,
+          "wave": 10,
+          "started_at": "2026-11-16T11:43:10.510148+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 73.22930003283545,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 11,
+          "wave": 11,
+          "started_at": "2026-11-16T11:43:10.598671+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 64.37939999159425,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 12,
+          "wave": 12,
+          "started_at": "2026-11-16T11:43:10.677192+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 50.93630001647398,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 13,
+          "wave": 13,
+          "started_at": "2026-11-16T11:43:10.743223+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 46.24649998731911,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 14,
+          "wave": 14,
+          "started_at": "2026-11-16T11:43:10.803826+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 48.65919996518642,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 15,
+          "wave": 15,
+          "started_at": "2026-11-16T11:43:10.867820+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 49.956000002566725,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 16,
+          "wave": 16,
+          "started_at": "2026-11-16T11:43:10.932348+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 70.17969997832552,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 17,
+          "wave": 17,
+          "started_at": "2026-11-16T11:43:11.017676+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 45.76720000477508,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 18,
+          "wave": 18,
+          "started_at": "2026-11-16T11:43:11.078669+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 51.6529000014998,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 19,
+          "wave": 19,
+          "started_at": "2026-11-16T11:43:11.143721+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 63.31230001524091,
+          "bytes": 851,
+          "rows": 1
+        }
+      ],
+      "expected": 20,
+      "attempts": 20,
+      "successes": 20,
+      "failures": 0,
+      "complete": true,
+      "success_mean_ms": 54.124824999598786,
+      "success_p95_ms": 70.17969997832552,
+      "nfr_target_ms": null,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "analysis_status",
+      "method": "GET",
+      "path": "/api/v1/analyses/25",
+      "concurrency": 5,
+      "samples": [
+        {
+          "index": 0,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:11.254976+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 70.89480001013726,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 1,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:11.247976+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 76.83930004714057,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 2,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:11.248979+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 72.37210002494976,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 3,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:11.248979+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 74.40260000294074,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 4,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:11.234971+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 80.8307999977842,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 5,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:11.362304+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 71.09889999264851,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 6,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:11.362304+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 64.7093000006862,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 7,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:11.363303+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 69.60759998764843,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 8,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:11.368303+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 62.70109995966777,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 9,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:11.348305+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 61.76489999052137,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 10,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:11.469886+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 65.8207000233233,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 11,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:11.476888+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 47.5076999864541,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 12,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:11.469886+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 67.18940002610907,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 13,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:11.469886+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 50.050999969244,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 14,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:11.456888+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 60.834100004285574,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 15,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:11.579397+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 68.82869999390095,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 16,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:11.573389+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 72.97849998576567,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 17,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:11.573389+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 69.84910002211109,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 18,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:11.564392+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 79.99559998279437,
+          "bytes": 851,
+          "rows": 1
+        },
+        {
+          "index": 19,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:11.573389+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 67.36009998712689,
+          "bytes": 851,
+          "rows": 1
+        }
+      ],
+      "expected": 20,
+      "attempts": 20,
+      "successes": 20,
+      "failures": 0,
+      "complete": true,
+      "success_mean_ms": 67.78181499976199,
+      "success_p95_ms": 79.99559998279437,
+      "nfr_target_ms": null,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "agent_messages",
+      "method": "GET",
+      "path": "/api/v1/agent/conversations/146/messages?page=0&size=20",
+      "concurrency": 1,
+      "samples": [
+        {
+          "index": 0,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:11.667042+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 79.56760004162788,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 1,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:11.761022+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 50.50340003799647,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 2,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:11.825299+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 56.860300013795495,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 3,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:11.898090+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 52.555899950675666,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 4,
+          "wave": 4,
+          "started_at": "2026-11-16T11:43:11.978702+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 76.62849995540455,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 5,
+          "wave": 5,
+          "started_at": "2026-11-16T11:43:12.070029+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 61.488699982874095,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 6,
+          "wave": 6,
+          "started_at": "2026-11-16T11:43:12.145052+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 79.66800004942343,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 7,
+          "wave": 7,
+          "started_at": "2026-11-16T11:43:12.238276+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 63.29240003833547,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 8,
+          "wave": 8,
+          "started_at": "2026-11-16T11:43:12.317466+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 80.75869997264817,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 9,
+          "wave": 9,
+          "started_at": "2026-11-16T11:43:12.412240+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 90.60639998642728,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 10,
+          "wave": 10,
+          "started_at": "2026-11-16T11:43:12.516866+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 70.69439999759197,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 11,
+          "wave": 11,
+          "started_at": "2026-11-16T11:43:12.603779+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 83.75590003561229,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 12,
+          "wave": 12,
+          "started_at": "2026-11-16T11:43:12.703304+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 59.12279995391145,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 13,
+          "wave": 13,
+          "started_at": "2026-11-16T11:43:12.777691+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 84.01419996516779,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 14,
+          "wave": 14,
+          "started_at": "2026-11-16T11:43:12.876399+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 104.99199997866526,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 15,
+          "wave": 15,
+          "started_at": "2026-11-16T11:43:12.997648+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 90.33430000999942,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 16,
+          "wave": 16,
+          "started_at": "2026-11-16T11:43:13.105472+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 86.37780003482476,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 17,
+          "wave": 17,
+          "started_at": "2026-11-16T11:43:13.206693+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 87.15570002095774,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 18,
+          "wave": 18,
+          "started_at": "2026-11-16T11:43:13.308922+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 67.98180000623688,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 19,
+          "wave": 19,
+          "started_at": "2026-11-16T11:43:13.391214+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 80.19240002613515,
+          "bytes": 3179,
+          "rows": 2
+        }
+      ],
+      "expected": 20,
+      "attempts": 20,
+      "successes": 20,
+      "failures": 0,
+      "complete": true,
+      "success_mean_ms": 75.32756000291556,
+      "success_p95_ms": 90.60639998642728,
+      "nfr_target_ms": null,
+      "nfr_result": "UNDEFINED_TARGET"
+    },
+    {
+      "target": "agent_messages",
+      "method": "GET",
+      "path": "/api/v1/agent/conversations/146/messages?page=0&size=20",
+      "concurrency": 5,
+      "samples": [
+        {
+          "index": 0,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:13.519182+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 110.8395999763161,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 1,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:13.532857+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 80.22870001150295,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 2,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:13.526182+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 86.39329997822642,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 3,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:13.526182+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 86.37340000132099,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 4,
+          "wave": 0,
+          "started_at": "2026-11-16T11:43:13.519182+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 77.69449998158962,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 5,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:13.660921+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 74.7055999818258,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 6,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:13.660921+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 101.43350000726059,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 7,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:13.659920+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 102.22250001970679,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 8,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:13.674921+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 86.57249994575977,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 9,
+          "wave": 1,
+          "started_at": "2026-11-16T11:43:13.669920+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 91.92330000223592,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 10,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:13.811113+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 92.62690000468865,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 11,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:13.805115+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 99.36659998493269,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 12,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:13.811113+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 95.80720000667498,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 13,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:13.797382+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 107.17099998146296,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 14,
+          "wave": 2,
+          "started_at": "2026-11-16T11:43:13.804004+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 91.15659998496994,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 15,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:13.946015+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 116.92060000495985,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 16,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:13.946015+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 140.10900002904236,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 17,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:13.946015+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 84.52560001751408,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 18,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:13.952534+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 94.96600000420585,
+          "bytes": 3179,
+          "rows": 2
+        },
+        {
+          "index": 19,
+          "wave": 3,
+          "started_at": "2026-11-16T11:43:13.946015+00:00",
+          "ok": true,
+          "http_status": 200,
+          "elapsed_ms": 110.92790000839159,
+          "bytes": 3179,
+          "rows": 2
+        }
+      ],
+      "expected": 20,
+      "attempts": 20,
+      "successes": 20,
+      "failures": 0,
+      "complete": true,
+      "success_mean_ms": 96.5982149966294,
+      "success_p95_ms": 116.92060000495985,
+      "nfr_target_ms": null,
+      "nfr_result": "UNDEFINED_TARGET"
+    }
+  ],
+  "finished_at": "2026-11-16T11:43:14.091505+00:00",
+  "logout_succeeded": true
+}
