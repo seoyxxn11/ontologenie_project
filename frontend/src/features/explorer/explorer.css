@@ -850,3 +850,8 @@
   flex-shrink: 0;
   margin: 12px 0 0;
 }
+@container explorer-page (max-width: 600px) {
+  .explorer-list:has(.explorer-related-context) {
+    --explorer-row-min-height: 72px;
+  }
+}
