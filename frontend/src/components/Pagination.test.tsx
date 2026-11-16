@@ -74,13 +74,52 @@ describe('페이지네이션', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
-  it('1쪽이면 현재 번호와 건수를 알리고 모든 이동을 비활성화한다', () => {
-    render(
-      <Pagination page={0} size={20} totalElements={3} onChange={vi.fn()} />,
+  it.each([1, 3, 20])(
+    '한 페이지인 %i건이면 건수만 표시한다',
+    (totalElements) => {
+      render(
+        <Pagination
+          page={0}
+          size={20}
+          totalElements={totalElements}
+          onChange={vi.fn()}
+        />,
+      )
+      expect(screen.getByText(`총 ${totalElements}건`)).toBeInTheDocument()
+      expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    },
+  )
+
+  it.each([0, 3, 20])(
+    '요약을 생략한 %i건의 한 페이지 이하 목록은 아무것도 표시하지 않는다',
+    (totalElements) => {
+      const { container } = render(
+        <Pagination
+          page={0}
+          size={20}
+          totalElements={totalElements}
+          showSummary={false}
+          compact
+          onChange={vi.fn()}
+        />,
+      )
+      expect(container).toBeEmptyDOMElement()
+    },
+  )
+
+  it('한 페이지에서 두 페이지가 되면 이동 버튼을 표시한다', () => {
+    const { rerender } = render(
+      <Pagination page={0} size={20} totalElements={20} onChange={vi.fn()} />,
     )
-    expect(screen.getByText('1 / 1쪽 · 3건')).toBeInTheDocument()
-    for (const button of screen.getAllByRole('button'))
-      expect(button).toBeDisabled()
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
+    rerender(
+      <Pagination page={0} size={20} totalElements={21} onChange={vi.fn()} />,
+    )
+    expect(
+      screen.getByRole('navigation', { name: '페이지 이동' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '다음 페이지' })).toBeEnabled()
   })
 
   it('조회 중에는 번호와 모든 이동 버튼을 눌러도 재조회하지 않는다', async () => {
@@ -128,6 +167,7 @@ describe('페이지네이션', () => {
       <Pagination page={1} size={20} totalElements={20} onChange={change} />,
     )
     expect(change).toHaveBeenCalledWith(0)
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
     change.mockClear()
     rerender(
       <Pagination page={1} size={20} totalElements={0} onChange={change} />,

@@ -183,7 +183,7 @@ test('마지막 페이지의 대화가 사라지면 남아 있는 마지막 페�
   ).toHaveAttribute('aria-current', 'page')
 })
 
-test('대화가 없으면 빈 안내를, 한 페이지면 비활성 페이지 버튼을 표시한다', () => {
+test('대화가 없으면 빈 안내를, 한 페이지면 페이지 이동을 숨긴다', () => {
   const handlers = props()
   const { rerender } = render(
     <ConversationList {...handlers} conversations={[]} />,
@@ -197,8 +197,7 @@ test('대화가 없으면 빈 안내를, 한 페이지면 비활성 페이지 �
     />,
   )
   resize(108)
-  expect(screen.getByRole('button', { name: '이전 페이지' })).toBeDisabled()
-  expect(screen.getByRole('button', { name: '다음 페이지' })).toBeDisabled()
+  expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
 })
 
 test('늘어난 표시 행 높이를 페이지 크기 계산에 다시 사용하지 않는다', () => {
