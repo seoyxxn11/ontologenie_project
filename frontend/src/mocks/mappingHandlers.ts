@@ -472,4 +472,32 @@ export const mappingHandlers = [
       })
     }),
   ),
+  http.delete(
+    `${propertyPath}/:id`,
+    adminOnly(({ params }) => {
+      const existing = propertyMappings.find(
+        ({ id }) => id === Number(params.id),
+      )
+      if (!existing)
+        return failure(
+          404,
+          'RESOURCE_NOT_FOUND',
+          '속성 매핑을 찾을 수 없습니다.',
+        )
+      propertyMappings = propertyMappings.filter(({ id }) => id !== existing.id)
+      const reloadRequired = objectMappings.some(
+        ({ id, isActive }) => id === existing.sourceMappingId && isActive,
+      )
+      return HttpResponse.json({
+        data: {
+          id: existing.id,
+          deleted: true,
+          sourceMappingId: existing.sourceMappingId,
+          sourceResourceId: existing.sourceResourceId,
+          reloadRequired,
+          reloadReason: reloadRequired ? 'PROPERTY_MAPPING_DELETED' : null,
+        },
+      })
+    }),
+  ),
 ]
