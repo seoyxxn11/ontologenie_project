@@ -181,7 +181,10 @@ function SourcesPage() {
               <span id={'source-kind-' + source.id} className="sr-only">
                 {sourceKindLabels[source.sourceKind]}
               </span>
-              <span id={'source-status-' + source.id}>
+              <span
+                id={'source-status-' + source.id}
+                className="sources-source-status"
+              >
                 <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
               </span>
             </Button>

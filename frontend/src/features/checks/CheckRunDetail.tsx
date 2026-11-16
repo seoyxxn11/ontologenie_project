@@ -241,6 +241,7 @@ export default function CheckRunDetail({ id }: { id: number }) {
       <div className="checks-result-heading checks-run-status-heading">
         <h2>검사 실행 #{id}</h2>
         <StatusBadge
+          animate={run.status === 'RUNNING'}
           tone={
             run.status === 'SUCCEEDED'
               ? 'success'

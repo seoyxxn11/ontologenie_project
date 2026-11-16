@@ -128,7 +128,9 @@ Dialog는 열릴 때 포커스 이동, 내부 Tab 순환, 닫힌 뒤 호출 위�
 | 부분 완료                            | `warning`과 실제 제공된 완료·미완료 건수 및 사유. 건수가 없으면 만들지 않음                |
 | 비활성·참고                          | `neutral`과 상태명. 단순 미선택을 오류로 표현하지 않음                                     |
 
-Badge의 neutral·info·success·warning·danger와 기존 slate·blue·emerald·amber·red 계열을 유지한다. 업무 상태를 모두 보라색으로 바꾸거나 API 상태·권한을 변경하지 않는다. 상태명과 필요한 사유를 함께 제공한다.
+상태 배지는 사용자 승인 StatusDot 시안으로 통일한다. neutral은 회색, info는 파랑, success는 청록, warning은 주황, danger는 빨강 점이며, 글자는 공통 보조 본문색을 사용한다. 배경·테두리 없이 점과 14px/21px·500 상태명을 8px 간격으로 표시한다. 업무 상태를 모두 보라색으로 바꾸거나 API 상태·권한을 변경하지 않는다. 상태명과 필요한 사유를 함께 제공한다. 실제 RUNNING 작업에만 두 겹 물결을 표시하며 검토 대기·미반영·활성·접속 확인 상태는 정적으로 표시한다. 모션 감소 설정에서는 정적인 점을 유지한다.
+
+상태 배지 통일 작업은 [S15P31C106-444](https://ssafy.atlassian.net/browse/S15P31C106-444)에서 추적한다.
 
 ### 대비
 
@@ -138,20 +140,20 @@ Badge의 neutral·info·success·warning·danger와 기존 slate·blue·emerald�
 
 Pretendard Variable을 사용한다. 서체 스택은 `'Pretendard Variable', Pretendard, 'Noto Sans KR', 'Malgun Gothic', Arial, sans-serif`, 로딩은 `font-display: swap`이다. 폰트·라이선스는 `frontend/public/fonts/pretendard/`에서 관리한다.
 
-| 토큰                | 크기 / 행간 | 굵기 | 역할                                      |
-| ------------------- | ----------- | ---- | ----------------------------------------- |
-| `heading-32`        | 32px / 48px | 700  | 페이지 제목                               |
-| `heading-24`        | 24px / 36px | 700  | 주요 패널·다이얼로그 제목                 |
-| `title-16`          | 16px / 24px | 600  | 일반 섹션 제목                            |
-| `title-emphasis-16` | 16px / 24px | 700  | 강조 패널 제목                            |
-| `body-18`           | 18px / 27px | 500  | 강조 설명                                 |
-| `body-16`           | 16px / 24px | 400  | 일반 설명                                 |
-| `body-long-16`      | 16px / 26px | 400  | 긴 상세                                   |
-| `body-14`           | 14px / 21px | 400  | 표·목록·짧은 속성 값·AI 질문과 답변 본문  |
-| `label-14`          | 14px / 21px | 500  | 일반 라벨                                 |
-| `control-14`        | 14px / 21px | 600  | 메뉴·버튼·표 헤더·강조 라벨               |
-| `input-14`          | 14px / 21px | 400  | 입력. 필요한 경우 500                     |
-| `caption-12`        | 12px / 18px | 500  | 부가 메타 정보. 현재 짧은 배지는 600 사용 |
+| 토큰                | 크기 / 행간 | 굵기 | 역할                                     |
+| ------------------- | ----------- | ---- | ---------------------------------------- |
+| `heading-32`        | 32px / 48px | 700  | 페이지 제목                              |
+| `heading-24`        | 24px / 36px | 700  | 주요 패널·다이얼로그 제목                |
+| `title-16`          | 16px / 24px | 600  | 일반 섹션 제목                           |
+| `title-emphasis-16` | 16px / 24px | 700  | 강조 패널 제목                           |
+| `body-18`           | 18px / 27px | 500  | 강조 설명                                |
+| `body-16`           | 16px / 24px | 400  | 일반 설명                                |
+| `body-long-16`      | 16px / 26px | 400  | 긴 상세                                  |
+| `body-14`           | 14px / 21px | 400  | 표·목록·짧은 속성 값·AI 질문과 답변 본문 |
+| `label-14`          | 14px / 21px | 500  | 일반 라벨                                |
+| `control-14`        | 14px / 21px | 600  | 메뉴·버튼·표 헤더·강조 라벨              |
+| `input-14`          | 14px / 21px | 400  | 입력. 필요한 경우 500                    |
+| `caption-12`        | 12px / 18px | 500  | 부가 메타 정보                           |
 
 제목·핵심 값에 강조를 집중하고 중요한 경고·승인 안내를 caption으로 낮추지 않는다. heading-32는 보이는 제목의 규격이며 숨긴 업무 페이지 h1의 노출 지시가 아니다. 문서의 타이포 이름이 CSS 변수·utility의 존재를 뜻하지 않는다.
 
@@ -170,7 +172,7 @@ Pretendard Variable을 사용한다. 서체 스택은 `'Pretendard Variable', Pr
 - 1280px 이상에서 업무 데이터·AI 업무 도우미·데이터 연결·연결 규칙·Action 정의를 포함한 공통 업무 페이지의 상하좌우 바깥 여백은 40px로 통일한다. 헤더 좌우도 같은 기준선에 맞춘다. `--app-page-padding`을 사용하며 화면별 음수 마진이나 축소된 상하 패딩으로 상쇄하지 않는다. 컴포넌트 사이 간격·패널 내부 패딩·기존 기능은 별도 규격을 유지한다. 가용 폭을 사용하며 이번 기준으로 고정 최대 너비를 추가하지 않는다.
 - 601–1279px의 공통 바깥 여백은 기존 24px, 600px 이하는 16px를 유지한다. 기존 좁은 창 전환과 화면별 대응은 유지한다.
 - 반복 속성은 정렬된 행과 구분선으로 묶고 각 항목에 큰 카드·24px 여백을 반복하지 않는다. 좁은 창은 기존 전환 규칙을 유지한다.
-- 모서리는 버튼·입력·일반 카드·표 4px, 큰 패널·Dialog 8px, 진행바 16px, 칩·StatusBadge pill 9999px, 원형 아이콘 버튼 50%다. 3px 후보를 배지 기본값으로 사용하지 않는다.
+- 모서리는 버튼·입력·일반 카드·표 4px, 큰 패널·Dialog 8px, 진행바 16px, 필터 칩 pill 9999px, 원형 아이콘 버튼과 상태 점 50%다. 상태 배지는 배경·테두리 없이 표시한다.
 - 고정 패널은 면·1px 보더로 구분하고 일반 카드·버튼에 상시 그림자를 두지 않는다. Dialog는 오버레이, 드롭다운은 기존 사용처의 그림자를 유지한다. 중첩을 피하고 실제 레이어 충돌을 우선 해결한다.
 - 기존 [로고 SVG](../frontend/public/ontologenie-logo.svg)의 비율·색을 유지하고 임의 변형하지 않는다. 대체 텍스트는 OntoloGenie, 헤더 로고는 업무 데이터 이동 링크다.
 - 탐색 아이콘은 기존 SVG와 기본 20px·선 굵기 1.8을 유지한다. 아이콘 버튼은 접근 가능한 이름을 제공하며 필수 상태를 아이콘만으로 전달하지 않는다.
@@ -179,19 +181,19 @@ Pretendard Variable을 사용한다. 서체 스택은 `'Pretendard Variable', Pr
 
 소스는 [frontend/src/components](../frontend/src/components/)를 기준으로 한다. 데이터 조회·검증·선택·오류 복구는 호출 화면 책임이며, 구현·전체 적용 여부는 별도 기록을 따른다.
 
-| 컴포넌트                                                | 공통 기준·인터페이스                                                                                                                                                                 |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Header·Nav·Tab                                          | 헤더 64px·sticky·중립 면·하단 보더. 메뉴·탭은 control-14, 활성 글자와 비색상 표시 병행                                                                                               |
-| Input·Select·Textarea                                   | 최소 높이 40px, 패딩 8px 12px, radius 4px. native 요소 사용, label·필수·도움말·오류 연결 제공                                                                                        |
-| [Button](../frontend/src/components/Button.tsx)         | 최소 높이 40px, 패딩 8px 16px, 간격 8px, radius 4px. variant: primary / secondary / danger / text, 기본 primary·type=button. 제출은 type=submit 명시                                 |
-| Button pending                                          | 스피너·disabled·aria-busy와 중복 제출 방지. 로딩 문구·요청 처리·결과 안내는 호출 화면 책임                                                                                           |
-| Filter Chip·StatusBadge                                 | 필터 칩은 높이 36px 기준·좌우 12px·pill, 선택은 brand-primary＋on-brand-primary. Badge는 12/18px·600·패딩 2px 8px·pill, 짧은 상태명과 긴 사유 분리                                   |
-| Card·Panel                                              | 일반 4px·큰 패널 8px, 내부 16~24px                                                                                                                                                   |
-| [PageHeader](../frontend/src/components/PageHeader.tsx) | title·description, action 선택. variant=page / message, 제목 노출은 2절 기준                                                                                                         |
-| [Dialog](../frontend/src/components/Dialog.tsx)         | title·onClose·children, size=default / wide, closeOnBackdrop 기본 true. 기본 최대 672px·wide 1024px·85vh·내부 24px·radius 8px. dirty·pending 정책은 3절 기준                         |
-| [DataTable](../frontend/src/components/DataTable.tsx)   | label·native table props·thead/tbody children. 이름 있는 스크롤 region과 table 이름 제공. 본문 body-14·헤더 control-14, 행 최소 44px·셀 패딩 12px 16px을 출발점으로 내용에 맞춰 확장 |
-| [Feedback](../frontend/src/components/Feedback.tsx)     | LoadingState·EmptyState는 role=status, ErrorState는 role=alert. 조회 재시도만 명시적으로 연결하며 필드 오류·요청 ID 등 제공된 정보 표시                                              |
-| [Pagination](../frontend/src/components/Pagination.tsx) | page·size·totalElements·onChange, pending·compact 선택. page는 0부터 시작, 표시 규칙은 8절 기준                                                                                      |
+| 컴포넌트                                                | 공통 기준·인터페이스                                                                                                                                                                                 |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Header·Nav·Tab                                          | 헤더 64px·sticky·중립 면·하단 보더. 메뉴·탭은 control-14, 활성 글자와 비색상 표시 병행                                                                                                               |
+| Input·Select·Textarea                                   | 최소 높이 40px, 패딩 8px 12px, radius 4px. native 요소 사용, label·필수·도움말·오류 연결 제공                                                                                                        |
+| [Button](../frontend/src/components/Button.tsx)         | 최소 높이 40px, 패딩 8px 16px, 간격 8px, radius 4px. variant: primary / secondary / danger / text, 기본 primary·type=button. 제출은 type=submit 명시                                                 |
+| Button pending                                          | 스피너·disabled·aria-busy와 중복 제출 방지. 로딩 문구·요청 처리·결과 안내는 호출 화면 책임                                                                                                           |
+| Filter Chip·StatusBadge                                 | 필터 칩은 높이 36px 기준·좌우 12px·pill, 선택은 brand-primary＋on-brand-primary. StatusBadge는 공통 StatusDot을 사용하며 8px 점·20px 점 영역·8px 간격·14/21px·500 상태명, 짧은 상태명과 긴 사유 분리 |
+| Card·Panel                                              | 일반 4px·큰 패널 8px, 내부 16~24px                                                                                                                                                                   |
+| [PageHeader](../frontend/src/components/PageHeader.tsx) | title·description, action 선택. variant=page / message, 제목 노출은 2절 기준                                                                                                                         |
+| [Dialog](../frontend/src/components/Dialog.tsx)         | title·onClose·children, size=default / wide, closeOnBackdrop 기본 true. 기본 최대 672px·wide 1024px·85vh·내부 24px·radius 8px. dirty·pending 정책은 3절 기준                                         |
+| [DataTable](../frontend/src/components/DataTable.tsx)   | label·native table props·thead/tbody children. 이름 있는 스크롤 region과 table 이름 제공. 본문 body-14·헤더 control-14, 행 최소 44px·셀 패딩 12px 16px을 출발점으로 내용에 맞춰 확장                 |
+| [Feedback](../frontend/src/components/Feedback.tsx)     | LoadingState·EmptyState는 role=status, ErrorState는 role=alert. 조회 재시도만 명시적으로 연결하며 필드 오류·요청 ID 등 제공된 정보 표시                                                              |
+| [Pagination](../frontend/src/components/Pagination.tsx) | page·size·totalElements·onChange, pending·compact 선택. page는 0부터 시작, 표시 규칙은 8절 기준                                                                                                      |
 
 - 같은 작업 영역에서는 대표 행동 하나를 우선 강조한다. 검색·편집처럼 영역이 나뉘면 각각 주요 행동을 둘 수 있다.
 - 기본·hover·pressed·focus-visible·selected·disabled·pending·invalid를 구분한다. 공통 포커스 링은 키컬러 2px·offset 3px이며 hover·pressed에서도 대비를 유지한다.
@@ -270,6 +272,7 @@ Pretendard Variable을 사용한다. 서체 스택은 `'Pretendard Variable', Pr
 
 ### 실행 이력 목록
 
+- 실행 이력의 결과는 공통 StatusDot 규격을 사용한다. 실패는 빨강, 성공은 청록, 차단은 주황, 진행 중은 파랑이며 색상과 함께 상태명을 항상 제공한다. 진행 중에만 2.25초 주기의 두 겹 물결을 transform·opacity로 표시하고 모션 감소 설정에서는 정적인 점을 유지한다.
 - 실행 이력은 전체 너비 목록과 넓은 공통 상세 Dialog를 사용한다. 상단은 종류 선택을 기본으로 하고 출발 화면이 명시된 이력 조회 진입에서만 복귀 화살표·세로 구분선을 앞에 표시한다. 직접 접속·메뉴 진입에서는 숨기며 브라우저 뒤로 가기를 복귀 대상으로 삼지 않는다. 화살표에는 접근 가능한 이름과 hover·키보드 포커스 안내를 제공한다. 종류는 전체·업무 실행·분석·검토·변경·데이터 작업으로 구분하고 객체·대상별 조회에서는 기존 종류 선택 생략을 유지한다.
 - 데스크톱에서는 헤더·바깥 여백을 제외한 높이에서 검색과 공통 페이지네이션을 유지하고, 페이지당 20개 목록만 내부 스크롤한다. 표 헤더는 고정하고 실행 시각·실행자·업무/대상·결과·상세를 구분한다. 결과 배지와 상세 행동은 각 열 안에서 중심선을 맞추는 화면별 예외를 적용한다. 좁은 창과 낮은 창은 조작 접근을 우선하며 필요한 세로·가로 스크롤을 허용한다.
 - 실행 이력의 표 컨테이너·고정 헤더·셀 수직 정렬·어절 줄바꿈과 40px 공통 페이지네이션은 규칙 이력과 일치시킨다. 목록과 페이지네이션 사이 간격은 20px이며 건수·쪽수는 하단에서만 표시한다.

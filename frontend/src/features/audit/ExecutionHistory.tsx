@@ -1,6 +1,6 @@
 import { formatKstDateTime } from '../../utils/dateTime'
 import Button from '../../components/Button'
-import StatusBadge from '../../components/StatusBadge'
+import StatusDot from '../../components/ui/status-dot'
 import DataTable from '../../components/DataTable'
 import Pagination from '../../components/Pagination'
 import { LoadingState, EmptyState, ErrorState } from '../../components/Feedback'
@@ -25,6 +25,13 @@ import type {
   ExecutionScope,
   ExecutionStatus,
 } from './types'
+
+const executionTones = {
+  RUNNING: 'active',
+  SUCCEEDED: 'success',
+  BLOCKED: 'warning',
+  FAILED: 'error',
+} as const
 
 // "분류 · 동작 이름". 수집·검사 같은 데이터 작업은 분류 대신 작업 종류(데이터 수집 등)를 쓴다.
 function actionLabel(execution: Execution) {
@@ -237,19 +244,11 @@ function ExecutionHistory({
                   )}
                 </td>
                 <td className="px-3 py-3 font-semibold">
-                  <StatusBadge
-                    tone={
-                      execution.status === 'SUCCEEDED'
-                        ? 'success'
-                        : execution.status === 'FAILED'
-                          ? 'danger'
-                          : execution.status === 'BLOCKED'
-                            ? 'warning'
-                            : 'info'
-                    }
-                  >
-                    {executionStatusLabels[execution.status]}
-                  </StatusBadge>
+                  <StatusDot
+                    tone={executionTones[execution.status]}
+                    label={executionStatusLabels[execution.status]}
+                    showLabel
+                  />
                 </td>
                 <td className="px-3 py-3">
                   <ExecutionDetail execution={execution} modal={fullPage} />
