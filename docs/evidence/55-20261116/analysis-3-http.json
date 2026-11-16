@@ -1,0 +1,7 @@
+{
+  "uri": "/api/v1/analyses",
+  "status": "202",
+  "count": 1.0,
+  "backend_mean_seconds": 0.032637378999999994,
+  "scope": "backend HTTP handling only; excludes nginx/client and async completion"
+}

@@ -1,0 +1,2 @@
+{"id": 600, "status": "RUNNING", "created_at": "2026-11-16T19:35:37.153178+09:00", "observed_at": "2026-11-16T10:35:38.794582+00:00", "last_running_observed_at": "2026-11-16T10:35:38.794582+00:00"}
+{"id": 600, "status": "SUCCEEDED", "created_at": "2026-11-16T19:35:37.153178+09:00", "observed_at": "2026-11-16T10:35:51.666519+00:00", "last_running_observed_at": "2026-11-16T10:35:49.493170+00:00", "terminal_observed_at": "2026-11-16T10:35:51.666519+00:00", "completion_upper_seconds": 14.513341, "completion_lower_seconds": 12.339992}

@@ -1,0 +1,100 @@
+{
+  "samples": [
+    {
+      "kind": "analysis",
+      "run": 1,
+      "job_id": 23,
+      "status": "SUCCEEDED",
+      "backend_acceptance_seconds": 0.175213315,
+      "job_total_seconds": 22.490388
+    },
+    {
+      "kind": "analysis",
+      "run": 2,
+      "job_id": 24,
+      "status": "SUCCEEDED",
+      "backend_acceptance_seconds": 0.03616549799999999,
+      "job_total_seconds": 23.813261
+    },
+    {
+      "kind": "analysis",
+      "run": 3,
+      "job_id": 25,
+      "status": "SUCCEEDED",
+      "backend_acceptance_seconds": 0.032637378999999994,
+      "job_total_seconds": 22.850346
+    },
+    {
+      "kind": "agent",
+      "run": 1,
+      "job_id": 600,
+      "status": "SUCCEEDED",
+      "backend_acceptance_seconds": 0.068385929,
+      "last_running_observed_seconds": 12.339992,
+      "terminal_observed_seconds": 14.513341
+    },
+    {
+      "kind": "agent",
+      "run": 2,
+      "job_id": 602,
+      "status": "SUCCEEDED",
+      "backend_acceptance_seconds": 0.020176085999999996,
+      "last_running_observed_seconds": 11.291971,
+      "terminal_observed_seconds": 13.413537
+    },
+    {
+      "kind": "agent",
+      "run": 3,
+      "job_id": 604,
+      "status": "SUCCEEDED",
+      "backend_acceptance_seconds": 0.019330019000000004,
+      "last_running_observed_seconds": 10.399019,
+      "terminal_observed_seconds": 12.516611
+    },
+    {
+      "kind": "completion",
+      "run": 1,
+      "job_id": 606,
+      "status": "SUCCEEDED",
+      "backend_acceptance_seconds": 0.018731834000000003,
+      "last_running_observed_seconds": 15.413994,
+      "terminal_observed_seconds": 17.543371
+    },
+    {
+      "kind": "completion",
+      "run": 2,
+      "job_id": 608,
+      "status": "SUCCEEDED",
+      "backend_acceptance_seconds": 0.018077779999999988,
+      "last_running_observed_seconds": 10.943444,
+      "terminal_observed_seconds": 13.112495
+    },
+    {
+      "kind": "completion",
+      "run": 3,
+      "job_id": 610,
+      "status": "SUCCEEDED",
+      "backend_acceptance_seconds": 0.018610612999999998,
+      "last_running_observed_seconds": 12.967138,
+      "terminal_observed_seconds": 15.086185
+    }
+  ],
+  "summary": {
+    "analysis": {
+      "count": 3,
+      "backend_acceptance_mean_seconds": 0.08133873066666666,
+      "job_mean_seconds": 23.051331666666666
+    },
+    "agent": {
+      "count": 3,
+      "backend_acceptance_mean_seconds": 0.03596401133333333,
+      "terminal_observed_mean_seconds": 13.481163
+    },
+    "completion": {
+      "count": 3,
+      "backend_acceptance_mean_seconds": 0.018473408999999996,
+      "terminal_observed_mean_seconds": 15.247350333333333
+    }
+  },
+  "agent_precision": "Agent completion is observed by 2-second polling plus database query latency; only terminal observation is an upper bound, not an exact finish timestamp."
+}
