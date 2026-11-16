@@ -790,11 +790,9 @@
   --explorer-row-min-height: 80px;
   overflow: hidden;
 }
-.explorer-list:has(.explorer-related-context) {
-  --explorer-row-min-height: 72px;
-}
 .explorer-list .explorer-object-list {
-  grid-auto-rows: minmax(var(--explorer-row-min-height), 1fr);
+  grid-auto-rows: var(--explorer-row-min-height);
+  align-content: start;
 }
 .explorer-list .explorer-object-row {
   height: auto;
@@ -819,5 +817,41 @@
 @container explorer-page (max-width: 600px) {
   .explorer-list {
     --explorer-row-min-height: 48px;
+  }
+}
+
+.explorer-workbench {
+  --explorer-graph-height: 590px;
+}
+.explorer-graph {
+  height: var(--explorer-graph-height);
+}
+.explorer-graph > .explorer-panel-heading {
+  flex-shrink: 0;
+}
+.explorer-graph > .explorer-panel-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.explorer-graph > .explorer-panel-body > div {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+}
+.explorer-graph .explorer-graph-canvas:not(:fullscreen) {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+.explorer-graph :is(.model-graph-caption, .explorer-graph-summary) {
+  flex-shrink: 0;
+  margin: 12px 0 0;
+}
+@container explorer-page (max-width: 600px) {
+  .explorer-list:has(.explorer-related-context) {
+    --explorer-row-min-height: 72px;
   }
 }
