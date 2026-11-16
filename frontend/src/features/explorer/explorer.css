@@ -797,6 +797,7 @@
   grid-auto-rows: minmax(var(--explorer-row-min-height), 1fr);
 }
 .explorer-list .explorer-object-row {
+  height: auto;
   display: flex;
   flex-direction: column;
   justify-content: center;
