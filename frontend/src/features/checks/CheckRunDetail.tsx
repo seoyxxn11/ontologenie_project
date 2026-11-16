@@ -201,6 +201,7 @@ function RunResults({ id, candidate }: { id: number; candidate: boolean }) {
           {...query.data.meta}
           onChange={setPage}
           compact
+          showSummary={false}
           pending={query.isFetching}
         />
       )}

@@ -28,7 +28,6 @@
   align-items: flex-end;
   gap: 12px 24px;
   padding-bottom: 20px;
-  border-bottom: 1px solid var(--ui-border);
 }
 .checks-filter label {
   display: flex;
@@ -228,26 +227,25 @@
   color: #9a5600;
   font-weight: 600;
 }
+.checks-page .ui-pagination {
+  padding: 8px;
+}
 .checks-runs .ui-pagination {
   border-top: 1px solid var(--ui-border);
-  padding-inline: 12px;
 }
 .checks-page .ui-pagination-controls {
   flex-wrap: nowrap;
-  width: 100%;
-  gap: 4px;
+  gap: 2px;
 }
 .checks-page .ui-pagination button {
-  min-width: 0;
-  width: 28px;
+  min-width: 28px;
   min-height: 32px;
-  padding: 4px;
-  flex-shrink: 1;
-}
-.checks-detail .ui-pagination button[aria-current='page'] {
-  border-color: var(--ui-input-border);
-  background: var(--ui-surface-subtle);
-  color: var(--ui-text);
+  height: 32px;
+  padding: 4px 2px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 21px;
+  font-variant-numeric: tabular-nums;
 }
 .checks-page .ui-dialog .management-panel {
   border: 0;
@@ -258,7 +256,7 @@
 }
 @media (max-width: 1000px) {
   .checks-workspace {
-    grid-template-columns: 248px minmax(0, 1fr);
+    grid-template-columns: 272px minmax(0, 1fr);
     gap: 16px;
   }
 }
@@ -346,4 +344,18 @@
   background: var(--ui-surface);
   white-space: nowrap;
   pointer-events: none;
+}
+
+@media (max-width: 1200px) {
+  .checks-page
+    .ui-pagination
+    button:is(:first-child, :last-child, :nth-child(2), :nth-last-child(2)) {
+    min-width: 24px;
+    padding-inline: 2px;
+  }
+}
+@media (max-width: 600px) {
+  .checks-page .ui-pagination button {
+    font-size: 12px;
+  }
 }
