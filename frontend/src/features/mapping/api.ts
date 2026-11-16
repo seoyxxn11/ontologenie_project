@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPost } from '../../api/client'
+import { apiDelete, apiGet, apiPatch, apiPost } from '../../api/client'
 import { ApiError } from '../../api/errors'
 import type { ApiResponse } from '../../api/types'
 import { fetchResourcePage } from '../sources/api'
@@ -163,6 +163,16 @@ export async function savePropertyMapping(
     )
   }
   return writeData(await apiPost<PropertyMapping & Reload>(propertyPath, input))
+}
+
+export async function deletePropertyMapping(id: number) {
+  return writeData(await apiDelete<Reload>(`${propertyPath}/${id}`))
+}
+
+export function mappingDeleteMessage(result: Reload) {
+  return result.reloadRequired
+    ? '속성 매핑을 삭제했습니다. 다음 수집에서 원천을 처음부터 다시 읽어 이 속성 값을 뺍니다.'
+    : '속성 매핑을 삭제했습니다.'
 }
 
 export function mappingSaveMessage(result: Reload) {

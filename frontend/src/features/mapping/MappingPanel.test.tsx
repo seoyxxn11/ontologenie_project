@@ -3,7 +3,7 @@ import { render, screen, within, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { createMemoryRouter, RouterProvider, Link } from 'react-router'
-import { beforeEach, expect, test, onTestFinished } from 'vitest'
+import { beforeEach, expect, test, onTestFinished, vi } from 'vitest'
 import { resetMappingMocks } from '../../mocks/mappingHandlers'
 import { demoAccount, setMockAccount } from '../../mocks/auth'
 import { server } from '../../mocks/node'
@@ -502,4 +502,64 @@ test('속성 매핑 저장 중 창을 접어도 요청이 한 번만 처리되�
   )
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(calls).toBe(1)
+})
+
+test('속성 매핑을 확인 후 삭제하면 목록에서 빼고 다시 읽기 안내를 표시한다', async () => {
+  const user = openSources()
+  await user.click(await screen.findByRole('button', { name: '품목 #701' }))
+  const remove = await screen.findByRole('button', {
+    name: '품목명 속성 매핑 삭제',
+  })
+  await screen.findByText('item_name')
+  await waitFor(() => expect(remove).toBeEnabled())
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false)
+  onTestFinished(() => confirm.mockRestore())
+  await user.click(remove)
+  expect(screen.getByText('item_name')).toBeInTheDocument()
+
+  confirm.mockReturnValueOnce(true)
+  await user.click(remove)
+  expect(
+    await screen.findByText(
+      '속성 매핑을 삭제했습니다. 다음 수집에서 원천을 처음부터 다시 읽어 이 속성 값을 뺍니다.',
+    ),
+  ).toBeInTheDocument()
+  expect(
+    await screen.findByText('등록된 속성 매핑이 없습니다.'),
+  ).toBeInTheDocument()
+})
+
+test('이미 지워진 속성 매핑을 삭제하면 오류를 표시하고 목록을 다시 읽는다', async () => {
+  const user = openSources()
+  await user.click(await screen.findByRole('button', { name: '품목 #701' }))
+  const remove = await screen.findByRole('button', {
+    name: '품목명 속성 매핑 삭제',
+  })
+  await screen.findByText('item_name')
+  await waitFor(() => expect(remove).toBeEnabled())
+  server.use(
+    http.delete(
+      '/api/v1/ontology/property-mappings/:id',
+      () =>
+        HttpResponse.json(
+          {
+            error: {
+              code: 'RESOURCE_NOT_FOUND',
+              message: '속성 매핑을 찾을 수 없습니다.',
+            },
+          },
+          { status: 404 },
+        ),
+      { once: true },
+    ),
+  )
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+  onTestFinished(() => confirm.mockRestore())
+  await user.click(remove)
+  expect(
+    await screen.findByText('속성 매핑을 찾을 수 없습니다.'),
+  ).toBeInTheDocument()
+  expect(
+    screen.getByText('속성 매핑을 삭제하지 못했습니다.'),
+  ).toBeInTheDocument()
 })

@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import Button from '../../components/Button'
 import DataTable from '../../components/DataTable'
@@ -7,7 +7,9 @@ import Pagination from '../../components/Pagination'
 import { transformLabels } from '../review/ruleDraft'
 import { fetchColumns } from '../sources/api'
 import {
+  deletePropertyMapping,
   fetchPropertyDefinitions,
+  mappingDeleteMessage,
   fetchPropertyMappings,
   mappingPageSize,
   type ObjectMapping,
@@ -51,6 +53,16 @@ export default function PropertyMappings({
     queryKey: ['source-mappings', 'property-definitions', parent.objectTypeId],
     queryFn: () => fetchPropertyDefinitions(parent.objectTypeId),
   })
+  const remove = useMutation({
+    mutationFn: (mapping: PropertyMapping) => deletePropertyMapping(mapping.id),
+    onMutate: () => setNotice(''),
+    onSuccess: (result) => setNotice(mappingDeleteMessage(result)),
+    // 실패해도 다른 사용자가 먼저 지웠을 수 있어 목록을 다시 읽는다.
+    onSettled: () =>
+      client.invalidateQueries({
+        queryKey: ['source-mappings', 'properties', parent.id],
+      }),
+  })
   const presentColumns =
     columns.data?.filter((column) => column.isPresent) ?? []
   const canRegister =
@@ -58,7 +70,11 @@ export default function PropertyMappings({
     definitions.isSuccess &&
     presentColumns.length > 0 &&
     definitions.data.length > 0
-  const canEdit = columns.isSuccess && definitions.isSuccess && !list.isFetching
+  const canEdit =
+    columns.isSuccess &&
+    definitions.isSuccess &&
+    !list.isFetching &&
+    !remove.isPending
 
   function showSource(mapping: PropertyMapping) {
     const column = columns.data?.find(
@@ -99,6 +115,12 @@ export default function PropertyMappings({
         >
           {notice}
         </p>
+      )}
+      {remove.isError && (
+        <ErrorState
+          error={remove.error}
+          title="속성 매핑을 삭제하지 못했습니다."
+        />
       )}
       {columns.isError && (
         <ErrorState
@@ -175,14 +197,35 @@ export default function PropertyMappings({
                         {name}
                       </th>
                       <td className="px-4 py-3">
-                        <Button
-                          variant="secondary"
-                          disabled={!canEdit}
-                          aria-label={`${name} 속성 매핑 편집`}
-                          onClick={() => setEditing(mapping)}
-                        >
-                          편집
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="secondary"
+                            disabled={!canEdit}
+                            aria-label={`${name} 속성 매핑 편집`}
+                            onClick={() => setEditing(mapping)}
+                          >
+                            편집
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            disabled={!canEdit}
+                            pending={
+                              remove.isPending &&
+                              remove.variables.id === mapping.id
+                            }
+                            aria-label={`${name} 속성 매핑 삭제`}
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  `${name} 속성 매핑을 삭제할까요? 객체 매핑이 켜져 있으면 다음 수집에서 원천을 처음부터 다시 읽어 이 속성 값을 뺍니다.`,
+                                )
+                              )
+                                remove.mutate(mapping)
+                            }}
+                          >
+                            삭제
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -219,6 +262,7 @@ export default function PropertyMappings({
           onSaved={(message) => {
             setEditing(undefined)
             setNotice(message)
+            remove.reset()
             void client.invalidateQueries({
               queryKey: ['source-mappings', 'properties', parent.id],
             })
