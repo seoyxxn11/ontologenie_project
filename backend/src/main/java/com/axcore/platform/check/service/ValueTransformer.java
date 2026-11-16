@@ -41,6 +41,10 @@ public class ValueTransformer {
         for (TransformStep step : steps) {
             Objects.requireNonNull(step, "step");
             result = apply(result, step);
+            // 대응표에 없는 값을 비운 뒤(MAP_KNOWN)에는 뒤 단계를 적용하지 않는다.
+            if (result == null) {
+                return null;
+            }
         }
         return result;
     }
@@ -61,6 +65,7 @@ public class ValueTransformer {
                 case TO_DECIMAL -> new BigDecimal(value.strip()).toString();
                 case TO_DATE -> toDate(value);
                 case MAP_VALUE -> mapValue(value, (Map<?, ?>) step.arg());
+                case MAP_KNOWN -> (String) ((Map<?, ?>) step.arg()).get(value);
             };
         } catch (NumberFormatException e) {
             // 원본 값이 예외 메시지나 로그에 노출되지 않도록 사유만 전달한다.

@@ -144,6 +144,18 @@ public record TransformFunction(
                             Map.of("RUN", "가동"),
                             "RUN",
                             "가동");
+            case MAP_KNOWN ->
+                    new TransformFunction(
+                            op,
+                            "대응표에 있는 값만 바꾸기",
+                            "대응표에 있는 값만 짝지은 값으로 바꾸고, 대응표에 없는 값은 비웁니다. 결과는 대응표의 바꿀 값 중 하나이거나 빈 값이므로,"
+                                    + " 마지막 단계에 두면 제한 컬럼에서도 일반 속성을 뽑을 수 있습니다(예: 담당 칸에서 부서 코드만).",
+                            new TransformArgument("mapping", "object", "대응표(원래 값 → 바꿀 값)"),
+                            TEXT,
+                            PropertyDataType.STRING,
+                            Map.of("보전팀", "DP40"),
+                            "보전팀",
+                            "DP40");
         };
     }
 }

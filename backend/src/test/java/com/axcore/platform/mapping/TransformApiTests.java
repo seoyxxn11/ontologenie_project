@@ -44,7 +44,7 @@ class TransformApiTests {
 
         mockMvc.perform(get(PATH).cookie(admin))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data", hasSize(10)))
+                .andExpect(jsonPath("$.data", hasSize(11)))
                 .andExpect(jsonPath("$.meta").doesNotExist())
                 .andExpect(jsonPath("$.data[0].op").value("STRIP_PREFIX"))
                 .andExpect(jsonPath("$.data[0].label").value("접두어 빼기"))
@@ -62,7 +62,9 @@ class TransformApiTests {
                 .andExpect(jsonPath("$.data[3].example.step.arg").value(nullValue()))
                 .andExpect(jsonPath("$.data[9].op").value("MAP_VALUE"))
                 .andExpect(jsonPath("$.data[9].argument.type").value("object"))
-                .andExpect(jsonPath("$.data[9].example.step.arg.RUN").value("가동"));
+                .andExpect(jsonPath("$.data[9].example.step.arg.RUN").value("가동"))
+                .andExpect(jsonPath("$.data[10].op").value("MAP_KNOWN"))
+                .andExpect(jsonPath("$.data[10].argument.type").value("object"));
     }
 
     @Test

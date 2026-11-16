@@ -607,7 +607,7 @@ test('연결 조건의 양쪽 값 변환 함수를 후보 목록에서 선택한
     await user.click(input)
     expect(
       within(screen.getByRole('listbox')).getAllByRole('option'),
-    ).toHaveLength(10)
+    ).toHaveLength(11)
     await user.type(input, '접두어 추가')
     await user.click(
       within(screen.getByRole('listbox')).getByRole('option', {
