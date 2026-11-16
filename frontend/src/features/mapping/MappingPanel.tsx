@@ -16,6 +16,7 @@ import {
 import ObjectMappingDialog from './ObjectMappingDialog'
 import PropertyMappings from './PropertyMappings'
 import type { MappingPreviewAccess } from './previewModel'
+import './mapping.css'
 
 const originLabels = {
   MANUAL: '직접 등록',
@@ -162,7 +163,7 @@ function ObjectMappings({
       {list.isSuccess && (
         <>
           {list.data.data.length ? (
-            <DataTable label="객체 매핑 목록">
+            <DataTable label="객체 매핑 목록" className="object-mappings-table">
               <thead className="bg-slate-50 text-left text-xs text-slate-600">
                 <tr>
                   {[
@@ -204,7 +205,7 @@ function ObjectMappings({
                                 : mapping.id,
                             )
                           }
-                          className="font-semibold underline underline-offset-2"
+                          className="object-mappings-select font-semibold underline underline-offset-2"
                         >
                           {name}
                           <span className="ml-1 text-xs font-normal text-slate-500">

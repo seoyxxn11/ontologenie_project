@@ -1,4 +1,10 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useId,
+  useRef,
+  type ReactNode,
+} from 'react'
 import Button from './Button'
 
 type DialogProps = {
@@ -26,12 +32,12 @@ function Dialog({
     closeRef.current = onClose
   }, [onClose])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const previousFocus = document.activeElement
     const panel = panelRef.current
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    panel?.focus()
+    panel?.focus({ preventScroll: true })
 
     function focusableElements() {
       return Array.from(
@@ -79,7 +85,7 @@ function Dialog({
       document.removeEventListener('focusin', containFocus)
       document.body.style.overflow = previousOverflow
       if (previousFocus instanceof HTMLElement && previousFocus.isConnected)
-        previousFocus.focus()
+        previousFocus.focus({ preventScroll: true })
     }
   }, [])
 

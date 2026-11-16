@@ -103,13 +103,8 @@ async function start() {
                   ? 'UNVERIFIED'
                   : 'CONNECTED'
             }
-            onViewHistory={() => {
-              document.getElementById('summary-qa-history')!.textContent =
-                '이력 보기 동작 확인 (QA 전용)'
-            }}
           />
         </section>
-        <p id="summary-qa-history" role="status" />
       </main>
       <div className="summary-qa-toolbar">
         <label htmlFor="summary-qa-data">QA 데이터</label>
