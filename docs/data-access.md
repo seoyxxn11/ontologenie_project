@@ -142,6 +142,7 @@
 |---|---|
 | `SyncRunJob` | 전체 읽기. `FullLoadPlanner`가 금지 표를 막고 금지 컬럼을 뺀 계획만 읽는다 |
 | `SourceSampleJob` | 원천 표본. 금지 표는 읽지 않고 금지·민감 컬럼은 뺀다 |
+| `RestrictedValueJob` | 제안 검토 때 제한 컬럼의 값 확인(447). 실행 때 정책을 다시 보고, 제한 등급인 컬럼 하나의 서로 다른 값 몇 개와 건수만 읽는다. 키 컬럼과 같은 행의 다른 컬럼은 읽지 않는다 |
 | `CandidateCheckJob` | 후보 시험. 금지 표·컬럼이면 읽지 않고 `FAILED`, 민감 값은 비운다(400) |
 | `MappingPreviewJob` | 매핑 미리보기. `MappingPreviewPlanner`가 금지 표·컬럼을 거절한 계획만 읽는다 |
 | `CdcStartReference` | CDC 시작 기준(`currentXmax`). 업무 행을 읽지 않는다 |
@@ -223,7 +224,7 @@ Agent 도구 결과는 외부 언어 모델의 입력이 된다. 그래서 Agent
 
 | 역할 | PRODUCTION | SALES_SUPPLY | 민감 값 |
 |---|---|---|---|
-| ADMIN | 봄 | 봄 | 못 봄 |
+| ADMIN | 봄 | 봄 | 못 봄(제안 검토 때 제한 컬럼의 값 몇 개만 예외, 아래) |
 | PLANNER | 봄 | 봄 | 봄 |
 | VIEWER | 봄 | 봄 | 못 봄 |
 | MAINTENANCE | — | — | 미구성(행 없음) |
@@ -232,6 +233,28 @@ Agent 도구 결과는 외부 언어 모델의 입력이 된다. 그래서 Agent
 - 관계도(042)도 같은 범위로 준다. 관리자를 포함해 모든 역할이 볼 수 있는 유형과 그 유형끼리의 관계만 받는다(`ModelGraphService.getVisibleGraph`, 420·427). 연결 건수가 객체 데이터라 관리자 데이터 범위 밖 유형은 보이지 않아야 한다. 탐색 화면의 "전체 구조"가 쓴다.
 - 그룹이 없는(미분류) 유형은 어느 역할에도 보이지 않는다. API 024로 그룹을 지정해야 탐색기·Agent에 나온다. 그 유형의 켜진 매핑이 원천 데이터 정책을 어기면 지정할 수 없다(402).
 - 역할을 추가하거나 MAINTENANCE를 쓰려면 이 표에 행을 넣는 마이그레이션 하나면 된다.
+
+### 제안 검토 때 제한 컬럼의 값 확인 (447)
+
+제한(민감) 컬럼은 AI에 값 없이 이름·자료형·주석만 넘어가고(416) 제안 근거에도 값이 남지 않는다(399). 그래서 승인하는 관리자가 AI의 추측만 보고 승인했다(예: 제안 #341에서 AI가 `skill_level`을 일반으로 제안했고 그대로 승인됐다. 원천 정책이 매핑 때 바로잡았다). 승인하는 사람이 승인 전에 그 컬럼에 실제로 무엇이 들어 있는지 확인하게 한다.
+
+| 항목 | 내용 |
+|---|---|
+| 정책 | 관리자는 제한 값을 평소에는 보지 못한다. 제안을 검토할 때에 한해, 그 컬럼의 서로 다른 값 몇 개를 행과 떼어서 본다. 볼 때마다 열람 기록을 남긴다 |
+| 부를 수 있는 사람 | 제안 결정 권한(`PROPOSAL_DECIDE`)이 있는 역할. API는 관리자 전용 |
+| 대상 | 결정 전(대기·보류) 제안의 payload·근거(지금 개정본과 선택지)가 가리키는 원천 컬럼 중 원천 데이터 정책상 제한 등급인 것. 금지·일반 컬럼, 제안이 가리키지 않는 컬럼은 받지 않는다(일반 컬럼은 원천 표본으로 본다). 같은 표가 여러 원천에 있으면 원천마다 하나씩 |
+| 보여 주는 것 | 서로 다른 값 최대 5개(빈 값 제외, 문자열, 이름순), 전체·빈 값·서로 다른 값의 수 |
+| 보여 주지 않는 것 | 어느 행의 값인지, 키 컬럼, 같은 행의 다른 컬럼 |
+| 흐름 | `GET /api/v1/proposals/{id}/restricted-columns`(값 없는 목록) → `POST /api/v1/proposals/{id}/restricted-values`(202, `source_preview`에 `RESTRICTED_VALUES`로 접수) → 배치 `RestrictedValueJob`이 SYNC 계정으로 읽음 → `POST /api/v1/proposals/{id}/restricted-values/{requestId}/result` |
+| 다시 확인 | 요청에 제안의 개정본 번호를 남긴다. 배치가 읽기 직전, 결과를 돌려주기 직전에 다시 본다: 제안이 아직 결정 전인가, 개정본이 같은가, 그 컬럼이 지금도 그 제안이 가리키는 제한 컬럼인가(지금 정책 기준). 하나라도 아니면 배치는 원천을 읽지 않고 실패로 끝내고, 결과 읽기는 값 대신 무효 이유를 돌려주며 결과를 지운다. 승인·거절·개정 뒤에는 다시 요청해야 한다 |
+| 결과 읽기 | 요청한 관리자만, 같은 제안 번호로만 읽는다. 끝났으면 열람 기록(`PROPOSAL_RESTRICTED_VALUES`, 대상 `source_resource`·원천 컬럼 이름)을 남긴 뒤 값을 돌려주고 결과를 지운다. 다시 보려면 다시 요청한다. 읽기가 결과를 지우므로 GET이 아니라 POST다 |
+| 보관 | 읽지 않아도 요청 10분 뒤 정리 작업이 지운다. 원천 미리보기 조회(102)는 이 종류를 404로 돌려준다(기록 없이 값이 나가지 않게) |
+| 감사 | 접수(WEB)·실행(BATCH) 기록에는 제안·원천 테이블·컬럼 이름과 건수만 남고 값은 없다 |
+| 바뀌지 않는 것 | 업무 데이터 화면·Agent에서 관리자에게 제한 값을 가리는 것, AI에 값을 보내지 않는 것, 제한 속성을 연결 조건에 쓸 수 없는 것 |
+
+- 한계: 값을 행과 떼어 보여 줘도 작은 표에서는 누구의 값인지 짐작할 수 있다(거래처가 6곳이면 담당자 이름 5개는 대부분이다). 표본이라 변환 결과가 모든 행에서 맞는지까지 확인되지는 않는다.
+- 한계: 대상은 원천 정책의 제한 등급뿐이다. 원천은 일반인데 속성만 사람이 제한으로 지정한 컬럼은 대상이 아니다(그 컬럼은 AI가 값을 읽었고 원천 표본으로도 보인다).
+- 한계: 관리자가 제한 값 열람 역할의 계정을 직접 만들 수 있으므로, "관리자는 평소 제한 값을 못 본다"는 강제 분리가 아니라 최소 노출이다(권한 분리는 258).
 - 원천에서 삭제된 객체 조회 같은 기능 권한은 아직 역할 이름으로 검사한다. 권한 코드로 바꾸는 일은 Jira 258이다.
 
 ## 민감 값 열람 기록 (394)
@@ -241,7 +264,7 @@ Agent 도구 결과는 외부 언어 모델의 입력이 된다. 그래서 Agent
 | 항목 | 내용 |
 |---|---|
 | 언제 | 응답에 가리지 않은 민감 값(null 아님)이 하나라도 있을 때, 응답 한 번에 한 행. 가렸거나 값이 비었으면 남기지 않는다 |
-| 경로(`input.view`) | 077 `OBJECT_DETAIL`, 076 `OBJECT_SEARCH`, 값으로 찾기 `OBJECT_VALUE_SEARCH`, ID로 읽기 `OBJECT_BY_IDS`, 091 `ACTION_EXECUTE`(웹 실행의 result), 092 `ACTION_RESULT`, 093~095 `REASSIGNMENT_PLAN`, 097 `AUDIT_DETAIL`, 098 `AUDIT_CHANGES`. 저장된 사본(403): 065 `ISSUE_SEARCH`, 066 `ISSUE_DETAIL`, 067 `ISSUE_STATUS`, 068 `ISSUE_FORWARD`, 070 `ISSUE_VERIFICATIONS`, 062 `CHECK_RESULTS`, 재검증 비교 `CHECK_COMPARISON`, 제안 목록 `PROPOSAL_SEARCH`, 049 `PROPOSAL_DETAIL`, 선택지 `PROPOSAL_OPTIONS`, 개정 이력 `PROPOSAL_REVISIONS`, 020 `ANALYSIS_PROPOSALS` |
+| 경로(`input.view`) | 077 `OBJECT_DETAIL`, 076 `OBJECT_SEARCH`, 값으로 찾기 `OBJECT_VALUE_SEARCH`, ID로 읽기 `OBJECT_BY_IDS`, 091 `ACTION_EXECUTE`(웹 실행의 result), 092 `ACTION_RESULT`, 093~095 `REASSIGNMENT_PLAN`, 097 `AUDIT_DETAIL`, 098 `AUDIT_CHANGES`, 제안 검토의 제한 값 확인 `PROPOSAL_RESTRICTED_VALUES`(447, 대상 `source_resource`, 필드는 원천 컬럼 이름). 저장된 사본(403): 065 `ISSUE_SEARCH`, 066 `ISSUE_DETAIL`, 067 `ISSUE_STATUS`, 068 `ISSUE_FORWARD`, 070 `ISSUE_VERIFICATIONS`, 062 `CHECK_RESULTS`, 재검증 비교 `CHECK_COMPARISON`, 제안 목록 `PROPOSAL_SEARCH`, 049 `PROPOSAL_DETAIL`, 선택지 `PROPOSAL_OPTIONS`, 개정 이력 `PROPOSAL_REVISIONS`, 020 `ANALYSIS_PROPOSALS` |
 | 남기는 것 | 요청자와 역할 스냅샷, 진입 경로(WEB), `result.seen`(대상 종류·ID·필드 코드), `result.policyVersion`(원천 데이터 정책 목록 지문). 대상이 하나면 `target_type`·`target_id`에도 둔다 |
 | 남기지 않는 것 | 값 원문 |
 | 실패 | 기록이 실패하면 응답도 실패한다. 접속 기록 없이 민감 값을 내보내지 않는다. 기록은 응답 트랜잭션과 따로 커밋한다 |
@@ -249,7 +272,7 @@ Agent 도구 결과는 외부 언어 모델의 입력이 된다. 그래서 Agent
 | 보존 | 248(로그 보존 정책)이 정해지기 전까지 `action_execution`과 같다 |
 
 - 기록 위치는 응답을 만드는 서비스다. 공통 가림(`DataAccess.mask`, `AuditValueMasker`)은 보여 준 민감 코드(`revealedPropertyCodes`)만 알려 준다. Action 검증처럼 값을 사람에게 내보내지 않는 내부 읽기는 남기지 않는다.
-- 기록할 일이 없는 경로: Agent는 모델 용도라 늘 가린다(그래서 경로 AGENT는 생기지 않는다). 값 표본(`PropertyValueSampleService`)은 Agent만 쓴다. 미리보기·원천 표본은 민감 값을 읽지 않는다.
+- 기록할 일이 없는 경로: Agent는 모델 용도라 늘 가린다(그래서 경로 AGENT는 생기지 않는다). 값 표본(`PropertyValueSampleService`)은 Agent만 쓴다. 미리보기·원천 표본은 민감 값을 읽지 않는다. 제안 검토의 제한 값 확인(447)은 위 경로로 남긴다.
 - 저장된 사본(403)도 같은 규칙으로 남긴다. 391부터 연결 키·원천 키는 민감일 수 없어 보통은 남을 일이 없다. 다만 391 이전 사본, 폐기된 규칙 개정본, 저장 뒤 민감으로 올린 속성의 사본은 민감 값일 수 있다. 지금 이 API를 쓰는 ADMIN은 민감 값을 볼 수 없어(V21) 늘 가려지고 기록도 남지 않는다. ADMIN 허용 행이 민감 값을 열면 그때부터 남는다. 대상 종류는 `issue`·`check_result`·`check_run`(비교는 재검증 실행)·`proposal_item`이고, 필드는 `유형코드.속성코드`다.
 - 한계: 응답에 담긴 값을 기준으로 남긴다. 화면이 실제로 보여 줬는지는 모른다. 기록 뒤 응답 직렬화가 실패하면 기록만 남는다(넘치게 남는 쪽).
 

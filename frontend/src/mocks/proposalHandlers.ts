@@ -396,6 +396,12 @@ export const proposalHandlers = [
       { status: 201 },
     )
   }),
+  // 제한 컬럼 값 확인(447). 개발용 목은 제한 컬럼이 없는 것으로 둔다(값을 만들어 보여 주지 않는다).
+  http.get('/api/v1/proposals/:id/restricted-columns', ({ params }) => {
+    if (!proposals.some((item) => item.id === Number(params.id)))
+      return failed(404, 'RESOURCE_NOT_FOUND', '제안을 찾을 수 없습니다.')
+    return HttpResponse.json({ data: [] })
+  }),
   http.get('/api/v1/proposals/:id/options', async ({ params, request }) => {
     await delay()
     const id = Number(params.id)

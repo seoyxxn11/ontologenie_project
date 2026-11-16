@@ -161,6 +161,62 @@ public class SourceTableReader {
         }
     }
 
+    /**
+     * 제안 검토 때 제한 컬럼의 값 확인(447). 한 컬럼의 서로 다른 값 limit개(문자열, 이름순)와 전체·빈 값·서로 다른 값의 수만 읽는다. 키 컬럼이나 같은
+     * 행의 다른 컬럼은 읽지 않으므로 어느 행의 값인지 알 수 없다. 읽기 전용 트랜잭션에서 읽고 되돌린다. 계정이 그 컬럼을 읽을 수 없으면 42501이다.
+     *
+     * @param column 카탈로그(source_column)의 컬럼 이름
+     */
+    public ValueSummary distinctValues(
+            SourceEndpoint endpoint,
+            SourceAccount account,
+            String resourceKey,
+            String column,
+            int limit)
+            throws SQLException {
+        try (Connection connection =
+                DriverManager.getConnection(endpoint.jdbcUrl(), properties(account))) {
+            connection.setAutoCommit(false);
+            connection.setReadOnly(true);
+            try {
+                String relation = relation(connection, resourceKey);
+                if (!readableColumns(connection, relation).contains(column)) {
+                    throw new SQLException("column is not readable", "42501");
+                }
+                String quoted = quote(column);
+                long total;
+                long filled;
+                long distinct;
+                try (PreparedStatement statement =
+                                connection.prepareStatement(
+                                        "select count(*), count(%1$s), count(distinct %1$s) from %2$s"
+                                                .formatted(quoted, relation));
+                        ResultSet rs = statement.executeQuery()) {
+                    rs.next();
+                    total = rs.getLong(1);
+                    filled = rs.getLong(2);
+                    distinct = rs.getLong(3);
+                }
+                List<String> values = new ArrayList<>();
+                try (PreparedStatement statement =
+                        connection.prepareStatement(
+                                ("select distinct cast(%1$s as text) as v from %2$s"
+                                                + " where %1$s is not null order by v limit ?")
+                                        .formatted(quoted, relation))) {
+                    statement.setInt(1, limit);
+                    try (ResultSet rs = statement.executeQuery()) {
+                        while (rs.next()) {
+                            values.add(rs.getString(1));
+                        }
+                    }
+                }
+                return new ValueSummary(values, total, total - filled, distinct);
+            } finally {
+                connection.rollback();
+            }
+        }
+    }
+
     private static Set<String> readableColumns(Connection connection, String relation)
             throws SQLException {
         Set<String> names = new HashSet<>();
@@ -351,6 +407,22 @@ public class SourceTableReader {
     public record Result(String snapshot, long lsn, Map<Long, List<SourceRow>> rows) {}
 
     public record Sample(List<String> columns, List<SourceRow> rows) {}
+
+    /**
+     * 한 컬럼의 값 요약(447).
+     *
+     * @param values 서로 다른 값(빈 값 제외, 문자열, 이름순, 최대 limit개)
+     * @param totalCount 전체 행 수
+     * @param emptyCount 값이 비어 있는(null) 행 수
+     * @param distinctCount 서로 다른 값의 수(빈 값 제외)
+     */
+    public record ValueSummary(
+            List<String> values, long totalCount, long emptyCount, long distinctCount) {
+
+        public ValueSummary {
+            values = List.copyOf(values);
+        }
+    }
 
     /** 한 번에 읽을 수 있는 행 수를 넘었다. */
     public static class TooManyRowsException extends RuntimeException {

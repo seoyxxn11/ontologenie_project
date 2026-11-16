@@ -21,6 +21,12 @@ public class SourcePreviewRepository {
     /** 결과에 원천 값이 들어 있어 요청 1시간 뒤 지운다(V1 기본값과 같다). */
     public static final java.time.Duration RETENTION = java.time.Duration.ofHours(1);
 
+    /** 제한 컬럼의 값 확인(447) 결과는 제한 값이라 짧게 둔다. 요청한 관리자가 읽으면 그때 지우고, 읽지 않아도 이 시간 뒤 정리 작업이 지운다. */
+    public static final java.time.Duration RESTRICTED_VALUES_RETENTION =
+            java.time.Duration.ofMinutes(10);
+
+    public static final String RESTRICTED_VALUES = "RESTRICTED_VALUES";
+
     private final JdbcClient jdbc;
 
     /** 같은 관리자·같은 테이블의 미리보기 요청을 한 줄로 세운다(트랜잭션 끝까지). 같은 초안을 동시에 두 번 넣지 않게 한다. */
@@ -79,6 +85,29 @@ public class SourcePreviewRepository {
         return insert("MAPPING_PREVIEW", resourceId, accountId, requestJson, rowLimit, now);
     }
 
+    /** 같은 관리자가 같은 제안·컬럼으로 넣은, 대기·실행 중인 제한 값 확인(447). */
+    public Optional<Accepted> findActiveRestrictedValues(
+            long resourceId, long accountId, String requestJson, int rowLimit, Instant now) {
+        return findActive(RESTRICTED_VALUES, resourceId, accountId, requestJson, rowLimit, now);
+    }
+
+    public Accepted insertRestrictedValues(
+            long resourceId, long accountId, String requestJson, int rowLimit, Instant now) {
+        return insert(
+                RESTRICTED_VALUES,
+                resourceId,
+                accountId,
+                requestJson,
+                rowLimit,
+                now,
+                RESTRICTED_VALUES_RETENTION);
+    }
+
+    /** 결과를 읽어 간 제한 값 확인을 지운다(447). 이미 지워졌으면 false. */
+    public boolean delete(long id) {
+        return jdbc.sql("delete from source_preview where id = :id").param("id", id).update() > 0;
+    }
+
     private Accepted insert(
             String kind,
             long resourceId,
@@ -86,6 +115,17 @@ public class SourcePreviewRepository {
             String requestJson,
             int rowLimit,
             Instant now) {
+        return insert(kind, resourceId, accountId, requestJson, rowLimit, now, RETENTION);
+    }
+
+    private Accepted insert(
+            String kind,
+            long resourceId,
+            long accountId,
+            String requestJson,
+            int rowLimit,
+            Instant now,
+            java.time.Duration retention) {
         return jdbc.sql(
                         """
                         insert into source_preview (source_resource_id, preview_kind, request, row_limit,
@@ -100,7 +140,7 @@ public class SourcePreviewRepository {
                 .param("rowLimit", rowLimit)
                 .param("account", accountId)
                 .param("now", Timestamp.from(now))
-                .param("expiresAt", Timestamp.from(now.plus(RETENTION)))
+                .param("expiresAt", Timestamp.from(now.plus(retention)))
                 .query(SourcePreviewRepository::accepted)
                 .single();
     }

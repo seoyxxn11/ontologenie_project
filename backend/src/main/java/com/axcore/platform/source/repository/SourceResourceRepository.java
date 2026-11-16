@@ -34,6 +34,9 @@ public interface SourceResourceRepository extends JpaRepository<SourceResource, 
      */
     List<SourceResource> findByIsReadableTrue();
 
+    /** 제안 근거·payload의 원천 위치(스키마.표)로 원천 테이블을 찾는다(447). 원천이 여럿이면 여러 개다. 근거의 위치는 대소문자가 다를 수 있다. */
+    List<SourceResource> findByResourceKeyIgnoreCase(String resourceKey);
+
     /** CDC 이벤트의 표({스키마}.{이름})를 찾는다(198-5). */
     Optional<SourceResource> findByDataSourceIdAndResourceKey(
             Long dataSourceId, String resourceKey);

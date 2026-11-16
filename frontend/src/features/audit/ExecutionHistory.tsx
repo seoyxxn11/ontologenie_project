@@ -53,7 +53,11 @@ function targetText(execution: Execution) {
     return '-'
   }
   const kind =
-    execution.targetType === 'object_instance' ? '객체' : execution.targetType
+    execution.targetType === 'object_instance'
+      ? '객체'
+      : execution.targetType === 'source_resource'
+        ? '원천 표'
+        : execution.targetType
   return `${kind} #${execution.targetId}`
 }
 

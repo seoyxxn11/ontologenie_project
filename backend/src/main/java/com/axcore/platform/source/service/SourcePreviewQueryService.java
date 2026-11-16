@@ -38,6 +38,11 @@ public class SourcePreviewQueryService {
                 previewRepository
                         .findById(previewId)
                         .filter(p -> p.expiresAt().isAfter(now))
+                        // 제안 검토의 제한 값 확인(447)은 이 API로 내보내지 않는다. 열람 기록과 한 번 읽기를 거치는 제안 API로만 읽는다.
+                        .filter(
+                                p ->
+                                        !SourcePreviewRepository.RESTRICTED_VALUES.equals(
+                                                p.previewKind()))
                         .orElseThrow(
                                 () ->
                                         new BusinessException(

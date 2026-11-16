@@ -5,7 +5,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -32,6 +34,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -197,6 +200,40 @@ class ProposalControllerTests {
                 .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
 
         verifyNoInteractions(proposalService);
+    }
+
+    /** 제한 값 확인(447)도 관리자 전용이다. 다른 역할은 서비스에 닿기 전에 403이다. */
+    @ParameterizedTest
+    @ValueSource(strings = {"VIEWER", "PLANNER", "MAINTENANCE"})
+    void restrictedValueCheckIsAdminOnly(String role) throws Exception {
+        mockMvc.perform(get("/api/v1/proposals/10/restricted-columns").with(loggedIn(role)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+        mockMvc.perform(
+                        post("/api/v1/proposals/10/restricted-values")
+                                .with(loggedIn(role))
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"sourceResourceId\": 1, \"column\": \"contact_name\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(
+                        post("/api/v1/proposals/10/restricted-values/5/result")
+                                .with(loggedIn(role))
+                                .with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    /** 관리자라도 없는 제안이면 404다. 값 확인 결과는 GET으로 읽지 않는다(읽으면 지우고 기록하므로). */
+    @Test
+    void restrictedValueCheckNeedsAnExistingProposalAndPostToRead() throws Exception {
+        mockMvc.perform(
+                        get("/api/v1/proposals/999999999/restricted-columns")
+                                .with(loggedIn("ADMIN")))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(
+                        get("/api/v1/proposals/10/restricted-values/5/result")
+                                .with(loggedIn("ADMIN")))
+                .andExpect(status().isMethodNotAllowed());
     }
 
     private static RequestPostProcessor loggedIn(String roleCode) {
