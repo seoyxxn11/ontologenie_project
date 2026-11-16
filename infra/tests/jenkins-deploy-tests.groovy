@@ -25,7 +25,7 @@ def harness = { Map options = [:] ->
             if (input instanceof Map && input.returnStatus) {
                 return options.noPreviousBatch ? 1 : 0
             }
-            if (options.imageMismatch && command.contains('expected=')) {
+            if (options.imageMismatch && command.contains('docker inspect batch') && command.contains('.Config.Image')) {
                 throw new IllegalStateException('image mismatch')
             }
             return null

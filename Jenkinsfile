@@ -22,6 +22,7 @@ pipeline {
         // 선언하면 기본값 'develop'이 GitLab 플러그인이 넣어 주는 환경변수를 덮어써서 MR 검사가 develop을 받았다.
         // 변경이 없어도 세 서비스를 모두 강제로 배포하고 싶을 때 (수동 실행 전용)
         booleanParam(name: 'FORCE_DEPLOY', defaultValue: false, description: '변경이 없어도 backend · AI · frontend 모두 배포')
+        string(name: 'FRONTEND_ASSET_RETENTION_DAYS', defaultValue: '7', description: '이전 프론트 JS·CSS 보관 일수 (1 이상 정수)')
         booleanParam(name: 'RUN_SONARQUBE', defaultValue: false, description: 'develop의 frontend · backend · AI를 모두 SonarQube로 분석')
         string(name: 'ANALYSIS_COMMIT', defaultValue: '', description: 'axcore-sonarqube 전용: 분석할 전체 커밋 SHA. 수동 실행에서 비우면 develop')
         string(name: 'ANALYSIS_RECIPIENT', defaultValue: '', description: 'axcore-sonarqube 전용: 결과를 받을 GitLab 사용자 ID')
@@ -181,6 +182,9 @@ pipeline {
                 script { ensureLatestMrCommit() }
                 sh '''
                     bash -n infra/deploy/sync-config.sh
+                    if [ -f infra/deploy/retain-frontend-assets.sh ]; then
+                        bash -n infra/deploy/retain-frontend-assets.sh
+                    fi
                     if [ -f infra/deploy/sync-sonarqube.sh ]; then
                         bash -n infra/deploy/sync-sonarqube.sh
                     fi
@@ -283,7 +287,11 @@ pipeline {
             // 설정·일반 설정을 먼저 검증한다. 실패 시 앱 이미지 배포 전에 중단한다.
             when { expression { env.IS_DEPLOY_JOB == 'true' } }
             steps {
-                sh 'bash infra/deploy/sync-config.sh'
+                sh '''
+                    test ! -L "$DEPLOY_DIR/frontend-assets"
+                    install -d -m 755 "$DEPLOY_DIR/frontend-assets"
+                    bash infra/deploy/sync-config.sh
+                '''
             }
         }
 
@@ -854,6 +862,15 @@ def deploymentCompose() {
     return "env -u AI_ONTOLOGY_LLM_PROVIDER -u AI_ONTOLOGY_LLM_BASE_URL -u AI_ONTOLOGY_LLM_API_KEY -u AXCORE_AGENT_LLM docker compose --env-file '${env.DEPLOY_DIR}/.env' -f '${env.DEPLOY_DIR}/compose.yaml'"
 }
 
+def retainFrontendAssets() {
+    withEnv([
+        "NEXT_FRONTEND_IMAGE=axcore-frontend:${env.GIT_SHA}",
+        "FRONTEND_ASSET_RETENTION_DAYS=${params.FRONTEND_ASSET_RETENTION_DAYS ?: '7'}"
+    ]) {
+        sh 'bash infra/deploy/retain-frontend-assets.sh'
+    }
+}
+
 def deployService(String svc, String tagVar, List companions = []) {
     def key = tagVar.replace('_TAG', '')
     def services = [svc] + companions
@@ -884,6 +901,10 @@ def deployService(String svc, String tagVar, List companions = []) {
         }
     }
     echo "${serviceNames} ${prev ?: '없음'} → ${env.GIT_SHA}"
+    // 이전·새 이미지의 assets 보관에 실패하면 태그·실행 컨테이너를 바꾸기 전에 중단한다.
+    if (svc == 'frontend') {
+        retainFrontendAssets()
+    }
     try {
         // .env의 태그를 새 번호로 바꾸고(줄이 없으면 만들고) 그 서비스만 새로 띄운다.
         sh """

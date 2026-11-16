@@ -60,6 +60,7 @@ infra/certbot/
 infra/jenkins-data/
 infra/logs/
 infra/backup/
+infra/frontend-assets/
 infra/nginx/htpasswd
 infra/nginx/conf.d/runtime/
 *.pem
