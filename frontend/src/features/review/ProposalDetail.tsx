@@ -21,6 +21,7 @@ import ProposalBundleView from './ProposalBundleView'
 import ProposalComparison from './ProposalComparison'
 import CheckResults from './CheckResults'
 import ProposalDecision from './ProposalDecision'
+import RestrictedValueCheck from './RestrictedValueCheck'
 import RuleContent from './RuleContent'
 import { fetchProposal } from './api'
 import type { ProposalOption } from './types'
@@ -345,6 +346,11 @@ export default function ProposalDetail({
                     : item.evidence
               }
             />
+            {/* 문서 연결 후보는 원천 컬럼을 가리키지 않아 확인할 것이 없다. 문서 상세는 추가 조회를 하지 않는다. */}
+            {['PENDING', 'HELD'].includes(item.reviewStatus) &&
+              item.itemKind !== 'DOCUMENT_LINK' && (
+                <RestrictedValueCheck proposalId={item.id} />
+              )}
           </section>
           <CheckResults
             compact={!!embeddedId}

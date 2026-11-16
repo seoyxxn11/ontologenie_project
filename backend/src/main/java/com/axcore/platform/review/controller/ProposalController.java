@@ -18,9 +18,14 @@ import com.axcore.platform.review.dto.ProposalRevisionResponse;
 import com.axcore.platform.review.dto.ProposalRevisionSearchRequest;
 import com.axcore.platform.review.dto.ProposalSearchRequest;
 import com.axcore.platform.review.dto.ProposalWriteResponse;
+import com.axcore.platform.review.dto.RestrictedColumnResponse;
+import com.axcore.platform.review.dto.RestrictedValueAcceptedResponse;
+import com.axcore.platform.review.dto.RestrictedValueRequest;
+import com.axcore.platform.review.dto.RestrictedValueResultResponse;
 import com.axcore.platform.review.service.ProposalCommandService;
 import com.axcore.platform.review.service.ProposalDecisionService;
 import com.axcore.platform.review.service.ProposalService;
+import com.axcore.platform.review.service.RestrictedValueCheckService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import java.util.LinkedHashMap;
@@ -51,6 +56,7 @@ public class ProposalController {
     private final ProposalService proposalService;
     private final ProposalCommandService proposalCommandService;
     private final ProposalDecisionService proposalDecisionService;
+    private final RestrictedValueCheckService restrictedValues;
 
     @PostMapping("/{id}/decisions")
     public ApiResponse<ProposalDecisionResult> decide(
@@ -155,6 +161,37 @@ public class ProposalController {
         int page = request.page() == null ? 0 : request.page();
         int size = request.size() == null ? 20 : request.size();
         return ApiResponse.ofPage(proposalService.getDecisions(id, PageRequest.of(page, size)));
+    }
+
+    /** 이 제안이 가리키는 제한 컬럼 목록(447). 값은 담지 않는다. */
+    @GetMapping("/{id}/restricted-columns")
+    public ApiResponse<List<RestrictedColumnResponse>> getRestrictedColumns(
+            @PathVariable("id") @Min(value = 1, message = "id는 1 이상이어야 합니다.") long id,
+            @AuthenticationPrincipal LoginAccount loginAccount) {
+        requireAdmin(loginAccount);
+        return ApiResponse.of(restrictedValues.columns(id, loginAccount));
+    }
+
+    /** 제한 컬럼의 서로 다른 값 몇 개 확인을 접수한다(447). 원천은 배치가 읽는다. */
+    @PostMapping("/{id}/restricted-values")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ApiResponse<RestrictedValueAcceptedResponse> requestRestrictedValues(
+            @PathVariable("id") @Min(value = 1, message = "id는 1 이상이어야 합니다.") long id,
+            @Valid @RequestBody RestrictedValueRequest request,
+            @AuthenticationPrincipal LoginAccount loginAccount) {
+        requireAdmin(loginAccount);
+        return ApiResponse.of(restrictedValues.request(id, request, loginAccount));
+    }
+
+    /** 값 확인 결과(447). 끝났으면 값을 한 번 돌려주고 열람 기록을 남긴 뒤 지운다. 요청한 관리자만 읽는다. */
+    @PostMapping("/{id}/restricted-values/{requestId}/result")
+    public ApiResponse<RestrictedValueResultResponse> readRestrictedValues(
+            @PathVariable("id") @Min(value = 1, message = "id는 1 이상이어야 합니다.") long id,
+            @PathVariable("requestId") @Min(value = 1, message = "requestId는 1 이상이어야 합니다.")
+                    long requestId,
+            @AuthenticationPrincipal LoginAccount loginAccount) {
+        requireAdmin(loginAccount);
+        return ApiResponse.of(restrictedValues.result(id, requestId, loginAccount));
     }
 
     private static void requireAdmin(LoginAccount loginAccount) {

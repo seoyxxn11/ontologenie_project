@@ -58,6 +58,8 @@ class SourceTableReaderBoundaryTests {
                     "전체 읽기(197). FullLoadPlanner가 금지 표를 막고 금지 컬럼을 뺀 계획만 읽는다",
                     "source/service/SourceSampleJob.java",
                     "원천 표본. 금지 표는 읽지 않고 금지·민감 컬럼은 빼고 읽는다(391)",
+                    "source/service/RestrictedValueJob.java",
+                    "제안 검토 때 제한 컬럼의 값 확인(447). 실행 때 정책을 다시 보고 제한 컬럼 하나의 서로 다른 값 몇 개와 건수만 읽는다",
                     "check/service/CandidateCheckJob.java",
                     "후보 시험. 금지 표·컬럼이면 읽지 않고 FAILED, 민감 값은 비운다(400)",
                     "mapping/service/MappingPreviewJob.java",

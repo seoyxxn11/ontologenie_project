@@ -88,7 +88,8 @@ public class SourceSampleRequestService {
                 accepted.expiresAt());
     }
 
-    static boolean isReadableTable(SourceResource resource) {
+    /** SYNC 계정으로 읽을 수 있는 원천 테이블인가. 원천 표본(016)과 제안 검토의 제한 값 확인(447)이 같이 쓴다. */
+    public static boolean isReadableTable(SourceResource resource) {
         return resource.getResourceKind() == ResourceKind.TABLE && resource.isReadable();
     }
 }

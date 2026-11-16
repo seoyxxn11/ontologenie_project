@@ -71,6 +71,11 @@ public class RestrictedViewRecorder {
             return new Seen("object_instance", objectId, fields);
         }
 
+        /** 제안 검토 때 본 원천 컬럼의 제한 값(447). 대상은 원천 테이블이고 fields는 원천 컬럼 이름이다(속성 코드가 아니다). */
+        public static Seen sourceColumn(long sourceResourceId, String column) {
+            return new Seen("source_resource", sourceResourceId, List.of(column));
+        }
+
         Map<String, Object> toMap() {
             Map<String, Object> map = new LinkedHashMap<>();
             map.put("targetType", targetType);
