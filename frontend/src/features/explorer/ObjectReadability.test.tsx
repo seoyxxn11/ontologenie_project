@@ -55,7 +55,7 @@ function mount(element: React.ReactNode) {
   return { client, ...view }
 }
 
-test('속성 이름에서 단위를 추측하지 않고 정의가 준 단위·설명만 표시한다', () => {
+test('속성 이름에서 단위를 추측하지 않고 정의가 준 단위만 표시한다', () => {
   expect(detailValue(12, definition)).toBe('12')
   expect(detailValue(0, { ...definition, unit: 'kPa' })).toBe('0 kPa')
   expect(detailValue('P101', { ...definition, unit: 't' })).toBe('P101')
@@ -75,7 +75,7 @@ test('속성 이름에서 단위를 추측하지 않고 정의가 준 단위·�
   ).toBe('2026-11-14T00:00:00')
 })
 
-test('업무 요약에 빈 값·코드 설명·확인된 단위를 표시하고 원천 기술 정보는 접는다', async () => {
+test('업무 요약은 속성 설명 없이 값·확인된 단위만 표시하고 원천 기술 정보는 접는다', async () => {
   server.use(
     http.get('/api/v1/objects/301', () =>
       HttpResponse.json({
@@ -122,7 +122,8 @@ test('업무 요약에 빈 값·코드 설명·확인된 단위를 표시하고 
     await screen.findByRole('heading', { name: '업무 요약' }),
   ).toBeVisible()
   expect(await screen.findByText('12 kPa')).toBeVisible()
-  expect(screen.getByText('R: 가동, S: 정지')).toBeVisible()
+  expect(screen.queryByText('R: 가동, S: 정지')).not.toBeInTheDocument()
+  expect(screen.queryByText('설비 센서 측정값')).not.toBeInTheDocument()
   expect(screen.getByText('값 없음')).toBeVisible()
   expect(screen.getByText('권한 없음')).toBeVisible()
   expect(screen.queryByText('must-not-display')).not.toBeInTheDocument()
@@ -145,7 +146,7 @@ test('조회 역할의 정의 조회가 거절돼도 객체 값은 보이고 단
   const { client } = mount(<ObjectDetail objectId={301} />)
   expect(
     await screen.findByText(
-      '속성 설명·단위를 확인할 수 없습니다. 값은 제공된 그대로 표시합니다.',
+      '속성 단위를 확인할 수 없습니다. 값은 제공된 그대로 표시합니다.',
     ),
   ).toBeVisible()
   expect(screen.getByRole('heading', { name: '프레스 3호기' })).toBeVisible()

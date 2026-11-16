@@ -120,12 +120,6 @@ function ObjectDetailContent({ objectId }: ObjectDetailContentProps) {
             {restrictedPropertyCodes.includes(code)
               ? '권한 없음'
               : detailValue(value, definition)}
-            {definition?.description?.trim() &&
-              !restrictedPropertyCodes.includes(code) && (
-                <p className="mt-1 text-xs text-slate-500">
-                  {definition.description}
-                </p>
-              )}
           </dd>
         </div>
       )
@@ -162,7 +156,7 @@ function ObjectDetailContent({ objectId }: ObjectDetailContentProps) {
       {properties.length === 0 && <p>제공된 속성이 없습니다.</p>}
       {definitions.isError && (
         <p className="text-xs text-slate-500">
-          속성 설명·단위를 확인할 수 없습니다. 값은 제공된 그대로 표시합니다.
+          속성 단위를 확인할 수 없습니다. 값은 제공된 그대로 표시합니다.
         </p>
       )}
       <dl className="explorer-properties">
