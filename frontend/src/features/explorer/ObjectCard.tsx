@@ -23,12 +23,14 @@ function ObjectCard({
       className="explorer-object-row"
     >
       <span className="explorer-object-meta">
-        {code && <span>{code}</span>}
-        <span>{typeLabel}</span>
+        {code && <span title={code}>{code}</span>}
+        <span title={typeLabel}>{typeLabel}</span>
       </span>
-      <span className="explorer-object-name">{name}</span>
+      <span className="explorer-object-name" title={name}>
+        {name}
+      </span>
       {context && (
-        <span className="block text-xs text-slate-500 [overflow-wrap:anywhere]">
+        <span className="explorer-object-context" title={context}>
           {context}
         </span>
       )}
