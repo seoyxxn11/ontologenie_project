@@ -15,7 +15,6 @@ import {
   isAnalysisRunning,
   summaryNotices,
 } from './labels'
-import TestAnalysisDelete from './TestAnalysisDelete'
 import type {
   Analysis,
   AnalysisKind,
@@ -370,8 +369,6 @@ function AnalysisPanel({
                 >
                   변경 데이터 재분석
                 </Button>
-                {/* 임시(S15P31C106-307): 시연 전 이 줄과 import를 지운다 */}
-                <TestAnalysisDelete onDeleted={() => onSelect(undefined)} />
               </div>
             </details>
           )}
