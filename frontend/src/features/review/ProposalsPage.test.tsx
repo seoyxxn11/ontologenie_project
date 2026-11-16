@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router'
@@ -100,9 +100,12 @@ test('근거·검사를 확인하고 새로고침해도 작성 중인 검토 사
   await user.click(
     within(check).getByRole('button', { name: '검사 상태 새로고침' }),
   )
-  expect(
-    await detail.findByRole('button', { name: '검사 상태 새로고침' }),
-  ).toBeEnabled()
+  // 새로고침이 끝나 버튼이 다시 켜질 때까지 기다린다(부하가 크면 바로 켜지지 않음).
+  await waitFor(() =>
+    expect(
+      detail.getByRole('button', { name: '검사 상태 새로고침' }),
+    ).toBeEnabled(),
+  )
   expect(reason).toHaveValue('원천 근거를 확인했습니다.')
 })
 
