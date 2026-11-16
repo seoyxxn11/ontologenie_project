@@ -1,8 +1,12 @@
 .accounts-page {
-  height: calc(
-    100dvh - var(--app-header-height, 64px) - 2 * var(--app-page-padding, 24px)
+  max-height: max(
+    480px,
+    calc(
+      100dvh - var(--app-header-height, 64px) - 2 *
+        var(--app-page-padding, 24px)
+    )
   );
-  min-height: 480px;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -26,13 +30,13 @@
   margin-left: 12px;
 }
 .accounts-results {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 .accounts-results > .ui-table-container {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
@@ -138,6 +142,7 @@
 }
 @media (max-width: 600px) {
   .accounts-page {
+    max-height: none;
     height: auto;
     min-height: 0;
   }

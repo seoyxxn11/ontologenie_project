@@ -674,3 +674,20 @@
     max-height: 40px;
   }
 }
+.agent-sidebar-slot {
+  align-items: flex-start;
+}
+.agent-sidebar-slot > .agent-sidebar {
+  max-height: 100%;
+}
+.agent-sidebar-slot > .agent-sidebar:has([data-page-full='true']) {
+  height: 100%;
+}
+.agent-sidebar-slot .agent-conversation-viewport {
+  flex: 0 1 auto;
+}
+.agent-sidebar-slot
+  .agent-sidebar:has([data-page-full='true'])
+  .agent-conversation-viewport {
+  flex: 1;
+}

@@ -226,3 +226,27 @@ test('가득 찬 페이지만 늘리고 일부만 있는 마지막 페이지는 
   expect(visibleTitles()).toEqual(['대화 7', '대화 8'])
   expect(screen.getByRole('list')).toHaveAttribute('data-page-full', 'false')
 })
+
+test('목록 내용이 줄어도 바깥 슬롯 높이로 페이지 크기를 유지한다', async () => {
+  const handlers = {
+    ...props(),
+    conversations: [
+      ...conversations,
+      { ...conversations[0], id: 9, title: '대화 9' },
+    ],
+  }
+  render(
+    <div className="agent-sidebar-slot">
+      <ConversationList {...handlers} />
+    </div>,
+  )
+  resize(218)
+  expect(visibleTitles()).toEqual(['대화 1', '대화 2', '대화 3', '대화 4'])
+  await userEvent.click(screen.getByRole('button', { name: '다음 페이지' }))
+  await userEvent.click(screen.getByRole('button', { name: '다음 페이지' }))
+  expect(visibleTitles()).toEqual(['대화 9'])
+  resize(218)
+  expect(visibleTitles()).toEqual(['대화 9'])
+  await userEvent.click(screen.getByRole('button', { name: '이전 페이지' }))
+  expect(visibleTitles()).toEqual(['대화 5', '대화 6', '대화 7', '대화 8'])
+})

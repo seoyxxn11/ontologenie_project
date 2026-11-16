@@ -758,3 +758,15 @@
   max-width: 100%;
   flex-shrink: 1;
 }
+.explorer-list:not(:has(.explorer-object-row:nth-child(8))) {
+  align-self: start;
+}
+.explorer-list:not(:has(.explorer-object-row:nth-child(8))) > section,
+.explorer-list:not(:has(.explorer-object-row:nth-child(8)))
+  .explorer-object-list {
+  flex: 0 1 auto;
+}
+.explorer-list:not(:has(.explorer-object-row:nth-child(8)))
+  .explorer-object-list {
+  grid-auto-rows: minmax(48px, auto);
+}

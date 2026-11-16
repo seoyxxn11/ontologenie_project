@@ -28,7 +28,7 @@
   overflow: hidden;
 }
 .object-types-list {
-  height: 100%;
+  height: auto;
 }
 .object-types-panel-header {
   padding: 20px;

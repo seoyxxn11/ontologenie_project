@@ -1,15 +1,19 @@
 .audit-page {
-  height: calc(
-    100dvh - var(--app-header-height, 64px) - 2 * var(--app-page-padding, 24px)
+  max-height: max(
+    480px,
+    calc(
+      100dvh - var(--app-header-height, 64px) - 2 *
+        var(--app-page-padding, 24px)
+    )
   );
-  min-height: 480px;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
 .audit-page-content,
 .audit-page-inner,
 .audit-history {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
   min-width: 0;
   display: flex;
@@ -70,14 +74,14 @@
   flex-shrink: 0;
 }
 .audit-history .audit-results {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
   margin-top: 20px;
 }
 .audit-history .audit-results > .ui-table-container {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
@@ -136,6 +140,7 @@
 }
 @media (max-width: 600px) {
   .audit-page {
+    max-height: none;
     height: auto;
     min-height: 0;
   }
