@@ -358,5 +358,8 @@ npm test -- --run src/api/client.test.ts
 
 ## 배포
 
+- 배포 뒤 기존 탭에서 이전 화면 파일을 불러오지 못하면 공통 라우트 오류 화면이 새 버전 안내와 `새로고침` 버튼을 표시합니다. 연결 장애로도 같은 오류가 날 수 있어 안내에 함께 표시하며, 일반 화면 오류는 별도 문구로 구분합니다. 오류 안내는 초기 번들에 포함합니다.
+- 새로고침은 버튼을 눌렀을 때만 현재 주소 전체(쿼리·해시 포함)를 다시 불러옵니다. 미저장 입력 내용이 사라질 수 있음을 안내하며 자동 재시도·재로드는 하지 않습니다. 이전 JS·CSS 보존은 별도 배포 개선 범위입니다. 이 안내 자체가 배포되기 전에 열어 둔 탭에는 수동 새로고침이 필요합니다.
+- 관련 회귀 검증: `npm test -- --run src/App.importFailure.test.tsx src/components/RouteErrorPage.test.tsx src/App.test.tsx --maxWorkers=2`.
 - `develop`에 머지되면 Jenkins가 `frontend/` 변경을 감지해 `frontend/Dockerfile`로 이미지를 굽고 서버의 frontend 컨테이너를 교체합니다. 헬스체크를 통과하지 못하면 직전 버전으로 자동 롤백됩니다. 절차는 `infra/README.md`의 "자동 배포"를 참고합니다.
 - 서비스 주소는 `https://k15c106.p.ssafy.io/` 이고, `/api/v1` 요청은 메인 nginx가 backend로 넘깁니다.
