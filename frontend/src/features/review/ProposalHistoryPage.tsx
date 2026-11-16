@@ -96,7 +96,7 @@ function DecisionHistory({
           </p>
         </div>
         <Button
-          variant="secondary"
+          variant="text"
           className="history-refresh"
           aria-label="이력 새로고침"
           data-tooltip="이력 새로고침"
@@ -112,9 +112,12 @@ function DecisionHistory({
             fill="none"
             stroke="currentColor"
             strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
             aria-hidden="true"
           >
-            <path d="M20 7v5h-5M20 12a8 8 0 1 1-2.3-5.7L20 8" />
+            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5" />
+            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5" />
           </svg>
         </Button>
       </div>

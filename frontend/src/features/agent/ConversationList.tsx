@@ -67,13 +67,27 @@ function ConversationList({
     const viewport = viewportRef.current
     const row = rowRef.current
     if (!viewport || !row) return
+    const slot = viewport.closest<HTMLElement>('.agent-sidebar-slot')
+    const measureTarget = slot ?? viewport
 
     let availableHeight = 0
     let rowHeight = 0
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        if (entry.target === viewport)
-          availableHeight = entry.contentRect.height
+        if (entry.target === measureTarget) {
+          const sidebar = viewport.parentElement
+          const controlsHeight =
+            slot && sidebar
+              ? Array.from(sidebar.children)
+                  .filter((child) => child !== viewport)
+                  .reduce(
+                    (height, child) =>
+                      height + child.getBoundingClientRect().height,
+                    2,
+                  )
+              : 0
+          availableHeight = entry.contentRect.height - controlsHeight
+        }
         if (entry.target === row) {
           const button = row.querySelector('.agent-conversation-select')
           const minimumHeight = button
@@ -92,7 +106,7 @@ function ConversationList({
         setPageSize(Math.max(1, Math.floor(availableHeight / rowHeight)))
       }
     })
-    observer.observe(viewport)
+    observer.observe(measureTarget)
     observer.observe(row)
     return () => observer.disconnect()
   }, [hasConversations, firstVisibleId])
