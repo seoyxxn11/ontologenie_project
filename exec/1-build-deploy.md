@@ -29,6 +29,26 @@ GitLab 저장소(`https://lab.ssafy.com/s15-final/S15P31C106.git`)를 클론한 
 
 ## 1.2 사용 도구와 버전
 
+### JVM·웹서버·WAS와 설정 값
+
+| 구분 | 제품·버전 | 주요 설정 값 | 설정 위치 |
+| --- | --- | --- | --- |
+| JVM | Eclipse Temurin 21 (빌드 `eclipse-temurin:21-jdk`, 실행 `eclipse-temurin:21-jre`) | backend `JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=75`, batch `-Xmx768m`, 시간대 `TZ=Asia/Seoul`, 실행 사용자 uid 10001 | `infra/compose.yaml`, `backend/Dockerfile` |
+| WAS | Spring Boot 4.1.2 내장 Apache Tomcat 11.0.27 | 포트 8080(호스트 127.0.0.1:18080), 세션 만료 30분, `server.forward-headers-strategy=framework`(nginx의 X-Forwarded-* 반영), 프로필 `api`(웹)·`batch`(웹 없음) | `backend/src/main/resources/application-api.yml` |
+| 웹서버(프록시) | nginx 1.30 | HTTP→HTTPS 301, TLS 1.2·1.3, `/api/` 읽기 제한 300초·업로드 20MB·버퍼링 끔, 로그인 요청 분당 30회(burst 20), `/api/v1/internal*` 403, Swagger·Kafka UI Basic Auth | `infra/nginx/conf.d/default.conf` |
+| 웹서버(정적 파일) | nginx 1.30-alpine | 포트 80(호스트 127.0.0.1:10080), SPA fallback(`try_files ... /index.html`) | `frontend/nginx.conf` |
+| ASGI 서버(AI) | uvicorn 0.54.0 + FastAPI 0.143.0 | `uvicorn main:app --host 0.0.0.0 --port 8000`, 헬스체크 `/health` | `ai/Dockerfile` |
+| DB | PostgreSQL 18.6 | DB `axcore`, 스키마 `platform`, 호스트 127.0.0.1:15432 | `infra/compose.yaml` |
+
+### IDE
+
+팀 공통으로 정한 IDE는 없습니다. 이 문서를 작성·검증한 환경은 다음과 같습니다. 포맷은 IDE가 아니라 Spotless·Prettier·Ruff 결과를 기준으로 합니다.
+
+| IDE | 버전 | 용도 |
+| --- | --- | --- |
+| IntelliJ IDEA | 2026.1.4 | 백엔드(Java 21, Gradle) |
+| Visual Studio Code | 1.139.1 | 프론트엔드(TypeScript), AI(Python), 문서 |
+
 ### 백엔드
 
 | 항목 | 버전 | 근거 |
@@ -92,7 +112,6 @@ LLM SDK는 쓰지 않고 OpenAI 호환 API를 직접 호출합니다(`ai/app/llm
 
 - 메인 서버: AWS Lightsail Ubuntu, 메모리 16GB, 접속 사용자 `ubuntu`, 배포 폴더 `/home/ubuntu/axcore`
 - 원천 서버 2대(ERP, MES): Amazon Linux 2023, t3a.medium, 접속 사용자 `ec2-user`
-- IDE: 팀 공통으로 정한 IDE는 없습니다(이 문서 작성 환경: IntelliJ IDEA 2026.1, VS Code). 포맷은 IDE가 아니라 Spotless·Prettier·Ruff 결과를 기준으로 합니다.
 
 ## 1.3 로컬 빌드와 실행
 
@@ -315,6 +334,16 @@ curl -s 127.0.0.1:18080/actuator/health    # {"status":"UP"}
 - Blue-Green 전환(`compose.blue-green.yaml`)은 준비만 되어 있고 자동 배포에서는 쓰지 않습니다.
 
 ## 1.8 주요 계정과 설정 파일
+
+### DB 접속 정보 (비밀번호는 저장소에 없음)
+
+| DB | 접속 주소 | DB·스키마 | 계정 | 정의된 파일 |
+| --- | --- | --- | --- | --- |
+| 플랫폼 DB | 컨테이너 안 `postgres:5432`, 서버 `127.0.0.1:15432` | DB `axcore`, 스키마 `platform` (표 54개, ERD와 같은 구조를 Flyway V1~V26이 만듦) | `axcore` | `infra/.env`(`POSTGRES_*`), `infra/compose.yaml`(`DB_URL`), `backend/src/main/resources/application*.yml`(`spring.datasource`, `spring.flyway.schemas`) |
+| 플랫폼 DB(로컬 개발) | `localhost:5432` | `axcore` / `platform` | `axcore` | `backend/src/main/resources/application-local.yml`, `backend/.env.example` |
+| 원천 ERP | ERP 원천 서버 `:15432`(SSL 필수, 메인 서버 IP만 허용) | DB `erp`, 스키마 `erp` | `platform_ro`, `platform_ai`, `platform_cdc` | 원천 서버 `~/source-db/.env`, `infra/source-db/sql/setup_roles.sql`·`allowlist.sql`, 플랫폼 화면의 데이터 연결(접속 정보는 `data_source`·`data_source_credential`에 암호화 저장) |
+| 원천 MES | MES 원천 서버 `:15432` | DB `mes`, 스키마 `mes` | 같음 | 같음 |
+| Kafka | 컨테이너 안 `kafka:9092` | 토픽 `ERP_MAIN.all`, `MES_MAIN.all` | - | `infra/cdc/compose.yaml`, `application-batch.yml`(`AXCORE_CDC_BOOTSTRAP_SERVERS`) |
 
 ### 계정 (비밀번호는 저장소에 없음)
 
