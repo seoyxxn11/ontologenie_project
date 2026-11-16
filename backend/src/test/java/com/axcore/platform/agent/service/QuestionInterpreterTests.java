@@ -469,12 +469,14 @@ class QuestionInterpreterTests {
     }
 
     @Test
-    void writesKindEvenWhenOnlyMeaningOfAnotherKindIsAsked() {
+    void writesKindWhenTopicMovesToAnotherKindInAnyForm() {
         // kinds가 비면 서버가 이전 답변의 종류·속성 조건을 잇는다. 비가동 설비 답변 뒤 "입고실적이 뭐야"에 비가동이 섞였다(2026-11-16).
+        // 뜻을 묻는 질문만이 아니라 다른 종류로 화제를 바꾸는 모든 질문에 적용한다.
         assertThat(QuestionInterpreter.SYSTEM_PROMPT)
-                .contains("업무 데이터 종류의 뜻이나 내용을 물어도 그 종류 이름을 kinds에 쓴다.")
-                .contains("업무 데이터 종류의 뜻을 묻는 말도 일반 상식이 아니라 BUSINESS다.")
-                .contains("\"이전 답변의 조건\"에 없는 다른 종류를 말하면 뜻만 물어도 kinds에 그 종류를 쓴다.");
+                .contains("그 종류의 뜻·내용이나 다른 종류와의 관계를 물어도 그 종류 이름을 kinds에 쓴다.")
+                .contains("업무 데이터 종류의 뜻·내용·연결을 묻는 말도 일반 상식이 아니라 BUSINESS다.")
+                .contains("다른 종류로 화제를 바꾸면 묻는 방식(뜻·목록·건수·관계)과 관계없이 kinds에 그 종류를 쓴다.")
+                .contains("이전 대상에 연결된 기록을 물으면 화제를 바꾼 것이 아니다.");
     }
 
     @Test

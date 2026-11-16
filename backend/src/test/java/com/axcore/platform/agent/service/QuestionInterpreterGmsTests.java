@@ -64,7 +64,7 @@ class QuestionInterpreterGmsTests {
      * 그대로인지 본다(2026-11-14 !456).
      */
     @ParameterizedTest
-    @ValueSource(strings = {"그럼 지난달은?", "그거 사유별로 몇 건이야?", "같은 설비의 9월 이력도 보여줘"})
+    @ValueSource(strings = {"그럼 지난달은?", "그거 사유별로 몇 건이야?", "같은 설비의 9월 이력도 보여줘", "그 설비에 배정된 작업지시는?"})
     void keepsPreviousEquipmentWhenTargetIsOnlyPointedAt(String question) {
         QuestionInterpretation asked = interpretFollowUp(question);
         QuestionInterpretation continued = asked.continueFrom(PREVIOUS_DOWNTIME);
@@ -180,6 +180,39 @@ class QuestionInterpreterGmsTests {
         assertThat(asked.kinds()).isNotEmpty().doesNotContain("설비");
         assertThat(continued.kinds()).doesNotContain("설비");
         assertThat(continued.propertyValues()).doesNotContain("비가동 중");
+    }
+
+    /** 뜻을 묻는 질문만이 아니라 목록·건수·관계로 다른 종류로 화제를 바꿔도 이전 종류·속성 조건을 잇지 않는다. */
+    @ParameterizedTest
+    @ValueSource(strings = {"고정자산은 몇 개야?", "입고실적 보여줘", "수주랑 설비는 어떻게 연결돼?"})
+    void switchesKindWhenTopicMovesToAnotherKind(String question) {
+        QuestionInterpretation runningWorkOrders =
+                new QuestionInterpretation(
+                        "진행 중 작업지시",
+                        List.of(),
+                        null,
+                        null,
+                        List.of(),
+                        null,
+                        List.of("작업지시"),
+                        QuestionScope.BUSINESS,
+                        List.of("진행 중"));
+        QuestionInterpretation asked =
+                interpreter.interpret(
+                        question,
+                        Map.of(),
+                        null,
+                        runningWorkOrders,
+                        List.of(
+                                new ConversationTurn(
+                                        "진행 중인 작업지시 보여줘", "진행 중인 작업지시는 JB2610-0141 등 3건입니다.")),
+                        null);
+        QuestionInterpretation continued = asked.continueFrom(runningWorkOrders);
+
+        log.info("GMS 다른 종류 화제 전환 해석: {} → {}", question, asked);
+        assertThat(asked.scope()).isEqualTo(QuestionScope.BUSINESS);
+        assertThat(asked.kinds()).isNotEmpty().doesNotContain("작업지시");
+        assertThat(continued.propertyValues()).doesNotContain("진행 중");
     }
 
     private QuestionInterpretation interpretFollowUp(String question) {
