@@ -25,9 +25,11 @@ export async function prepareUiPreview() {
   const selected = uiPreviewCase(params.get('uiQa'))
   document.documentElement.style.fontSize =
     params.get('qaText') === 'large' ? '200%' : ''
-  setMockAccount(uiPreviewAccount(selected))
+  setMockAccount(selected === 'login' ? null : uiPreviewAccount(selected))
   worker.use(...uiPreviewHandlers(selected))
   document.documentElement.dataset.uiMotionPreview =
     params.get('qaMotion') === 'on' ? 'on' : 'off'
+  document.documentElement.dataset.uiMotionSlow =
+    params.get('qaSlow') === 'on' ? 'on' : 'off'
   return createElement(UiPreviewTools, { selected })
 }

@@ -118,7 +118,9 @@ export default function IssueTracking({
           </>
         )}
         {forwarding.isSuccess && (
-          <p role="status">전달한 사실을 기록했습니다.</p>
+          <p role="status" className="ui-save-notice">
+            전달한 사실을 기록했습니다.
+          </p>
         )}
         {forwarding.error && <ErrorState error={forwarding.error} />}
         {uncertain && (

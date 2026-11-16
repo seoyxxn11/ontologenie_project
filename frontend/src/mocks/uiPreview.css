@@ -35,3 +35,33 @@
 .ui-preview-tools span {
   color: #555;
 }
+
+:root[data-ui-motion-preview='on'][data-ui-motion-slow='on'][data-ui-input='pointer']
+  :is(
+    .ui-dialog-overlay,
+    .app-panel-backdrop,
+    .app-navigation-panel:not([hidden]),
+    .source-field-help-content:popover-open,
+    .agent-control-tooltip,
+    .ui-save-notice,
+    .object-types-notice
+  ) {
+  transition-duration: 800ms;
+}
+
+:root[data-ui-motion-preview='on'][data-ui-motion-slow='on']:not(
+    [data-ui-input='keyboard']
+  )
+  .auth-card--ready {
+  animation-duration: 800ms;
+}
+
+@supports selector(details::details-content) {
+  :root[data-ui-motion-preview='on'][data-ui-motion-slow='on'][data-ui-input='pointer']
+    .app-shell
+    details[open]:not(.rules-extra-filters):not(
+      .sources-resource
+    )::details-content {
+    transition-duration: 800ms;
+  }
+}

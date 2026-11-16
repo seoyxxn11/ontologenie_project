@@ -40,3 +40,136 @@
     transition: opacity 120ms var(--ui-ease-out);
   }
 }
+
+:root:not([data-ui-motion-preview='off']):not([data-ui-input='keyboard'])
+  .auth-card--ready {
+  animation: ui-auth-enter 200ms var(--ui-ease-out);
+}
+
+@keyframes ui-auth-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ui-notice-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+:root[data-ui-input='pointer']:not([data-ui-motion-preview='off'])
+  :is(.ui-save-notice, .object-types-notice) {
+  opacity: 1;
+  transition: opacity 150ms var(--ui-ease-out);
+  @starting-style {
+    opacity: 0;
+  }
+}
+
+:root[data-ui-input='pointer']:not([data-ui-motion-preview='off'])
+  .source-field-help-content:popover-open {
+  opacity: 1;
+  transform: scale(1);
+  transform-origin: top left;
+  transition:
+    opacity 150ms var(--ui-ease-out),
+    transform 150ms var(--ui-ease-out);
+  @starting-style {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+@supports selector(details::details-content) {
+  :root[data-ui-input='pointer']:not([data-ui-motion-preview='off'])
+    .app-shell
+    details[open]:not(.rules-extra-filters):not(
+      .sources-resource
+    )::details-content {
+    opacity: 1;
+    transition: opacity 150ms var(--ui-ease-out);
+    @starting-style {
+      opacity: 0;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-ui-input='pointer']:not([data-ui-motion-preview='off'])
+    button.ui-button--primary:not(:disabled):not([aria-busy='true']) {
+    transition:
+      background-color 120ms,
+      border-color 120ms,
+      transform 160ms var(--ui-ease-out);
+  }
+
+  :root[data-ui-input='pointer']:not([data-ui-motion-preview='off'])
+    button.ui-button--primary:not(:disabled):not([aria-busy='true']):active {
+    transform: scale(0.97);
+  }
+}
+
+@media (max-width: 600px) {
+  :root[data-ui-input='pointer']:not([data-ui-motion-preview='off'])
+    .source-field-help-content:popover-open {
+    transform: none;
+    transition: opacity 150ms var(--ui-ease-out);
+    @starting-style {
+      transform: none;
+    }
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-ui-input='pointer']:not([data-ui-motion-preview='off'])
+    .agent-control-tooltip {
+    opacity: 0;
+    transition: opacity 125ms var(--ui-ease-out);
+  }
+
+  :root[data-ui-input='pointer']:not([data-ui-motion-preview='off'])
+    .agent-icon-control:is(:hover, :focus-within)
+    .agent-control-tooltip {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-ui-motion-preview='off']):not([data-ui-input='keyboard'])
+    .auth-card--ready {
+    animation: ui-notice-enter 120ms var(--ui-ease-out);
+  }
+
+  :root[data-ui-input='pointer']:not([data-ui-motion-preview='off'])
+    .source-field-help-content:popover-open {
+    transform: none;
+    transition: opacity 120ms var(--ui-ease-out);
+    @starting-style {
+      transform: none;
+    }
+  }
+
+  :root[data-ui-input='pointer']:not([data-ui-motion-preview='off'])
+    :is(.ui-save-notice, .object-types-notice, .agent-control-tooltip) {
+    transition-duration: 120ms;
+  }
+
+  @supports selector(details::details-content) {
+    :root[data-ui-input='pointer']:not([data-ui-motion-preview='off'])
+      .app-shell
+      details[open]:not(.rules-extra-filters):not(
+        .sources-resource
+      )::details-content {
+      transition-duration: 120ms;
+    }
+  }
+}

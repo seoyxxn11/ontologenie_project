@@ -62,6 +62,18 @@ test('비교 화면은 API 쓰기를 차단하고 존재하지 않는 모의 상
   expect((await request('/audit/actions/999999')).status).toBe(404)
 })
 
+test('로그인 비교는 모의 인증만 허용하고 업무 쓰기 요청은 계속 차단한다', async () => {
+  server.use(...uiPreviewHandlers('login'))
+  const login = await request('/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ loginId: 'demo-admin', password: 'demo-only' }),
+  })
+  expect(login.status).toBe(200)
+  expect((await login.json()).data.roleCode).toBe('ADMIN')
+  expect((await request('/accounts', { method: 'POST' })).status).toBe(403)
+})
+
 test.each([
   ['error', 500],
   ['forbidden', 403],

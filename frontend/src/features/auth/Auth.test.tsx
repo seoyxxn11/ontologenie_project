@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import { beforeEach, expect, test, vi } from 'vitest'
@@ -7,6 +7,7 @@ import App from '../../App'
 import { demoAccount, setMockAccount } from '../../mocks/auth'
 import { server } from '../../mocks/node'
 import { ApiError } from '../../api/errors'
+import { trackUiMotionInput } from '../../components/uiMotion'
 
 function openAt(path: string) {
   window.history.pushState({}, '', path)
@@ -43,6 +44,59 @@ test('익명 사용자는 업무 데이터를 요청하기 전에 로그인 화�
   expect(
     screen.queryByRole('navigation', { name: '주 메뉴' }),
   ).not.toBeInTheDocument()
+})
+
+test('로그인 입력을 시작한 뒤 마우스로 필드를 이동해도 첫 등장 모션을 재실행하지 않는다', async () => {
+  const stopTracking = trackUiMotionInput()
+  try {
+    openAt('/login')
+    const loginId = await screen.findByRole('textbox', { name: '계정 ID' })
+    const card = screen.getByRole('region', { name: '워크스페이스에 로그인' })
+    expect(card).toHaveClass('auth-card--ready')
+    const user = userEvent.setup()
+    await user.type(loginId, 'demo-user')
+    await user.click(screen.getByLabelText('비밀번호', { exact: true }))
+    expect(document.documentElement.dataset.uiInput).toBe('pointer')
+    expect(card).not.toHaveClass('auth-card--ready')
+    expect(loginId).toHaveValue('demo-user')
+  } finally {
+    stopTracking()
+  }
+})
+
+test('로그인 첫 등장 완료 후에는 입력 방식 전환으로 모션을 다시 시작하지 않는다', async () => {
+  const stopTracking = trackUiMotionInput()
+  try {
+    openAt('/login')
+    await screen.findByRole('textbox', { name: '계정 ID' })
+    const card = screen.getByRole('region', { name: '워크스페이스에 로그인' })
+    // jsdom exposes WebKit animation styles without AnimationEvent support.
+    const endEvent =
+      'AnimationEvent' in window ? 'animationend' : 'webkitAnimationEnd'
+    fireEvent(card, new Event(endEvent, { bubbles: true }))
+    expect(card).not.toHaveClass('auth-card--ready')
+    const user = await fillLogin()
+    await user.click(screen.getByLabelText('계정 ID'))
+    expect(card).not.toHaveClass('auth-card--ready')
+  } finally {
+    stopTracking()
+  }
+})
+
+test('키보드로 진입한 로그인 화면은 마우스를 사용해도 첫 등장 효과를 뒤늦게 실행하지 않는다', async () => {
+  const stopTracking = trackUiMotionInput()
+  try {
+    fireEvent.keyDown(document.body, { key: 'Tab' })
+    openAt('/login')
+    const loginId = await screen.findByRole('textbox', { name: '계정 ID' })
+    const user = userEvent.setup()
+    await user.click(loginId)
+    expect(
+      screen.getByRole('region', { name: '워크스페이스에 로그인' }),
+    ).not.toHaveClass('auth-card--ready')
+  } finally {
+    stopTracking()
+  }
 })
 
 test('인증 확인 중에는 보호 화면을 먼저 표시하지 않는다', async () => {

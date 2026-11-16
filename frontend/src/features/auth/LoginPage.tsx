@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Navigate, useLocation } from 'react-router'
 import Button from '../../components/Button'
 import { ErrorState, LoadingState } from '../../components/Feedback'
@@ -19,7 +19,17 @@ function LoginPage() {
   const [password, setPassword] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<Error | null>(null)
+  const [showEntrance, setShowEntrance] = useState(
+    () => document.documentElement.dataset.uiInput !== 'keyboard',
+  )
   const submitting = useRef(false)
+
+  useEffect(() => {
+    if (!showEntrance) return
+    const finishEntrance = () => setShowEntrance(false)
+    document.addEventListener('keydown', finishEntrance, true)
+    return () => document.removeEventListener('keydown', finishEntrance, true)
+  }, [showEntrance])
   const from = (location.state as { from?: unknown } | null)?.from
   const destination =
     typeof from === 'string' &&
@@ -72,7 +82,13 @@ function LoginPage() {
             <VoicePoweredOrb enableVoiceControl={false} />
           </div>
         </div>
-        <section className="auth-card" aria-labelledby="login-heading">
+        <section
+          className={`auth-card${showEntrance && !restoring && !restoreError ? ' auth-card--ready' : ''}`}
+          aria-labelledby="login-heading"
+          onAnimationEnd={(event) => {
+            if (event.target === event.currentTarget) setShowEntrance(false)
+          }}
+        >
           <h1 id="login-heading">워크스페이스에 로그인</h1>
           {restoring ? (
             <LoadingState message="인증 상태를 확인하는 중…" />

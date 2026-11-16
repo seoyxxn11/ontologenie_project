@@ -416,6 +416,15 @@
   box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
 }
 
+@media (max-width: 600px) {
+  .source-field-help-content {
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-width: none;
+  }
+}
+
 .source-sync-runs {
   overflow-anchor: none;
   container-type: inline-size;

@@ -22,11 +22,12 @@ test('포인터·키보드 입력을 화면 열기 핸들러보다 먼저 반영
     inputAtOpen.push(document.documentElement.dataset.uiInput)
   })
 
-  expect(document.documentElement.dataset.uiInput).toBe('keyboard')
+  expect(document.documentElement.dataset.uiInput).toBe('initial')
+  fireEvent.keyDown(button, { key: 'Tab' })
   fireEvent.pointerDown(button, { pointerType: 'mouse' })
   fireEvent.keyDown(button, { key: 'Enter' })
   fireEvent.pointerDown(button, { pointerType: 'touch' })
-  expect(inputAtOpen).toEqual(['pointer', 'keyboard', 'pointer'])
+  expect(inputAtOpen).toEqual(['keyboard', 'pointer', 'keyboard', 'pointer'])
 })
 
 test('정리 후에는 입력을 추적하지 않고 이전 속성을 복원한다', () => {
