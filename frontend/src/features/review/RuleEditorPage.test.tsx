@@ -544,7 +544,7 @@ test('탭과 조건을 전환해도 규칙명·검색·조건별 속성과 변�
   )
   await user.click(screen.getByRole('button', { name: '조건 1' }))
   expect(screen.getByLabelText('접두어')).toHaveValue('WO-')
-  expect(screen.getByRole('searchbox', { name: '출발 속성 검색' })).toHaveValue(
+  expect(screen.getByRole('combobox', { name: '출발 속성 검색' })).toHaveValue(
     '설비',
   )
   await user.click(screen.getByRole('button', { name: '기본 정보' }))
@@ -576,4 +576,94 @@ test('입력이 빠진 다른 조건이 있으면 해당 조건을 열고 저장
   )
   expect(screen.getByRole('group', { name: '조건 2' })).toBeVisible()
   expect(request).not.toHaveBeenCalled()
+})
+
+test('관계 유형 미선택 안내에서 기본 정보로 돌아가도 입력을 유지한다', async () => {
+  const user = userEvent.setup()
+  open()
+  await user.type(
+    await screen.findByLabelText('규칙명', { exact: true }),
+    '입력 유지 확인',
+  )
+  await user.click(screen.getByRole('button', { name: '연결 조건' }))
+  expect(screen.getByRole('status')).toHaveTextContent('관계 유형을 먼저 선택')
+  await user.click(screen.getByRole('button', { name: '관계 유형 선택' }))
+  expect(screen.getByLabelText('규칙명', { exact: true })).toHaveValue(
+    '입력 유지 확인',
+  )
+})
+
+test('연결 조건의 양쪽 값 변환 함수를 후보 목록에서 선택한다', async () => {
+  const user = userEvent.setup()
+  open()
+  await user.click(await screen.findByRole('button', { name: '연결 조건' }))
+  for (const side of ['출발', '도착']) {
+    await user.click(
+      screen.getByRole('button', { name: `${side} 값 변환 추가` }),
+    )
+    const input = screen.getByRole('combobox', {
+      name: `${side} 값 변환 1 함수 검색`,
+    })
+    await user.click(input)
+    expect(
+      within(screen.getByRole('listbox')).getAllByRole('option'),
+    ).toHaveLength(10)
+    await user.type(input, '접두어 추가')
+    await user.click(
+      within(screen.getByRole('listbox')).getByRole('option', {
+        name: /접두어 추가/,
+      }),
+    )
+    expect(
+      screen.getByRole('combobox', {
+        name: `${side} 값 변환 1 함수`,
+      }),
+    ).toHaveValue('ADD_PREFIX')
+  }
+  await user.click(screen.getByRole('button', { name: '기본 정보' }))
+  await user.click(screen.getByRole('button', { name: '연결 조건' }))
+  expect(
+    screen.getByRole('combobox', { name: '출발 값 변환 1 함수' }),
+  ).toHaveValue('ADD_PREFIX')
+  expect(
+    screen.getByRole('combobox', { name: '도착 값 변환 1 함수' }),
+  ).toHaveValue('ADD_PREFIX')
+})
+
+test('같은 변환 함수를 다시 선택해도 접두어와 대응표를 유지한다', async () => {
+  const user = userEvent.setup()
+  open()
+  await user.click(await screen.findByRole('button', { name: '연결 조건' }))
+  await user.click(screen.getByRole('button', { name: '출발 값 변환 추가' }))
+  const search = screen.getByRole('combobox', {
+    name: '출발 값 변환 1 함수 검색',
+  })
+  for (const [op, name, label, value] of [
+    ['ADD_PREFIX', '접두어 추가', '접두어', 'WO-'],
+    ['MAP_VALUE', '값 대응표', '값 대응표', '{"A":"B"}'],
+  ]) {
+    await user.click(search)
+    await user.click(
+      within(screen.getByRole('listbox')).getByRole('option', {
+        name: new RegExp(name),
+      }),
+    )
+    const argument = screen.getByLabelText(label, { exact: true })
+    await user.click(argument)
+    await user.paste(value)
+    await user.click(search)
+    await user.click(
+      within(screen.getByRole('listbox')).getByRole('option', {
+        name: new RegExp(name),
+      }),
+    )
+    expect(argument).toHaveValue(value)
+    expect(
+      screen.getByRole('combobox', { name: '출발 값 변환 1 함수' }),
+    ).toHaveValue(op)
+    await user.click(search)
+    await user.type(search, name)
+    await user.keyboard('{ArrowDown}{Enter}')
+    expect(argument).toHaveValue(value)
+  }
 })
