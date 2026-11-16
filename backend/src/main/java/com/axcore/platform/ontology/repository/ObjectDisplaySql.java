@@ -15,24 +15,33 @@ public final class ObjectDisplaySql {
 
     private ObjectDisplaySql() {}
 
+    // 같은 매핑 메타데이터를 객체·키마다 다시 읽지 않는다. 한 컬럼의 모든 매핑 속성이 NORMAL이어야 공개한다.
     public static final String SOURCE_SCOPE_JOINS =
             """
             cross join lateral (
                 select oi.object_type_id <> all(:maskedTypeIds) as can_view_restricted
             ) scope
+            left join (
+                select source_mapping_id, object_type_id,
+                       array_agg(column_name) filter (where can_view) as readable_columns
+                from (
+                    select pm.source_mapping_id, pd.object_type_id, sc.column_name,
+                           bool_and(pd.sensitivity = 'NORMAL') as can_view
+                    from property_source_mapping pm
+                    join source_column sc on sc.id = pm.source_column_id
+                    join property_definition pd on pd.id = pm.property_definition_id
+                    group by pm.source_mapping_id, pd.object_type_id, sc.column_name
+                ) mapped_keys
+                group by source_mapping_id, object_type_id
+            ) source_visibility
+              on not scope.can_view_restricted
+             and source_visibility.source_mapping_id = oi.source_mapping_id
+             and source_visibility.object_type_id = oi.object_type_id
             left join lateral (
                 select jsonb_object_agg(raw_key.key, 'null'::jsonb) as masked_values
                 from jsonb_each(oi.source_key) raw_key
                 where not scope.can_view_restricted
-                  and not coalesce((
-                      select bool_and(pd.sensitivity = 'NORMAL')
-                      from property_source_mapping pm
-                      join source_column sc on sc.id = pm.source_column_id
-                      join property_definition pd on pd.id = pm.property_definition_id
-                      where pm.source_mapping_id = oi.source_mapping_id
-                        and pd.object_type_id = oi.object_type_id
-                        and sc.column_name = raw_key.key
-                  ), false)
+                  and not coalesce(raw_key.key = any(source_visibility.readable_columns), false)
             ) source_mask on true
             """;
 

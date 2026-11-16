@@ -1,0 +1,26 @@
+{
+  "scope": "page+count SQL EXPLAIN ANALYZE execution time sum; not HTTP latency",
+  "source": "sql-comparison.json",
+  "cases": [
+    {
+      "concurrency": 1,
+      "n_per_version": 20,
+      "before_mean_ms": 910.60585,
+      "after_mean_ms": 146.30125,
+      "before_p95_ms": 1036.368,
+      "after_p95_ms": 186.144,
+      "mean_reduction_percent": 83.933636051207,
+      "p95_reduction_percent": 82.03881246815803
+    },
+    {
+      "concurrency": 5,
+      "n_per_version": 20,
+      "before_mean_ms": 2286.0503,
+      "after_mean_ms": 303.5542,
+      "before_p95_ms": 2395.608,
+      "after_p95_ms": 342.40700000000004,
+      "mean_reduction_percent": 86.7214557789914,
+      "p95_reduction_percent": 85.70688526670473
+    }
+  ]
+}

@@ -1,0 +1,1760 @@
+{
+  "captured_at": "2026-11-16T12:02:39.355411+00:00",
+  "scope": "SQL execution only; read-only transaction; jit=off like current API",
+  "baseline_ref": "e9a3e080",
+  "scopes": {
+    "visible": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      7,
+      8,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27
+    ],
+    "masked": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      7,
+      8,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27
+    ]
+  },
+  "plans": [
+    {
+      "version": "before",
+      "kind": "page",
+      "planning_ms": 4.049,
+      "execution_ms": 465.727,
+      "nodes": [
+        {
+          "Node Type": "Limit",
+          "Actual Total Time": 464.966,
+          "Actual Rows": 20.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 128609,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Actual Total Time": 464.96,
+          "Actual Rows": 20.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 128609,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Total Time": 464.711,
+          "Actual Rows": 20.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 128550,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Nested Loop",
+          "Actual Total Time": 464.408,
+          "Actual Rows": 154.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 128544,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash Join",
+          "Actual Total Time": 5.486,
+          "Actual Rows": 3396.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 429,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash Join",
+          "Actual Total Time": 4.392,
+          "Actual Rows": 3396.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 422,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "object_instance",
+          "Actual Total Time": 2.643,
+          "Actual Rows": 3396.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 420,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash",
+          "Actual Total Time": 0.024,
+          "Actual Rows": 25.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 2,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "object_type",
+          "Actual Total Time": 0.012,
+          "Actual Rows": 25.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 2,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash",
+          "Actual Total Time": 0.108,
+          "Actual Rows": 185.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 7,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "property_definition",
+          "Actual Total Time": 0.065,
+          "Actual Rows": 185.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 7,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 0.117,
+          "Actual Rows": 1.0,
+          "Actual Loops": 3396,
+          "Shared Hit Blocks": 120428,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Actual Total Time": 0.117,
+          "Actual Rows": 0.0,
+          "Actual Loops": 3396,
+          "Shared Hit Blocks": 120428,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Function Scan",
+          "Actual Total Time": 0.116,
+          "Actual Rows": 0.0,
+          "Actual Loops": 3396,
+          "Shared Hit Blocks": 120428,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 0.071,
+          "Actual Rows": 1.0,
+          "Actual Loops": 5396,
+          "Shared Hit Blocks": 120428,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Nested Loop",
+          "Actual Total Time": 0.07,
+          "Actual Rows": 1.0,
+          "Actual Loops": 5396,
+          "Shared Hit Blocks": 120428,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Nested Loop",
+          "Actual Total Time": 0.068,
+          "Actual Rows": 1.0,
+          "Actual Loops": 5396,
+          "Shared Hit Blocks": 109636,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "source_column",
+          "Actual Total Time": 0.021,
+          "Actual Rows": 2.86,
+          "Actual Loops": 5396,
+          "Shared Hit Blocks": 32376,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "property_source_mapping",
+          "Actual Total Time": 0.014,
+          "Actual Rows": 6.16,
+          "Actual Loops": 15452,
+          "Shared Hit Blocks": 77260,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "property_definition",
+          "Actual Total Time": 0.001,
+          "Actual Rows": 1.0,
+          "Actual Loops": 5396,
+          "Shared Hit Blocks": 10792,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 0.007,
+          "Actual Rows": 1.0,
+          "Actual Loops": 153,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Total Time": 0.005,
+          "Actual Rows": 3.0,
+          "Actual Loops": 153,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Function Scan",
+          "Actual Total Time": 0.003,
+          "Actual Rows": 3.0,
+          "Actual Loops": 153,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Function Scan",
+          "Actual Total Time": 0.004,
+          "Actual Rows": 1.0,
+          "Actual Loops": 154,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "property_definition",
+          "Actual Total Time": 0.0,
+          "Actual Rows": 0,
+          "Actual Loops": 0,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 0.006,
+          "Actual Rows": 1.0,
+          "Actual Loops": 3345,
+          "Shared Hit Blocks": 3,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Total Time": 0.005,
+          "Actual Rows": 1.59,
+          "Actual Loops": 3345,
+          "Shared Hit Blocks": 3,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Function Scan",
+          "Actual Total Time": 0.003,
+          "Actual Rows": 1.59,
+          "Actual Loops": 3345,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Function Scan",
+          "Actual Total Time": 0.003,
+          "Actual Rows": 0.0,
+          "Actual Loops": 3243,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "property_definition",
+          "Actual Total Time": 0.005,
+          "Actual Rows": 0.0,
+          "Actual Loops": 3242,
+          "Shared Hit Blocks": 7684,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 0.007,
+          "Actual Rows": 1.0,
+          "Actual Loops": 19,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Total Time": 0.006,
+          "Actual Rows": 3.0,
+          "Actual Loops": 19,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Function Scan",
+          "Actual Total Time": 0.003,
+          "Actual Rows": 3.0,
+          "Actual Loops": 19,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 0.003,
+          "Actual Rows": 1.0,
+          "Actual Loops": 20,
+          "Shared Hit Blocks": 59,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "property_definition",
+          "Actual Total Time": 0.003,
+          "Actual Rows": 0.0,
+          "Actual Loops": 20,
+          "Shared Hit Blocks": 59,
+          "Shared Read Blocks": 0
+        }
+      ]
+    },
+    {
+      "version": "before",
+      "kind": "count",
+      "planning_ms": 3.808,
+      "execution_ms": 432.718,
+      "nodes": [
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 432.076,
+          "Actual Rows": 1.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 128544,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Nested Loop",
+          "Actual Total Time": 432.039,
+          "Actual Rows": 154.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 128544,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash Join",
+          "Actual Total Time": 5.004,
+          "Actual Rows": 3396.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 429,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash Join",
+          "Actual Total Time": 4.02,
+          "Actual Rows": 3396.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 422,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "object_instance",
+          "Actual Total Time": 2.786,
+          "Actual Rows": 3396.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 420,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash",
+          "Actual Total Time": 0.031,
+          "Actual Rows": 25.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 2,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "object_type",
+          "Actual Total Time": 0.016,
+          "Actual Rows": 25.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 2,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash",
+          "Actual Total Time": 0.126,
+          "Actual Rows": 185.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 7,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "property_definition",
+          "Actual Total Time": 0.079,
+          "Actual Rows": 185.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 7,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 0.11,
+          "Actual Rows": 1.0,
+          "Actual Loops": 3396,
+          "Shared Hit Blocks": 120428,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Actual Total Time": 0.11,
+          "Actual Rows": 0.0,
+          "Actual Loops": 3396,
+          "Shared Hit Blocks": 120428,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Function Scan",
+          "Actual Total Time": 0.109,
+          "Actual Rows": 0.0,
+          "Actual Loops": 3396,
+          "Shared Hit Blocks": 120428,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 0.067,
+          "Actual Rows": 1.0,
+          "Actual Loops": 5396,
+          "Shared Hit Blocks": 120428,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Nested Loop",
+          "Actual Total Time": 0.066,
+          "Actual Rows": 1.0,
+          "Actual Loops": 5396,
+          "Shared Hit Blocks": 120428,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Nested Loop",
+          "Actual Total Time": 0.064,
+          "Actual Rows": 1.0,
+          "Actual Loops": 5396,
+          "Shared Hit Blocks": 109636,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "source_column",
+          "Actual Total Time": 0.019,
+          "Actual Rows": 2.86,
+          "Actual Loops": 5396,
+          "Shared Hit Blocks": 32376,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "property_source_mapping",
+          "Actual Total Time": 0.014,
+          "Actual Rows": 6.16,
+          "Actual Loops": 15452,
+          "Shared Hit Blocks": 77260,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "property_definition",
+          "Actual Total Time": 0.001,
+          "Actual Rows": 1.0,
+          "Actual Loops": 5396,
+          "Shared Hit Blocks": 10792,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 0.006,
+          "Actual Rows": 1.0,
+          "Actual Loops": 3345,
+          "Shared Hit Blocks": 3,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Total Time": 0.005,
+          "Actual Rows": 1.59,
+          "Actual Loops": 3345,
+          "Shared Hit Blocks": 3,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Function Scan",
+          "Actual Total Time": 0.003,
+          "Actual Rows": 1.59,
+          "Actual Loops": 3345,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Function Scan",
+          "Actual Total Time": 0.003,
+          "Actual Rows": 0.0,
+          "Actual Loops": 3243,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "property_definition",
+          "Actual Total Time": 0.004,
+          "Actual Rows": 0.0,
+          "Actual Loops": 3242,
+          "Shared Hit Blocks": 7684,
+          "Shared Read Blocks": 0
+        }
+      ]
+    },
+    {
+      "version": "after",
+      "kind": "page",
+      "planning_ms": 4.195,
+      "execution_ms": 64.225,
+      "nodes": [
+        {
+          "Node Type": "Limit",
+          "Actual Total Time": 63.326,
+          "Actual Rows": 20.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 8250,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Actual Total Time": 63.32,
+          "Actual Rows": 20.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 8250,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Total Time": 63.055,
+          "Actual Rows": 20.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 8191,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Nested Loop",
+          "Actual Total Time": 62.839,
+          "Actual Rows": 154.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 8185,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Nested Loop",
+          "Actual Total Time": 7.167,
+          "Actual Rows": 3396.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 498,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Nested Loop",
+          "Actual Total Time": 5.718,
+          "Actual Rows": 3396.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 488,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash Join",
+          "Actual Total Time": 3.75,
+          "Actual Rows": 3396.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 438,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "object_instance",
+          "Actual Total Time": 1.851,
+          "Actual Rows": 3396.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 420,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash",
+          "Actual Total Time": 0.529,
+          "Actual Rows": 25.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 18,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Subquery Scan",
+          "Actual Total Time": 0.516,
+          "Actual Rows": 25.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 18,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 0.511,
+          "Actual Rows": 25.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 18,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 0.447,
+          "Actual Rows": 185.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 18,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash Join",
+          "Actual Total Time": 0.352,
+          "Actual Rows": 185.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 18,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash Join",
+          "Actual Total Time": 0.186,
+          "Actual Rows": 185.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 11,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "property_source_mapping",
+          "Actual Total Time": 0.036,
+          "Actual Rows": 185.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 5,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash",
+          "Actual Total Time": 0.087,
+          "Actual Rows": 216.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 6,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "source_column",
+          "Actual Total Time": 0.036,
+          "Actual Rows": 216.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 6,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash",
+          "Actual Total Time": 0.111,
+          "Actual Rows": 185.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 7,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "property_definition",
+          "Actual Total Time": 0.07,
+          "Actual Rows": 185.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 7,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Memoize",
+          "Actual Total Time": 0.0,
+          "Actual Rows": 1.0,
+          "Actual Loops": 3396,
+          "Shared Hit Blocks": 50,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "object_type",
+          "Actual Total Time": 0.002,
+          "Actual Rows": 1.0,
+          "Actual Loops": 25,
+          "Shared Hit Blocks": 50,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Memoize",
+          "Actual Total Time": 0.0,
+          "Actual Rows": 0.02,
+          "Actual Loops": 3396,
+          "Shared Hit Blocks": 10,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "property_definition",
+          "Actual Total Time": 0.003,
+          "Actual Rows": 0.83,
+          "Actual Loops": 6,
+          "Shared Hit Blocks": 10,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 0.003,
+          "Actual Rows": 1.0,
+          "Actual Loops": 3396,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Actual Total Time": 0.003,
+          "Actual Rows": 0.0,
+          "Actual Loops": 3396,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Function Scan",
+          "Actual Total Time": 0.002,
+          "Actual Rows": 0.0,
+          "Actual Loops": 3396,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 0.005,
+          "Actual Rows": 1.0,
+          "Actual Loops": 153,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Total Time": 0.005,
+          "Actual Rows": 3.0,
+          "Actual Loops": 153,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Function Scan",
+          "Actual Total Time": 0.003,
+          "Actual Rows": 3.0,
+          "Actual Loops": 153,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Function Scan",
+          "Actual Total Time": 0.004,
+          "Actual Rows": 1.0,
+          "Actual Loops": 154,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "property_definition",
+          "Actual Total Time": 0.0,
+          "Actual Rows": 0,
+          "Actual Loops": 0,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 0.004,
+          "Actual Rows": 1.0,
+          "Actual Loops": 3345,
+          "Shared Hit Blocks": 3,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Total Time": 0.003,
+          "Actual Rows": 1.59,
+          "Actual Loops": 3345,
+          "Shared Hit Blocks": 3,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Function Scan",
+          "Actual Total Time": 0.002,
+          "Actual Rows": 1.59,
+          "Actual Loops": 3345,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Function Scan",
+          "Actual Total Time": 0.003,
+          "Actual Rows": 0.0,
+          "Actual Loops": 3243,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "property_definition",
+          "Actual Total Time": 0.004,
+          "Actual Rows": 0.0,
+          "Actual Loops": 3242,
+          "Shared Hit Blocks": 7684,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 0.007,
+          "Actual Rows": 1.0,
+          "Actual Loops": 19,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Total Time": 0.006,
+          "Actual Rows": 3.0,
+          "Actual Loops": 19,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Function Scan",
+          "Actual Total Time": 0.004,
+          "Actual Rows": 3.0,
+          "Actual Loops": 19,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 0.004,
+          "Actual Rows": 1.0,
+          "Actual Loops": 20,
+          "Shared Hit Blocks": 59,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "property_definition",
+          "Actual Total Time": 0.003,
+          "Actual Rows": 0.0,
+          "Actual Loops": 20,
+          "Shared Hit Blocks": 59,
+          "Shared Read Blocks": 0
+        }
+      ]
+    },
+    {
+      "version": "after",
+      "kind": "count",
+      "planning_ms": 3.34,
+      "execution_ms": 60.372,
+      "nodes": [
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 59.728,
+          "Actual Rows": 1.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 8134,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Nested Loop",
+          "Actual Total Time": 59.701,
+          "Actual Rows": 154.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 8134,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash Join",
+          "Actual Total Time": 5.156,
+          "Actual Rows": 3396.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 447,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash Join",
+          "Actual Total Time": 3.603,
+          "Actual Rows": 3396.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 429,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash Join",
+          "Actual Total Time": 2.855,
+          "Actual Rows": 3396.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 422,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "object_instance",
+          "Actual Total Time": 1.889,
+          "Actual Rows": 3396.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 420,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash",
+          "Actual Total Time": 0.027,
+          "Actual Rows": 25.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 2,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "object_type",
+          "Actual Total Time": 0.016,
+          "Actual Rows": 25.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 2,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash",
+          "Actual Total Time": 0.107,
+          "Actual Rows": 185.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 7,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "property_definition",
+          "Actual Total Time": 0.064,
+          "Actual Rows": 185.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 7,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash",
+          "Actual Total Time": 0.477,
+          "Actual Rows": 25.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 18,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Subquery Scan",
+          "Actual Total Time": 0.464,
+          "Actual Rows": 25.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 18,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 0.46,
+          "Actual Rows": 25.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 18,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 0.397,
+          "Actual Rows": 185.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 18,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash Join",
+          "Actual Total Time": 0.306,
+          "Actual Rows": 185.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 18,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash Join",
+          "Actual Total Time": 0.182,
+          "Actual Rows": 185.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 11,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "property_source_mapping",
+          "Actual Total Time": 0.035,
+          "Actual Rows": 185.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 5,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash",
+          "Actual Total Time": 0.083,
+          "Actual Rows": 216.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 6,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "source_column",
+          "Actual Total Time": 0.037,
+          "Actual Rows": 216.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 6,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Hash",
+          "Actual Total Time": 0.068,
+          "Actual Rows": 185.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 7,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Relation Name": "property_definition",
+          "Actual Total Time": 0.031,
+          "Actual Rows": 185.0,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 7,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 0.003,
+          "Actual Rows": 1.0,
+          "Actual Loops": 3396,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Result",
+          "Actual Total Time": 0.003,
+          "Actual Rows": 0.0,
+          "Actual Loops": 3396,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Function Scan",
+          "Actual Total Time": 0.002,
+          "Actual Rows": 0.0,
+          "Actual Loops": 3396,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Aggregate",
+          "Actual Total Time": 0.004,
+          "Actual Rows": 1.0,
+          "Actual Loops": 3345,
+          "Shared Hit Blocks": 3,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Sort",
+          "Actual Total Time": 0.003,
+          "Actual Rows": 1.59,
+          "Actual Loops": 3345,
+          "Shared Hit Blocks": 3,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Function Scan",
+          "Actual Total Time": 0.002,
+          "Actual Rows": 1.59,
+          "Actual Loops": 3345,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Function Scan",
+          "Actual Total Time": 0.003,
+          "Actual Rows": 0.0,
+          "Actual Loops": 3243,
+          "Shared Hit Blocks": 0,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "property_definition",
+          "Actual Total Time": 0.004,
+          "Actual Rows": 0.0,
+          "Actual Loops": 3242,
+          "Shared Hit Blocks": 7684,
+          "Shared Read Blocks": 0
+        }
+      ]
+    }
+  ],
+  "comparisons": [
+    {
+      "kind": "page",
+      "same_rows": true
+    },
+    {
+      "kind": "count",
+      "same_rows": true
+    }
+  ],
+  "benchmarks": [
+    {
+      "version": "before",
+      "concurrency": 1,
+      "samples": [
+        {
+          "index": 0,
+          "started_at": "2026-11-16T12:02:42.099077+00:00",
+          "page_execution_ms": 556.516,
+          "count_execution_ms": 454.386,
+          "total_sql_execution_ms": 1010.902
+        },
+        {
+          "index": 1,
+          "started_at": "2026-11-16T12:02:43.408037+00:00",
+          "page_execution_ms": 434.768,
+          "count_execution_ms": 431.111,
+          "total_sql_execution_ms": 865.8789999999999
+        },
+        {
+          "index": 2,
+          "started_at": "2026-11-16T12:02:44.540597+00:00",
+          "page_execution_ms": 438.41,
+          "count_execution_ms": 463.99,
+          "total_sql_execution_ms": 902.4000000000001
+        },
+        {
+          "index": 3,
+          "started_at": "2026-11-16T12:02:45.702241+00:00",
+          "page_execution_ms": 438.374,
+          "count_execution_ms": 482.371,
+          "total_sql_execution_ms": 920.745
+        },
+        {
+          "index": 4,
+          "started_at": "2026-11-16T12:02:46.890446+00:00",
+          "page_execution_ms": 421.247,
+          "count_execution_ms": 409.573,
+          "total_sql_execution_ms": 830.8199999999999
+        },
+        {
+          "index": 5,
+          "started_at": "2026-11-16T12:02:47.989434+00:00",
+          "page_execution_ms": 421.1,
+          "count_execution_ms": 419.164,
+          "total_sql_execution_ms": 840.264
+        },
+        {
+          "index": 6,
+          "started_at": "2026-11-16T12:02:49.083350+00:00",
+          "page_execution_ms": 417.802,
+          "count_execution_ms": 464.292,
+          "total_sql_execution_ms": 882.094
+        },
+        {
+          "index": 7,
+          "started_at": "2026-11-16T12:02:50.225100+00:00",
+          "page_execution_ms": 462.624,
+          "count_execution_ms": 429.54,
+          "total_sql_execution_ms": 892.164
+        },
+        {
+          "index": 8,
+          "started_at": "2026-11-16T12:02:51.384398+00:00",
+          "page_execution_ms": 435.576,
+          "count_execution_ms": 454.289,
+          "total_sql_execution_ms": 889.865
+        },
+        {
+          "index": 9,
+          "started_at": "2026-11-16T12:02:52.550094+00:00",
+          "page_execution_ms": 484.306,
+          "count_execution_ms": 433.083,
+          "total_sql_execution_ms": 917.389
+        },
+        {
+          "index": 10,
+          "started_at": "2026-11-16T12:02:53.738781+00:00",
+          "page_execution_ms": 417.349,
+          "count_execution_ms": 411.468,
+          "total_sql_execution_ms": 828.817
+        },
+        {
+          "index": 11,
+          "started_at": "2026-11-16T12:02:54.820361+00:00",
+          "page_execution_ms": 438.28,
+          "count_execution_ms": 426.507,
+          "total_sql_execution_ms": 864.787
+        },
+        {
+          "index": 12,
+          "started_at": "2026-11-16T12:02:55.942232+00:00",
+          "page_execution_ms": 436.815,
+          "count_execution_ms": 474.897,
+          "total_sql_execution_ms": 911.712
+        },
+        {
+          "index": 13,
+          "started_at": "2026-11-16T12:02:57.139268+00:00",
+          "page_execution_ms": 445.635,
+          "count_execution_ms": 416.647,
+          "total_sql_execution_ms": 862.2819999999999
+        },
+        {
+          "index": 14,
+          "started_at": "2026-11-16T12:02:58.267900+00:00",
+          "page_execution_ms": 438.941,
+          "count_execution_ms": 419.88,
+          "total_sql_execution_ms": 858.8209999999999
+        },
+        {
+          "index": 15,
+          "started_at": "2026-11-16T12:02:59.397459+00:00",
+          "page_execution_ms": 514.553,
+          "count_execution_ms": 521.815,
+          "total_sql_execution_ms": 1036.368
+        },
+        {
+          "index": 16,
+          "started_at": "2026-11-16T12:03:00.855301+00:00",
+          "page_execution_ms": 615.934,
+          "count_execution_ms": 515.378,
+          "total_sql_execution_ms": 1131.312
+        },
+        {
+          "index": 17,
+          "started_at": "2026-11-16T12:03:02.334913+00:00",
+          "page_execution_ms": 450.158,
+          "count_execution_ms": 464.861,
+          "total_sql_execution_ms": 915.019
+        },
+        {
+          "index": 18,
+          "started_at": "2026-11-16T12:03:03.530069+00:00",
+          "page_execution_ms": 474.978,
+          "count_execution_ms": 444.031,
+          "total_sql_execution_ms": 919.009
+        },
+        {
+          "index": 19,
+          "started_at": "2026-11-16T12:03:04.746069+00:00",
+          "page_execution_ms": 464.628,
+          "count_execution_ms": 466.84,
+          "total_sql_execution_ms": 931.468
+        }
+      ],
+      "n": 20,
+      "mean_ms": 910.60585,
+      "p95_ms": 1036.368
+    },
+    {
+      "version": "after",
+      "concurrency": 1,
+      "samples": [
+        {
+          "index": 0,
+          "started_at": "2026-11-16T12:03:05.977849+00:00",
+          "page_execution_ms": 70.842,
+          "count_execution_ms": 81.859,
+          "total_sql_execution_ms": 152.701
+        },
+        {
+          "index": 1,
+          "started_at": "2026-11-16T12:03:06.484537+00:00",
+          "page_execution_ms": 113.714,
+          "count_execution_ms": 96.536,
+          "total_sql_execution_ms": 210.25
+        },
+        {
+          "index": 2,
+          "started_at": "2026-11-16T12:03:07.071416+00:00",
+          "page_execution_ms": 108.352,
+          "count_execution_ms": 77.792,
+          "total_sql_execution_ms": 186.144
+        },
+        {
+          "index": 3,
+          "started_at": "2026-11-16T12:03:07.638798+00:00",
+          "page_execution_ms": 82.132,
+          "count_execution_ms": 78.06,
+          "total_sql_execution_ms": 160.192
+        },
+        {
+          "index": 4,
+          "started_at": "2026-11-16T12:03:08.146297+00:00",
+          "page_execution_ms": 79.814,
+          "count_execution_ms": 66.907,
+          "total_sql_execution_ms": 146.721
+        },
+        {
+          "index": 5,
+          "started_at": "2026-11-16T12:03:08.635456+00:00",
+          "page_execution_ms": 70.378,
+          "count_execution_ms": 61.564,
+          "total_sql_execution_ms": 131.942
+        },
+        {
+          "index": 6,
+          "started_at": "2026-11-16T12:03:09.077900+00:00",
+          "page_execution_ms": 71.146,
+          "count_execution_ms": 58.934,
+          "total_sql_execution_ms": 130.07999999999998
+        },
+        {
+          "index": 7,
+          "started_at": "2026-11-16T12:03:09.479810+00:00",
+          "page_execution_ms": 71.613,
+          "count_execution_ms": 61.58,
+          "total_sql_execution_ms": 133.19299999999998
+        },
+        {
+          "index": 8,
+          "started_at": "2026-11-16T12:03:09.876391+00:00",
+          "page_execution_ms": 86.048,
+          "count_execution_ms": 67.519,
+          "total_sql_execution_ms": 153.567
+        },
+        {
+          "index": 9,
+          "started_at": "2026-11-16T12:03:10.305967+00:00",
+          "page_execution_ms": 75.486,
+          "count_execution_ms": 61.6,
+          "total_sql_execution_ms": 137.086
+        },
+        {
+          "index": 10,
+          "started_at": "2026-11-16T12:03:10.722045+00:00",
+          "page_execution_ms": 65.047,
+          "count_execution_ms": 60.337,
+          "total_sql_execution_ms": 125.384
+        },
+        {
+          "index": 11,
+          "started_at": "2026-11-16T12:03:11.124621+00:00",
+          "page_execution_ms": 69.597,
+          "count_execution_ms": 61.777,
+          "total_sql_execution_ms": 131.374
+        },
+        {
+          "index": 12,
+          "started_at": "2026-11-16T12:03:11.524324+00:00",
+          "page_execution_ms": 66.534,
+          "count_execution_ms": 60.47,
+          "total_sql_execution_ms": 127.004
+        },
+        {
+          "index": 13,
+          "started_at": "2026-11-16T12:03:11.913108+00:00",
+          "page_execution_ms": 84.918,
+          "count_execution_ms": 73.311,
+          "total_sql_execution_ms": 158.229
+        },
+        {
+          "index": 14,
+          "started_at": "2026-11-16T12:03:12.360786+00:00",
+          "page_execution_ms": 76.867,
+          "count_execution_ms": 74.763,
+          "total_sql_execution_ms": 151.63
+        },
+        {
+          "index": 15,
+          "started_at": "2026-11-16T12:03:12.804342+00:00",
+          "page_execution_ms": 106.644,
+          "count_execution_ms": 61.851,
+          "total_sql_execution_ms": 168.495
+        },
+        {
+          "index": 16,
+          "started_at": "2026-11-16T12:03:13.286975+00:00",
+          "page_execution_ms": 65.103,
+          "count_execution_ms": 58.459,
+          "total_sql_execution_ms": 123.562
+        },
+        {
+          "index": 17,
+          "started_at": "2026-11-16T12:03:13.665607+00:00",
+          "page_execution_ms": 65.499,
+          "count_execution_ms": 65.775,
+          "total_sql_execution_ms": 131.274
+        },
+        {
+          "index": 18,
+          "started_at": "2026-11-16T12:03:14.061052+00:00",
+          "page_execution_ms": 66.365,
+          "count_execution_ms": 65.311,
+          "total_sql_execution_ms": 131.676
+        },
+        {
+          "index": 19,
+          "started_at": "2026-11-16T12:03:14.468390+00:00",
+          "page_execution_ms": 72.712,
+          "count_execution_ms": 62.809,
+          "total_sql_execution_ms": 135.52100000000002
+        }
+      ],
+      "n": 20,
+      "mean_ms": 146.30125,
+      "p95_ms": 186.144
+    },
+    {
+      "version": "before",
+      "concurrency": 5,
+      "samples": [
+        {
+          "index": 0,
+          "started_at": "2026-11-16T12:03:14.879079+00:00",
+          "page_execution_ms": 1281.554,
+          "count_execution_ms": 1091.92,
+          "total_sql_execution_ms": 2373.474
+        },
+        {
+          "index": 1,
+          "started_at": "2026-11-16T12:03:14.876183+00:00",
+          "page_execution_ms": 1457.992,
+          "count_execution_ms": 933.754,
+          "total_sql_execution_ms": 2391.746
+        },
+        {
+          "index": 2,
+          "started_at": "2026-11-16T12:03:14.876449+00:00",
+          "page_execution_ms": 1220.96,
+          "count_execution_ms": 1174.648,
+          "total_sql_execution_ms": 2395.608
+        },
+        {
+          "index": 3,
+          "started_at": "2026-11-16T12:03:14.875988+00:00",
+          "page_execution_ms": 993.854,
+          "count_execution_ms": 1140.998,
+          "total_sql_execution_ms": 2134.852
+        },
+        {
+          "index": 4,
+          "started_at": "2026-11-16T12:03:14.875531+00:00",
+          "page_execution_ms": 1042.984,
+          "count_execution_ms": 1162.998,
+          "total_sql_execution_ms": 2205.982
+        },
+        {
+          "index": 5,
+          "started_at": "2026-11-16T12:03:17.915348+00:00",
+          "page_execution_ms": 1198.017,
+          "count_execution_ms": 971.757,
+          "total_sql_execution_ms": 2169.774
+        },
+        {
+          "index": 6,
+          "started_at": "2026-11-16T12:03:17.915446+00:00",
+          "page_execution_ms": 1081.865,
+          "count_execution_ms": 1153.881,
+          "total_sql_execution_ms": 2235.746
+        },
+        {
+          "index": 7,
+          "started_at": "2026-11-16T12:03:17.915690+00:00",
+          "page_execution_ms": 1233.263,
+          "count_execution_ms": 1144.625,
+          "total_sql_execution_ms": 2377.888
+        },
+        {
+          "index": 8,
+          "started_at": "2026-11-16T12:03:17.915750+00:00",
+          "page_execution_ms": 1095.94,
+          "count_execution_ms": 1167.576,
+          "total_sql_execution_ms": 2263.516
+        },
+        {
+          "index": 9,
+          "started_at": "2026-11-16T12:03:17.915264+00:00",
+          "page_execution_ms": 1042.974,
+          "count_execution_ms": 1082.183,
+          "total_sql_execution_ms": 2125.157
+        },
+        {
+          "index": 10,
+          "started_at": "2026-11-16T12:03:20.844800+00:00",
+          "page_execution_ms": 1276.498,
+          "count_execution_ms": 1071.566,
+          "total_sql_execution_ms": 2348.0640000000003
+        },
+        {
+          "index": 11,
+          "started_at": "2026-11-16T12:03:20.844874+00:00",
+          "page_execution_ms": 1105.975,
+          "count_execution_ms": 1151.617,
+          "total_sql_execution_ms": 2257.5919999999996
+        },
+        {
+          "index": 12,
+          "started_at": "2026-11-16T12:03:20.845340+00:00",
+          "page_execution_ms": 1128.113,
+          "count_execution_ms": 1150.539,
+          "total_sql_execution_ms": 2278.652
+        },
+        {
+          "index": 13,
+          "started_at": "2026-11-16T12:03:20.844940+00:00",
+          "page_execution_ms": 1148.857,
+          "count_execution_ms": 1137.15,
+          "total_sql_execution_ms": 2286.007
+        },
+        {
+          "index": 14,
+          "started_at": "2026-11-16T12:03:20.844716+00:00",
+          "page_execution_ms": 1053.466,
+          "count_execution_ms": 1329.191,
+          "total_sql_execution_ms": 2382.657
+        },
+        {
+          "index": 15,
+          "started_at": "2026-11-16T12:03:23.737548+00:00",
+          "page_execution_ms": 1079.575,
+          "count_execution_ms": 1122.685,
+          "total_sql_execution_ms": 2202.26
+        },
+        {
+          "index": 16,
+          "started_at": "2026-11-16T12:03:23.737611+00:00",
+          "page_execution_ms": 1082.682,
+          "count_execution_ms": 1138.029,
+          "total_sql_execution_ms": 2220.7110000000002
+        },
+        {
+          "index": 17,
+          "started_at": "2026-11-16T12:03:23.737778+00:00",
+          "page_execution_ms": 1184.647,
+          "count_execution_ms": 1159.208,
+          "total_sql_execution_ms": 2343.855
+        },
+        {
+          "index": 18,
+          "started_at": "2026-11-16T12:03:23.737682+00:00",
+          "page_execution_ms": 1213.325,
+          "count_execution_ms": 1061.352,
+          "total_sql_execution_ms": 2274.677
+        },
+        {
+          "index": 19,
+          "started_at": "2026-11-16T12:03:23.737456+00:00",
+          "page_execution_ms": 1247.798,
+          "count_execution_ms": 1204.99,
+          "total_sql_execution_ms": 2452.788
+        }
+      ],
+      "n": 20,
+      "mean_ms": 2286.0503,
+      "p95_ms": 2395.608
+    },
+    {
+      "version": "after",
+      "concurrency": 5,
+      "samples": [
+        {
+          "index": 0,
+          "started_at": "2026-11-16T12:03:26.758197+00:00",
+          "page_execution_ms": 212.386,
+          "count_execution_ms": 125.037,
+          "total_sql_execution_ms": 337.423
+        },
+        {
+          "index": 1,
+          "started_at": "2026-11-16T12:03:26.758396+00:00",
+          "page_execution_ms": 173.375,
+          "count_execution_ms": 131.988,
+          "total_sql_execution_ms": 305.363
+        },
+        {
+          "index": 2,
+          "started_at": "2026-11-16T12:03:26.758532+00:00",
+          "page_execution_ms": 166.417,
+          "count_execution_ms": 127.801,
+          "total_sql_execution_ms": 294.218
+        },
+        {
+          "index": 3,
+          "started_at": "2026-11-16T12:03:26.758264+00:00",
+          "page_execution_ms": 138.106,
+          "count_execution_ms": 126.398,
+          "total_sql_execution_ms": 264.504
+        },
+        {
+          "index": 4,
+          "started_at": "2026-11-16T12:03:26.758042+00:00",
+          "page_execution_ms": 139.326,
+          "count_execution_ms": 161.305,
+          "total_sql_execution_ms": 300.631
+        },
+        {
+          "index": 5,
+          "started_at": "2026-11-16T12:03:27.662800+00:00",
+          "page_execution_ms": 197.833,
+          "count_execution_ms": 64.732,
+          "total_sql_execution_ms": 262.565
+        },
+        {
+          "index": 6,
+          "started_at": "2026-11-16T12:03:27.662883+00:00",
+          "page_execution_ms": 217.505,
+          "count_execution_ms": 133.285,
+          "total_sql_execution_ms": 350.78999999999996
+        },
+        {
+          "index": 7,
+          "started_at": "2026-11-16T12:03:27.663027+00:00",
+          "page_execution_ms": 134.076,
+          "count_execution_ms": 171.809,
+          "total_sql_execution_ms": 305.885
+        },
+        {
+          "index": 8,
+          "started_at": "2026-11-16T12:03:27.663100+00:00",
+          "page_execution_ms": 148.811,
+          "count_execution_ms": 125.534,
+          "total_sql_execution_ms": 274.345
+        },
+        {
+          "index": 9,
+          "started_at": "2026-11-16T12:03:27.662712+00:00",
+          "page_execution_ms": 130.396,
+          "count_execution_ms": 138.774,
+          "total_sql_execution_ms": 269.16999999999996
+        },
+        {
+          "index": 10,
+          "started_at": "2026-11-16T12:03:28.568622+00:00",
+          "page_execution_ms": 139.852,
+          "count_execution_ms": 140.764,
+          "total_sql_execution_ms": 280.616
+        },
+        {
+          "index": 11,
+          "started_at": "2026-11-16T12:03:28.568706+00:00",
+          "page_execution_ms": 222.411,
+          "count_execution_ms": 111.43,
+          "total_sql_execution_ms": 333.841
+        },
+        {
+          "index": 12,
+          "started_at": "2026-11-16T12:03:28.568819+00:00",
+          "page_execution_ms": 192.579,
+          "count_execution_ms": 134.782,
+          "total_sql_execution_ms": 327.361
+        },
+        {
+          "index": 13,
+          "started_at": "2026-11-16T12:03:28.569858+00:00",
+          "page_execution_ms": 137.321,
+          "count_execution_ms": 134.8,
+          "total_sql_execution_ms": 272.121
+        },
+        {
+          "index": 14,
+          "started_at": "2026-11-16T12:03:28.568522+00:00",
+          "page_execution_ms": 184.55,
+          "count_execution_ms": 115.901,
+          "total_sql_execution_ms": 300.451
+        },
+        {
+          "index": 15,
+          "started_at": "2026-11-16T12:03:29.466775+00:00",
+          "page_execution_ms": 141.471,
+          "count_execution_ms": 160.492,
+          "total_sql_execution_ms": 301.96299999999997
+        },
+        {
+          "index": 16,
+          "started_at": "2026-11-16T12:03:29.466140+00:00",
+          "page_execution_ms": 190.297,
+          "count_execution_ms": 138.708,
+          "total_sql_execution_ms": 329.005
+        },
+        {
+          "index": 17,
+          "started_at": "2026-11-16T12:03:29.465982+00:00",
+          "page_execution_ms": 204.43,
+          "count_execution_ms": 137.977,
+          "total_sql_execution_ms": 342.40700000000004
+        },
+        {
+          "index": 18,
+          "started_at": "2026-11-16T12:03:29.466368+00:00",
+          "page_execution_ms": 135.758,
+          "count_execution_ms": 169.987,
+          "total_sql_execution_ms": 305.745
+        },
+        {
+          "index": 19,
+          "started_at": "2026-11-16T12:03:29.465898+00:00",
+          "page_execution_ms": 163.148,
+          "count_execution_ms": 149.532,
+          "total_sql_execution_ms": 312.68
+        }
+      ],
+      "n": 20,
+      "mean_ms": 303.5542,
+      "p95_ms": 342.40700000000004
+    }
+  ],
+  "finished_at": "2026-11-16T12:03:30.390203+00:00"
+}
