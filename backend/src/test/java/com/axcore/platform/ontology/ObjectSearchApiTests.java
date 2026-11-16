@@ -788,6 +788,56 @@ class ObjectSearchApiTests {
     }
 
     @Test
+    void sourceKeyVisibilityStaysSeparateForEachMappingAndMixedSensitivityColumn()
+            throws Exception {
+        String tag = UUID.randomUUID().toString();
+        long firstType = type(tag, tag);
+        long otherType = type(tag + "-other", tag);
+        allowViewer(tag);
+        long normal = property(firstType, "public_serial", "STRING", "NORMAL", null);
+        long restricted = property(firstType, "private_serial", "STRING", "RESTRICTED", null);
+        long otherNormal = property(otherType, "public_serial", "STRING", "NORMAL", null);
+        long publicMapping = restrictedKeyMapping(firstType, normal, tag + "-public");
+        long privateMapping = restrictedKeyMapping(firstType, restricted, tag + "-private");
+        long mixedMapping = restrictedKeyMapping(firstType, normal, tag + "-mixed");
+        long otherMapping = restrictedKeyMapping(otherType, otherNormal, tag + "-other");
+        jdbc.sql(
+                        """
+                        insert into property_source_mapping
+                            (source_mapping_id, source_resource_id, property_definition_id, source_column_id)
+                        select source_mapping_id, source_resource_id, :restricted, source_column_id
+                        from property_source_mapping where source_mapping_id = :mapping
+                        """)
+                .param("restricted", restricted)
+                .param("mapping", mixedMapping)
+                .update();
+        long first = sourceObject(firstType, publicMapping, tag + "-a", "ACTIVE");
+        long other = sourceObject(otherType, otherMapping, tag + "-b", "ACTIVE");
+        long hidden = sourceObject(firstType, privateMapping, tag + "-private", "ACTIVE");
+        long mixed = sourceObject(firstType, mixedMapping, tag + "-mixed", "ACTIVE");
+
+        mvc.perform(get(PATH).param("q", tag).with(actor("VIEWER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.meta.totalElements").value(2))
+                .andExpect(jsonPath("$.data[*].id").value(contains((int) first, (int) other)));
+        for (long id : List.of(hidden, mixed)) {
+            mvc.perform(get(PATH + "/{id}", id).with(actor("VIEWER")))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.sourceKey.serial").value(nullValue()));
+            mvc.perform(get(PATH + "/{id}", id).with(actor("PLANNER")))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.sourceKey.serial").isString());
+        }
+        jdbc.sql("update property_definition set sensitivity = 'RESTRICTED' where id = :id")
+                .param("id", normal)
+                .update();
+        mvc.perform(get(PATH).param("q", tag).with(actor("VIEWER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.meta.totalElements").value(1))
+                .andExpect(jsonPath("$.data[0].id").value((int) other));
+    }
+
+    @Test
     void searchingSourceKeysRespectsMaskedFieldsEvenWhenTheNameIsPublic() throws Exception {
         String tag = UUID.randomUUID().toString();
         long type = type(tag, tag);

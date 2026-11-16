@@ -1,0 +1,32 @@
+{
+  "issue": "S15P31C106-72",
+  "scope": "readiness confirmed by SSH before profiling; not benchmark samples",
+  "ssh_reachable": true,
+  "backend_health_http_status": 200,
+  "healthy": [
+    "backend",
+    "postgres",
+    "ai"
+  ],
+  "nginx_status": "running",
+  "objects": 3397,
+  "object_types": 25,
+  "properties": 185,
+  "connected_sources": 2,
+  "object_3_present": true,
+  "analysis_runs": 5,
+  "agent_messages": 576,
+  "proposals": 132,
+  "issues": 6,
+  "images": {
+    "backend": "axcore-backend:3b70c945",
+    "batch": "axcore-backend:3b70c945",
+    "backend-green": "axcore-backend:2961cf6"
+  },
+  "started_at": {
+    "backend": "2026-11-16T04:54:07.535716189Z",
+    "postgres": "2026-10-28T04:54:05.846112852Z",
+    "nginx": "2026-11-16T06:08:34.263955811Z",
+    "ai": "2026-11-14T13:25:25.337474889Z"
+  }
+}
