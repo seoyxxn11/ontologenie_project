@@ -582,6 +582,162 @@ class StoredCopyScopeApiTests {
                 .doesNotContain("조회 범위상");
     }
 
+    /**
+     * 가린 근거 항목의 위치를 보이는 컬럼으로 바꾸거나 지워 저장하면, 되돌린 원문이 가려지지 않는 위치로 저장되어 응답에 나온다. 가린 근거가 있으면 근거 항목을 받은
+     * 그대로 보내야 하고, 아니면 거절한다(384 보완).
+     */
+    @Test
+    void revisionRejectsMovingOrUnlabelingWithheldEvidence() throws Exception {
+        mapEvidenceTables();
+        long proposal = proposal("PROPERTY", "HELD", evidence());
+        Cookie session = login(admin);
+
+        Map<String, Object> moved = shownEvidence(proposal, session);
+        items(moved).getFirst().put("locator", schema() + ".tbl.code_col");
+        assertRejected(revise(proposal, session, moved, List.of()), "\"field\":\"evidence\"");
+
+        Map<String, Object> unlabeled = shownEvidence(proposal, session);
+        items(unlabeled).getFirst().remove("locator");
+        assertRejected(revise(proposal, session, unlabeled, List.of()), "\"field\":\"evidence\"");
+
+        assertThat(storedRevision(proposal)).isEqualTo(1);
+    }
+
+    /** 가린 항목을 빼거나 순서를 바꾸면, 그 항목 때문에 가렸던 위쪽 설명(reason·holdReason)이 되돌려진 뒤 가려지지 않는다. 그래서 거절한다. */
+    @Test
+    void revisionRejectsRemovingOrReorderingWithheldEvidence() throws Exception {
+        mapEvidenceTables();
+        long proposal = proposal("PROPERTY", "HELD", evidence());
+        Cookie session = login(admin);
+
+        Map<String, Object> removed = shownEvidence(proposal, session);
+        items(removed).removeFirst();
+        assertRejected(revise(proposal, session, removed, List.of()), "\"field\":\"evidence\"");
+
+        Map<String, Object> reordered = shownEvidence(proposal, session);
+        List<Map<String, Object>> swapped = items(reordered);
+        swapped.add(swapped.removeFirst());
+        assertRejected(revise(proposal, session, reordered, List.of()), "\"field\":\"evidence\"");
+
+        assertThat(storedRevision(proposal)).isEqualTo(1);
+    }
+
+    /** 선택지는 식별자 없이 순서로 맞춘다. 근거가 가려진 선택지의 순서를 바꿔 보내면 다른 선택지의 원문이 붙으므로 거절한다. */
+    @Test
+    void revisionRejectsReorderedOptionsWithWithheldEvidence() throws Exception {
+        mapEvidenceTables();
+        long proposal = proposal("PROPERTY", "HELD", evidence());
+        option(proposal, evidence());
+        jdbc.sql(
+                        """
+                        insert into proposal_option (proposal_item_id, revision, option_no, payload, evidence)
+                        values (:id, 1, 2, '{"code": "z"}'::jsonb, cast(:evidence as jsonb))
+                        """)
+                .param("id", proposal)
+                .param("evidence", evidence().replace("SECRET-V", "OTHER-V"))
+                .update();
+        Cookie session = login(admin);
+        Map<String, Object> evidence = shownEvidence(proposal, session);
+        Map<String, Object> options =
+                json.readValue(
+                        mockMvc.perform(
+                                        get("/api/v1/proposals/" + proposal + "/options")
+                                                .cookie(session))
+                                .andExpect(status().isOk())
+                                .andReturn()
+                                .getResponse()
+                                .getContentAsString(),
+                        MAP);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> shown = (List<Map<String, Object>>) options.get("data");
+        List<Map<String, Object>> swapped =
+                List.of(
+                        Map.of(
+                                "payload",
+                                shown.get(1).get("payload"),
+                                "evidence",
+                                shown.get(1).get("evidence")),
+                        Map.of(
+                                "payload",
+                                shown.get(0).get("payload"),
+                                "evidence",
+                                shown.get(0).get("evidence")));
+
+        assertRejected(revise(proposal, session, evidence, swapped), "options[0].payload");
+
+        assertThat(storedRevision(proposal)).isEqualTo(1);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> shownEvidence(long proposal, Cookie session) throws Exception {
+        Map<String, Object> shown =
+                json.readValue(
+                        mockMvc.perform(get("/api/v1/proposals/" + proposal).cookie(session))
+                                .andExpect(status().isOk())
+                                .andReturn()
+                                .getResponse()
+                                .getContentAsString(),
+                        MAP);
+        Map<String, Object> evidence =
+                new java.util.LinkedHashMap<>(
+                        (Map<String, Object>)
+                                ((Map<String, Object>) shown.get("data")).get("evidence"));
+        List<Map<String, Object>> copies = new java.util.ArrayList<>();
+        for (Map<String, Object> item : (List<Map<String, Object>>) evidence.get("items")) {
+            copies.add(new java.util.LinkedHashMap<>(item));
+        }
+        evidence.put("items", copies);
+        return evidence;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> items(Map<String, Object> evidence) {
+        return (List<Map<String, Object>>) evidence.get("items");
+    }
+
+    private String revise(
+            long proposal,
+            Cookie session,
+            Map<String, Object> evidence,
+            List<Map<String, Object>> options)
+            throws Exception {
+        String token = UUID.randomUUID().toString();
+        return mockMvc.perform(
+                        post("/api/v1/proposals/" + proposal + "/revisions")
+                                .cookie(session, new Cookie("XSRF-TOKEN", token))
+                                .header("X-XSRF-TOKEN", token)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        json.writeValueAsString(
+                                                Map.of(
+                                                        "baseRevision",
+                                                        1,
+                                                        "payload",
+                                                        Map.of("code", "x"),
+                                                        "evidence",
+                                                        evidence,
+                                                        "options",
+                                                        options))))
+                .andExpect(status().isBadRequest())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+    }
+
+    /** 거절 응답에 원문이 없고, 어느 자리 때문인지 알린다. */
+    private static void assertRejected(String response, String field) {
+        assertThat(response)
+                .contains(field)
+                .doesNotContain("SECRET-V", "HIDDEN-V", "SECRET-UPPER", "OTHER-V");
+    }
+
+    private int storedRevision(long proposal) {
+        return jdbc.sql("select revision from proposal_item where id = :id")
+                .param("id", proposal)
+                .query(Integer.class)
+                .single();
+    }
+
     // ---- 데이터 ----
 
     private final class Rule {

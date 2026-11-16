@@ -120,6 +120,9 @@ public class ProposalCommandService {
     /**
      * 선택지 근거도 같은 번호(지금 개정본의 선택지 순서)의 저장된 근거와 맞춰 가린 자리를 되돌린다. 화면은 선택지를 받은 순서대로 보낸다. 번호가 없는 새 선택지는
      * 그대로다.
+     *
+     * <p>선택지는 식별자 없이 순서로만 맞춘다. 그래서 근거가 가려진 선택지는 내용(payload)이 저장본과 같을 때만 되돌린다. 순서를 바꾸거나 앞의 선택지를 빼서
+     * 보내면 다른 선택지의 원문 근거가 붙기 때문이다. 내용이 다르면 거절한다.
      */
     private List<ProposalOptionCreateRequest> restoreOptions(
             DataAccess access, ProposalItem item, List<ProposalOptionCreateRequest> requested) {
@@ -129,13 +132,23 @@ public class ProposalCommandService {
         List<ProposalOptionCreateRequest> restored = new ArrayList<>(requested.size());
         for (int i = 0; i < requested.size(); i++) {
             ProposalOptionCreateRequest option = requested.get(i);
+            if (i >= stored.size()) {
+                restored.add(option);
+                continue;
+            }
+            ProposalOption original = stored.get(i);
+            if (evidenceScope.withholds(access, original.getEvidence())
+                    && !ProposalEvidenceScope.sameJson(option.payload(), original.getPayload())) {
+                throw BusinessException.invalidField(
+                        "options[" + i + "].payload",
+                        "조회 범위상 가려진 근거가 있는 선택지는 순서와 내용을 받은 그대로 보내야 합니다."
+                                + " 화면을 새로 고친 뒤 다시 저장해 주세요.");
+            }
             restored.add(
-                    i < stored.size()
-                            ? new ProposalOptionCreateRequest(
-                                    option.payload(),
-                                    evidenceScope.restore(
-                                            access, stored.get(i).getEvidence(), option.evidence()))
-                            : option);
+                    new ProposalOptionCreateRequest(
+                            option.payload(),
+                            evidenceScope.restore(
+                                    access, original.getEvidence(), option.evidence())));
         }
         return restored;
     }

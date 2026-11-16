@@ -9,7 +9,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
@@ -26,12 +28,21 @@ import org.springframework.stereotype.Component;
  *       evidence.properties[]})에도 표시한다.
  * </ul>
  *
- * <p>제안 이유·제목 같은 자유 문장은 고치지 않는다. 문장 안의 값은 위치를 알 수 없어서다.
+ * <p>제안 이유 같은 설명 칸은 보통 고치지 않는다. 018이 금지·민감 컬럼의 값을 AI에 넘기지 않으므로 그 컬럼의 근거는 값 없이 온다. 값 없이 구조만 보고 만든
+ * 후보의 설명까지 지우면 검토자가 볼 것이 남지 않는다. 다만 금지·민감 위치의 근거에 예시 값이 실려 왔으면 AI가 읽지 말아야 할 값을 읽은 것이다. 그때는 같은 값이 설명
+ * 문장에도 들어 있을 수 있으므로, 그 근거를 품은 맵의 설명 칸을 모두 고정 문구로 바꿔 저장한다(384 보완). 문장을 바꿔 쓴 값과 짧은 값까지 덮으려고 문자열을 견주지
+ * 않고 모두 지운다. 지운 위치는 경고 로그로 남기고 값은 남기지 않는다.
+ *
+ * <p>한계: 값이 {@code values} 없이 요약({@code snippet})에만 실려 온 경우는 요약은 지우지만 설명 칸은 그대로 둔다. AI는 값이 없는 컬럼에도
+ * 건수 요약을 보내서, 요약이 있다는 것만으로는 값이 실려 왔는지 가를 수 없다. 제목과 payload(정의 후보)도 고치지 않는다.
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class AiProposalSourcePolicy {
     static final String WITHHELD_SNIPPET = "원천 데이터 정책상 예시 값을 저장하지 않습니다.";
+
+    static final String WITHHELD_TEXT = "원천 데이터 정책상 예시 값이 든 설명을 저장하지 않습니다.";
 
     private final SourceColumnPolicy policy;
 
@@ -57,7 +68,12 @@ public class AiProposalSourcePolicy {
     @SuppressWarnings("unchecked")
     private Map<String, Object> evidence(
             Map<String, Object> payload, Map<String, Object> evidence) {
-        Map<String, Object> copy = (Map<String, Object>) withheld(evidence);
+        Set<String> carried = new TreeSet<>();
+        Map<String, Object> copy = (Map<String, Object>) withheld(evidence, carried).value();
+        if (!carried.isEmpty()) {
+            // AI에 넘기지 않는 위치의 값이 돌아왔다. 값은 남기지 않고 위치만 알린다.
+            log.warn("AI 제안 근거에 원천 데이터 정책상 받지 않는 위치의 예시 값이 실려 와 값과 설명을 지웠습니다: {}", carried);
+        }
         List<String> forbidden = forbiddenMapped(payload);
         if (forbidden.isEmpty()) {
             return copy;
@@ -105,12 +121,27 @@ public class AiProposalSourcePolicy {
         evidence.put("holdReason", reason);
     }
 
-    /** 근거 트리를 복사하면서 금지·민감 위치를 가리키는 근거의 값을 지운다. */
-    private Object withheld(Object value) {
+    /** 지운 뒤의 값과, 그 안에 예시 값이 실려 온 금지·민감 위치의 근거가 있었는지. */
+    private record Cleaned(Object value, boolean carried) {}
+
+    /**
+     * 근거 트리를 복사하면서 금지·민감 위치를 가리키는 근거의 값을 지운다. 그 위치에 예시 값({@code values})이 실려 왔으면, 그 근거를 품은 맵(자신과 그
+     * 위)의 설명 칸도 고정 문구로 바꾼다. 실려 온 위치는 carried에 담는다.
+     */
+    private Cleaned withheld(Object value, Set<String> carried) {
         if (value instanceof Map<?, ?> map) {
             Map<String, Object> copy = new LinkedHashMap<>();
-            map.forEach((key, child) -> copy.put(String.valueOf(key), withheld(child)));
+            boolean found = false;
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                Cleaned child = withheld(entry.getValue(), carried);
+                copy.put(String.valueOf(entry.getKey()), child.value());
+                found |= child.carried();
+            }
             if (copy.get("locator") instanceof String locator && governed(locator)) {
+                if (copy.get("values") instanceof List<?> values && !values.isEmpty()) {
+                    found = true;
+                    carried.add(locator);
+                }
                 if (copy.containsKey("values")) {
                     copy.put("values", List.of());
                 }
@@ -118,14 +149,22 @@ public class AiProposalSourcePolicy {
                     copy.put("snippet", WITHHELD_SNIPPET);
                 }
             }
-            return copy;
+            if (found) {
+                ProposalEvidenceScope.withholdText(copy, WITHHELD_TEXT);
+            }
+            return new Cleaned(copy, found);
         }
         if (value instanceof List<?> list) {
             List<Object> copy = new ArrayList<>();
-            list.forEach(child -> copy.add(withheld(child)));
-            return copy;
+            boolean found = false;
+            for (Object item : list) {
+                Cleaned child = withheld(item, carried);
+                copy.add(child.value());
+                found |= child.carried();
+            }
+            return new Cleaned(copy, found);
         }
-        return value;
+        return new Cleaned(value, false);
     }
 
     /**

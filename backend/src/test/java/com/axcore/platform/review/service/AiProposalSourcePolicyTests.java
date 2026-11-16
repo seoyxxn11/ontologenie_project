@@ -134,7 +134,9 @@ class AiProposalSourcePolicyTests {
                         Map.of("forbiddenColumns", List.of("erp.employee.emp_name")));
         assertThat((String) saved.evidence().get("holdReason"))
                 .contains("erp.employee.emp_name")
-                .endsWith(" / 동명이인 가능");
+                // 금지 위치에 예시 값이 실려 왔으므로 AI가 쓴 보류 이유도 지운다(384 보완)
+                .endsWith(" / " + AiProposalSourcePolicy.WITHHELD_TEXT)
+                .doesNotContain("동명이인");
         assertThat(json.writeValueAsString(saved.evidence())).doesNotContain("홍길동");
         assertThat(saved.options().get(0).evidence()).isEmpty();
         assertThat(saved.options().get(1).evidence())
@@ -189,6 +191,70 @@ class AiProposalSourcePolicyTests {
 
         assertThat(saved.evidence()).isEqualTo(received.evidence());
         assertThat(saved.payload()).isEqualTo(received.payload());
+    }
+
+    /**
+     * 민감 위치의 근거에 예시 값이 실려 왔으면 AI가 읽지 말아야 할 값을 읽은 것이다. 같은 값이 설명 문장에도 들어 있을 수 있으므로 그 근거를 품은 맵(자신과 그
+     * 위)의 설명 칸을 모두 지운다. 값을 바꿔 쓴 문장도 지운다. 옆 가지의 설명은 그대로다.
+     */
+    @Test
+    void carriedValuesAlsoWithholdTheExplanationsAboveThem() {
+        AiProposalRequest saved =
+                policy.apply(
+                        proposal(
+                                "OBJECT_TYPE",
+                                """
+                                {"code":"VENDOR"}
+                                """,
+                                """
+                                {"reason":"담당자 예: 김담당","llmJudgement":"김 아무개 같은 이름이 들어 있다",
+                                 "properties":[
+                                   {"code":"contact_name","reason":"예 김담당","holdReason":"이름 칸",
+                                    "items":[{"locator":"erp.vendor.contact_name","snippet":"예 ['김담당']","values":["김담당"]}]},
+                                   {"code":"vendor_name","reason":"예 대성정밀",
+                                    "items":[{"locator":"erp.vendor.vendor_name","snippet":"예 ['대성정밀']","values":["대성정밀"]}]}]}
+                                """));
+
+        assertThat(json.writeValueAsString(saved.evidence()))
+                .doesNotContain("김담당", "김 아무개")
+                .contains("대성정밀");
+        assertThat(saved.evidence())
+                .containsEntry("reason", AiProposalSourcePolicy.WITHHELD_TEXT)
+                .containsEntry("llmJudgement", AiProposalSourcePolicy.WITHHELD_TEXT);
+        assertThat(part(saved.evidence(), 0))
+                .containsEntry("reason", AiProposalSourcePolicy.WITHHELD_TEXT)
+                .containsEntry("holdReason", AiProposalSourcePolicy.WITHHELD_TEXT);
+        assertThat(part(saved.evidence(), 1)).containsEntry("reason", "예 대성정밀");
+    }
+
+    /**
+     * 평소에는 민감 컬럼의 근거가 값 없이 온다(018이 값을 넘기지 않고 이름·자료형만 넘긴다). 구조만 보고 만든 후보의 설명은 검토자가 볼 유일한 근거라 그대로 둔다.
+     * AI는 값이 없는 컬럼에도 건수 요약(snippet)을 보내므로 요약이 있다는 것만으로 설명을 지우지 않는다.
+     */
+    @Test
+    void structureOnlyEvidenceKeepsItsExplanations() {
+        AiProposalRequest saved =
+                policy.apply(
+                        proposal(
+                                "OBJECT_TYPE",
+                                """
+                                {"code":"VENDOR"}
+                                """,
+                                """
+                                {"reason":"거래처 표","llmJudgement":"주석상 담당자 이름",
+                                 "properties":[
+                                   {"code":"contact_name","reason":"자료형: 문자 · 민감",
+                                    "items":[{"locator":"erp.vendor.contact_name",
+                                      "snippet":"값 0/0, 서로 다른 값 0, 예 ['***']","values":[]}]}]}
+                                """));
+
+        assertThat(saved.evidence())
+                .containsEntry("reason", "거래처 표")
+                .containsEntry("llmJudgement", "주석상 담당자 이름");
+        assertThat(part(saved.evidence(), 0)).containsEntry("reason", "자료형: 문자 · 민감");
+        assertThat(item(part(saved.evidence(), 0), 0))
+                .containsEntry("snippet", AiProposalSourcePolicy.WITHHELD_SNIPPET)
+                .containsEntry("values", List.of());
     }
 
     private AiProposalRequest proposal(String kind, String payload, String evidence) {

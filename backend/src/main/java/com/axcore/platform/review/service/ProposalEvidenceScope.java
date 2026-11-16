@@ -1,10 +1,12 @@
 package com.axcore.platform.review.service;
 
 import com.axcore.platform.auth.service.DataAccess;
+import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.mapping.repository.MappedSourceColumn;
 import com.axcore.platform.mapping.repository.MappedSourceTable;
 import com.axcore.platform.mapping.repository.ObjectSourceMappingRepository;
 import com.axcore.platform.mapping.repository.PropertySourceMappingRepository;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -121,9 +123,14 @@ public class ProposalEvidenceScope {
 
     /** 근거 항목을 가린 맵의 자유 문장·문서 칸을 고정 문구로 바꾼다. 칸 이름은 남긴다. */
     private static void withholdText(Map<String, Object> copy) {
+        withholdText(copy, WITHHELD_TEXT);
+    }
+
+    /** 위와 같고, 바꿀 문구를 받는다. 105 수신 때의 원천 정책 처리({@link AiProposalSourcePolicy})가 같은 칸을 자기 문구로 바꾼다. */
+    static void withholdText(Map<String, Object> copy, String withheldText) {
         for (String field : FREE_TEXT_FIELDS) {
             if (copy.get(field) instanceof String text && !text.isBlank()) {
-                copy.put(field, WITHHELD_TEXT);
+                copy.put(field, withheldText);
             }
         }
         for (String field : TEXT_LIST_FIELDS) {
@@ -133,7 +140,7 @@ public class ProposalEvidenceScope {
                     if (element instanceof Map<?, ?> map && map.get("text") instanceof String) {
                         Map<String, Object> item = new LinkedHashMap<>();
                         map.forEach((key, value) -> item.put(String.valueOf(key), value));
-                        item.put("text", WITHHELD_TEXT);
+                        item.put("text", withheldText);
                         replaced.add(item);
                     } else {
                         replaced.add(element);
@@ -145,7 +152,7 @@ public class ProposalEvidenceScope {
         for (String field : LABEL_MAP_FIELDS) {
             if (copy.get(field) instanceof Map<?, ?> labels) {
                 Map<String, Object> replaced = new LinkedHashMap<>();
-                labels.forEach((key, value) -> replaced.put(String.valueOf(key), WITHHELD_TEXT));
+                labels.forEach((key, value) -> replaced.put(String.valueOf(key), withheldText));
                 copy.put(field, replaced);
             }
         }
@@ -153,10 +160,17 @@ public class ProposalEvidenceScope {
 
     /**
      * 개정 저장(사람이 고친 근거)을 저장할 근거로 바꾼다(403). 화면은 가린 응답(049·선택지)의 근거를 받아 고친 뒤 통째로 보내므로, 그대로 저장하면 가린 문구가
-     * 원본을 영구히 덮는다. 그래서 요청의 각 자리가 "저장된 근거를 이 사용자 기준으로 가린 값"과 같으면 그 자리는 저장된 원본으로 되돌린다. 사용자가 실제로 바꾼
-     * 자리는 바꾼 값을 쓴다. 가린 것이 없으면 요청 그대로다.
+     * 원본을 영구히 덮는다. 그래서 가린 자리는 저장된 원본으로 되돌린다. 가린 것이 없으면 요청 그대로다.
+     *
+     * <p>가린 것이 있으면, 자유 문장 칸({@link #FREE_TEXT_FIELDS})을 뺀 나머지가 "저장된 근거를 이 사용자 기준으로 가린 모습"과 같아야 한다.
+     * 다르면 거절한다. 자리마다 따로 되돌리면 원문이 드러나기 때문이다. 가린 항목의 위치(locator)를 바꾸거나 지우면 되돌린 값이 가려지지 않는 위치로 저장되고,
+     * 가린 항목을 빼거나 순서를 바꾸면 그 항목 때문에 가렸던 위쪽 설명이 되돌려진 뒤 가려지지 않는다.
+     *
+     * <p>자유 문장 칸은 규칙 수정 화면이 직접 고쳐 보낸다(reason). 가린 문구 그대로면 원본으로 되돌리고, 사용자가 바꿨으면 바꾼 값을 쓰고, 지웠으면 지운다.
+     * 사용자가 쓴 문장은 원문이 아니고, 나머지가 그대로이므로 되돌린 설명은 읽을 때 다시 가려진다.
      *
      * @param stored 지금 저장된 근거. 없으면 요청 그대로다
+     * @throws BusinessException 가린 근거가 있는데 자유 문장 밖의 자리가 가린 모습과 다르면(400, field=evidence)
      */
     public Map<String, Object> restore(
             DataAccess access, Map<String, Object> stored, Map<String, Object> requested) {
@@ -168,33 +182,124 @@ public class ProposalEvidenceScope {
         if (masked.equals(stored)) {
             return requested;
         }
+        if (!sameOutsideFreeText(requested, masked)) {
+            throw BusinessException.invalidField(
+                    "evidence",
+                    "조회 범위상 가려진 근거가 있어 근거 항목을 고치거나 지우거나 순서를 바꿔 저장할 수 없습니다."
+                            + " 화면을 새로 고친 뒤 내용과 이유만 고쳐 주세요.");
+        }
         @SuppressWarnings("unchecked")
         Map<String, Object> restored = (Map<String, Object>) restore(requested, masked, stored);
         return restored;
     }
 
-    private static Object restore(Object requested, Object masked, Object stored) {
-        if (Objects.equals(requested, masked)) {
-            return stored;
+    /** 저장된 근거에 이 사용자에게 가려지는 자리가 있는가. 선택지를 순서로 맞출 때 가린 선택지인지 가르는 데 쓴다. */
+    public boolean withholds(DataAccess access, Map<String, Object> stored) {
+        return stored != null
+                && !show(access, Collections.singletonList(stored))
+                        .getFirst()
+                        .evidence()
+                        .equals(stored);
+    }
+
+    /** 자유 문장 칸을 뺀 나머지가 같은가. 맵은 자유 문장이 아닌 칸의 구성이, 목록은 길이와 순서가 같아야 한다. */
+    private static boolean sameOutsideFreeText(Object requested, Object masked) {
+        return same(requested, masked, FREE_TEXT_FIELDS);
+    }
+
+    /** JSON에서 온 두 값이 같은가. 숫자는 값으로 견준다({@link #sameScalar}). 가린 선택지의 내용이 저장본 그대로인지 볼 때 쓴다. */
+    public static boolean sameJson(Object left, Object right) {
+        return same(left, right, List.of());
+    }
+
+    private static boolean same(Object left, Object right, List<String> ignoredKeys) {
+        if (left instanceof Map<?, ?> leftMap && right instanceof Map<?, ?> rightMap) {
+            Set<String> keys = keysWithout(leftMap, ignoredKeys);
+            if (!keys.equals(keysWithout(rightMap, ignoredKeys))) {
+                return false;
+            }
+            Map<String, Object> leftByKey = byKey(leftMap);
+            Map<String, Object> rightByKey = byKey(rightMap);
+            for (String key : keys) {
+                if (!same(leftByKey.get(key), rightByKey.get(key), ignoredKeys)) {
+                    return false;
+                }
+            }
+            return true;
         }
+        if (left instanceof List<?> leftList && right instanceof List<?> rightList) {
+            if (leftList.size() != rightList.size()) {
+                return false;
+            }
+            for (int index = 0; index < leftList.size(); index++) {
+                if (!same(leftList.get(index), rightList.get(index), ignoredKeys)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return sameScalar(left, right);
+    }
+
+    private static Set<String> keysWithout(Map<?, ?> map, List<String> ignoredKeys) {
+        Set<String> keys = new TreeSet<>();
+        map.keySet().forEach(key -> keys.add(String.valueOf(key)));
+        keys.removeAll(ignoredKeys);
+        return keys;
+    }
+
+    private static Map<String, Object> byKey(Map<?, ?> map) {
+        Map<String, Object> copy = new HashMap<>();
+        map.forEach((key, value) -> copy.put(String.valueOf(key), value));
+        return copy;
+    }
+
+    /** 값 하나가 같은가. 숫자는 값으로 견준다. 근거는 응답으로 나갔다가 화면을 거쳐 돌아오므로 1.0이 1로, 정수 자료형이 다른 자료형으로 바뀌어 올 수 있다. */
+    private static boolean sameScalar(Object requested, Object masked) {
+        if (requested instanceof Number a && masked instanceof Number b) {
+            return new BigDecimal(a.toString()).compareTo(new BigDecimal(b.toString())) == 0;
+        }
+        return Objects.equals(requested, masked);
+    }
+
+    /**
+     * {@link #sameOutsideFreeText}를 통과한 요청을 저장할 값으로 바꾼다. 가린 모습과 같은 자리는 원본으로 되돌리고, 자유 문장 칸은 가린 문구
+     * 그대로일 때만 원본으로 되돌린다.
+     */
+    private static Object restore(Object requested, Object masked, Object stored) {
         if (requested instanceof Map<?, ?> request
                 && masked instanceof Map<?, ?> maskedMap
                 && stored instanceof Map<?, ?> storedMap) {
+            Map<String, Object> maskedByKey = byKey(maskedMap);
+            Map<String, Object> storedByKey = byKey(storedMap);
             Map<String, Object> result = new LinkedHashMap<>();
             request.forEach(
-                    (key, value) ->
+                    (rawKey, value) -> {
+                        String key = String.valueOf(rawKey);
+                        if (!maskedByKey.containsKey(key) || !storedByKey.containsKey(key)) {
+                            result.put(key, value);
+                        } else if (FREE_TEXT_FIELDS.contains(key)) {
                             result.put(
-                                    String.valueOf(key),
-                                    maskedMap.containsKey(key) && storedMap.containsKey(key)
-                                            ? restore(value, maskedMap.get(key), storedMap.get(key))
-                                            : value));
+                                    key,
+                                    Objects.equals(value, maskedByKey.get(key))
+                                            ? storedByKey.get(key)
+                                            : value);
+                        } else {
+                            result.put(
+                                    key,
+                                    restore(value, maskedByKey.get(key), storedByKey.get(key)));
+                        }
+                    });
             return result;
         }
         if (requested instanceof List<?> request
                 && masked instanceof List<?> maskedList
                 && stored instanceof List<?> storedList
-                && request.size() == maskedList.size()
-                && maskedList.size() == storedList.size()) {
+                && request.size() == maskedList.size()) {
+            if (maskedList.size() != storedList.size()) {
+                // 가릴 때 목록을 통째로 바꾼 자리(values를 빈 목록으로)다. 요청이 가린 모습과 같다는 것은 이미 확인했다.
+                return stored;
+            }
             List<Object> result = new ArrayList<>(request.size());
             for (int index = 0; index < request.size(); index++) {
                 result.add(
@@ -202,7 +307,7 @@ public class ProposalEvidenceScope {
             }
             return result;
         }
-        return requested;
+        return stored;
     }
 
     /**
