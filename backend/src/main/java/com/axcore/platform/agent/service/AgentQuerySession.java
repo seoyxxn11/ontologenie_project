@@ -7,11 +7,13 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
@@ -59,12 +61,21 @@ public class AgentQuerySession {
     /** AI에게 알려 주는 기준 시점의 시간대. 답변은 한국 시간으로 말한다. */
     private static final ZoneId USER_ZONE = ZoneId.of("Asia/Seoul");
 
+    /** 물은 상태와 비교할 조건 값을 모으는 도구. 관계 따라가기·목표 유형 찾기의 조건은 비교하지 않는다(2026-11-16 리뷰). */
+    private static final Set<String> FILTERING_TOOLS =
+            Set.of(AgentObjectListTools.OBJECT_LIST, AgentObjectSetTools.OBJECT_SET_START);
+
     private final LoginAccount asker;
     private final long questionId;
     private final AgentQueryRecorder recorder;
     private final Clock clock;
     private final List<AgentQueryResult> results = new ArrayList<>();
     private final List<AgentActionOutcome> actions = new ArrayList<>();
+    // 결과가 나온(FOUND) 조회가 거른 저장 값을 (유형, 속성 코드)별로 모은다. 사용자가 물은 값과 다른 값으로 찾았는지 서버가
+    // 비교한다(PropertyValueNotice).
+    private final Map<String, Set<String>> filteredByProperty = new LinkedHashMap<>();
+    // 객체 목록·객체 집합 시작 결과에 온 속성 값 종류. 물은 값이 저장돼 있으면 "저장된 값은 없어"라고 알리지 않는다.
+    private final Set<String> storedValues = new LinkedHashSet<>();
     private boolean unrecorded;
     // 이 답변에서 남긴 조회 기록의 순번. 서버 조회(lookup)와 도구 조회(run)가 함께 쓴다.
     private int sequence;
@@ -321,6 +332,9 @@ public class AgentQuerySession {
         try {
             Outcome outcome = query.get();
             allowFound(outcome.sources());
+            if (FILTERING_TOOLS.contains(toolCode)) {
+                collectForNotice(toolCode, input, outcome);
+            }
             result =
                     new AgentQueryResult(
                             label,
@@ -426,6 +440,129 @@ public class AgentQuerySession {
 
     public synchronized List<AgentQueryResult> results() {
         return List.copyOf(results);
+    }
+
+    /**
+     * 결과가 나온 조회(객체 목록·객체 집합 시작)에서 실제로 거른 저장 값. 넣은 순서대로 한 번씩 담는다. 값 종류(values)를 아는 속성의 조건만 담고, 넣은 값이
+     * 아니라 076이 맞춘 저장 값 모양으로 담는다("정비 중" → "정비중"). 076이 맞추지 못한 값(unmatchedValues)은 실제로 거른 값이 아니라 빠진다.
+     */
+    public synchronized List<String> filteredValues() {
+        Set<String> all = new LinkedHashSet<>();
+        filteredByProperty.values().forEach(all::addAll);
+        return List.copyOf(all);
+    }
+
+    /** {@link #filteredValues()}를 (유형, 속성 코드)별로 나눈 것. 넣은 순서대로다. */
+    public synchronized List<List<String>> filteredValuesByProperty() {
+        return filteredByProperty.values().stream().map(List::copyOf).toList();
+    }
+
+    // 안내용 부가 집계라, 실패해도 이미 성공한 조회를 실패로 바꾸지 않는다(2026-11-16 리뷰).
+    private void collectForNotice(String toolCode, Map<String, Object> input, Outcome outcome) {
+        try {
+            // 0건이어도 그 유형의 값 종류는 온다. 거른 값은 결과가 나온 조회에서만 모은다.
+            rememberStoredValues(outcome.data());
+            if (outcome.category() == AgentResultCategory.FOUND) {
+                collectFilteredValues(input, outcome.data());
+            }
+        } catch (RuntimeException ex) {
+            log.warn("Agent 조회 {}의 안내용 값 집계를 건너뜁니다 question={}", toolCode, questionId, ex);
+        }
+    }
+
+    /** 객체 목록·객체 집합 시작 결과로 받은 속성 값 종류. 물은 값이 정말 저장돼 있지 않은지 확인하는 데 쓴다(PropertyValueNotice). */
+    public synchronized List<String> storedValues() {
+        return List.copyOf(storedValues);
+    }
+
+    private void rememberStoredValues(Object data) {
+        for (AgentObjectListTools.PropertyItem property : properties(data)) {
+            if (property.values() != null) {
+                storedValues.addAll(property.values());
+            }
+        }
+    }
+
+    // 입력의 propertyValues는 속성 코드 → 값 하나 또는 값 목록이다(AgentConditions와 같은 모양).
+    private void collectFilteredValues(Map<String, Object> input, Object data) {
+        if (input == null || !(input.get("propertyValues") instanceof Map<?, ?> conditions)) {
+            return;
+        }
+        List<AgentObjectListTools.PropertyItem> properties = properties(data);
+        Object typeId = input.get("objectTypeId");
+        conditions.forEach(
+                (code, value) -> {
+                    List<String> stored = storedValuesOf(properties, code);
+                    if (stored == null) {
+                        // 값 종류가 많거나 문자가 아닌 속성은 물은 상태와 짝지을 수 없다(2026-11-16 리뷰).
+                        return;
+                    }
+                    Collection<?> values =
+                            value instanceof Collection<?> items
+                                    ? items
+                                    : Collections.singletonList(value);
+                    for (Object item : values) {
+                        String matched = item == null ? null : storedValue(stored, item.toString());
+                        if (matched != null) {
+                            filteredByProperty
+                                    .computeIfAbsent(
+                                            typeId + ":" + code, key -> new LinkedHashSet<>())
+                                    .add(matched);
+                        }
+                    }
+                });
+    }
+
+    // 객체 목록은 ObjectList, 객체 집합 시작은 Map으로 그 유형의 속성(properties)을 돌려준다.
+    private static List<AgentObjectListTools.PropertyItem> properties(Object data) {
+        Object found = null;
+        if (data instanceof AgentObjectListTools.ObjectList list) {
+            found = list.properties();
+        } else if (data instanceof Map<?, ?> map) {
+            found = map.get("properties");
+        }
+        if (!(found instanceof List<?> items)) {
+            return List.of();
+        }
+        return items.stream()
+                .filter(AgentObjectListTools.PropertyItem.class::isInstance)
+                .map(AgentObjectListTools.PropertyItem.class::cast)
+                .toList();
+    }
+
+    private static List<String> storedValuesOf(
+            List<AgentObjectListTools.PropertyItem> properties, Object code) {
+        return properties.stream()
+                .filter(property -> property.code().equals(code))
+                .map(AgentObjectListTools.PropertyItem::values)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+    }
+
+    // 076과 같은 기준으로 넣은 값이 걸린 저장 값을 찾는다. 똑같은 값이 있으면 그 값, 없으면 띄어쓰기만 다른 저장 값이 하나뿐일 때 그 값이다.
+    private static String storedValue(List<String> stored, String value) {
+        String text = value.strip();
+        if (text.isEmpty()) {
+            return null;
+        }
+        if (stored.contains(text)) {
+            return text;
+        }
+        String compact = withoutSpaces(text);
+        List<String> same =
+                stored.stream()
+                        .filter(Objects::nonNull)
+                        .filter(candidate -> withoutSpaces(candidate).equals(compact))
+                        .toList();
+        return same.size() == 1 ? same.getFirst() : null;
+    }
+
+    private static String withoutSpaces(String value) {
+        return value.codePoints()
+                .filter(c -> !Character.isWhitespace(c) && !Character.isSpaceChar(c))
+                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+                .toString();
     }
 
     /** Action 도구 결과를 모은다. 실행 기록은 실행기가 이미 남겼으므로 여기에는 답변에 보여 줄 값만 둔다. */

@@ -139,6 +139,18 @@ public class AgentAnswerProcessor {
                             interpretation,
                             session,
                             pending == null ? null : pending.askedQuestion());
+            // 목록 질문에서 물은 상태와 다른 저장 값으로 찾았으면 답변 끝에 알린다. 답변 AI가 밝히지 않아 서버가 비교한다(360 후속).
+            // 앞 질문에서 이어받은 값은 이번 조회와 짝지을 수 없어 이번 질문에서 말한 값만 비교한다. 되묻기에 대한 답은 같은 질문을
+            // 마무리하는 것이라 합친 해석의 값이 이번 질문의 값이다.
+            List<String> said =
+                    pending == null ? asked.propertyValues() : interpretation.propertyValues();
+            content =
+                    PropertyValueNotice.append(
+                            content,
+                            interpretation,
+                            said,
+                            session.filteredValuesByProperty(),
+                            session.storedValues());
             session.requireRecorded();
             answers.answerWithResults(
                     answerId, content, interpretation, session.results(), session.actions());

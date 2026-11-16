@@ -14,6 +14,7 @@ import static org.mockito.Mockito.verify;
 
 import com.axcore.platform.audit.domain.AgentResultCategory;
 import com.axcore.platform.global.security.LoginAccount;
+import com.axcore.platform.ontology.domain.PropertyDataType;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -29,6 +30,188 @@ class AgentQuerySessionTests {
 
     private final AgentQueryRecorder recorder = mock(AgentQueryRecorder.class);
     private final AgentQuerySession session = new AgentQuerySession(ASKER, 11L, recorder, CLOCK);
+
+    // 설비 상태처럼 값 종류가 정해진 속성과, 설비 코드처럼 값 종류를 주지 않는 속성.
+    private static final List<AgentObjectListTools.PropertyItem> EQUIPMENT_PROPERTIES =
+            List.of(
+                    new AgentObjectListTools.PropertyItem(
+                            "status", "상태", PropertyDataType.STRING, List.of("가동", "정비중", "고장")),
+                    new AgentObjectListTools.PropertyItem(
+                            "line", "라인", PropertyDataType.STRING, List.of("1라인", "2라인")),
+                    new AgentObjectListTools.PropertyItem(
+                            "equipment_code", "설비 코드", PropertyDataType.STRING, null));
+
+    private static AgentObjectListTools.ObjectList equipmentList(Map<String, String> unmatched) {
+        return new AgentObjectListTools.ObjectList(
+                1, 0, false, List.of(), EQUIPMENT_PROPERTIES, unmatched);
+    }
+
+    private void list(
+            String toolCode, Map<String, Object> conditions, AgentQuerySession.Outcome outcome) {
+        session.run(
+                toolCode, "객체 목록", Map.of("propertyValues", conditions), null, null, () -> outcome);
+    }
+
+    @Test
+    void collectsStoredValuesOnlyFromCallsThatFoundSomething() {
+        // 0건인 조회의 값은 저장 값에 없던 값일 수 있어 "이 값으로 찾았다"에 넣지 않는다(PropertyValueNotice).
+        list(
+                "OBJECT_LIST",
+                Map.of("status", "정지 중"),
+                new AgentQuerySession.Outcome(
+                        equipmentList(Map.of("status", "정지 중")),
+                        AgentResultCategory.NO_DATA,
+                        List.of(),
+                        null));
+        list(
+                "OBJECT_LIST",
+                Map.of("status", List.of("정비중", "고장"), "line", " 1라인 "),
+                new AgentQuerySession.Outcome(
+                        equipmentList(Map.of()), AgentResultCategory.FOUND, List.of(), null));
+
+        assertThat(session.filteredValues()).containsExactlyInAnyOrder("정비중", "고장", "1라인");
+        // 0건이어도 그 유형의 값 종류는 기억한다.
+        assertThat(session.storedValues()).contains("가동", "정비중", "고장", "1라인", "2라인");
+    }
+
+    @Test
+    void collectsStoredValueInsteadOfValueAsTyped() {
+        // 076은 "정비 중"을 저장 값 "정비중"으로 맞춰 거른다. 안내도 저장 값 모양으로 해야 한다(2026-11-16 리뷰).
+        list(
+                "OBJECT_LIST",
+                Map.of("status", "정비 중"),
+                new AgentQuerySession.Outcome(
+                        equipmentList(Map.of()), AgentResultCategory.FOUND, List.of(), null));
+
+        assertThat(session.filteredValues()).containsExactly("정비중");
+    }
+
+    @Test
+    void leavesOutValuesTheQueryCouldNotMatch() {
+        // 값 목록은 그중 하나만 맞아도 FOUND다. 저장 값에 없는 값은 실제로 거른 값이 아니다(2026-11-16 리뷰).
+        list(
+                "OBJECT_LIST",
+                Map.of("status", List.of("정지 중", "정비중", "고장 상태")),
+                new AgentQuerySession.Outcome(
+                        equipmentList(Map.of("status", "정지 중, 고장 상태")),
+                        AgentResultCategory.FOUND,
+                        List.of(),
+                        null));
+        // 객체 집합 시작은 결과를 Map으로 돌려준다.
+        list(
+                "OBJECT_SET_START",
+                Map.of("line", "1 라인", "status", "비가동"),
+                new AgentQuerySession.Outcome(
+                        Map.of("count", 1, "properties", EQUIPMENT_PROPERTIES),
+                        AgentResultCategory.FOUND,
+                        List.of(),
+                        null));
+
+        assertThat(session.filteredValues()).containsExactly("정비중", "1라인");
+    }
+
+    @Test
+    void leavesOutConditionsOnPropertiesWithoutKnownValues() {
+        // 설비 코드처럼 값 종류를 주지 않는 속성의 조건은 물은 상태와 짝지을 수 없다("'상한 초과'… 'P103'으로" 오탐, 2026-11-16 리뷰).
+        list(
+                "OBJECT_LIST",
+                Map.of("equipment_code", "P103"),
+                new AgentQuerySession.Outcome(
+                        equipmentList(Map.of()), AgentResultCategory.FOUND, List.of(), null));
+
+        assertThat(session.filteredValues()).isEmpty();
+    }
+
+    @Test
+    void groupsFilteredValuesByTypeAndProperty() {
+        // 설비 상태(유형 3)와 비가동의 설비 코드(유형 5)는 다른 속성이다. 설비 코드에도 값 종류가 오는 경우(설비 20대 이하)를 그대로 둔다.
+        List<AgentObjectListTools.PropertyItem> downtime =
+                List.of(
+                        new AgentObjectListTools.PropertyItem(
+                                "equipment_code",
+                                "설비 코드",
+                                PropertyDataType.STRING,
+                                List.of("P101", "P103")));
+        session.run(
+                "OBJECT_LIST",
+                "객체 목록",
+                Map.of("objectTypeId", 3L, "propertyValues", Map.of("status", "정비중")),
+                null,
+                null,
+                () ->
+                        new AgentQuerySession.Outcome(
+                                equipmentList(Map.of()),
+                                AgentResultCategory.FOUND,
+                                List.of(),
+                                null));
+        session.run(
+                "OBJECT_LIST",
+                "객체 목록",
+                Map.of("objectTypeId", 5L, "propertyValues", Map.of("equipment_code", "P103")),
+                null,
+                null,
+                () ->
+                        new AgentQuerySession.Outcome(
+                                new AgentObjectListTools.ObjectList(
+                                        2, 0, false, List.of(), downtime, Map.of()),
+                                AgentResultCategory.FOUND,
+                                List.of(),
+                                null));
+
+        assertThat(session.filteredValuesByProperty())
+                .containsExactly(List.of("정비중"), List.of("P103"));
+        assertThat(session.filteredValues()).containsExactly("정비중", "P103");
+    }
+
+    @Test
+    void keepsSuccessfulQueryWhenNoticeCollectionFails() {
+        // 안내용 집계는 부가 기능이라 실패해도 성공한 조회를 실패로 바꾸지 않는다(2026-11-16 리뷰).
+        Map<String, Object> reply =
+                session.run(
+                        "OBJECT_LIST",
+                        "객체 목록",
+                        Map.of("propertyValues", Map.of("status", "정비중")),
+                        null,
+                        null,
+                        () ->
+                                new AgentQuerySession.Outcome(
+                                        new AgentObjectListTools.ObjectList(
+                                                1,
+                                                0,
+                                                false,
+                                                List.of(),
+                                                List.of(
+                                                        new AgentObjectListTools.PropertyItem(
+                                                                null,
+                                                                "이름 없음",
+                                                                PropertyDataType.STRING,
+                                                                List.of("정비중"))),
+                                                Map.of()),
+                                        AgentResultCategory.FOUND,
+                                        List.of(),
+                                        null));
+
+        assertThat(reply).containsEntry("resultCategory", "FOUND");
+        assertThat(session.filteredValues()).isEmpty();
+    }
+
+    @Test
+    void collectsOnlyFromObjectListAndObjectSetStart() {
+        // 관계 따라가기·목표 유형 찾기의 조건은 대상 쪽 속성("대기", "진행")이라 물은 상태와 비교하지 않는다(2026-11-16 리뷰).
+        for (String toolCode : List.of("OBJECT_SET_SEARCH_AROUND", "OBJECT_SET_FIND")) {
+            list(
+                    toolCode,
+                    Map.of("status", List.of("고장", "정비중")),
+                    new AgentQuerySession.Outcome(
+                            Map.of("count", 2, "properties", EQUIPMENT_PROPERTIES),
+                            AgentResultCategory.FOUND,
+                            List.of(),
+                            null));
+        }
+
+        assertThat(session.filteredValues()).isEmpty();
+        assertThat(session.storedValues()).isEmpty();
+    }
 
     @Test
     void recordsEachCallInOrder() {
