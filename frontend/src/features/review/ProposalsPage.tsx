@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link, useLocation, useSearchParams } from 'react-router'
 import Button from '../../components/Button'
 import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
 import Pagination from '../../components/Pagination'
@@ -138,6 +138,7 @@ function ProposalSearch({
 }
 
 export default function ProposalsPage() {
+  const location = useLocation()
   const [params, setParams] = useSearchParams()
   const [resetVersion, setResetVersion] = useState(0)
   const showingIssues = params.get('view') === 'issues'
@@ -253,7 +254,11 @@ export default function ProposalsPage() {
           />
         </div>
         <div className="rules-page-actions">
-          <Link className="ui-button ui-button--secondary" to="/admin/checks">
+          <Link
+            className="ui-button ui-button--secondary"
+            to="/admin/checks"
+            state={{ historyReturnTo: location.pathname + location.search }}
+          >
             수동 검사·실행 목록
           </Link>
           <Link

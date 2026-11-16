@@ -27,14 +27,16 @@ afterEach(async () => {
   clients.length = 0
   vi.useRealTimers()
 })
-function open(search = '') {
+function open(search = '', state?: { historyReturnTo: string }) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   clients.push(client)
   render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[`/admin/checks${search}`]}>
+      <MemoryRouter
+        initialEntries={[{ pathname: '/admin/checks', search, state }]}
+      >
         <CheckRunsPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -176,11 +178,16 @@ test.each([
         }),
       ),
     )
-    const user = open()
+    const returnTo = '/admin/rules?reviewStatus=PENDING'
+    const user = open('', { historyReturnTo: returnTo })
     await user.click(screen.getByRole('button', { name: '수동 검사 열기' }))
     await user.dblClick(screen.getByRole('button', { name: '수동 검사 실행' }))
     await screen.findByText(message)
     await screen.findByRole('region', { name: '검사 실행 #802 상세' })
+    expect(screen.getByRole('link', { name: '이전 화면으로' })).toHaveAttribute(
+      'href',
+      returnTo,
+    )
     expect(post).toHaveBeenCalledOnce()
   },
 )
@@ -565,4 +572,50 @@ test('모달의 다음 페이지 조회 실패는 오류를 표시하고 재시�
   await within(dialog).findByText('실패 복구 근거 20')
   await user.click(within(dialog).getByRole('button', { name: '닫기' }))
   expect(screen.getByRole('button', { name: '규칙 #2019' })).toHaveFocus()
+})
+
+test('직접 진입하면 이전 화면 버튼을 표시하지 않는다', async () => {
+  open('?run=801')
+  expect(
+    screen.queryByRole('link', { name: '이전 화면으로' }),
+  ).not.toBeInTheDocument()
+  expect(
+    screen.queryByRole('link', { name: '← 연결 규칙으로 돌아가기' }),
+  ).not.toBeInTheDocument()
+})
+test('진입 화면이 있으면 해당 화면의 검색 조건을 유지해 복귀한다', () => {
+  open('', {
+    historyReturnTo: '/admin/rules?reviewStatus=PENDING&proposal=303',
+  })
+  expect(screen.getByRole('link', { name: '이전 화면으로' })).toHaveAttribute(
+    'href',
+    '/admin/rules?reviewStatus=PENDING&proposal=303',
+  )
+})
+test('외부 주소를 복귀 경로로 사용하지 않는다', () => {
+  open('', { historyReturnTo: 'https://example.com' })
+  expect(
+    screen.queryByRole('link', { name: '이전 화면으로' }),
+  ).not.toBeInTheDocument()
+})
+
+test('검사 선택·검색·초기화 후에도 진입 화면 복귀 경로를 유지한다', async () => {
+  const returnTo = '/admin/rules?reviewStatus=PENDING&proposal=303'
+  const user = open('', { historyReturnTo: returnTo })
+  await user.click(await screen.findByRole('button', { name: /#801/ }))
+  expect(screen.getByRole('link', { name: '이전 화면으로' })).toHaveAttribute(
+    'href',
+    returnTo,
+  )
+  await user.selectOptions(screen.getByLabelText('검사 종류'), 'MANUAL')
+  await user.click(screen.getByRole('button', { name: '검색' }))
+  expect(screen.getByRole('link', { name: '이전 화면으로' })).toHaveAttribute(
+    'href',
+    returnTo,
+  )
+  await user.click(screen.getByRole('button', { name: '초기화' }))
+  expect(screen.getByRole('link', { name: '이전 화면으로' })).toHaveAttribute(
+    'href',
+    returnTo,
+  )
 })

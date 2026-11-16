@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { useLocation, useSearchParams } from 'react-router'
+import HistoryBack from '../../components/HistoryBack'
 import Button from '../../components/Button'
 import Dialog from '../../components/Dialog'
 import './checks.css'
@@ -20,6 +21,7 @@ import { runTime } from './format'
 import ManualCheckForm from './ManualCheckForm'
 
 export default function CheckRunsPage() {
+  const location = useLocation()
   const [params, setParams] = useSearchParams()
   const [triggerKind, setTriggerKind] = useState<
     CheckRunFilters['triggerKind'] | ''
@@ -46,19 +48,25 @@ export default function CheckRunsPage() {
         : false,
   })
   function selectRun(id: number) {
-    setParams((current) => {
-      const next = new URLSearchParams(current)
-      next.set('run', String(id))
-      return next
-    })
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        next.set('run', String(id))
+        return next
+      },
+      { state: location.state },
+    )
   }
   function applyFilters(next: CheckRunFilters) {
     if (JSON.stringify(next) !== JSON.stringify(filters)) {
-      setParams((current) => {
-        const nextParams = new URLSearchParams(current)
-        nextParams.delete('run')
-        return nextParams
-      })
+      setParams(
+        (current) => {
+          const nextParams = new URLSearchParams(current)
+          nextParams.delete('run')
+          return nextParams
+        },
+        { state: location.state },
+      )
     }
     setFilters(next)
     setPage(0)
@@ -66,24 +74,6 @@ export default function CheckRunsPage() {
   return (
     <div className="management-page checks-page">
       <h1 className="ui-page-title">정합성 검사</h1>
-      <div className="checks-toolbar">
-        <Link to="/admin/rules">← 연결 규칙으로 돌아가기</Link>
-        <div className="checks-actions">
-          <Button
-            variant="secondary"
-            pending={query.isFetching}
-            onClick={() => void query.refetch()}
-          >
-            실행 목록 새로고침
-          </Button>
-          <Button
-            aria-label="수동 검사 열기"
-            onClick={() => setManualOpen(true)}
-          >
-            수동 검사 실행
-          </Button>
-        </div>
-      </div>
       {manualOpen && (
         <Dialog title="수동 검사 실행" onClose={() => setManualOpen(false)}>
           <ManualCheckForm
@@ -104,88 +94,129 @@ export default function CheckRunsPage() {
               : `검사 실행 #${receipt.id}을 접수했습니다.`}
         </p>
       )}
-      <form
-        className="checks-filter"
-        onSubmit={(event) => {
-          event.preventDefault()
-          if (
-            (from && !Number.isFinite(Date.parse(from))) ||
-            (to && !Number.isFinite(Date.parse(to))) ||
-            (from && to && new Date(from) > new Date(to))
-          ) {
-            setFormError('종료 시각은 시작 시각 이후로 선택해 주세요.')
-            return
-          }
-          setFormError('')
-          applyFilters({
-            triggerKind: triggerKind || undefined,
-            status: status || undefined,
-            from: from ? new Date(from).toISOString() : undefined,
-            to: to ? new Date(to).toISOString() : undefined,
-          })
-        }}
-      >
-        <label className="flex flex-col gap-1">
-          검사 종류
-          <select
-            value={triggerKind}
-            onChange={(event) =>
-              setTriggerKind(event.target.value as typeof triggerKind)
+      <div className="checks-query-bar">
+        <div className="checks-return">
+          <HistoryBack
+            className="checks-back"
+            dividerClassName="checks-back-divider"
+          />
+        </div>
+        <form
+          className="checks-filter"
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (
+              (from && !Number.isFinite(Date.parse(from))) ||
+              (to && !Number.isFinite(Date.parse(to))) ||
+              (from && to && new Date(from) > new Date(to))
+            ) {
+              setFormError('종료 시각은 시작 시각 이후로 선택해 주세요.')
+              return
             }
-          >
-            <option value="">전체</option>
-            {Object.entries(runTriggers).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1">
-          실행 상태
-          <select
-            value={status}
-            onChange={(event) => setStatus(event.target.value as typeof status)}
-          >
-            <option value="">전체</option>
-            {Object.entries(runStatuses).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1">
-          접수 시작 시각
-          <input
-            type="datetime-local"
-            value={from}
-            onChange={(event) => setFrom(event.target.value)}
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          접수 종료 시각
-          <input
-            type="datetime-local"
-            value={to}
-            onChange={(event) => setTo(event.target.value)}
-          />
-        </label>
-        <Button type="submit">검색</Button>
-        <Button
-          variant="secondary"
-          onClick={() => {
-            setTriggerKind('')
-            setStatus('')
-            setFrom('')
-            setTo('')
-            applyFilters({})
             setFormError('')
+            applyFilters({
+              triggerKind: triggerKind || undefined,
+              status: status || undefined,
+              from: from ? new Date(from).toISOString() : undefined,
+              to: to ? new Date(to).toISOString() : undefined,
+            })
           }}
         >
-          초기화
-        </Button>
-      </form>
+          <label className="flex flex-col gap-1">
+            검사 종류
+            <select
+              value={triggerKind}
+              onChange={(event) =>
+                setTriggerKind(event.target.value as typeof triggerKind)
+              }
+            >
+              <option value="">전체</option>
+              {Object.entries(runTriggers).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            실행 상태
+            <select
+              value={status}
+              onChange={(event) =>
+                setStatus(event.target.value as typeof status)
+              }
+            >
+              <option value="">전체</option>
+              {Object.entries(runStatuses).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            접수 시작 시각
+            <input
+              type="datetime-local"
+              value={from}
+              onChange={(event) => setFrom(event.target.value)}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            접수 종료 시각
+            <input
+              type="datetime-local"
+              value={to}
+              onChange={(event) => setTo(event.target.value)}
+            />
+          </label>
+          <Button type="submit">검색</Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setTriggerKind('')
+              setStatus('')
+              setFrom('')
+              setTo('')
+              applyFilters({})
+              setFormError('')
+            }}
+          >
+            초기화
+          </Button>
+        </form>
+        <div className="checks-actions">
+          <Button
+            variant="text"
+            className="checks-refresh"
+            aria-label="실행 목록 새로고침"
+            data-tooltip="실행 목록 새로고침"
+            pending={query.isFetching}
+            onClick={() => void query.refetch()}
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5" />
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5" />
+            </svg>
+          </Button>
+          <Button
+            aria-label="수동 검사 열기"
+            onClick={() => setManualOpen(true)}
+          >
+            수동 검사 실행
+          </Button>
+        </div>
+      </div>
       {formError && (
         <p role="alert" className="text-sm text-red-700">
           {formError}
@@ -261,13 +292,18 @@ export default function CheckRunsPage() {
             </>
           )}
         </section>
-        <div className="checks-detail">
+        <div
+          className="checks-detail"
+          role="region"
+          aria-label="검사 실행 상세 영역"
+          tabIndex={0}
+        >
           {runId !== undefined ? (
             <CheckRunDetail key={runId} id={runId} />
           ) : (
-            <div className="management-panel">
-              <EmptyState message="검사 실행을 선택하면 집계와 판정 근거를 확인할 수 있습니다." />
-            </div>
+            <p className="checks-selection-hint">
+              검사 실행을 선택하면 집계와 판정 근거를 확인할 수 있습니다.
+            </p>
           )}
         </div>
       </div>
