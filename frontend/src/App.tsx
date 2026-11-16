@@ -9,6 +9,7 @@ import {
 } from 'react-router'
 import AppLayout from './components/AppLayout'
 import NotFoundPage from './components/NotFoundPage'
+import RouteErrorPage from './components/RouteErrorPage'
 import { LoadingState } from './components/Feedback'
 import AuthProvider from './features/auth/AuthProvider'
 import RequireAuth from './features/auth/RequireAuth'
@@ -47,6 +48,7 @@ function App() {
     createBrowserRouter(
       createRoutesFromElements(
         <Route
+          errorElement={<RouteErrorPage />}
           element={
             <AuthProvider>
               <Suspense
