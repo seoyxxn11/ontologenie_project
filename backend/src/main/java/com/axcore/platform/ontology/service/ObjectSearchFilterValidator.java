@@ -27,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -136,10 +137,17 @@ public class ObjectSearchFilterValidator {
 
     /**
      * Agent 객체 목록의 속성 비교 조건(418). 두 속성 모두 그 유형에 정의돼 있고 볼 수 있어야 한다(민감 속성이면 값 조건과 같이 FORBIDDEN).
-     * 숫자끼리나 날짜·시각끼리만 비교한다. 호출자가 typeId를 볼 수 있는지 먼저 확인해야 한다(validate와 같다).
+     * 숫자끼리나 날짜·시각끼리만 비교한다. 오른쪽이 그 유형의 속성 코드가 아니고 숫자면 숫자 속성과 그 값을 비교한다(예: rejected_qty &gt; 0). 호출자가
+     * typeId를 볼 수 있는지 먼저 확인해야 한다(validate와 같다).
      */
     /** 속성 비교 조건 수 상한(418). 값 목록 상한(20)처럼 SQL 조건이 끝없이 늘지 않게 한다. */
     static final int MAX_COMPARISONS = 5;
+
+    /** 합계를 내는 숫자 속성 수 상한. 한 SQL의 집계 열이 끝없이 늘지 않게 한다. */
+    static final int MAX_SUMS = 20;
+
+    /** 속성과 비교할 숫자 값. numeric 범위를 넘지 않게 자릿수를 제한한다. */
+    private static final Pattern NUMBER = Pattern.compile("-?\\d{1,18}(\\.\\d{1,10})?");
 
     List<PropertyComparison> validateComparisons(
             long typeId, List<ObjectSearchQuery.Comparison> given, DataAccess access) {
@@ -168,6 +176,20 @@ public class ObjectSearchFilterValidator {
                             access,
                             field,
                             UNKNOWN_PROPERTY);
+            if (!definitions.containsKey(comparison.right())
+                    && comparison.right() != null
+                    && NUMBER.matcher(comparison.right()).matches()) {
+                if (!"number".equals(comparableFamily(left.getDataType()))) {
+                    throw BusinessException.invalidField(field, "숫자 값과는 숫자 속성만 비교할 수 있습니다.");
+                }
+                comparisons.add(
+                        PropertyComparison.withNumber(
+                                left.getCode(),
+                                left.getDataType(),
+                                comparison.operator(),
+                                decimal(comparison.right())));
+                continue;
+            }
             PropertyDefinition right =
                     requireProperty(
                             definitions,
@@ -209,6 +231,23 @@ public class ObjectSearchFilterValidator {
             throw BusinessException.invalidField("sortBy", "JSON 속성으로는 정렬할 수 없습니다.");
         }
         return new SortOrder(property.getCode(), property.getDataType(), sort.descending());
+    }
+
+    /**
+     * 합계를 낼 숫자(INTEGER·DECIMAL) 속성 코드. 식별자(예: 행 번호·공정 순번)는 더해도 뜻이 없어 뺀다. 볼 수 없는 민감 속성은 합계로도 값이
+     * 드러나므로 뺀다. 호출자가 typeId를 볼 수 있는지 먼저 확인해야 한다(validate와 같다).
+     */
+    List<String> summableProperties(long typeId, DataAccess access) {
+        return properties.findByObjectTypeIdOrderById(typeId).stream()
+                .filter(property -> "number".equals(comparableFamily(property.getDataType())))
+                .filter(property -> !property.isIdentifier())
+                .filter(
+                        property ->
+                                property.getSensitivity() != PropertySensitivity.RESTRICTED
+                                        || access.canViewRestricted(typeId))
+                .map(PropertyDefinition::getCode)
+                .limit(MAX_SUMS)
+                .toList();
     }
 
     private Map<String, PropertyDefinition> definitions(long typeId) {

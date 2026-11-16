@@ -594,6 +594,56 @@ class AgentScenarioGmsTests {
         run.verify();
     }
 
+    /**
+     * Q1(2026-11-16 운영 대화): 불합격 수량이 0보다 큰 입고는 10건이다(20개 6건, 50개 4건, 합계 320개). 숫자와 비교하지 못하던 때는 불합격
+     * 수량 20인 입고만 값으로 찾아 "6건 × 20개 = 120개"로 답했다. 합계를 AI가 직접 더하던 때는 410개로 지어낸 적이 있어 서버 합계(sums)를 써야
+     * 한다. 불합격 수량이 0인 입고를 더해도 합계는 같으므로 0보다 큰 것만 거르지 않아도 된다. 묻지 않은 품번별 합계를 AI가 더해 130·190개(실제 CL-590
+     * 110개, CL-440 210개)로 틀린 적도 있다.
+     */
+    @Test
+    void q1AnswersRejectedQuantityOfGoodsReceipts() {
+        Run run = ask("입고에 불합격한 제품의 갯수", null);
+
+        run.expectInput(AgentObjectListTools.OBJECT_LIST, "objectTypeId", typeId("GoodsReceipt"));
+        run.expectAnswerWith("320");
+        run.expectAnswerWithout("120", "410", "130개", "190개");
+        run.log("불합격이 있는 입고 10건(20개 6건, 50개 4건), 불합격 수량 합계 320개(객체 목록 sums)");
+        run.verify();
+    }
+
+    /** Q2: 나눈 합계를 물으면 품번마다 조건을 걸어 다시 조회한 sums를 쓴다. 행을 직접 더하면 130·190개처럼 틀린 적이 있다. */
+    @Test
+    void q2AnswersRejectedQuantityByItemFromSums() {
+        Run run = ask("입고 불합격 수량을 품번별로 알려줘", null);
+
+        run.expectAnswerWith("110", "210");
+        run.expectAnswerWithout("130개", "190개");
+        run.log("CL-590 110개, CL-440 210개, BT-M8 0개");
+        run.verify();
+    }
+
+    /** Q3: 다른 유형의 합계도 서버 합계를 쓴다. 10월 계획 시작 작업지시는 42건이라 20건만 받으므로 행을 더하면 틀린다. */
+    @Test
+    void q3AnswersPlannedQuantitySumOfWorkOrdersInOctober() {
+        Run run = ask("10월에 시작 예정이었던 작업지시의 계획 수량 합계는?", null);
+
+        run.expectInput(AgentObjectListTools.OBJECT_LIST, "objectTypeId", typeId("WorkOrder"));
+        run.expectAnswerWith("120,000");
+        run.log("42건, 계획 수량 합계 120,000개");
+        run.verify();
+    }
+
+    /** Q4: 숫자 범위 조건을 숫자 비교로 건다. 불량 수량 60개 이상 작업지시는 60건이다(20건씩 받으므로 total로 답한다). */
+    @Test
+    void q4CountsWorkOrdersWithDefectsAtLeastSixty() {
+        Run run = ask("불량 수량이 60개 이상인 작업지시는 몇 건이야?", null);
+
+        run.expectInput(AgentObjectListTools.OBJECT_LIST, "objectTypeId", typeId("WorkOrder"));
+        run.expectAnswerWith("60건");
+        run.log("60건(defect_qty >= 60)");
+        run.verify();
+    }
+
     private long typeId(String code) {
         return jdbc.sql("select id from object_type where code = :code")
                 .param("code", code)

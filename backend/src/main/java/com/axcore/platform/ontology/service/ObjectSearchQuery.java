@@ -4,6 +4,7 @@ import com.axcore.platform.auth.service.DataPurpose;
 import com.axcore.platform.global.security.LoginAccount;
 import com.axcore.platform.ontology.dto.ObjectSearchRequest;
 import com.axcore.platform.ontology.dto.ObjectSearchResponse;
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +46,13 @@ public interface ObjectSearchQuery {
             ObjectSearchRequest request,
             Extras extras,
             int limit);
+
+    /**
+     * 위 search(extras)와 같은 권한·조건에 맞는 객체 전체의 숫자 속성 합계(속성 코드 → 합계). Agent 객체 목록이 일부 쪽만 받아도 전체 합계를 답하게
+     * 한다. 볼 수 없는 민감 속성과 값이 없는 속성은 빠진다. 유형을 지정해야 하고 검색어(q)는 받지 않는다. 볼 수 없는 유형이면 빈 값이다.
+     */
+    Map<String, BigDecimal> sums(
+            LoginAccount actor, DataPurpose purpose, ObjectSearchRequest request, Extras extras);
 
     /**
      * Agent 전용 조건. propertyValueSets는 속성마다 값 목록(그중 하나와 같으면 된다), comparisons는 같은 객체의 두 속성 비교(예:

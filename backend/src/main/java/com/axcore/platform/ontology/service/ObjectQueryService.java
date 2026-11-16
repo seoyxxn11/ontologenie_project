@@ -30,6 +30,7 @@ import com.axcore.platform.ontology.repository.ObjectQueryRepository.ObjectRow;
 import com.axcore.platform.ontology.repository.ObjectQueryRepository.PropertyFilter;
 import com.axcore.platform.ontology.repository.ObjectQueryRepository.SearchFilters;
 import com.axcore.platform.ontology.repository.ObjectQueryRepository.SortOrder;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
@@ -146,6 +147,27 @@ public class ObjectQueryService
                         : objects.searchIds(
                                 scope.visibleTypeIds(), scope.status(), scope.filters(), limit);
         return new IdSearch(total, ids);
+    }
+
+    @Override
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public Map<String, BigDecimal> sums(
+            LoginAccount actor, DataPurpose purpose, ObjectSearchRequest request, Extras extras) {
+        if (request.objectTypeId() == null) {
+            throw BusinessException.invalidField("objectTypeId", "합계에는 객체 유형을 지정해 주세요.");
+        }
+        if (request.q() != null && !request.q().isBlank()) {
+            throw new IllegalArgumentException("검색어 조건은 합계에서 지원하지 않습니다.");
+        }
+        SearchScope scope = searchScope(actor, purpose, request, extras);
+        if (scope == null) {
+            return Map.of();
+        }
+        return objects.sums(
+                scope.visibleTypeIds(),
+                scope.status(),
+                scope.filters(),
+                filterValidator.summableProperties(request.objectTypeId(), scope.access()));
     }
 
     /**

@@ -9,6 +9,7 @@ import com.axcore.platform.ontology.dto.ObjectLinkResponse.Origin;
 import com.axcore.platform.ontology.dto.ObjectLinkResponse.RelatedObject;
 import com.axcore.platform.ontology.dto.ObjectLinkSearchRequest.Direction;
 import com.axcore.platform.ontology.dto.ObjectSearchRequest.Status;
+import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
@@ -341,6 +342,47 @@ public class ObjectQueryRepository {
                 .single();
     }
 
+    /**
+     * search와 같은 조건(검색어 제외)에 맞는 객체 전체의 숫자 속성 합계. codes는 합칠 숫자 속성 코드이고, 값이 하나도 없는 속성은 결과에서 빠진다. 숫자로
+     * 읽을 수 없는 값은 검색 조건과 같이 없는 값으로 본다.
+     */
+    public Map<String, BigDecimal> sums(
+            Collection<Long> visibleTypeIds,
+            Status status,
+            SearchFilters filters,
+            List<String> codes) {
+        if (codes.isEmpty()) {
+            return Map.of();
+        }
+        SearchClause conditions = searchConditions(filters);
+        StringBuilder select = new StringBuilder("select ");
+        Map<String, Object> parameters = new LinkedHashMap<>(conditions.parameters());
+        for (int index = 0; index < codes.size(); index++) {
+            String key = "sumProperty" + index;
+            select.append(index == 0 ? "" : ", ")
+                    .append("sum(")
+                    .append(propertyExpression(key, PropertyDataType.DECIMAL))
+                    .append(") as sum")
+                    .append(index);
+            parameters.put(key, codes.get(index));
+        }
+        return scopedQuery(
+                        select + " " + OBJECTS + FILTERS + conditions.sql(), visibleTypeIds, status)
+                .params(parameters)
+                .query(
+                        (rs, rowNum) -> {
+                            Map<String, BigDecimal> sums = new LinkedHashMap<>();
+                            for (int index = 0; index < codes.size(); index++) {
+                                BigDecimal sum = rs.getBigDecimal("sum" + index);
+                                if (sum != null) {
+                                    sums.put(codes.get(index), sum);
+                                }
+                            }
+                            return sums;
+                        })
+                .single();
+    }
+
     /** search와 같은 조건(검색어 제외)에 맞는 객체 ID를 id 순으로 limit건까지 돌려준다(380). */
     public List<Long> searchIds(
             Collection<Long> visibleTypeIds, Status status, SearchFilters filters, int limit) {
@@ -389,11 +431,15 @@ public class ObjectQueryRepository {
                     .append(propertyExpression(left, comparison.leftType()))
                     .append(' ')
                     .append(comparison.operator())
-                    .append(' ')
-                    .append(propertyExpression(right, comparison.rightType()))
-                    .append("\n");
+                    .append(' ');
+            if (comparison.rightValue() != null) {
+                sql.append("cast(:").append(right).append(" as numeric)\n");
+                parameters.put(right, comparison.rightValue());
+            } else {
+                sql.append(propertyExpression(right, comparison.rightType())).append("\n");
+                parameters.put(right, comparison.right());
+            }
             parameters.put(left, comparison.left());
-            parameters.put(right, comparison.right());
         }
         PeriodFilter period = filters.period();
         if (period != null) {
@@ -465,21 +511,39 @@ public class ObjectQueryRepository {
     public record PeriodFilter(String code, PropertyDataType type, String from, String to) {}
 
     /**
-     * 같은 객체의 두 속성을 비교하는 조건(418). 예: 측정값(value) &gt; 경고 상한(threshold_high). 연산자는 &gt;, &gt;=, &lt;,
-     * &lt;= 중 하나만 받는다. SQL에 그대로 붙이므로 다른 값은 만들 수 없게 막는다.
+     * 같은 객체의 두 속성을 비교하는 조건(418). 예: 측정값(value) &gt; 경고 상한(threshold_high). rightValue가 있으면 오른쪽은 속성이
+     * 아니라 숫자 값이다(예: rejected_qty &gt; 0). 연산자는 &gt;, &gt;=, &lt;, &lt;= 중 하나만 받는다. SQL에 그대로 붙이므로 다른
+     * 값은 만들 수 없게 막는다.
      */
     public record PropertyComparison(
             String left,
             PropertyDataType leftType,
             String operator,
             String right,
-            PropertyDataType rightType) {
+            PropertyDataType rightType,
+            String rightValue) {
         public static final List<String> OPERATORS = List.of(">", ">=", "<", "<=");
 
         public PropertyComparison {
             if (operator == null || !OPERATORS.contains(operator)) {
                 throw new IllegalArgumentException("지원하지 않는 비교 연산자입니다: " + operator);
             }
+        }
+
+        /** 두 속성의 비교. */
+        public PropertyComparison(
+                String left,
+                PropertyDataType leftType,
+                String operator,
+                String right,
+                PropertyDataType rightType) {
+            this(left, leftType, operator, right, rightType, null);
+        }
+
+        /** 숫자 속성과 숫자 값의 비교. */
+        public static PropertyComparison withNumber(
+                String left, PropertyDataType leftType, String operator, String number) {
+            return new PropertyComparison(left, leftType, operator, null, null, number);
         }
     }
 

@@ -89,6 +89,8 @@ class AgentObjectListToolsIntegrationTests {
         // 조건 값을 고를 수 있게 문자 속성의 저장 값 종류를 준다. 숨긴 유형의 값은 섞이지 않는다.
         assertThat(data.properties().getFirst().values()).containsExactly("가동", "정지");
         assertThat(data.properties().get(1).values()).isNull();
+        // 합계로도 민감 값이 드러나므로 볼 수 없는 민감 숫자 속성(cost)은 합계를 내지 않는다.
+        assertThat(data.sums()).isEmpty();
     }
 
     @Test
@@ -355,6 +357,94 @@ class AgentObjectListToolsIntegrationTests {
                                         null,
                                         null))
                 .hasEntrySatisfying("error", error -> assertThat((String) error).contains("형식으로"));
+    }
+
+    /**
+     * 숫자 속성을 숫자와 비교해 거른다. "입고에 불합격한 제품의 갯수"에서 "rejected_qty > 0"을 쓰지 못해 불합격 수량이 20인 입고만 값으로 찾고 50인
+     * 입고를 빠뜨렸다(2026-11-16).
+     */
+    @Test
+    void comparesNumberPropertyWithNumber() {
+        property(visible, "rejected_qty", "DECIMAL", "NORMAL");
+        property(visible, "count", "INTEGER", "NORMAL");
+        property(visible, "line_no", "INTEGER", "NORMAL");
+        jdbc.sql(
+                        "update property_definition set is_identifier = true"
+                                + " where object_type_id = :type and code = 'line_no'")
+                .param("type", visible)
+                .update();
+        object(visible, "GR-1", "{\"rejected_qty\":\"0.000\",\"count\":1,\"line_no\":1}");
+        object(visible, "GR-2", "{\"rejected_qty\":\"20.000\",\"count\":2,\"line_no\":2}");
+        object(visible, "GR-3", "{\"rejected_qty\":\"50.000\",\"count\":3,\"line_no\":3}");
+
+        ObjectList rejected =
+                (ObjectList)
+                        tools(VIEWER)
+                                .objectList(
+                                        visible,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        List.of("rejected_qty > 0"),
+                                        null,
+                                        null)
+                                .get("data");
+        ObjectList small =
+                (ObjectList)
+                        tools(VIEWER)
+                                .objectList(
+                                        visible,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        List.of("count <= 2", "rejected_qty>=-0.5"),
+                                        null,
+                                        null)
+                                .get("data");
+
+        assertThat(rejected.total()).isEqualTo(2L);
+        assertThat(rejected.objects())
+                .extracting(AgentQueryTools.ObjectSummary::displayName)
+                .containsExactly("GR-2", "GR-3");
+        assertThat(rejected.sums())
+                .as("거른 객체 전체의 숫자 속성 합계를 서버가 센다. 더해도 뜻이 없는 식별자(line_no)는 빠진다")
+                .containsExactlyInAnyOrderEntriesOf(Map.of("rejected_qty", "70", "count", "5"));
+        assertThat(small.objects())
+                .extracting(AgentQueryTools.ObjectSummary::displayName)
+                .containsExactly("GR-1", "GR-2");
+        assertThat(
+                        tools(VIEWER)
+                                .objectList(
+                                        visible,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        List.of("status > 0"),
+                                        null,
+                                        null))
+                .as("문자 속성은 숫자와 비교하지 않는다")
+                .hasEntrySatisfying(
+                        "error", error -> assertThat((String) error).contains("숫자 속성만"));
+        assertThat(
+                        tools(VIEWER)
+                                .objectList(
+                                        visible,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        List.of("cost > 0"),
+                                        null,
+                                        null))
+                .as("볼 수 없는 민감 속성은 숫자와도 비교하지 않는다")
+                .containsEntry("resultCategory", "DENIED");
     }
 
     @Test

@@ -497,6 +497,18 @@ class AgentResponderTests {
     }
 
     @Test
+    void tellsToFilterNumberRangesInsteadOfGuessingOneValue() {
+        // "입고에 불합격한 제품의 갯수"에서 불합격 수량 20인 입고만 값으로 찾고 6건 × 20개로 곱해 답했다(2026-11-16).
+        // 합계만이 아니라 AI가 직접 만든 계산 값은 모두 쓰지 않는다.
+        assertThat(AgentResponder.SYSTEM_PROMPT)
+                .contains("propertyComparisons에 \"<속성 코드> <연산자> <숫자>\"로 거른다")
+                .contains("목록에서 본 값 하나로 바꿔 propertyValues에 넣지 않는다.")
+                .contains("합계·평균·비율·차이 같은 계산 값은 도구 결과에 있는 값만 쓴다.")
+                .contains("묻지 않은 계산 값(예: 품번별·설비별로 나눈 합계)도 만들지 않는다.")
+                .contains("수량·금액의 합계를 물으면 sums의 값을 쓴다.");
+    }
+
+    @Test
     void writesCompareInputWithSequences() {
         assertThat(
                         AgentResponder.compareInput(
