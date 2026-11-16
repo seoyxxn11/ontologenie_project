@@ -144,6 +144,44 @@ class QuestionInterpreterGmsTests {
         assertThat(continued.referenceObjectIds()).contains(731L);
     }
 
+    /**
+     * 비가동 중인 설비 답변 뒤 다른 업무 종류의 뜻을 물으면 그 종류로 바뀐다. kinds가 비면 서버가 이전 답변의 설비·비가동 조건을 이어 써서 답변에 비가동이 섞였다
+     * (2026-11-16 "입고실적이 뭐야").
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"입고실적이 뭐야", "입고 실적은 무슨 데이터야?", "고정자산이 뭔데?"})
+    void switchesKindWhenAskingMeaningOfAnotherKind(String question) {
+        QuestionInterpretation stoppedEquipment =
+                new QuestionInterpretation(
+                        "비가동 중 설비",
+                        List.of(),
+                        null,
+                        null,
+                        List.of(),
+                        null,
+                        List.of("설비"),
+                        QuestionScope.BUSINESS,
+                        List.of("비가동 중"));
+        QuestionInterpretation asked =
+                interpreter.interpret(
+                        question,
+                        Map.of(),
+                        null,
+                        stoppedEquipment,
+                        List.of(
+                                new ConversationTurn(
+                                        "현재 비가동중인 설비가 뭐 있지?", "1라인 3호 프레스 (P103) — 정비중"),
+                                new ConversationTurn("야", AgentAnswerService.HELP_CONTENT)),
+                        null);
+        QuestionInterpretation continued = asked.continueFrom(stoppedEquipment);
+
+        log.info("GMS 다른 종류 뜻 질문 해석: {} → {}", question, asked);
+        assertThat(asked.scope()).isEqualTo(QuestionScope.BUSINESS);
+        assertThat(asked.kinds()).isNotEmpty().doesNotContain("설비");
+        assertThat(continued.kinds()).doesNotContain("설비");
+        assertThat(continued.propertyValues()).doesNotContain("비가동 중");
+    }
+
     private QuestionInterpretation interpretFollowUp(String question) {
         return interpreter.interpret(
                 question,

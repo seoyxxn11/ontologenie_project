@@ -467,4 +467,39 @@ class QuestionInterpreterTests {
                 // 그 순번의 질문이 어디에도 없으면 짐작하지 않는다. 대상 찾기가 실패해 되묻게 된다(GMS 확인에서 B101로 지어냄).
                 .contains("다른 대상으로 짐작하지 않고, 가리킨 말을 그대로 targets에 쓴다");
     }
+
+    @Test
+    void writesKindEvenWhenOnlyMeaningOfAnotherKindIsAsked() {
+        // kinds가 비면 서버가 이전 답변의 종류·속성 조건을 잇는다. 비가동 설비 답변 뒤 "입고실적이 뭐야"에 비가동이 섞였다(2026-11-16).
+        assertThat(QuestionInterpreter.SYSTEM_PROMPT)
+                .contains("업무 데이터 종류의 뜻이나 내용을 물어도 그 종류 이름을 kinds에 쓴다.")
+                .contains("업무 데이터 종류의 뜻을 묻는 말도 일반 상식이 아니라 BUSINESS다.")
+                .contains("\"이전 답변의 조건\"에 없는 다른 종류를 말하면 뜻만 물어도 kinds에 그 종류를 쓴다.");
+    }
+
+    @Test
+    void keepsPreviousKindAndPropertyValuesOnlyWhenNoSubjectIsNamed() {
+        QuestionInterpretation stoppedEquipment =
+                new QuestionInterpretation(
+                        "비가동 중 설비",
+                        List.of(),
+                        null,
+                        null,
+                        List.of(),
+                        null,
+                        List.of("설비"),
+                        QuestionScope.BUSINESS,
+                        List.of("비가동 중"));
+        QuestionInterpretation withoutKind =
+                new QuestionInterpretation("입고실적 설명", List.of(), null, null, List.of(), null);
+        QuestionInterpretation withKind =
+                new QuestionInterpretation(
+                        "입고실적 설명", List.of(), null, null, List.of(), null, List.of("입고실적"));
+
+        assertThat(withoutKind.continueFrom(stoppedEquipment).propertyValues())
+                .containsExactly("비가동 중");
+        QuestionInterpretation switched = withKind.continueFrom(stoppedEquipment);
+        assertThat(switched.kinds()).containsExactly("입고실적");
+        assertThat(switched.propertyValues()).isEmpty();
+    }
 }
