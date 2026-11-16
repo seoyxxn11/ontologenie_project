@@ -2,7 +2,7 @@
 
 > 서로 다른 업무 시스템의 데이터를 하나의 의미 체계로 연결하고, AI가 근거를 바탕으로 정보를 조회하고 승인된 업무 Action을 실행할 수 있도록 하는 플랫폼
 
-**SSAFY 기업연계 프로젝트 | 협력기업: 에이엑스코어 | 개발 진행 중**
+**SSAFY 기업연계 프로젝트 | 협력기업: 에이엑스코어 | MVP 구현·배포 완료, 통합 검증 중**
 
 ## 1. 프로젝트 소개
 
@@ -40,7 +40,16 @@ ERP, MES, 현장 메모처럼 서로 다른 시스템에 저장된 데이터는 
 | S7 | 계정·권한 관리 | 로그인, 계정·역할 확인과 변경, 전체 실행 이력 조회 | MVP |
 | 공통 | 수집·감사 | 원천 수집 배치(주기·수동 실행), Action 정의 관리, 동작·감사 기록 | MVP |
 
-사용자 역할은 `ADMIN`, `PLANNER`, `MAINTENANCE`, `VIEWER` 4개입니다. MVP에서 `MAINTENANCE`는 `VIEWER`와 권한이 같습니다. 권한 코드와 역할별 부여는 Flyway 초기 데이터에 있습니다.
+사용자 역할은 `ADMIN`, `PLANNER`, `MAINTENANCE`, `VIEWER` 4개입니다.
+
+| 역할 | 하는 일 | 조회 범위 |
+| --- | --- | --- |
+| `ADMIN` | 원천·수집 주기·온톨로지 정의·제안 검토·미연결 문제 수동 연결·계정·Action 정의 관리, 재배정 계획 생성 | 운영 그룹 전체. 민감 값은 보지 않음 |
+| `PLANNER` | 객체 조회, Agent 질문, 재배정 계획 생성 | 운영 그룹 전체와 민감 값 |
+| `VIEWER` | 객체 조회, Agent 질문 | 운영 그룹 전체. 민감 값은 보지 않음 |
+| `MAINTENANCE` | 미구성 역할. 권한과 조회 범위가 없음 | 없음 |
+
+조회 범위는 객체 유형의 그룹과 역할별 허용 행(`role_data_scope`)으로 정합니다. 그룹이 없는 객체 유형은 어느 역할에도 보이지 않습니다. 외부 LLM으로 보내는 값은 역할과 관계없이 민감 값을 가립니다. 권한 코드와 역할별 부여는 Flyway 초기 데이터(V13·V21)에 있고, 자세한 기준은 [docs/data-access.md](docs/data-access.md)에 있습니다.
 
 ## 3. 시스템 구성
 
@@ -88,13 +97,19 @@ ERP, MES, 현장 메모처럼 서로 다른 시스템에 저장된 데이터는 
   → 바뀐 서비스만 빌드 → Docker 이미지 생성 → Docker Compose 배포 → 헬스체크
 ```
 
-Jenkins Job 2개가 같은 `Jenkinsfile`을 씁니다. `axcore-mr-check`는 MR을 검사하고, `axcore-deploy`는 develop 병합 시 바뀐 서비스(backend·AI·frontend)만 배포합니다. 결과는 GitLab 커밋 상태와 Mattermost DM으로 알립니다.
+Jenkins Job 3개가 같은 `Jenkinsfile`을 씁니다.
+
+- `axcore-mr-check`: MR을 검사합니다.
+- `axcore-deploy`: develop에 병합되면 바뀐 서비스(backend·AI·frontend)만 배포합니다.
+- `axcore-sonarqube`: develop의 backend·AI·frontend를 메인 서버의 SonarQube로 분석합니다([infra/sonarqube](infra/sonarqube/README.md)).
+
+결과는 GitLab 커밋 상태와 Mattermost DM으로 알립니다.
 
 ## 4. 주요 데이터 모델
 
 [온톨로지 MVP ERD (v2)](https://app.notion.com/p/402bdf14d2d880048f4fd8ee1f1d540b) 기준입니다(2026-10-26 확정). 실제 테이블의 원본은 [Flyway migration](backend/src/main/resources/db/migration)입니다. 모든 테이블은 PostgreSQL 스키마 `platform` 하나에 두고, 단일 ID PK는 `bigint`를 사용합니다. Spring Session·Spring Batch 테이블은 아래 목록에 넣지 않습니다.
 
-**온톨로지 테이블 (19개)**
+**온톨로지 테이블 (22개)**
 
 | 구분 | 테이블 | 설명 |
 | --- | --- | --- |
@@ -106,6 +121,7 @@ Jenkins Job 2개가 같은 `Jenkinsfile`을 씁니다. `axcore-mr-check`는 MR�
 | 인스턴스 | `object_instance`, `object_link` | 실제 객체와 객체 간 연결 |
 | Action | `action_definition` | 실행 가능한 업무, 입력 형식, 권한, Handler, 확인 창 여부 |
 | 수집 | `sync_run`, `sync_run_resource`, `cdc_offset` | 원천 수집 실행 기록, 표별 진행, CDC 소비 위치 |
+| 수집 보조 | `source_delete_mark`, `source_load_failure`, `link_check_pending` | 객체가 없는 원천 행의 삭제 흔적, 객체로 만들지 못한 원천 행·값 변환 실패, 원천 사이 미연결을 문제로 올리기 전 확인 대기 |
 
 **운영 테이블 (23개)**
 
@@ -113,9 +129,9 @@ Jenkins Job 2개가 같은 `Jenkinsfile`을 씁니다. `axcore-mr-check`는 MR�
 | --- | --- |
 | 계정·권한 | 계정, 역할, 권한, 역할별 데이터 범위 |
 | 분석 실행 | AI 분석 실행과 대상 |
-| 제안·검토 | 제안 항목, 개정, 후보, 검토 결정, 보류 건 |
+| 제안·검토 | 제안 항목, 개정, 후보, 검토 결정 |
 | 정합성 | 검사 실행·결과, 정합성 문제와 재검증·이력 |
-| 실행·감사 | Action·Agent 조회·작업 실행 기록, 변경 전후 기록 |
+| 실행·감사 | Action·Agent 조회·작업 실행 기록, 변경 전후 기록, 민감에서 내린 속성 기록 |
 | Agent | 대화, 메시지 |
 | 재배정 계획 | 재배정 계획과 계획 항목 |
 
@@ -130,11 +146,11 @@ Jenkins Job 2개가 같은 `Jenkinsfile`을 씁니다. `axcore-mr-check`는 MR�
 | 원천 CDC | Debezium 3.6 (Kafka Connect), Kafka 4.2 (KRaft 단일 노드), Redpanda Console | 확정 (2026-10-30). 인프라 기동 2026-11-02 |
 | AI Agent | Spring AI 2.x | 확정 |
 | AI 분석·제안 | Python, FastAPI, Pydantic, pytest, Ruff | 확정 |
-| LLM | SSAFY GMS 제공 모델 | AI 분석·제안에 사용. Agent 모델은 미정 |
-| Frontend | React, TypeScript, ESLint, Prettier | 확정 |
+| LLM | SSAFY GMS 제공 모델 | AI 분석·제안과 Agent에 사용. Agent 기본 모델은 `gpt-5.6-luna`([선정 근거](docs/agent-model-evaluation.md)) |
+| Frontend | React 19, TypeScript, Vite, React Router, TanStack Query, Tailwind CSS, ESLint, Prettier | 확정 |
 | Database | PostgreSQL 18 | 확정 |
 | API 문서 | OpenAPI 3.1, Swagger | 확정 |
-| Infra | AWS Lightsail, Docker Compose, nginx, Let's Encrypt, Jenkins | 확정 |
+| Infra | AWS Lightsail, Docker Compose, nginx, Let's Encrypt, Jenkins, SonarQube | 확정 |
 | 협업 | SSAFY GitLab(모노레포), Jira, Notion | 확정 |
 | 모니터링 | Spring Boot Actuator, Prometheus, Grafana Alloy, Loki, Grafana | 확정 |
 | 배포 알림 | Mattermost DM | 확정 |
@@ -170,19 +186,19 @@ Jenkins Job 2개가 같은 `Jenkinsfile`을 씁니다. `axcore-mr-check`는 MR�
 - [x] 온톨로지 ERD 확정 (v2)
 - [x] 팀 개발 가이드 확정
 - [x] 메인 서버 HTTPS·Jenkins 구성
-- [ ] 공통 개발 기반 구축
-- [ ] 인증·계정·권한 관리
-- [ ] 원천 연결·AI 분석 및 제안 생성
-- [ ] 온톨로지 정의·원천 매핑 관리
-- [ ] 제안 검토·정합성 검사·승인 반영
-- [ ] 원천 수집·정합성 문제·재검증
-- [ ] 객체 탐색·상세 조회
-- [ ] 업무 Agent·대화 관리
-- [ ] Action 실행·작업지시 재배정 계획
-- [ ] 감사·실행 이력 추적
+- [x] 공통 개발 기반 구축
+- [x] 인증·계정·권한 관리
+- [x] 원천 연결·AI 분석 및 제안 생성
+- [x] 온톨로지 정의·원천 매핑 관리
+- [x] 제안 검토·정합성 검사·승인 반영
+- [x] 원천 수집(CDC)·정합성 문제·재검증
+- [x] 객체 탐색·상세 조회
+- [x] 업무 Agent·대화 관리
+- [x] Action 실행·작업지시 재배정 계획
+- [x] 감사·실행 이력 추적
 - [ ] 시연 데이터·통합 검증·산출물
 
-각 항목은 Jira 프로젝트 `S15P31C106`의 에픽으로 관리합니다.
+체크는 develop에 구현되어 메인 서버에 배포된 기준입니다(2026-11-16). 남은 개선과 세부 작업은 Jira 프로젝트 `S15P31C106`의 에픽 아래에서 관리합니다.
 
 ## 9. 저장소 구조와 실행 방법
 
