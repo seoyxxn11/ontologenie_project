@@ -77,6 +77,10 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.named('test') {
     useJUnitPlatform()
+    // CDC 처리량 측정(CdcThroughputMeasureTests, 335)은 운영 batch와 같은 힙으로 돌린다(infra/compose.yaml batch의 -Xmx768m).
+    if (System.getenv('AXCORE_CDC_MEASURE') == 'true') {
+        maxHeapSize = '768m'
+    }
 }
 
 tasks.named('jacocoTestReport') {

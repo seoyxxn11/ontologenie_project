@@ -24,7 +24,7 @@ import tools.jackson.databind.json.JsonMapper;
  * <p>규칙 비교 항목은 규칙을 만든 트랜잭션 안에서만 넣을 수 있어(V1 트리거) 한 트랜잭션으로 넣는다. 수동 연결은 확인자 계정이 있어야 해서 적재용 관리자 계정을 하나
  * 만든다.
  */
-final class AgentScenarioDataset {
+public final class AgentScenarioDataset {
     private static final String RESOURCE = "agent-scenario/press-v1.0.json.gz";
 
     private final JdbcClient jdbc;
@@ -32,7 +32,7 @@ final class AgentScenarioDataset {
     private final TransactionTemplate transaction;
     private final JsonMapper json;
 
-    AgentScenarioDataset(
+    public AgentScenarioDataset(
             JdbcClient jdbc, JdbcTemplate batch, TransactionTemplate transaction, JsonMapper json) {
         this.jdbc = jdbc;
         this.batch = batch;
@@ -41,7 +41,7 @@ final class AgentScenarioDataset {
     }
 
     /** 넣은 결과. 시나리오 판정에서 원천 키로 객체 ID를 찾는다. */
-    record Loaded(long adminAccountId, Map<String, Long> objectIds, int objects, int links) {
+    public record Loaded(long adminAccountId, Map<String, Long> objectIds, int objects, int links) {
 
         long object(String objectType, Map<String, String> sourceKey) {
             Long id = objectIds.get(key(objectType, sourceKey));
@@ -53,7 +53,7 @@ final class AgentScenarioDataset {
         }
     }
 
-    Loaded load() {
+    public Loaded load() {
         Dataset data = read();
         return transaction.execute(status -> insert(data));
     }

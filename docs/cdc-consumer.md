@@ -211,3 +211,38 @@ Debezium이 원천마다 토픽 하나(`{data_source.code}.all`)에 보낸 변�
 | 보기 | `GET /api/v1/sources/policy-violations`의 `blockedResources`(사유, 다시 읽기 대기 여부), 수집 이력의 실패 사유 |
 
 시험: `CdcTransactionApplierTests.skippedTableThatCannotBePlannedIsMarkedForReload`, `CdcReloadServiceTests.queuesBlockedTableOnceThenWaitsUntilMappingIsFixed`·`queuesBlockedTableAgainWhenReasonDiffers`·`releasesRecoveryWithoutWaitingForBlockedTable`·`keepsRecoveryWhileLoadableTableIsNotReloaded`.
+
+## 335 처리량·정합성 측정
+
+원천 하나 = 토픽 하나 = 소비 스레드 하나라서, 한 원천의 반영 속도는 스레드 하나가 원천 트랜잭션을 반영하는 속도로 정해진다. 이 속도와 정합성을 운영과 같은 구성으로 쟀다(2026-11-15).
+
+### 시험
+
+`CdcThroughputMeasureTests`. 측정용이라 평소 빌드에서는 건너뛰고 `AXCORE_CDC_MEASURE=true`일 때만 돈다(Docker 필요, 약 10분).
+
+```bash
+AXCORE_CDC_MEASURE=true ./gradlew cleanTest test --tests '*CdcThroughputMeasureTests'
+```
+
+- 구성: 원천 PostgreSQL 18.6(`ai/data/data-v1.0`을 erp·mes DB에 적재, wal_level=logical) → Debezium 3.6.3(`infra/cdc/connectors/*.json`과 같은 설정) → Kafka 4.2.2 → 실제 batch 소비자. 플랫폼에는 같은 데이터로 만든 시연 온톨로지(`agent-scenario`, 객체 3,396·연결 10,118)를 넣고 첫 적재를 마친 상태로 시작한다.
+- 운영 batch와 같은 힙(768MB, `build.gradle`)으로 돈다. SYNC 검사·다시 읽기 감시 작업은 끈다.
+- 부하: 시나리오 SQL(`ai/data/scenario-v1.0` cdc_01~04·99), 행 하나짜리 트랜잭션 묶음, 큰 트랜잭션, 거래 표를 복사해 10배로 늘리기, 복사본 하나 삭제. `AXCORE_CDC_MEASURE_COPIES`(기본 9), `AXCORE_CDC_MEASURE_LOAD`(작은 트랜잭션 건수 배율, 기본 1)로 줄일 수 있다.
+- 확인: 매핑한 원천 표마다 원천 행과 플랫폼 활성 객체의 키·속성 값이 같은지, CDC로 맞춘 연결이 전체 재계산과 같은지, 복구로 간 원천이 없는지.
+- 결과: `build/cdc-measure/`(summary.txt, 트랜잭션별 tx.jsonl, 1초 표본 samples.jsonl).
+
+### 결과 (2026-11-15, 로컬)
+
+정합성은 모두 맞았다. 원천 표 25개의 행과 객체(10배 뒤 32,043개)가 키·값까지 같고, CDC 연결 82,910개가 전체 재계산과 같았다. 복구·처리 지연 비정상은 없었다.
+
+| 부하 | 1배 | 10배 |
+|---|---|---|
+| 행 하나짜리 트랜잭션 반영 p50(공정·작업지시·수주) | 94 · 131 · 66ms | 467 · 553 · 187ms |
+| 그중 연결 재계산 | 84~92% | 95~98% |
+| 작업지시 수정을 한꺼번에 넣고 다 반영까지 | 500건 68초 | 200건 114초 |
+| 큰 트랜잭션 하나 | 1,211건 1.5초 | 12,110건 13.5초 |
+
+- 작은 트랜잭션은 거의 연결 재계산이다. 바뀐 객체가 하나여도 그 유형이 닿는 관계 유형마다 양 끝 유형의 활성 객체와 연결을 모두 읽어 다시 계산하므로(198-7, 181 MVP), 비용이 전체 객체 수에 비례한다.
+- ERP·MES가 동시에 들어오면 같은 관계 유형 잠금을 기다려 서로 느려진다(수주 66 → 177ms).
+- 큰 트랜잭션은 객체 쓰기가 대부분이다(초당 약 800~900건).
+- 지금 규모에서는 고치지 않는다. 객체가 늘어 작은 트랜잭션이 몰릴 때 처리 지연이 기준(`max-lag` 2분)에 가까워지면, 밀린 원천 트랜잭션 여러 개를 한 플랫폼 트랜잭션으로 반영하고 연결은 한 번만 다시 계산하는 것부터 본다. 그다음은 바뀐 쌍만 계산하기(비교값 저장 칸 필요)다.
+- 한계: 노트북 Docker(PostgreSQL fsync=off, CPU 제한 없음)에서 쟀다. 운영 batch는 CPU 1개라 두 원천이 동시에 들어올 때 더 느릴 수 있다.
