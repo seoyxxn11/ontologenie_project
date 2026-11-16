@@ -57,7 +57,10 @@ function ActionResultList({ actions }: { actions: AgentAction[] }) {
             <li key={`${action.code}-${index}`}>
               <div className="agent-action-heading">
                 <strong>{action.name}</strong>
-                <StatusBadge tone={actionTones[action.status]}>
+                <StatusBadge
+                  tone={actionTones[action.status]}
+                  animate={action.status === 'RUNNING'}
+                >
                   {actionStatusLabels[action.status]}
                 </StatusBadge>
               </div>

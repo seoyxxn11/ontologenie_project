@@ -64,7 +64,13 @@ test('후보 카드 선택 후 규칙·근거·검사·결정을 함께 확인�
     await screen.findByRole('region', { name: '후보 검토 상세' }),
   )
   await detail.findByText('신뢰도: 86.0%')
-  expect(detail.getByText('검토 대기')).toHaveClass('bg-amber-50')
+  const reviewStatus = detail.getByText('검토 대기').closest('.ui-status-dot')
+  expect(reviewStatus).toHaveAttribute('data-tone', 'warning')
+  expect(reviewStatus?.querySelector('.ui-status-dot-ripple')).toBeNull()
+  expect(detail.getByText('미반영').closest('.ui-status-dot')).toHaveAttribute(
+    'data-tone',
+    'neutral',
+  )
   expect(detail.getByRole('region', { name: '제안 근거' })).toBeVisible()
   expect(detail.getByRole('region', { name: '정합성 검사' })).toBeVisible()
   expect(

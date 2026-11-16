@@ -65,6 +65,7 @@
   width: max-content;
   min-width: 224px;
   max-width: 100%;
+  column-gap: 24px;
   color: var(--ui-text);
 }
 .sources-source-button[aria-pressed='true'] {
@@ -88,6 +89,10 @@
   min-width: 0;
   text-align: left;
   overflow-wrap: anywhere;
+}
+.sources-source-status {
+  min-width: 0;
+  text-align: left;
 }
 .sources-detail-heading {
   display: flex;
