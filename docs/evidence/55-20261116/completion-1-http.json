@@ -1,0 +1,7 @@
+{
+  "uri": "/api/v1/agent/conversations/{id}/messages",
+  "status": "202",
+  "count": 1.0,
+  "backend_mean_seconds": 0.018731834000000003,
+  "scope": "backend HTTP handling only; excludes nginx/client and async completion"
+}
