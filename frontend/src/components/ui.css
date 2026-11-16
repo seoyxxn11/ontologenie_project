@@ -178,18 +178,6 @@ body {
   opacity: 0.55;
 }
 
-.ui-status-badge {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  border-radius: 9999px;
-  padding: 2px 8px;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 18px;
-  white-space: nowrap;
-}
-
 .ui-table-container {
   max-width: 100%;
   overflow-x: auto;

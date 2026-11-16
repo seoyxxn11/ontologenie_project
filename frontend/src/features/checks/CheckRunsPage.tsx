@@ -255,6 +255,7 @@ export default function CheckRunsPage() {
                             #{run.id} · {runTriggers[run.triggerKind]}
                           </strong>
                           <StatusBadge
+                            animate={run.status === 'RUNNING'}
                             tone={
                               run.status === 'FAILED'
                                 ? 'danger'

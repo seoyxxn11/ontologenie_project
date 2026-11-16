@@ -215,6 +215,7 @@ function ConnectionInfo({
                   </p>
                 ) : (
                   <StatusBadge
+                    animate={status === 'RUNNING'}
                     tone={
                       status === 'SUCCEEDED' && failedAccounts.length > 0
                         ? 'warning'

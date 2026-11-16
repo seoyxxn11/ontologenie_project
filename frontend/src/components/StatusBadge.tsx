@@ -1,21 +1,32 @@
 import type { ReactNode } from 'react'
+import StatusDot from './ui/status-dot'
 
 const tones = {
-  neutral: 'bg-slate-100 text-slate-700',
-  info: 'bg-blue-50 text-blue-800',
-  success: 'bg-emerald-50 text-emerald-800',
-  warning: 'bg-amber-50 text-amber-800',
-  danger: 'bg-red-50 text-red-700',
-}
+  neutral: 'neutral',
+  info: 'active',
+  success: 'success',
+  warning: 'warning',
+  danger: 'error',
+} as const
 
 function StatusBadge({
   children,
   tone = 'neutral',
+  animate = false,
 }: {
   children: ReactNode
   tone?: keyof typeof tones
+  animate?: boolean
 }) {
-  return <span className={`ui-status-badge ${tones[tone]}`}>{children}</span>
+  return (
+    <StatusDot
+      tone={tones[tone]}
+      label={children}
+      animate={animate}
+      showLabel
+      className="ui-status-badge"
+    />
+  )
 }
 
 export default StatusBadge

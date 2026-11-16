@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import Button from '../../components/Button'
 import DataTable from '../../components/DataTable'
+import StatusBadge from '../../components/StatusBadge'
 import ExecutionHistory from '../audit/ExecutionHistory'
 import { fetchRuleRevisions, fetchRules } from './api'
 import { ruleOriginLabels, ruleStatusLabels } from './labels'
@@ -111,8 +112,8 @@ function RevisionComparison({ previous, selected }: RevisionComparisonProps) {
                 <td className="px-3 py-2 text-slate-600">
                   {row.label}
                   {changed && (
-                    <span className="ml-1 rounded bg-amber-100 px-1 text-sm text-amber-800">
-                      바뀜
+                    <span className="ml-1">
+                      <StatusBadge tone="warning">바뀜</StatusBadge>
                     </span>
                   )}
                 </td>
