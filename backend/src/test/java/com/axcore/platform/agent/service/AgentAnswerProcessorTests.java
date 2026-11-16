@@ -18,6 +18,7 @@ import static org.mockito.Mockito.when;
 
 import com.axcore.platform.audit.domain.AgentResultCategory;
 import com.axcore.platform.global.security.LoginAccount;
+import com.axcore.platform.ontology.domain.PropertyDataType;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -30,6 +31,17 @@ import org.springframework.core.task.SyncTaskExecutor;
 
 class AgentAnswerProcessorTests {
     private static final LoginAccount ASKER = new LoginAccount(7L, "planner", "PLANNER", false);
+    // 설비 상태의 저장 값 종류. 서버 안내는 값 종류를 아는 속성으로 거른 값만 비교한다.
+    private static final AgentObjectListTools.ObjectList EQUIPMENT_STATUS =
+            new AgentObjectListTools.ObjectList(
+                    1,
+                    0,
+                    false,
+                    List.of(),
+                    List.of(
+                            new AgentObjectListTools.PropertyItem(
+                                    "status", "상태", PropertyDataType.STRING, List.of("가동", "정비중"))),
+                    Map.of());
     private static final AgentAnswerRequested EVENT =
             new AgentAnswerRequested(
                     900L, 899L, ASKER, "PR-03 작업을 PR-01로 옮겨줘", Map.of(), null, null);
@@ -395,6 +407,241 @@ class AgentAnswerProcessorTests {
         // 도구 결과로 허용한 객체는 그 답변에서만 조회할 수 있다(326).
         assertThat(replies.get(0)).containsEntry("resultCategory", "FOUND");
         assertThat(replies.get(1)).isEqualTo(Map.of("error", AgentQuerySession.NOT_TARGET));
+    }
+
+    @Test
+    void tellsWhenListWasFilteredByDifferentStoredValue() {
+        // "정지 중인 설비"에 저장 값 "정비중"으로 찾고도 답변 AI가 밝히지 않았다(360 L2). 서버가 비교해 답 끝에 알린다.
+        interpretAs(
+                new QuestionInterpretation(
+                        "정지 중인 설비",
+                        List.of(),
+                        null,
+                        null,
+                        List.of(),
+                        null,
+                        List.of("설비"),
+                        QuestionScope.BUSINESS,
+                        List.of("정지 중")));
+        doAnswer(
+                        invocation -> {
+                            AgentQuerySession session = invocation.getArgument(2);
+                            session.run(
+                                    "OBJECT_LIST",
+                                    "객체 목록",
+                                    Map.of(
+                                            "objectTypeId",
+                                            3L,
+                                            "propertyValues",
+                                            Map.of("status", "정비중")),
+                                    null,
+                                    null,
+                                    () ->
+                                            new AgentQuerySession.Outcome(
+                                                    EQUIPMENT_STATUS,
+                                                    AgentResultCategory.FOUND,
+                                                    List.of(),
+                                                    null));
+                            return "정지 중인 설비는 1라인 3호 프레스(정비중) 1대입니다.";
+                        })
+                .when(responder)
+                .answer(any(), any(), any(), any());
+
+        processor.onRequested(EVENT);
+
+        ArgumentCaptor<String> content = ArgumentCaptor.forClass(String.class);
+        verify(answers).answerWithResults(eq(900L), content.capture(), any(), any(), any());
+        assertThat(content.getValue())
+                .isEqualTo(
+                        "정지 중인 설비는 1라인 3호 프레스(정비중) 1대입니다.\n\n"
+                                + "'정지 중'으로 저장된 값은 없어 '정비중'으로 찾았어요. 다른 값을 찾으시면 말씀해 주세요.");
+    }
+
+    @Test
+    void doesNotTellWhenOtherConditionsAlsoDiffer() {
+        // "정지 중인 설비의 비가동 이력": 설비는 상태 "정비중", 비가동은 설비 코드 "P103"으로 걸렀다. 설비가 20대 이하라 설비 코드에도 값 종류가
+        // 온다. "'정지 중'… '정비중', 'P103'으로 찾았어요"를 붙이지 않는다(2026-11-16 MR 전 리뷰).
+        interpretAs(
+                new QuestionInterpretation(
+                        "정지 중인 설비의 비가동 이력",
+                        List.of(),
+                        null,
+                        null,
+                        List.of(),
+                        null,
+                        List.of("설비", "비가동"),
+                        QuestionScope.BUSINESS,
+                        List.of("정지 중")));
+        AgentObjectListTools.ObjectList downtime =
+                new AgentObjectListTools.ObjectList(
+                        2,
+                        0,
+                        false,
+                        List.of(),
+                        List.of(
+                                new AgentObjectListTools.PropertyItem(
+                                        "equipment_code",
+                                        "설비 코드",
+                                        PropertyDataType.STRING,
+                                        List.of("P101", "P103"))),
+                        Map.of());
+        doAnswer(
+                        invocation -> {
+                            AgentQuerySession session = invocation.getArgument(2);
+                            session.run(
+                                    "OBJECT_LIST",
+                                    "객체 목록",
+                                    Map.of(
+                                            "objectTypeId",
+                                            3L,
+                                            "propertyValues",
+                                            Map.of("status", "정비중")),
+                                    null,
+                                    null,
+                                    () ->
+                                            new AgentQuerySession.Outcome(
+                                                    EQUIPMENT_STATUS,
+                                                    AgentResultCategory.FOUND,
+                                                    List.of(),
+                                                    null));
+                            session.run(
+                                    "OBJECT_LIST",
+                                    "객체 목록",
+                                    Map.of(
+                                            "objectTypeId",
+                                            5L,
+                                            "propertyValues",
+                                            Map.of("equipment_code", "P103")),
+                                    null,
+                                    null,
+                                    () ->
+                                            new AgentQuerySession.Outcome(
+                                                    downtime,
+                                                    AgentResultCategory.FOUND,
+                                                    List.of(),
+                                                    null));
+                            return "P103(정비중)의 비가동 이력은 2건입니다.";
+                        })
+                .when(responder)
+                .answer(any(), any(), any(), any());
+
+        processor.onRequested(EVENT);
+
+        verify(answers)
+                .answerWithResults(eq(900L), eq("P103(정비중)의 비가동 이력은 2건입니다."), any(), any(), any());
+    }
+
+    @Test
+    void doesNotTellAboutStatusCarriedOverFromPreviousQuestion() {
+        // "지금 정지 중인 설비 있어?" 다음 "그 설비 비가동 이력은?"은 앞 질문의 종류·상태를 이어받는다. 이번 조회를 설비 코드로 걸러도
+        // "'정지 중'… 'P103'으로 찾았어요"가 붙지 않아야 한다(2026-11-16 리뷰).
+        QuestionInterpretation previous =
+                new QuestionInterpretation(
+                        "정지 중인 설비",
+                        List.of(),
+                        null,
+                        null,
+                        List.of(),
+                        null,
+                        List.of("설비"),
+                        QuestionScope.BUSINESS,
+                        List.of("정지 중"));
+        when(interpreter.isConfigured()).thenReturn(true);
+        when(interpreter.interpret(any(), any(), any(), any(), any(), any()))
+                .thenReturn(
+                        new QuestionInterpretation(
+                                "비가동 이력", List.of(), null, null, List.of(), null, List.of()));
+        doAnswer(
+                        invocation -> {
+                            AgentQuerySession session = invocation.getArgument(2);
+                            session.run(
+                                    "OBJECT_LIST",
+                                    "객체 목록",
+                                    Map.of(
+                                            "objectTypeId",
+                                            5L,
+                                            "propertyValues",
+                                            Map.of("equipment_code", "P103")),
+                                    null,
+                                    null,
+                                    () ->
+                                            new AgentQuerySession.Outcome(
+                                                    List.of(),
+                                                    AgentResultCategory.FOUND,
+                                                    List.of(),
+                                                    null));
+                            return "P103의 비가동 이력은 2건입니다.";
+                        })
+                .when(responder)
+                .answer(any(), any(), any(), any());
+
+        processor.onRequested(
+                new AgentAnswerRequested(
+                        900L, 899L, ASKER, "그 설비 비가동 이력은?", Map.of(), null, previous));
+
+        // 답변에 넘긴 해석은 앞 질문의 상태를 이어받았지만 안내는 붙지 않는다.
+        assertThat(answeredWith().propertyValues()).containsExactly("정지 중");
+        verify(answers)
+                .answerWithResults(eq(900L), eq("P103의 비가동 이력은 2건입니다."), any(), any(), any());
+    }
+
+    @Test
+    void tellsAboutStatusWhenReplyFinishesClarifiedListQuestion() {
+        // "최근 정지 중인 설비"에 기간을 되물었고 "10월"로 답했다. 되묻기의 답은 같은 질문을 마무리하므로 합친 해석의 "정지 중"이 이번 질문의 값이다.
+        PendingClarification pending =
+                new PendingClarification(
+                        "어느 기간을 볼까요?",
+                        new QuestionInterpretation(
+                                "정지 중인 설비",
+                                List.of(),
+                                null,
+                                null,
+                                List.of(),
+                                "최근",
+                                List.of("설비"),
+                                QuestionScope.BUSINESS,
+                                List.of("정지 중")));
+        when(interpreter.isConfigured()).thenReturn(true);
+        when(interpreter.interpret(any(), any(), any(), any(), any(), any()))
+                .thenReturn(
+                        new QuestionInterpretation(
+                                null,
+                                List.of(),
+                                LocalDate.parse("2026-10-01"),
+                                LocalDate.parse("2026-10-31"),
+                                List.of(),
+                                null));
+        doAnswer(
+                        invocation -> {
+                            AgentQuerySession session = invocation.getArgument(2);
+                            session.run(
+                                    "OBJECT_LIST",
+                                    "객체 목록",
+                                    Map.of(
+                                            "objectTypeId",
+                                            3L,
+                                            "propertyValues",
+                                            Map.of("status", "정비중")),
+                                    null,
+                                    null,
+                                    () ->
+                                            new AgentQuerySession.Outcome(
+                                                    EQUIPMENT_STATUS,
+                                                    AgentResultCategory.FOUND,
+                                                    List.of(),
+                                                    null));
+                            return "10월에 정비중이었던 설비는 P103입니다.";
+                        })
+                .when(responder)
+                .answer(any(), any(), any(), any());
+
+        processor.onRequested(
+                new AgentAnswerRequested(900L, 899L, ASKER, "10월", Map.of(), pending, null));
+
+        ArgumentCaptor<String> content = ArgumentCaptor.forClass(String.class);
+        verify(answers).answerWithResults(eq(900L), content.capture(), any(), any(), any());
+        assertThat(content.getValue())
+                .endsWith("'정지 중'으로 저장된 값은 없어 '정비중'으로 찾았어요. 다른 값을 찾으시면 말씀해 주세요.");
     }
 
     @Test

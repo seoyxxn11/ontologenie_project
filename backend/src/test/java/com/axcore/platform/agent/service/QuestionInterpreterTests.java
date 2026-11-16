@@ -215,6 +215,18 @@ class QuestionInterpreterTests {
     }
 
     @Test
+    void tellsToTreatKindMeaningAsNewSubject() {
+        // 배포 대화(2026-11-16): "입고실적이 뭐야"가 대상 없는 후속 질문으로 해석돼 앞 질문의 비가동 설비 조건을 이어받았다.
+        // 종류를 kinds에 써야 서버가 이전 조건을 잇지 않는다(continueFrom).
+        assertThat(QuestionInterpreter.SYSTEM_PROMPT)
+                .contains("종류의 뜻이나 종류끼리의 관계를 물으면 그 종류 이름을 kinds에 쓰고")
+                .contains("\"입고실적이 뭐야\" → kinds=[\"입고실적\"], purpose=\"입고실적의 뜻\"")
+                .contains("kinds=[\"비가동\", \"입고실적\"]")
+                .contains("이 규칙이 아니라 위 규칙대로 그 종류를 kinds에 쓴다")
+                .contains("업무 데이터 종류의 뜻이나 종류끼리의 관계를 묻는 말(\"입고실적이 뭐야\")도 BUSINESS다");
+    }
+
+    @Test
     void tellsNotToTurnPresentStateIntoTodayPeriod() {
         // 배포 확인(2026-11-12): "현재 진행 중인 작업지시"에 오늘 하루 기간이 붙어 0건으로 답했다(360).
         assertThat(QuestionInterpreter.SYSTEM_PROMPT)

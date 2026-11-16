@@ -218,6 +218,22 @@ class AgentResponderTests {
     }
 
     @Test
+    void tellsToAnswerKindMeaningFromModelSummary() {
+        // 배포 대화(2026-11-16): "입고실적이 뭐야"에 정의를 일반 지식으로 지어내고, 이전 질문의 비가동 조건을 끌어와 답했다.
+        assertThat(AgentResponder.SYSTEM_PROMPT)
+                .contains("목적이 종류의 뜻이나 종류끼리의 관계면")
+                .contains("목록을 조회하지 않고 모델 요약으로")
+                // 설명이 비어 있을 때 연결된 유형으로 뜻을 짐작해 지어냈다(GMS 2/3).
+                .contains("연결된 유형이나 일반 지식으로 뜻을 짐작해 설명하지 않는다")
+                // 있는 유형(작업지시)을 "찾지 못했다"고 답했다(GMS 1/3).
+                .contains("이름이 똑같은 것을 먼저 고르고")
+                .contains("모델 요약 결과에 그 이름의 유형이")
+                .contains("직접 연결된 관계는 없다고 말한다")
+                .contains("목록 질문(\"종류 전체\"가 있고 종류의 뜻·관계를 묻지 않음)")
+                .contains("종류의 뜻·관계를 물을 때만 부른다");
+    }
+
+    @Test
     void passesPropertyConditionsAndTellsHowToFilterList() {
         Prompt prompt = askAboutPr03();
 
@@ -226,8 +242,23 @@ class AgentResponderTests {
         assertThat(prompt.getSystemMessage().getText())
                 // 날짜 속성·저장 값을 모르고 거르다 실패했다(360 GMS L3, "정비 중" 0건).
                 .contains("객체 목록 조회를 먼저 조건 없이 한 번 불러 properties")
-                .contains("\"정비 중\"=\"정비중\"")
-                .contains("0건이면 넣은 값이")
+                // 첫 결과에서 직접 골라 답하면 어떤 값으로 찾았는지 서버가 알 수 없다(PropertyValueNotice, "정지 중" GMS 3/3).
+                .contains("첫 결과에 답이 보여도 그 안에서 직접 골라 답하지 않고 조건을 넣어 다시 부른다")
+                .contains("\"진행 중\"=\"진행\"")
+                // 띄어쓰기는 조회가 맞추고(378), 맞추지 못한 값(unmatchedValues)으로 없다고 답하지 않는다.
+                .contains("띄어쓰기 차이는 조회가 맞춘다")
+                // 0건이어도 맞추지 못한 값(unmatchedValues)이 있으면 없다고 답하지 않는다(378, 기본 NO_DATA 규칙의 예외).
+                .contains("결과가 0건(NO_DATA)이어도 unmatchedValues가 있으면")
+                // "정지"처럼 뜻이 같은 값이 없으면 가까운 값으로 거르고, 다른 값으로 찾았다는 안내는 서버가 붙인다(L2, 2026-11-16 결정).
+                // 지시문만으로 되묻게 했을 때는 6번 모두 되묻지 않았다.
+                .contains("물은 상태와 뜻이 같은 값이 values에 없으면 뜻이 가장 가까운 값으로 거르고")
+                .contains("서버가 답 끝에 붙이므로 따로 되묻지 않는다")
+                .doesNotContain("이것을 찾은 게 맞는지 묻는 말을 쓴다")
+                // 조회 도구 오류에 고칠 방법이 있으면 다시 부른다(L3, 날짜 속성 이름을 잘못 넣고 그대로 멈춤). Action은 Action 규칙을 따른다.
+                .contains("조회 도구가 error를 돌려줄 때 오류에 고칠 방법")
+                .contains("같은 오류로는 한 번만")
+                .contains("데이터가 없다고 바꿔 말하지 않는다")
+                .contains("Action 도구 결과는 이 규칙이 아니라 아래 Action 규칙을 따른다")
                 .contains("기준 시점이 있으면 함께 말한다")
                 // 대상이 있는 질문은 목록 조회로 유형 전체를 거르지 않는다(360 리뷰).
                 // 탐색 화면에서 객체를 들고 와 목록을 물으면 목록 규칙을 따른다(360 재리뷰).
