@@ -1,5 +1,6 @@
 import Button from '../../components/Button'
 import { transformLabels, type TransformDraft } from './ruleDraft'
+import RuleSelect from './RuleSelect'
 
 type TransformOption = {
   op: string
@@ -29,12 +30,14 @@ export default function TransformEditor({
   onChange,
   functions = defaultFunctions,
   emptyMessage = '변환 없이 원래 값을 비교합니다.',
+  searchableFunctions = false,
 }: {
   label: string
   steps: TransformDraft[]
   onChange: (steps: TransformDraft[]) => void
   functions?: TransformOption[]
   emptyMessage?: string
+  searchableFunctions?: boolean
 }) {
   function replace(index: number, step: TransformDraft) {
     onChange(
@@ -54,25 +57,39 @@ export default function TransformEditor({
             key={index}
             className="space-y-2 rounded border border-slate-200 bg-white p-3"
           >
-            <label className="block text-sm">
-              {label} {index + 1} 함수
-              <select
-                className="mt-1 w-full rounded border p-2"
+            {searchableFunctions ? (
+              <RuleSelect
+                label={`${label} ${index + 1} 함수`}
                 value={step.op}
-                onChange={(event) =>
-                  replace(index, { op: event.target.value, arg: '' })
-                }
-              >
-                {!current && (
-                  <option value={step.op}>{step.op} (사용할 수 없음)</option>
-                )}
-                {functions.map((option) => (
-                  <option key={option.op} value={option.op}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+                allowEmpty={false}
+                options={functions.map((option) => ({
+                  value: option.op,
+                  name: option.label,
+                  code: option.op,
+                }))}
+                onChange={(op) => replace(index, { op, arg: '' })}
+              />
+            ) : (
+              <label className="block text-sm">
+                {label} {index + 1} 함수
+                <select
+                  className="mt-1 w-full rounded border p-2"
+                  value={step.op}
+                  onChange={(event) =>
+                    replace(index, { op: event.target.value, arg: '' })
+                  }
+                >
+                  {!current && (
+                    <option value={step.op}>{step.op} (사용할 수 없음)</option>
+                  )}
+                  {functions.map((option) => (
+                    <option key={option.op} value={option.op}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             {current?.argument && (
               <label className="block text-sm">
                 {current.argument.label}

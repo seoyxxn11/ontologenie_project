@@ -408,6 +408,16 @@ function RuleForm({
           aria-label="연결 조건"
           className="rule-editor-conditions"
         >
+          {!candidateMode && !draft.linkTypeId && (
+            <div role="status" className="rule-editor-prerequisite">
+              <span>
+                관계 유형을 먼저 선택하면 출발·도착 속성을 고를 수 있습니다.
+              </span>
+              <Button variant="secondary" onClick={() => onTabChange('basic')}>
+                관계 유형 선택
+              </Button>
+            </div>
+          )}
           <div className="rule-editor-condition-toolbar">
             <div
               role="group"
@@ -511,6 +521,7 @@ function RuleForm({
                         />
                       )}
                       <TransformEditor
+                        searchableFunctions
                         label={label + ' 값 변환'}
                         steps={condition[`${side}Transforms`]}
                         onChange={(steps) =>
