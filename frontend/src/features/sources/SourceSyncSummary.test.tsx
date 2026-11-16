@@ -111,13 +111,12 @@ test('074를 원천별 1건 조회하고 최근 전체 읽기 상태·완료와 
   ])
 })
 
-test('실패 안내와 이력 이동은 상태 기준을 펼치지 않아도 보인다', async () => {
+test('실패 안내를 유지하고 중복 버튼과 상태 기준 영역은 표시하지 않는다', async () => {
   server.use(
     http.get('/api/v1/sources/1/sync-runs', () =>
       HttpResponse.json(page([run(1, 'FAILED')])),
     ),
   )
-  const onViewHistory = vi.fn()
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -128,7 +127,6 @@ test('실패 안내와 이력 이동은 상태 기준을 펼치지 않아도 보
         sourceId={1}
         sourceName="ERP 운영 DB"
         connectionStatus="CONNECTED"
-        onViewHistory={onViewHistory}
       />
     </QueryClientProvider>,
   )
@@ -136,13 +134,13 @@ test('실패 안내와 이력 이동은 상태 기준을 펼치지 않아도 보
   expect(alert).toBeVisible()
   expect(alert).toHaveTextContent('최근 전체 읽기가 실패했습니다.')
   expect(alert.closest('details')).toBeNull()
+  expect(screen.queryByText('상태·시각 기준')).not.toBeInTheDocument()
   expect(
-    screen.getByText('상태·시각 기준').closest('details'),
-  ).not.toHaveAttribute('open')
-  await userEvent
-    .setup()
-    .click(screen.getByRole('button', { name: '수집 이력 보기' }))
-  expect(onViewHistory).toHaveBeenCalledOnce()
+    screen.queryByRole('button', { name: '수집 이력 보기' }),
+  ).not.toBeInTheDocument()
+  expect(
+    screen.queryByRole('button', { name: /수집 요약 새로고침/ }),
+  ).not.toBeInTheDocument()
 })
 
 test('전체 읽기 이력이 없어도 CDC 반영 시각은 표시하고 미수집으로 단정하지 않는다', async () => {
@@ -226,10 +224,10 @@ test('대기·실행 중인 최근 실행을 자동 조회해 완료 시각으�
   expect(announcement).toHaveAttribute('aria-atomic', 'true')
   await waitFor(
     () => expect(screen.getByText('전체 읽기 · 실행 중')).toBeInTheDocument(),
-    { timeout: 5000 },
+    { timeout: 10000 },
   )
   await waitFor(() => expect(screen.getByText('완료')).toBeInTheDocument(), {
-    timeout: 5000,
+    timeout: 10000,
   })
   expect(screen.getByRole('status')).toBe(announcement)
   expect(announcement).toHaveTextContent('완료')
@@ -237,9 +235,9 @@ test('대기·실행 중인 최근 실행을 자동 조회해 완료 시각으�
     'dateTime',
     finished,
   )
-})
+}, 20000)
 
-test('갱신 실패 뒤 이전 수집 시각을 현재 결과처럼 남기지 않는다', async () => {
+test('일시적인 갱신 실패에도 기존 수집 시각을 유지한다', async () => {
   server.use(
     http.get('/api/v1/sources/1/sync-runs', () =>
       HttpResponse.json(page([run()], cdc)),
@@ -254,8 +252,8 @@ test('갱신 실패 뒤 이전 수집 시각을 현재 결과처럼 남기지 �
     ),
   )
   await client.invalidateQueries({ queryKey: ['sources', 1, 'sync-runs'] })
-  expect(await screen.findByText('요약 조회 실패')).toBeInTheDocument()
-  expect(screen.queryByText(formatKstDateTime(cdc))).not.toBeInTheDocument()
+  expect(screen.queryByText('요약 조회 실패')).not.toBeInTheDocument()
+  expect(screen.getByText(formatKstDateTime(cdc))).toBeInTheDocument()
 })
 
 test.each([

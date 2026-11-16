@@ -1,0 +1,9 @@
+.ui-table.object-mappings-table :is(th, td) {
+  vertical-align: middle;
+}
+
+.object-mappings-table .object-mappings-select {
+  justify-content: flex-start;
+  padding-inline: 0;
+  text-align: left;
+}

@@ -199,7 +199,7 @@ test('수집 이력 탭에서 실제 어댑터로 073 요청·074 이력·075 �
     http.get('/api/v1/sources/1/sync-runs', ({ request }) => {
       const params = new URL(request.url).searchParams
       expect(params.get('page')).toBe('0')
-      expect(['1', '20']).toContain(params.get('size'))
+      expect(['1', '10']).toContain(params.get('size'))
       expect(params.has('triggerKind')).toBe(false)
       return HttpResponse.json({
         data: requested ? [run] : [],
@@ -494,14 +494,14 @@ test('검사한 적 없는 원천은 미검증으로 보이고 결과가 없다'
   ).not.toBeInTheDocument()
 })
 
-test('목록의 수집 이력 바로 가기는 선택한 원천의 이력을 연다', async () => {
+test('중복 바로 가기 없이 수집 이력 탭에서 선택한 원천의 이력을 연다', async () => {
   const user = userEvent.setup()
   const requested: string[] = []
   server.use(
     http.get('/api/v1/sources/:id/sync-runs', ({ params, request }) => {
       const size = Number(new URL(request.url).searchParams.get('size'))
-      // 요약(size=1)과 전체 이력(size=20) 요청을 구분한다.
-      if (size === 20) requested.push(String(params.id))
+      // 요약(size=1)과 전체 이력(size=10) 요청을 구분한다.
+      if (size === 10) requested.push(String(params.id))
       return HttpResponse.json({
         data: [],
         meta: {
@@ -516,7 +516,10 @@ test('목록의 수집 이력 바로 가기는 선택한 원천의 이력을 연
   )
   renderSourcesPage()
   await user.click(await screen.findByRole('button', { name: 'MES 운영 DB' }))
-  await user.click(screen.getByRole('button', { name: '수집 이력 보기' }))
+  expect(
+    screen.queryByRole('button', { name: '수집 이력 보기' }),
+  ).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '수집 이력' }))
   expect(
     screen.getByRole('button', { name: '수집 이력', pressed: true }),
   ).toBeInTheDocument()
@@ -1473,4 +1476,38 @@ test('원천 저장 중 닫아도 요청은 유지되고 응답 후에는 완료
     within(status).getByRole('link', { name: '저장 대상 확인' }),
   ).toHaveAttribute('href', '/admin/sources?source=45&tab=connection')
   expect(calls).toBe(1)
+})
+
+test('AI 제안에서 등록으로 전환하고 닫아도 이전 분석 창이 다시 열리지 않는다', async () => {
+  const user = userEvent.setup()
+  renderSourcesPage()
+  await screen.findByRole('heading', { name: 'ERP 운영 DB 상세' })
+  await user.click(screen.getByRole('button', { name: 'AI 관계 제안 받기' }))
+  const analysis = within(
+    await screen.findByRole('dialog', { name: '분석 대상 선택' }),
+  )
+  await user.click(analysis.getByRole('button', { name: '+ 원천 등록' }))
+  const registration = within(
+    await screen.findByRole('dialog', { name: '원천 등록' }),
+  )
+  expect(screen.getAllByRole('dialog')).toHaveLength(1)
+  expect(document.body.style.overflow).toBe('hidden')
+  await user.click(registration.getByRole('button', { name: '닫기' }))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
+test('AI 제안에서 등록한 뒤 브라우저 뒤로가기로 닫아도 분석 창이 다시 열리지 않는다', async () => {
+  const user = userEvent.setup()
+  const router = renderSourcesPage()
+  await screen.findByRole('heading', { name: 'ERP 운영 DB 상세' })
+  await user.click(screen.getByRole('button', { name: 'AI 관계 제안 받기' }))
+  const analysis = within(
+    await screen.findByRole('dialog', { name: '분석 대상 선택' }),
+  )
+  await user.click(analysis.getByRole('button', { name: '+ 원천 등록' }))
+  await screen.findByRole('dialog', { name: '원천 등록' })
+  await act(async () => {
+    await router.navigate(-1)
+  })
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })

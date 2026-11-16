@@ -1,11 +1,23 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import { expect, test, vi } from 'vitest'
 import { server } from '../../mocks/node'
 import SourceSyncRuns from './SourceSyncRuns'
-import { sourceSyncApi, type SyncRun, type SyncAccepted } from './syncApi'
+import {
+  sourceSyncApi,
+  type SyncRun,
+  type SyncAccepted,
+  type SyncPage,
+} from './syncApi'
 
 const resource = {
   syncRunId: 21,
@@ -73,7 +85,7 @@ function mocks() {
         data: [run()],
         meta: {
           page: 0,
-          size: 20,
+          size: 10,
           totalElements: 1,
           hasNext: false,
           cdcLastAppliedAt: null,
@@ -108,7 +120,9 @@ test('API 미제공 상태에서는 요청과 조회를 실행하지 않는다',
   open(false)
   server.use(http.post('/api/v1/sources/1/sync-runs', post))
   expect(screen.getByRole('button', { name: '수동 수집 요청' })).toBeDisabled()
-  expect(screen.getByRole('button', { name: '이력 새로고침' })).toBeDisabled()
+  expect(
+    screen.queryByRole('button', { name: '이력 새로고침' }),
+  ).not.toBeInTheDocument()
   expect(
     screen.getByText('수동 수집과 실행 이력 조회는 아직 사용할 수 없습니다.'),
   ).toBeInTheDocument()
@@ -353,7 +367,7 @@ test('네트워크 실패는 재접수하지 않고 이력 확인을 안내하�
   server.use(http.post('/api/v1/sources/1/sync-runs', post))
   await user.click(screen.getByRole('button', { name: '수동 수집 요청' }))
   await screen.findByText(
-    '접수 여부가 불확실하면 실행 이력을 새로고침해 확인해 주세요.',
+    '접수 여부가 불확실하면 자동 갱신되는 실행 이력에서 확인해 주세요.',
   )
   expect(post).toHaveBeenCalledTimes(1)
   server.use(
@@ -381,7 +395,7 @@ test('상태·CDC·기간 필터와 페이지 조건을 서버로 보내고 잘�
         data: [],
         meta: {
           page: 0,
-          size: 20,
+          size: 10,
           totalElements: 21,
           hasNext: true,
           cdcLastAppliedAt: null,
@@ -419,6 +433,15 @@ test('상태·CDC·기간 필터와 페이지 조건을 서버로 보내고 잘�
       queries.some((url) => new URL(url).searchParams.get('page') === '1'),
     ).toBe(true),
   )
+  expect(
+    queries.every((url) => new URL(url).searchParams.get('size') === '10'),
+  ).toBe(true)
+  await user.click(screen.getByRole('button', { name: '마지막 페이지' }))
+  await waitFor(() =>
+    expect(
+      queries.some((url) => new URL(url).searchParams.get('page') === '2'),
+    ).toBe(true),
+  )
 })
 
 test('실행 중 상세는 완료까지 갱신하고 실패 사유와 테이블 처리 건수를 보여준다', async () => {
@@ -453,6 +476,169 @@ test('실행 중 상세는 완료까지 갱신하고 실패 사유와 테이블 
   await detail.findByText('heartbeat 시간 초과')
   expect(detail.getByText('테이블 수집 중단')).toBeInTheDocument()
   expect(calls).toBe(2)
+})
+
+test('실행 중은 5초, 유휴·일시 오류는 30초마다 갱신하고 연속 실패만 알린다', async () => {
+  const list = vi
+    .fn()
+    .mockResolvedValueOnce({ data: [] })
+    .mockResolvedValueOnce({ data: [run({ status: 'RUNNING' })] })
+    .mockResolvedValueOnce({ data: [run()] })
+    .mockRejectedValueOnce(new Error('이력 조회 실패'))
+    .mockRejectedValueOnce(new Error('이력 조회 실패'))
+    .mockRejectedValueOnce(new Error('이력 조회 실패'))
+    .mockResolvedValueOnce({ data: [run()] })
+    .mockRejectedValueOnce(new Error('복구 후 일시 오류'))
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  })
+  client.setQueryData(['sources', 1, 'resources', 'all'], [])
+  vi.useFakeTimers()
+  const view = render(
+    <QueryClientProvider client={client}>
+      <SourceSyncRuns sourceId={1} api={{ ...sourceSyncApi, list }} />
+    </QueryClientProvider>,
+  )
+  try {
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(list).toHaveBeenCalledTimes(1)
+    expect(
+      screen.queryByRole('button', { name: '이력 새로고침' }),
+    ).not.toBeInTheDocument()
+    await act(() => vi.advanceTimersByTimeAsync(29999))
+    expect(list).toHaveBeenCalledTimes(1)
+    await act(() => vi.advanceTimersByTimeAsync(1))
+    expect(list).toHaveBeenCalledTimes(2)
+    await act(() => vi.advanceTimersByTimeAsync(5000))
+    expect(list).toHaveBeenCalledTimes(3)
+    await act(() => vi.advanceTimersByTimeAsync(30000))
+    expect(list).toHaveBeenCalledTimes(4)
+    expect(
+      screen.queryByText(/이력 갱신이 지연되고 있습니다/),
+    ).not.toBeInTheDocument()
+    await act(() => vi.advanceTimersByTimeAsync(30000))
+    expect(list).toHaveBeenCalledTimes(5)
+    expect(
+      screen.queryByText(/이력 갱신이 지연되고 있습니다/),
+    ).not.toBeInTheDocument()
+    const row = screen.getByRole('button', { name: '수집 실행 #21' })
+    await act(() => vi.advanceTimersByTimeAsync(30000))
+    expect(list).toHaveBeenCalledTimes(6)
+    expect(
+      screen.getByText(/이력 갱신이 지연되고 있습니다/),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '수집 실행 #21' })).toBe(row)
+    await act(() => vi.advanceTimersByTimeAsync(30000))
+    expect(list).toHaveBeenCalledTimes(7)
+    expect(
+      screen.queryByText(/이력 갱신이 지연되고 있습니다/),
+    ).not.toBeInTheDocument()
+    await act(() => vi.advanceTimersByTimeAsync(30000))
+    expect(list).toHaveBeenCalledTimes(8)
+    expect(
+      screen.queryByText(/이력 갱신이 지연되고 있습니다/),
+    ).not.toBeInTheDocument()
+    expect(list).toHaveBeenLastCalledWith(1, { page: 0 })
+  } finally {
+    view.unmount()
+    client.clear()
+    vi.useRealTimers()
+  }
+})
+
+test('백그라운드 갱신 대기·성공·실패에도 목록 DOM과 필터·페이지를 유지한다', async () => {
+  const user = userEvent.setup()
+  const result: SyncPage = {
+    data: [run({ status: 'FAILED' })],
+    meta: { page: 1, size: 10, totalElements: 21, hasNext: true },
+  }
+  const list = vi.fn().mockResolvedValue(result)
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  })
+  client.setQueryData(['sources', 1, 'resources', 'all'], [])
+  const view = render(
+    <QueryClientProvider client={client}>
+      <SourceSyncRuns sourceId={1} api={{ ...sourceSyncApi, list }} />
+    </QueryClientProvider>,
+  )
+  try {
+    await screen.findByRole('button', { name: '수집 실행 #21' })
+    await user.selectOptions(screen.getByLabelText('실행 상태'), 'FAILED')
+    await user.selectOptions(screen.getByLabelText('시작 원인'), 'MANUAL')
+    fireEvent.change(screen.getByLabelText('접수 시작(포함)'), {
+      target: { value: '2026-11-07T12:00' },
+    })
+    await user.click(screen.getByRole('button', { name: '다음 페이지' }))
+    await waitFor(() =>
+      expect(list).toHaveBeenLastCalledWith(1, {
+        page: 1,
+        status: 'FAILED',
+        triggerKind: 'MANUAL',
+      }),
+    )
+    const row = screen.getByRole('button', { name: '수집 실행 #21' })
+    const pagination = screen.getByRole('navigation', { name: '페이지 이동' })
+    let resolve!: (value: SyncPage) => void
+    list.mockImplementationOnce(
+      () =>
+        new Promise<SyncPage>((done) => {
+          resolve = done
+        }),
+    )
+    let refresh!: Promise<void>
+    act(() => {
+      refresh = client.refetchQueries({
+        queryKey: ['sources', 1, 'sync-runs'],
+        type: 'active',
+      })
+    })
+    expect(screen.getByRole('button', { name: '수집 실행 #21' })).toBe(row)
+    expect(
+      screen.queryByText('수집 이력을 불러오는 중…'),
+    ).not.toBeInTheDocument()
+    await act(async () => {
+      resolve({
+        ...result,
+        data: [
+          run({ status: 'FAILED', resources: [{ ...resource, rowsRead: 99 }] }),
+        ],
+      })
+      await refresh
+    })
+    expect(screen.getByRole('button', { name: '수집 실행 #21' })).toBe(row)
+    list.mockRejectedValueOnce(new Error('일시적인 갱신 실패'))
+    await act(async () => {
+      await client.refetchQueries({
+        queryKey: ['sources', 1, 'sync-runs'],
+        type: 'active',
+      })
+    })
+    expect(screen.queryByText('일시적인 갱신 실패')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/이력 갱신이 지연되고 있습니다/),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '수집 실행 #21' })).toBe(row)
+    expect(screen.getByRole('navigation', { name: '페이지 이동' })).toBe(
+      pagination,
+    )
+    expect(
+      screen.getByRole('button', { name: '2페이지로 이동' }),
+    ).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByLabelText('실행 상태')).toHaveValue('FAILED')
+    expect(screen.getByLabelText('시작 원인')).toHaveValue('MANUAL')
+    expect(screen.getByLabelText('접수 시작(포함)')).toHaveValue(
+      '2026-11-07T12:00',
+    )
+    expect(list).toHaveBeenLastCalledWith(1, {
+      page: 1,
+      status: 'FAILED',
+      triggerKind: 'MANUAL',
+    })
+  } finally {
+    view.unmount()
+    client.clear()
+  }
 })
 
 test('이력 조회 실패는 빈 목록으로 숨기지 않고 재조회한다', async () => {

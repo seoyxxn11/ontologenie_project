@@ -5,6 +5,9 @@ import { ApiError } from '../../api/errors'
 import Button from '../../components/Button'
 import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback'
 import Pagination from '../../components/Pagination'
+import { SYNC_RUN_PAGE_SIZE } from './syncApi'
+import useSyncPollingQuery from './useSyncPollingQuery'
+import './sources.css'
 import { fetchAllResources } from './api'
 import type {
   SourceSyncApi,
@@ -42,19 +45,19 @@ function RunDetail({
   api: SourceSyncApi
   resourceLabel: (id: number) => string
 }) {
-  const query = useQuery({
-    queryKey: ['source-sync-run', id],
-    queryFn: () => api.detail(id),
-    retry: false,
-    refetchInterval: (query) =>
-      !query.state.error && active(query.state.data?.status) ? 2000 : false,
-  })
+  const { query, unavailable, transientError, refreshDelayed } =
+    useSyncPollingQuery({
+      queryKey: ['source-sync-run', id],
+      queryFn: () => api.detail(id),
+      isActive: (data) => active(data?.status),
+      pollWhenIdle: false,
+    })
   if (query.isPending)
     return <LoadingState message="수집 상세를 불러오는 중…" />
-  if (query.isError)
+  if (!query.data || unavailable)
     return (
       <ErrorState
-        error={query.error}
+        error={query.error!}
         onRetry={() => {
           void query.refetch()
         }}
@@ -117,6 +120,15 @@ function RunDetail({
           </li>
         ))}
       </ul>
+      {query.isError && !transientError && (
+        <ErrorState error={query.error} onRetry={() => void query.refetch()} />
+      )}
+      {refreshDelayed && (
+        <p role="status">
+          상세 갱신이 지연되고 있습니다. 기존 내용을 유지하며 자동으로 다시
+          확인합니다.
+        </p>
+      )}
     </section>
   )
 }
@@ -141,16 +153,16 @@ export default function SourceSyncRuns({
     queryKey: ['sources', sourceId, 'resources', 'all'],
     queryFn: () => fetchAllResources(sourceId),
   })
-  const history = useQuery({
+  const {
+    query: history,
+    unavailable: historyUnavailable,
+    transientError: historyTransient,
+    refreshDelayed: historyDelayed,
+  } = useSyncPollingQuery({
     queryKey: ['sources', sourceId, 'sync-runs', filters],
     queryFn: () => api!.list(sourceId, filters),
     enabled: !!api,
-    retry: false,
-    refetchInterval: (query) =>
-      !query.state.error &&
-      query.state.data?.data.some((run) => active(run.status))
-        ? 2000
-        : false,
+    isActive: (data) => data?.data.some((run) => active(run.status)) ?? false,
   })
   const request = useMutation({
     mutationFn: () => api!.request(sourceId, all ? undefined : ids),
@@ -205,8 +217,8 @@ export default function SourceSyncRuns({
   }
 
   return (
-    <div className="space-y-5 text-sm">
-      <section aria-label="수동 수집" className="space-y-3">
+    <div className="source-sync-runs text-sm">
+      <section aria-label="수동 수집" className="source-sync-manual">
         <h3 className="font-semibold">수동 수집</h3>
         <p>
           선택한 테이블을 전체 다시 읽습니다. 이미 대기·실행 중인 테이블은 기존
@@ -217,8 +229,8 @@ export default function SourceSyncRuns({
             수동 수집과 실행 이력 조회는 아직 사용할 수 없습니다.
           </p>
         )}
-        <fieldset disabled={request.isPending} className="space-y-2">
-          <label className="flex gap-2">
+        <fieldset disabled={request.isPending} className="source-sync-request">
+          <label className="flex items-center gap-2">
             <input
               type="checkbox"
               checked={all}
@@ -292,7 +304,8 @@ export default function SourceSyncRuns({
                 requestError.kind,
               )) && (
               <p>
-                접수 여부가 불확실하면 실행 이력을 새로고침해 확인해 주세요.
+                접수 여부가 불확실하면 자동 갱신되는 실행 이력에서 확인해
+                주세요.
               </p>
             )}
           </>
@@ -323,9 +336,21 @@ export default function SourceSyncRuns({
           </div>
         )}
       </section>
-      <section aria-label="수집 실행 이력" className="space-y-3">
+      <section aria-label="수집 실행 이력" className="source-sync-history">
         <h3 className="font-semibold">수집 실행 이력</h3>
-        <div className="flex flex-wrap gap-3">
+        <form
+          className="source-sync-filters"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (validDates)
+              setFilters((current) => ({
+                ...current,
+                page: 0,
+                from: from ? new Date(from).toISOString() : undefined,
+                to: to ? new Date(to).toISOString() : undefined,
+              }))
+          }}
+        >
           <label>
             실행 상태{' '}
             <select
@@ -368,20 +393,6 @@ export default function SourceSyncRuns({
               ))}
             </select>
           </label>
-        </div>
-        <form
-          className="flex flex-wrap items-end gap-3"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (validDates)
-              setFilters((current) => ({
-                ...current,
-                page: 0,
-                from: from ? new Date(from).toISOString() : undefined,
-                to: to ? new Date(to).toISOString() : undefined,
-              }))
-          }}
-        >
           <label>
             접수 시작(포함)
             <input
@@ -405,21 +416,12 @@ export default function SourceSyncRuns({
         {!validDates && (
           <p role="alert">종료 시각은 시작 시각보다 늦어야 합니다.</p>
         )}
-        <Button
-          variant="secondary"
-          disabled={!api || history.isFetching}
-          onClick={() => {
-            void history.refetch()
-          }}
-        >
-          이력 새로고침
-        </Button>
         {api &&
           (history.isPending ? (
             <LoadingState message="수집 이력을 불러오는 중…" />
-          ) : history.isError ? (
+          ) : !history.data || historyUnavailable ? (
             <ErrorState
-              error={history.error}
+              error={history.error!}
               onRetry={() => {
                 void history.refetch()
               }}
@@ -427,12 +429,9 @@ export default function SourceSyncRuns({
           ) : (
             <>
               {history.data.data.length ? (
-                <ul className="space-y-2">
+                <ul className="source-sync-list" aria-busy={history.isFetching}>
                   {history.data.data.map((run) => (
-                    <li
-                      key={run.id}
-                      className="rounded border border-slate-200 p-3"
-                    >
+                    <li key={run.id} className="source-sync-item">
                       <button
                         type="button"
                         onClick={() => selectRun(run)}
@@ -473,12 +472,24 @@ export default function SourceSyncRuns({
               {history.data.meta && (
                 <Pagination
                   page={filters.page}
-                  size={20}
+                  size={SYNC_RUN_PAGE_SIZE}
                   totalElements={history.data.meta.totalElements}
                   onChange={(page) =>
                     setFilters((current) => ({ ...current, page }))
                   }
                 />
+              )}
+              {history.isError && !historyTransient && (
+                <ErrorState
+                  error={history.error}
+                  onRetry={() => void history.refetch()}
+                />
+              )}
+              {historyDelayed && (
+                <p role="status" className="text-slate-500">
+                  이력 갱신이 지연되고 있습니다. 기존 목록을 유지하며 자동으로
+                  다시 확인합니다.
+                </p>
               )}
             </>
           ))}

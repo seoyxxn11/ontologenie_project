@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { startTransition, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import Button from '../../components/Button'
 import StatusBadge from '../../components/StatusBadge'
@@ -225,9 +225,11 @@ function SourcesPage() {
         {registering && (
           <SourceFormDialog
             onClose={(navigating) => {
+              setAnalyzing(false)
               if (!navigating) setClosedRegistration(location.key)
             }}
             onSaved={(source) => {
+              setAnalyzing(false)
               setCreatedId(source.id)
               select(source.id)
             }}
@@ -250,7 +252,6 @@ function SourcesPage() {
               connectionStatus={
                 detail.data?.connectionStatus ?? selected.connectionStatus
               }
-              onViewHistory={() => select(selected.id, 'sync')}
             />
             <div role="group" aria-label="상세 항목" className="sources-tabs">
               {tabs.map((item) => (
@@ -304,7 +305,7 @@ function SourcesPage() {
                 />
               )}
             </div>
-            {analyzing && (
+            {analyzing && !registering && (
               <AnalysisTargetDialog
                 initialSourceId={selected.id}
                 onClose={() => setAnalyzing(false)}
@@ -317,8 +318,10 @@ function SourcesPage() {
                   select(sourceId, 'scope')
                 }}
                 onRegister={() => {
-                  setAnalyzing(false)
-                  register()
+                  startTransition(() => {
+                    register()
+                    setAnalyzing(false)
+                  })
                 }}
               />
             )}

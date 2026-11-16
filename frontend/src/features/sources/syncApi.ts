@@ -109,6 +109,10 @@ export type SyncPage = {
   meta?: PageMeta & { cdcLastAppliedAt?: string | null }
 }
 
+export const SYNC_RUN_PAGE_SIZE = 10
+export const SYNC_ACTIVE_POLL_MS = 5000
+export const SYNC_IDLE_POLL_MS = 30000
+
 // 073~075: 수동 다시 읽기 접수·수집 이력·실행 상세.
 export const sourceSyncApi = {
   async request(sourceId: number, sourceResourceIds?: number[]) {
@@ -126,7 +130,7 @@ export const sourceSyncApi = {
   list(sourceId: number, filters: SyncFilters): Promise<SyncPage> {
     const params = new URLSearchParams({
       page: String(filters.page),
-      size: '20',
+      size: String(SYNC_RUN_PAGE_SIZE),
     })
     for (const key of ['status', 'triggerKind', 'from', 'to'] as const) {
       if (filters[key]) params.set(key, filters[key])

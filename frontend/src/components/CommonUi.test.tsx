@@ -144,6 +144,7 @@ function DialogExample() {
 describe('공통 모달', () => {
   it('포커스를 모달 안에 두고 탭 순환·Esc 종료·호출 버튼 복귀를 지원한다', async () => {
     const user = userEvent.setup()
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus')
     render(<DialogExample />)
     const trigger = screen.getByRole('button', { name: '근거 보기' })
     await user.click(trigger)
@@ -157,6 +158,8 @@ describe('공통 모달', () => {
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(trigger).toHaveFocus()
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true })
+    focus.mockRestore()
   })
 
   it('내용 클릭으로 닫히지 않고 배경 클릭으로 닫히며 스크롤을 복구한다', async () => {
