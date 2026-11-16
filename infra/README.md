@@ -242,7 +242,7 @@ Credentials 전환 후에는 앱 변경 감지 전에 운영 비밀값 일치 �
 2. 서비스마다 서버 `.env`의 태그(`BACKEND_TAG` · `AI_TAG` · `FRONTEND_TAG` = 지금 배포된 커밋)와 develop 사이에 해당 폴더(`backend/` · `ai/` · `frontend/`) 변경이 있는지 확인. 변경 없으면 그 서비스는 건너뜀 (`FORCE_DEPLOY` 파라미터면 세 서비스 모두 배포). 직전 커밋과 비교하지 않는 이유: 머지가 연달아 쌓이면 앞 머지의 변경을 놓친다
 3. backend: `docker build -t axcore-backend:<커밋 SHA> backend` → `scripts/pg-backup.sh` 1회(마이그레이션 대비) → `.env`의 `BACKEND_TAG` 갱신 + `docker compose up -d backend` → 최대 90초 `(healthy)` 대기 → 실패하면 **직전 태그로 자동 롤백**
 4. AI: `docker build -t axcore-ai:<커밋 SHA> ai` → `.env`의 `AI_TAG` 갱신 + `docker compose up -d ai` → 최대 90초 `(healthy)` 대기 → 실패하면 롤백. DB 백업은 없음. AI에는 backend에 대한 `depends_on`이 없어 backend 기동 상태를 기다리지 않고 단독 기동한다. AI `/health` 응답은 실제 LLM 호출·분석 연동 성공을 의미하지 않는다
-5. frontend: `docker build -t axcore-frontend:<커밋 SHA> frontend` → `.env`의 `FRONTEND_TAG` 갱신 + `docker compose up -d frontend` → 90초 `(healthy)` 대기 → 실패하면 롤백. DB 백업은 없음
+5. frontend: 이미지 빌드 → 현재·새 이미지의 공개 JS·CSS를 별도 보관소에 게시 → `.env`의 `FRONTEND_TAG` 갱신 + `docker compose up -d frontend` → 90초 `(healthy)` 대기 → 실패하면 롤백. 보관 실패 시 태그·컨테이너 교체 전에 중단한다. 보관 기간 기본값은 7일이며 [정적 파일 보관 안내](deploy/frontend-assets.md)를 따른다. DB 백업은 없음
 6. 서비스의 **배포 단계** 실패는 `catchError`로 처리해 이후 서비스 단계를 계속한다. 빌드는 실패로 표시된다. 이미지 빌드·DB 백업 단계는 이 처리 밖에 있어 실패하면 이후 단계가 중단될 수 있다. backend 배포 실패 후에도 AI 단계는 진행될 수 있다. backend → AI → frontend는 동시에 변경된 서비스의 처리 순서이며, AI 기동에 backend 배포 성공이 필요한 것은 아니다
 7. backend · AI · frontend 이미지는 각각 최근 3개 태그만 보관, 3일 지난 빌드 캐시 삭제
 8. 결과는 GitLab 커밋 상태 + Mattermost DM(머지한 사람). 서비스마다 `ai 배포 <이전> → <새 SHA>` / `ai 배포 실패 → <이전> 로 롤백됨` 등의 결과를 표시하며, 세 서비스 모두 변경이 없으면 `배포: 변경 없음`. 배포 대상 목록을 기준으로 메시지를 만들기 때문에 빌드 실패 등으로 배포 단계에 도달하지 못한 경우에는 Jenkins 단계 로그도 함께 확인한다

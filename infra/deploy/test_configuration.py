@@ -53,6 +53,22 @@ class ConfigurationDeploymentTests(unittest.TestCase):
         restore(self.root, self.transaction)
         self.assertEqual((self.root / "nginx/conf.d/default.conf").read_text(), "# old\n")
 
+    def test_frontend_assets_bind_recreates_only_nginx_and_preserves_archive(self):
+        archive = self.root / "frontend-assets/assets/old.js"
+        archive.parent.mkdir(parents=True)
+        archive.write_bytes(b"old public asset")
+        prepare(self.source, self.root, self.transaction)
+        new = json.loads(json.dumps(self.main))
+        new["services"]["nginx"]["volumes"] = [{
+            "type": "bind", "source": "/server/frontend-assets", "target": "/srv/frontend-assets", "read_only": True,
+        }]
+        self.render(main=new)
+        compare(self.transaction)
+        self.assertEqual(read_plan(self.transaction)["services"], ["main:nginx"])
+        promote(self.root, self.transaction)
+        restore(self.root, self.transaction)
+        self.assertEqual(archive.read_bytes(), b"old public asset")
+
     def test_backend_config_change_also_recreates_batch(self):
         prepare(self.source, self.root, self.transaction)
         new = json.loads(json.dumps(self.main))

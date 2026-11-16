@@ -97,15 +97,32 @@ test('근거·검사를 확인하고 새로고침해도 작성 중인 검토 사
   expect(detail.getByRole('region', { name: '제안 근거' })).toBeVisible()
   const check = detail.getByRole('region', { name: '정합성 검사' })
   expect(check).toBeVisible()
-  await user.click(
-    within(check).getByRole('button', { name: '검사 상태 새로고침' }),
+  let finishRefresh = () => {}
+  const refreshResponse = new Promise<void>((resolve) => {
+    finishRefresh = resolve
+  })
+  server.use(
+    http.get('/api/v1/proposals/303', async () => {
+      await refreshResponse
+      return HttpResponse.json({ data: proposalFixtures[0] })
+    }),
   )
-  // 새로고침이 끝나 버튼이 다시 켜질 때까지 기다린다(부하가 크면 바로 켜지지 않음).
-  await waitFor(() =>
+  const refreshButton = within(check).getByRole('button', {
+    name: '검사 상태 새로고침',
+  })
+  try {
+    await user.click(refreshButton)
+    expect(refreshButton).toBeDisabled()
+    expect(refreshButton).toHaveAttribute('aria-busy', 'true')
+    expect(reason).toHaveValue('원천 근거를 확인했습니다.')
+  } finally {
+    finishRefresh()
+  }
+  await waitFor(() => {
     expect(
       detail.getByRole('button', { name: '검사 상태 새로고침' }),
-    ).toBeEnabled(),
-  )
+    ).toBeEnabled()
+  })
   expect(reason).toHaveValue('원천 근거를 확인했습니다.')
 })
 
