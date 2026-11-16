@@ -144,7 +144,9 @@ export default function BundleAccessEditor({
         />
       )}
       {save.isSuccess && (
-        <p role="status">개정본을 저장했습니다(개정 {save.data.revision}).</p>
+        <p role="status" className="ui-save-notice">
+          개정본을 저장했습니다(개정 {save.data.revision}).
+        </p>
       )}
       <Button type="submit" pending={save.isPending} disabled={unchanged}>
         개정본으로 저장

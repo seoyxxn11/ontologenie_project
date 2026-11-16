@@ -91,7 +91,7 @@ export default function MappingPanel({
       {notice && (
         <p
           role="status"
-          className="rounded-lg bg-slate-50 p-3 text-sm text-slate-700"
+          className="ui-save-notice rounded-lg bg-slate-50 p-3 text-sm text-slate-700"
         >
           {notice}
         </p>

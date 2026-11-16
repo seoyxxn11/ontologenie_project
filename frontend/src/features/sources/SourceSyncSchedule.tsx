@@ -147,7 +147,9 @@ function ScheduleForm({
             enabled === schedule.syncEnabled &&
             (validInterval ? minutes : null) ===
               schedule.syncIntervalMinutes && (
-              <p role="status">수집 주기를 저장했습니다.</p>
+              <p role="status" className="ui-save-notice">
+                수집 주기를 저장했습니다.
+              </p>
             )}
         </fieldset>
       </form>

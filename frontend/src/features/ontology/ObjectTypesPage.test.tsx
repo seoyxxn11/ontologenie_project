@@ -7,6 +7,8 @@ import App from '../../App'
 import { demoAccount, setMockAccount } from '../../mocks/auth'
 import { server } from '../../mocks/node'
 import type { ObjectTypeItem, PropertyItem } from './types'
+import { resetMappingMocks } from '../../mocks/mappingHandlers'
+import { apiGet } from '../../api/client'
 
 const equipment: ObjectTypeItem = {
   id: 1,
@@ -69,6 +71,32 @@ async function choose(name: string) {
   await user.click(within(table).getByRole('button', { name }))
   return user
 }
+
+test('기본 로컬 모의 API로 대표 속성과 조회 그룹을 저장하고 다시 조회할 수 있다', async () => {
+  resetMappingMocks()
+  open()
+  const user = await choose('품목')
+  const select = await screen.findByLabelText('대표 속성')
+  expect(select).toHaveValue('')
+  await user.selectOptions(select, '601')
+  await user.click(screen.getByRole('button', { name: '대표 속성 저장' }))
+  await screen.findByText(/다시 읽도록 예약했습니다/)
+  expect(screen.getByLabelText('대표 속성')).toHaveValue('601')
+  expect(screen.getByRole('button', { name: '대표 속성 저장' })).toBeDisabled()
+  await user.selectOptions(screen.getByLabelText('조회 그룹'), 'SALES_SUPPLY')
+  await user.click(screen.getByRole('button', { name: '그룹 저장' }))
+  await screen.findByText(/조회 그룹을 저장했습니다/)
+  expect(screen.getByLabelText('대표 속성')).toHaveValue('601')
+  expect(screen.getByLabelText('조회 그룹')).toHaveValue('SALES_SUPPLY')
+  expect(screen.getByRole('button', { name: '그룹 저장' })).toBeDisabled()
+  expect(
+    (await apiGet<ObjectTypeItem[]>('/ontology/object-types')).data[0],
+  ).toMatchObject({
+    displayPropertyId: 601,
+    accessGroup: 'SALES_SUPPLY',
+    rowVersion: 2,
+  })
+})
 
 test('대표 속성을 고르면 민감 속성을 빼고 보여 주고, 저장하면 024로 보내고 다시 읽기 안내를 띄운다', async () => {
   serveTypes()

@@ -3,12 +3,133 @@ import { apiGet, apiPatch, apiPost } from '../api/client'
 import { demoAccount, setMockAccount } from './auth'
 import { resetMappingMocks } from './mappingHandlers'
 import { resetSourceMocks } from './sourceHandlers'
+import type { ObjectTypeItem } from '../features/ontology/types'
 
 beforeEach(() => {
   resetMappingMocks()
   resetSourceMocks()
   setMockAccount({ ...demoAccount, roleCode: 'ADMIN' })
 })
+
+test('객체 유형 모의 저장은 대표 속성·조회 그룹·버전을 목록과 상세에 유지한다', async () => {
+  const path = '/ontology/object-types/501'
+  const initial = (await apiGet<ObjectTypeItem[]>('/ontology/object-types'))
+    .data[0]
+  expect(initial).toMatchObject({
+    displayPropertyId: null,
+    accessGroup: null,
+    rowVersion: 0,
+  })
+  const saved = await apiPatch<ObjectTypeItem>(path, {
+    displayPropertyId: 601,
+    rowVersion: 0,
+  })
+  expect(saved?.data).toMatchObject({
+    displayPropertyId: 601,
+    accessGroup: null,
+    rowVersion: 1,
+  })
+  await apiPatch(path, { accessGroup: 'SALES_SUPPLY', rowVersion: 1 })
+  const expected = {
+    displayPropertyId: 601,
+    accessGroup: 'SALES_SUPPLY',
+    rowVersion: 2,
+  }
+  expect((await apiGet<ObjectTypeItem>(path)).data).toMatchObject(expected)
+  expect(
+    (await apiGet<ObjectTypeItem[]>('/ontology/object-types')).data[0],
+  ).toMatchObject(expected)
+  await apiPatch(path, { displayPropertyId: null, rowVersion: 2 })
+  await apiPatch(path, { accessGroup: null, rowVersion: 3 })
+  expect((await apiGet<ObjectTypeItem>(path)).data).toMatchObject({
+    displayPropertyId: null,
+    accessGroup: null,
+    rowVersion: 4,
+  })
+})
+
+test('객체 유형 모의 저장은 버전 충돌과 없는 대상을 구분하고 거절 시 값을 보존한다', async () => {
+  const path = '/ontology/object-types/501'
+  await apiPatch(path, { displayPropertyId: 601, rowVersion: 0 })
+  await expect(
+    apiPatch(path, { displayPropertyId: null, rowVersion: 0 }),
+  ).rejects.toMatchObject({ status: 409, code: 'VERSION_CONFLICT' })
+  await expect(
+    apiPatch('/ontology/object-types/999', { rowVersion: 0 }),
+  ).rejects.toMatchObject({ status: 404, code: 'RESOURCE_NOT_FOUND' })
+  expect((await apiGet<ObjectTypeItem>(path)).data).toMatchObject({
+    displayPropertyId: 601,
+    rowVersion: 1,
+  })
+})
+
+test('같은 버전의 객체 유형 모의 저장이 겹치면 하나만 반영한다', async () => {
+  const results = await Promise.allSettled([
+    apiPatch('/ontology/object-types/501', {
+      displayPropertyId: 601,
+      rowVersion: 0,
+    }),
+    apiPatch('/ontology/object-types/501', {
+      displayPropertyId: 602,
+      rowVersion: 0,
+    }),
+  ])
+  expect(
+    results.filter((result) => result.status === 'fulfilled'),
+  ).toHaveLength(1)
+  expect(
+    results.filter((result) => result.status === 'rejected'),
+  ).toMatchObject([{ reason: { status: 409, code: 'VERSION_CONFLICT' } }])
+  expect(
+    (await apiGet<ObjectTypeItem>('/ontology/object-types/501')).data
+      .rowVersion,
+  ).toBe(1)
+})
+
+test('객체 유형 모의 저장은 잘못된 입력과 다른 유형 속성을 거절한다', async () => {
+  const path = '/ontology/object-types/501'
+  for (const input of [
+    [],
+    null,
+    { displayPropertyId: 601 },
+    { rowVersion: -1 },
+    { displayPropertyId: 0, rowVersion: 0 },
+    { displayPropertyId: '601', rowVersion: 0 },
+    { accessGroup: 1, rowVersion: 0 },
+    { accessGroup: 'x'.repeat(101), rowVersion: 0 },
+  ]) {
+    await expect(apiPatch(path, input)).rejects.toMatchObject({
+      status: 400,
+      code: 'INVALID_REQUEST',
+    })
+  }
+  for (const displayPropertyId of [603, 999]) {
+    await expect(
+      apiPatch(path, { displayPropertyId, rowVersion: 0 }),
+    ).rejects.toMatchObject({ status: 422, code: 'BUSINESS_RULE_VIOLATION' })
+  }
+  expect((await apiGet<ObjectTypeItem>(path)).data).toMatchObject({
+    displayPropertyId: null,
+    rowVersion: 0,
+  })
+})
+
+test.each([null, 'VIEWER', 'PLANNER', 'MAINTENANCE'] as const)(
+  '객체 유형 모의 저장은 %s 요청을 거절한다',
+  async (roleCode) => {
+    setMockAccount(roleCode ? { ...demoAccount, roleCode } : null)
+    await expect(
+      apiPatch('/ontology/object-types/501', {
+        displayPropertyId: 601,
+        rowVersion: 0,
+      }),
+    ).rejects.toMatchObject({ status: roleCode ? 403 : 401 })
+    setMockAccount({ ...demoAccount, roleCode: 'ADMIN' })
+    expect(
+      (await apiGet<ObjectTypeItem[]>('/ontology/object-types')).data[0],
+    ).toMatchObject({ displayPropertyId: null, rowVersion: 0 })
+  },
+)
 
 const adminPaths = [
   '/ontology/object-types',
@@ -36,6 +157,12 @@ test('관리 API는 비로그인 401, 조회 역할·임시 비밀번호는 403�
     ).rejects.toMatchObject(expected)
     await expect(
       apiPatch('/ontology/property-mappings/801', {}),
+    ).rejects.toMatchObject(expected)
+    await expect(
+      apiPatch('/ontology/object-types/501', {
+        displayPropertyId: 601,
+        rowVersion: 0,
+      }),
     ).rejects.toMatchObject(expected)
     await expect(
       apiPost('/ontology/source-resources/11/mapping-previews', {}),

@@ -16,6 +16,7 @@ export default function UiPreviewTools({
 }) {
   const params = new URLSearchParams(location.search)
   const [motion, setMotion] = useState(params.get('qaMotion') === 'on')
+  const [slow, setSlow] = useState(params.get('qaSlow') === 'on')
   const [largeText, setLargeText] = useState(params.get('qaText') === 'large')
   const [evidence, setEvidence] = useState(false)
   function changeMotion(next: boolean) {
@@ -41,6 +42,7 @@ export default function UiPreviewTools({
           value={selected}
           onChange={(event) => {
             const url = new URL(location.href)
+            url.pathname = event.target.value === 'login' ? '/login' : '/audit'
             url.searchParams.set('uiQa', event.target.value)
             url.searchParams.set('qaMotion', motion ? 'on' : 'off')
             location.href = url.href
@@ -66,7 +68,26 @@ export default function UiPreviewTools({
         >
           적용 모션
         </button>
-        <button type="button" onClick={() => setEvidence(true)}>
+        <button
+          type="button"
+          aria-pressed={slow}
+          title="등장 효과를 800ms로 늘려 확인합니다. 실제 적용 속도는 바뀌지 않습니다."
+          onClick={() => {
+            const next = !slow
+            document.documentElement.dataset.uiMotionSlow = next ? 'on' : 'off'
+            const url = new URL(location.href)
+            url.searchParams.set('qaSlow', next ? 'on' : 'off')
+            history.replaceState(history.state, '', url)
+            setSlow(next)
+          }}
+        >
+          천천히 보기
+        </button>
+        <button
+          type="button"
+          disabled={selected === 'login'}
+          onClick={() => setEvidence(true)}
+        >
           근거 팝업
         </button>
         <button
@@ -86,7 +107,9 @@ export default function UiPreviewTools({
           글자 2배
         </button>
         <span title="팝업·메뉴를 닫았다가 마우스로 다시 열어 비교하세요. 닫힘은 기존 동작입니다.">
-          열림 효과만 · 저장 차단
+          {selected === 'login'
+            ? '모의 관리자: demo-admin / demo-only'
+            : '열림 효과 · 누름 반응 · 저장 차단'}
         </span>
         <a
           href="/audit"

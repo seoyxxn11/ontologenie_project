@@ -81,7 +81,11 @@ export default function IssueStatusForm({
 
   return (
     <section aria-label="처리 상태 변경" className="space-y-2">
-      {mutation.isSuccess && <p role="status">처리 상태를 변경했습니다.</p>}
+      {mutation.isSuccess && (
+        <p role="status" className="ui-save-notice">
+          처리 상태를 변경했습니다.
+        </p>
+      )}
       {mutation.error && <ErrorState error={mutation.error} />}
       {options.length > 0 && (
         <form onSubmit={submit}>

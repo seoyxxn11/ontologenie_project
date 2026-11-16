@@ -4,6 +4,7 @@ import type { Execution, ExecutionDetail } from '../features/audit/types'
 import type { ObjectInstanceDetail } from '../features/explorer/types'
 
 export const uiPreviewCases = {
+  login: 'Login · 첫 등장',
   demo: 'Demo · 기본',
   worst: 'Worst · 긴 값',
   empty: 'Empty · 0건',
@@ -166,6 +167,12 @@ export function uiPreviewHandlers(selected: UiPreviewCase) {
   const items = uiPreviewExecutions(selected)
   return [
     http.all('/api/v1/*', ({ request }) => {
+      if (
+        selected === 'login' &&
+        request.method === 'POST' &&
+        new URL(request.url).pathname === '/api/v1/auth/login'
+      )
+        return
       if (request.method !== 'GET')
         return previewError(
           403,

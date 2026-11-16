@@ -8,11 +8,27 @@ import type {
   ObjectMapping,
   PropertyMapping,
 } from '../features/mapping/api'
+import type { ObjectTypeItem } from '../features/ontology/types'
 
-const types: Definition[] = [
-  { id: 501, code: 'ITEM', name: '품목' },
-  { id: 502, code: 'VENDOR', name: '거래처' },
+const initialTypes: ObjectTypeItem[] = [
+  {
+    id: 501,
+    code: 'ITEM',
+    name: '품목',
+    displayPropertyId: null,
+    accessGroup: null,
+    rowVersion: 0,
+  },
+  {
+    id: 502,
+    code: 'VENDOR',
+    name: '거래처',
+    displayPropertyId: null,
+    accessGroup: null,
+    rowVersion: 0,
+  },
 ]
+let types: ObjectTypeItem[]
 const properties: Record<
   number,
   (Definition & { dataType?: string; sensitivity?: string })[]
@@ -107,6 +123,7 @@ const previews = new Map<
 >()
 
 export function resetMappingMocks() {
+  types = initialTypes.map((type) => ({ ...type }))
   objectMappings = [initialObject]
   propertyMappings = [initialProperty]
   previews.clear()
@@ -246,6 +263,86 @@ export const mappingHandlers = [
         ),
         search,
       )
+    }),
+  ),
+  http.get('/api/v1/ontology/object-types/:id', ({ params }) => {
+    const denied = requireMockLogin()
+    if (denied) return denied
+    const type = types.find((item) => item.id === Number(params.id))
+    if (!type || getMockAccount()?.roleCode !== 'ADMIN')
+      return failure(
+        404,
+        'RESOURCE_NOT_FOUND',
+        '요청한 유형을 찾을 수 없습니다.',
+      )
+    return HttpResponse.json({ data: type })
+  }),
+  http.patch(
+    '/api/v1/ontology/object-types/:id',
+    adminOnly(async ({ params, request }) => {
+      let input: unknown
+      try {
+        input = await request.json()
+      } catch {
+        return failure(400, 'INVALID_REQUEST', '요청 본문을 확인해 주세요.')
+      }
+      if (!input || typeof input !== 'object' || Array.isArray(input))
+        return failure(400, 'INVALID_REQUEST', '요청 본문을 확인해 주세요.')
+      const body = input as Record<string, unknown>
+      if (
+        typeof body.rowVersion !== 'number' ||
+        !Number.isSafeInteger(body.rowVersion) ||
+        body.rowVersion < 0
+      )
+        return failure(400, 'INVALID_REQUEST', '버전을 확인해 주세요.')
+      const type = types.find((item) => item.id === Number(params.id))
+      if (!type)
+        return failure(
+          404,
+          'RESOURCE_NOT_FOUND',
+          '요청한 유형을 찾을 수 없습니다.',
+        )
+      if (body.rowVersion !== type.rowVersion)
+        return failure(
+          409,
+          'VERSION_CONFLICT',
+          '다른 사용자가 먼저 수정했습니다.',
+        )
+      const hasDisplay = Object.hasOwn(body, 'displayPropertyId')
+      const hasGroup = Object.hasOwn(body, 'accessGroup')
+      if (hasDisplay && body.displayPropertyId !== null) {
+        if (
+          typeof body.displayPropertyId !== 'number' ||
+          !Number.isSafeInteger(body.displayPropertyId) ||
+          body.displayPropertyId < 1
+        )
+          return failure(400, 'INVALID_REQUEST', '대표 속성을 확인해 주세요.')
+        const property = properties[type.id]?.find(
+          (item) => item.id === body.displayPropertyId,
+        )
+        if (!property || property.sensitivity === 'RESTRICTED')
+          return failure(
+            422,
+            'BUSINESS_RULE_VIOLATION',
+            '같은 유형의 비민감 속성만 대표 속성으로 지정할 수 있습니다.',
+          )
+      }
+      if (
+        hasGroup &&
+        body.accessGroup !== null &&
+        (typeof body.accessGroup !== 'string' || body.accessGroup.length > 100)
+      )
+        return failure(400, 'INVALID_REQUEST', '조회 그룹을 확인해 주세요.')
+      const saved: ObjectTypeItem = {
+        ...type,
+        ...(hasDisplay
+          ? { displayPropertyId: body.displayPropertyId as number | null }
+          : {}),
+        ...(hasGroup ? { accessGroup: body.accessGroup as string | null } : {}),
+        rowVersion: type.rowVersion + 1,
+      }
+      types = types.map((item) => (item.id === saved.id ? saved : item))
+      return HttpResponse.json({ data: saved })
     }),
   ),
   // 026은 최신 서버에서 로그인 사용자에게 열리며 비관리자는 허용 유형·속성만 받는다.
