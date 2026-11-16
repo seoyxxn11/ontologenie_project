@@ -22,6 +22,8 @@
   --ui-input-invalid-border: #b91c1c;
   --ui-radius: 4px;
   --ui-panel-radius: 8px;
+  --ui-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ui-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --ui-font:
     'Pretendard Variable', Pretendard, 'Noto Sans KR', 'Malgun Gothic', Arial,
     sans-serif;
@@ -361,9 +363,16 @@ body {
 }
 
 .ui-dialog-heading h2 {
+  min-width: 0;
   font-size: 24px;
   font-weight: 700;
   line-height: 36px;
+  overflow-wrap: anywhere;
+}
+
+.ui-dialog-heading > .ui-button {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 @media (prefers-reduced-motion: no-preference) {
