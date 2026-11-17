@@ -43,7 +43,7 @@ import tools.jackson.databind.json.JsonMapper;
  * <ul>
  *   <li>일반 값({@value #NORMAL}): 세 역할의 화면과 모델 입력에 모두 나온다.
  *   <li>민감 값({@value #RESTRICTED}): PLANNER 화면에만 나온다. 모델 입력에는 PLANNER가 물어도 없다.
- *   <li>그룹 없는 유형의 값({@value #UNGROUPED}): 아무 역할에도, 모델 입력에도 없다.
+ *   <li>그룹 없는(미분류) 유형의 값({@value #UNGROUPED}): 관리자 화면에만 있다. 다른 역할과 모델 입력에는 없다(384 보완).
  * </ul>
  *
  * 금지 값은 원천 계정·publication(infra/tests/source_exposure_check.sh), 적재 계획(FullLoadPlannerPolicyTests),
@@ -122,8 +122,8 @@ class ExposureMatrixTests {
     }
 
     @Test
-    void ungroupedTypeIsVisibleToNoRole() throws Exception {
-        for (String role : new String[] {"ADMIN", "PLANNER", "VIEWER"}) {
+    void ungroupedTypeIsVisibleOnlyToAdmin() throws Exception {
+        for (String role : new String[] {"PLANNER", "VIEWER"}) {
             Cookie session = login(account(role));
             mockMvc.perform(get("/api/v1/objects/" + hiddenId).cookie(session))
                     .andExpect(status().isNotFound());
@@ -131,6 +131,13 @@ class ExposureMatrixTests {
                     .as(role + " 076 검색")
                     .doesNotContain(UNGROUPED);
         }
+        // 미분류 유형은 관리자에게만 보인다. 그룹을 정하는 사람이 값을 보고 검토한 뒤 공개한다(384 보완, V28).
+        Cookie admin = login(account("ADMIN"));
+        mockMvc.perform(get("/api/v1/objects/" + hiddenId).cookie(admin))
+                .andExpect(status().isOk());
+        assertThat(body(get("/api/v1/objects").param("q", UNGROUPED), admin))
+                .as("ADMIN 076 검색")
+                .contains(UNGROUPED);
     }
 
     /**

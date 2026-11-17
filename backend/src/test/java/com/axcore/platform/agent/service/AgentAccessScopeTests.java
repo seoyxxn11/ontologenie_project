@@ -101,6 +101,37 @@ class AgentAccessScopeTests {
         assertThat(AgentAccessScope.withheldFromModel(history, after)).containsExactly(2L);
     }
 
+    /**
+     * 445: 미분류 유형은 관리자 화면 범위에는 있고 모델 범위에는 없다. 공개된 유형으로 답한 뒤 그 유형의 그룹을 비우면, 화면 범위는 그대로여도 모델 문맥에서는 그
+     * 답변과 요약을 빼야 한다. 모델 문맥은 모델 범위(modelTypes)로 판단한다.
+     */
+    @Test
+    void unclassifyingATypeWithholdsOldAnswersFromTheModelEvenIfTheScreenStillShowsIt() {
+        Map<String, Object> type = Map.of("restrictedView", false, "restricted", List.of());
+        Map<String, Object> published =
+                Map.of("policy", "p", "types", Map.of("1", type), "modelTypes", Map.of("1", type));
+        Map<String, Object> unclassified =
+                Map.of("policy", "p", "types", Map.of("1", type), "modelTypes", Map.of());
+
+        assertThat(AgentAccessScope.narrowed(published, unclassified)).isFalse();
+        assertThat(AgentAccessScope.narrowedForModel(published, unclassified)).isTrue();
+        assertThat(AgentAccessScope.summaryUsable(AgentAccessScope.toText(published), unclassified))
+                .isFalse();
+        List<MessageScopeMark> history =
+                List.of(
+                        new MessageScopeMark(
+                                1L, MessageSender.USER, Map.of("accessScope", published)),
+                        new MessageScopeMark(2L, MessageSender.AGENT, Map.of()));
+        assertThat(AgentAccessScope.withdrawnAnswers(history, unclassified)).isEmpty();
+        assertThat(AgentAccessScope.withheldFromModel(history, unclassified)).containsExactly(2L);
+
+        // 미분류인 동안 물은 답은 모델 범위에 그 유형이 없었으므로 그대로 쓴다
+        assertThat(AgentAccessScope.narrowedForModel(unclassified, unclassified)).isFalse();
+        // modelTypes가 없는 예전 범위는 화면 범위로 판단한다
+        assertThat(AgentAccessScope.narrowedForModel(BASE, BASE)).isFalse();
+        assertThat(AgentAccessScope.narrowedForModel(BASE, unclassified)).isTrue();
+    }
+
     @Test
     void summaryIsUsableUnlessTheScopeNarrowedSinceItWasMade() {
         String made = AgentAccessScope.toText(BASE);

@@ -71,8 +71,11 @@ public class DataAccessPolicy {
     }
 
     private DataAccess scope(LoginAccount actor, DataPurpose purpose) {
+        // 미분류 유형은 허용 행(UNCLASSIFIED)을 가진 역할의 화면·검사 범위에만 넣는다. 아직 검토 중인 유형이라 외부 모델로 보내는 범위에서는 뺀다(384
+        // 보완).
+        boolean includeUnclassified = purpose != DataPurpose.MODEL;
         return new DataAccess(
-                dataScopeRepository.findAll(actor.roleCode()),
+                dataScopeRepository.findAll(actor.roleCode(), includeUnclassified),
                 purpose,
                 restrictionHistory.findAll());
     }

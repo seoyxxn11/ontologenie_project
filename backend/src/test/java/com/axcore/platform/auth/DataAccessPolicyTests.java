@@ -24,8 +24,8 @@ import org.springframework.test.context.ActiveProfiles;
 
 /**
  * 객체·민감 속성 조회 범위(S15P31C106-205)를 실제 DB로 확인한다. 기준(2026-11-06 결정, 384에서 수정): 모든 역할(ADMIN 포함)은 허용
- * 그룹만, 그룹 없는 유형은 아무도 못 봄, 민감 값은 허용 행의 can_view_restricted가 true일 때만, 볼 수 없는 객체는 404. 정의 조회 용도만 모든
- * 유형의 정의를 본다.
+ * 그룹만, 그룹 없는(미분류) 유형은 예약 이름의 허용 행을 가진 역할만(V28: ADMIN) 보고 외부 모델 범위에는 넣지 않음, 민감 값은 허용 행의
+ * can_view_restricted가 true일 때만, 볼 수 없는 객체는 404. 정의 조회 용도만 모든 유형의 정의를 본다.
  */
 @SpringBootTest
 @ActiveProfiles("api")
@@ -71,7 +71,7 @@ class DataAccessPolicyTests {
         DataAccess access = policy.of(account("ADMIN"));
 
         assertThat(access.visibleObjectTypeIds())
-                .doesNotContain(openType, closedType, unlistedType, ungroupedType);
+                .doesNotContain(openType, closedType, unlistedType);
         assertThat(access.mask(ungroupedType, values()).restrictedPropertyCodes())
                 .containsExactly("purchase_price");
 
@@ -80,6 +80,28 @@ class DataAccessPolicyTests {
         DataAccess allowed = policy.of(account("ADMIN"));
         assertThat(allowed.canView(openType)).isTrue();
         assertThat(allowed.canViewRestricted(openType)).isFalse();
+    }
+
+    /**
+     * 그룹이 없는(미분류) 유형은 예약 이름의 허용 행을 가진 역할에게만 보인다(384 보완, V28: ADMIN). 그룹을 정하는 사람이 그 유형의 값과 제안 근거를 봐야
+     * 검토한 뒤 공개할 수 있다. 민감 값은 열지 않는다. 아직 검토 중인 유형이라 외부 모델로 보내는 범위에는 넣지 않는다.
+     */
+    @Test
+    void unclassifiedTypeIsVisibleOnlyThroughTheReservedRow() {
+        DataAccess admin = policy.of(account("ADMIN"));
+
+        assertThat(admin.canView(ungroupedType)).isTrue();
+        assertThat(admin.canViewRestricted(ungroupedType)).isFalse();
+        assertThat(admin.mask(ungroupedType, values()).properties())
+                .containsEntry("equipment_code", "PR-03")
+                .containsEntry("purchase_price", null);
+        // 허용 행이 없는 그룹은 예약 행과 관계없이 보이지 않는다
+        assertThat(admin.canView(unlistedType)).isFalse();
+
+        assertThat(policy.forModel(account("ADMIN")).canView(ungroupedType)).isFalse();
+        assertThat(policy.forCheck(account("ADMIN")).canView(ungroupedType)).isTrue();
+        assertThat(policy.of(account("VIEWER")).canView(ungroupedType)).isFalse();
+        assertThat(policy.of(account("PLANNER")).canView(ungroupedType)).isFalse();
     }
 
     /** 정의 조회 용도는 역할과 관계없이 모든 유형의 정의를 본다(내부 모델 요약). */

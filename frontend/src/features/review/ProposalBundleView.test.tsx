@@ -191,9 +191,7 @@ test('그룹이 없으면 비공개로 들어간다고 알리고, 그룹·민감
   open(objectBundle)
 
   expect(
-    await screen.findByText(
-      /승인 뒤 어느 역할에도 이 유형의 객체가 보이지 않습니다/,
-    ),
+    await screen.findByText(/승인 뒤 이 유형의 객체는 관리자에게만 보입니다/),
   ).toBeInTheDocument()
   const form = screen.getByRole('form', { name: '조회 그룹과 민감도 고치기' })
   const user = userEvent.setup()

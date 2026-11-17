@@ -1,4 +1,4 @@
-// 객체 유형 조회 그룹(object_type.access_group, 백엔드 V13·V21). 그룹이 없는 유형은 어느 역할에도 보이지 않는다.
+// 객체 유형 조회 그룹(object_type.access_group, 백엔드 V13·V21·V28). 그룹이 없는 유형은 관리자에게만 보인다.
 // FINANCE·HR은 지금 어느 역할에도 열려 있지 않아 고를 수 없게 두고, 이미 지정된 값은 그대로 보여 준다.
 export const accessGroupLabels: Record<string, string> = {
   PRODUCTION: '생산·설비',

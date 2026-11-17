@@ -102,8 +102,9 @@ function ObjectBundle({ proposal }: { proposal: Proposal }) {
           )}
           {!payload.accessGroup && editable(proposal) && (
             <p className="mt-1 text-amber-700">
-              그룹이 없으면 승인 뒤 어느 역할에도 이 유형의 객체가 보이지
-              않습니다. 아래에서 정하거나 승인 뒤 객체 유형 화면에서 지정하세요.
+              그룹이 없으면 승인 뒤 이 유형의 객체는 관리자에게만 보입니다. 다른
+              역할과 AI 업무 도우미에 보이게 하려면 아래에서 정하거나 승인 뒤
+              객체 유형 화면에서 지정하세요.
             </p>
           )}
         </dd>

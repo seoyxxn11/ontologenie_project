@@ -103,6 +103,28 @@ class ObjectTypeApiTests {
                 .andExpect(jsonPath("$.error.details.field").value("displayPropertyId"));
     }
 
+    /** 미분류를 뜻하는 예약 이름은 유형의 그룹으로 받지 않는다(384 보완). 그룹을 비우면 미분류가 된다. */
+    @Test
+    void rejectsReservedUnclassifiedGroupName() throws Exception {
+        LoginSession admin = loginAs("ADMIN");
+
+        send(
+                        admin,
+                        post(BASE_PATH),
+                        "{\"code\": \"%s\", \"name\": \"설비\", \"accessGroup\": \"UNCLASSIFIED\"}"
+                                .formatted(uniqueCode()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details.field").value("accessGroup"));
+
+        long id = createObjectType(admin, uniqueCode());
+        send(
+                        admin,
+                        patch(BASE_PATH + "/" + id),
+                        "{\"accessGroup\": \"unclassified\", \"rowVersion\": 0}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.details.field").value("accessGroup"));
+    }
+
     @Test
     void rejectsDuplicateCode() throws Exception {
         LoginSession admin = loginAs("ADMIN");

@@ -254,8 +254,9 @@ export default function ProposalDecision({
             proposal.itemKind === 'OBJECT_TYPE' &&
             !proposal.payload.accessGroup && (
               <p>
-                조회 그룹 없이 반영해 비공개입니다. 어느 역할에도 이 유형의
-                객체가 보이지 않으니 객체 유형 화면에서 조회 그룹을 지정하세요.
+                조회 그룹 없이 반영해 비공개입니다. 이 유형의 객체는
+                관리자에게만 보입니다. 검토한 뒤 객체 유형 화면에서 조회 그룹을
+                지정하세요.
               </p>
             )}
         </div>

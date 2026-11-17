@@ -132,11 +132,19 @@ class ModelGraphApiTests {
         String suffix = Long.toString(System.nanoTime());
         int shown = insertType("SHOWN_" + suffix, "보이는 유형");
         int hidden = insertType("HIDDEN_" + suffix, "숨은 유형");
+        int unclassified = insertType("UNCLASSIFIED_T_" + suffix, "미분류 유형");
         jdbc.sql("update object_type set access_group = 'PRODUCTION' where id = :id")
                 .param("id", shown)
                 .update();
+        // 어느 역할에도 허용 행이 없는 그룹
+        jdbc.sql("update object_type set access_group = :group where id = :id")
+                .param("group", "UNLISTED_" + suffix)
+                .param("id", hidden)
+                .update();
         int self = insertLinkType("SELF_" + suffix, shown, shown, "MANY_TO_MANY");
         int toHidden = insertLinkType("TO_HIDDEN_" + suffix, shown, hidden, "MANY_TO_ONE");
+        int toUnclassified =
+                insertLinkType("TO_UNCLASSIFIED_" + suffix, shown, unclassified, "MANY_TO_ONE");
         try {
             // 조회 사용자: 볼 수 있는 유형과 그 유형끼리의 관계만(S15P31C106-420)
             mockMvc.perform(get(PATH).with(account("VIEWER", false)))
@@ -144,13 +152,24 @@ class ModelGraphApiTests {
                     .andExpect(jsonPath("$.data.nodes[?(@.id == " + shown + ")]", hasSize(1)))
                     .andExpect(jsonPath("$.data.nodes[?(@.id == " + hidden + ")]", hasSize(0)))
                     .andExpect(jsonPath("$.data.edges[?(@.id == " + self + ")]", hasSize(1)))
-                    .andExpect(jsonPath("$.data.edges[?(@.id == " + toHidden + ")]", hasSize(0)));
-            // 관리자도 범위 밖(그룹 없음) 유형과 그 관계는 받지 않는다(427)
+                    .andExpect(jsonPath("$.data.edges[?(@.id == " + toHidden + ")]", hasSize(0)))
+                    .andExpect(
+                            jsonPath("$.data.nodes[?(@.id == " + unclassified + ")]", hasSize(0)))
+                    .andExpect(
+                            jsonPath(
+                                    "$.data.edges[?(@.id == " + toUnclassified + ")]", hasSize(0)));
+            // 관리자도 범위 밖(허용 행이 없는 그룹) 유형과 그 관계는 받지 않는다(427).
+            // 미분류(그룹 없음) 유형은 관리자에게만 보인다(384 보완, V28).
             mockMvc.perform(get(PATH).with(account("ADMIN", false)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.nodes[?(@.id == " + shown + ")]", hasSize(1)))
                     .andExpect(jsonPath("$.data.nodes[?(@.id == " + hidden + ")]", hasSize(0)))
-                    .andExpect(jsonPath("$.data.edges[?(@.id == " + toHidden + ")]", hasSize(0)));
+                    .andExpect(jsonPath("$.data.edges[?(@.id == " + toHidden + ")]", hasSize(0)))
+                    .andExpect(
+                            jsonPath("$.data.nodes[?(@.id == " + unclassified + ")]", hasSize(1)))
+                    .andExpect(
+                            jsonPath(
+                                    "$.data.edges[?(@.id == " + toUnclassified + ")]", hasSize(1)));
             // 범위가 없는 역할은 빈 관계도
             mockMvc.perform(get(PATH).with(account("MAINTENANCE", false)))
                     .andExpect(status().isOk())
@@ -158,10 +177,10 @@ class ModelGraphApiTests {
                     .andExpect(jsonPath("$.data.edges[?(@.id == " + self + ")]", hasSize(0)));
         } finally {
             jdbc.sql("delete from link_type where id in (:ids)")
-                    .param("ids", java.util.List.of(self, toHidden))
+                    .param("ids", java.util.List.of(self, toHidden, toUnclassified))
                     .update();
             jdbc.sql("delete from object_type where id in (:ids)")
-                    .param("ids", java.util.List.of(shown, hidden))
+                    .param("ids", java.util.List.of(shown, hidden, unclassified))
                     .update();
         }
     }
