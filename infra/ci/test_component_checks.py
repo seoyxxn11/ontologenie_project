@@ -16,18 +16,19 @@ POLICY_FIXTURE = Path(__file__).with_name("fixtures") / "component_checks.sh"
 CACHE_SCRIPT = Path(__file__).with_name("result_cache.py")
 
 
-def load_check_script(policy, fixture):
+def load_check_script(policy, fixture, function="componentCheckScript"):
     # 병합 전 develop의 Jenkinsfile은 infra/ci만 마운트한다. 동일한 검사를 fixture로 실행한다.
     snapshot = fixture.read_text(encoding="utf-8")
     if policy is None:
         return snapshot
-    match = re.search(r"def componentCheckScript\(\) \{\s*return '''(.*?)'''", policy.read_text(encoding="utf-8"), re.S)
+    match = re.search(r"def " + function + r"\(\) \{\s*return '''(.*?)'''", policy.read_text(encoding="utf-8"), re.S)
     if match is None or match.group(1).rstrip() + "\n" != snapshot:
         raise ValueError("Jenkinsfile 검사 셸과 infra/ci/fixtures/component_checks.sh를 함께 갱신해야 합니다.")
     return snapshot
 
 
 SCRIPT = load_check_script(POLICY, POLICY_FIXTURE)
+HEAVY_SCRIPT = load_check_script(POLICY, POLICY_FIXTURE.with_name("heavy_task.sh"), "heavyTaskScript")
 
 
 class CheckPolicyTests(unittest.TestCase):
@@ -74,14 +75,25 @@ if tool == 'java':
 if tool == 'docker' and args[:2] == ['image', 'inspect']:
     print('sha256:fixture-runtime')
     sys.exit(0)
+if tool == 'docker' and args[:2] == ['rm', '-f']:
+    pathlib.Path(os.environ['TEST_REMOVED']).write_text(args[2])
+    with open(os.environ['TEST_REMOVED_LOG'], 'a') as stream: stream.write(args[2] + '\n')
+    sys.exit(0)
 if tool == 'docker' and '/script/result_cache.py' in args:
+    if os.environ.get('TEST_CACHE_BLOCK') == '1' and 'restore' in args:
+        pathlib.Path(args[args.index('--cidfile') + 1]).write_text('fixture-cache')
+        pathlib.Path(os.environ['TEST_CACHE_STARTED']).write_text('started')
+        time.sleep(5)
     if os.environ.get('TEST_CACHE_FAIL') == '1': sys.exit(1)
     index = args.index('/script/result_cache.py')
     sys.exit(subprocess.call([sys.executable, os.environ['REAL_CACHE_SCRIPT'], *args[index + 1:],
         '--work', str(work / component), '--cache', str(pathlib.Path(os.environ['JENKINS_HOME']) / 'ci-results')]))
 if tool == 'gradlew':
-    assert args == ['--no-daemon', 'spotlessCheck', 'test', '--rerun', 'build', 'jacocoTestReport'], args
+    assert args == ['--no-daemon', '--max-workers=2', 'spotlessCheck', 'test', '--rerun', 'build', 'jacocoTestReport'], args
 else:
+    assert args[args.index('--cpus') + 1] == '1', args
+    assert args[args.index('--memory') + 1] == ('2g' if component == 'frontend' else '1g'), args
+    pathlib.Path(args[args.index('--cidfile') + 1]).write_text('fixture-container')
     command = args[-1]
     expected = ('npm ci --no-audit --no-fund && npm run format:check && npm run lint && npm run test:coverage && npm run build'
         if component == 'frontend' else 'pip install -q -r requirements-dev.txt && ruff check . && pytest -q --junitxml=test-results/pytest.xml --cov --cov-report=xml')
@@ -139,11 +151,13 @@ class ComponentChecksTests(unittest.TestCase):
         return {**os.environ, "PATH": str(self.bin) + os.pathsep + os.environ["PATH"],
                 "WORKSPACE": str(work), "JENKINS_HOME": str(self.root / "jenkins"),
                 "CHECK_COMPONENT": component, "REAL_CACHE_SCRIPT": str(CACHE_SCRIPT),
-                "TEST_EVENTS": str(self.events), "CHECK_POLICY_BODY": SCRIPT, **options}
+                "TEST_EVENTS": str(self.events), "CHECK_POLICY_BODY": SCRIPT,
+                "TEST_REMOVED": str(self.root / "removed"),
+                "TEST_REMOVED_LOG": str(self.root / "removed-log"), **options}
 
-    def start(self, environment):
+    def start(self, environment, script=SCRIPT):
         process = subprocess.Popen(
-            ["sh", "-c", SCRIPT], cwd=environment["WORKSPACE"], env=environment,
+            ["sh", "-c", script], cwd=environment["WORKSPACE"], env=environment,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
             start_new_session=True,
         )
@@ -184,6 +198,95 @@ class ComponentChecksTests(unittest.TestCase):
         self.finish(first)
         self.finish(second)
         self.assertEqual([e["phase"] for e in self.records()], ["start", "end", "start", "end"])
+
+    def test_different_components_share_one_heavy_slot(self):
+        first = self.start(self.environment("frontend", "frontend", TEST_DELAY="0.3"))
+        second = self.start(self.environment("ai", "ai", TEST_DELAY="0.3"))
+        self.finish(first)
+        self.finish(second)
+        self.assertEqual([e["phase"] for e in self.records()], ["start", "end", "start", "end"])
+
+    def test_build_or_scanner_wrapper_cannot_overlap_component_checks(self):
+        environment = self.environment("build", TEST_DELAY="0.4")
+        environment["HEAVY_COMMAND"] = 'cd backend && ./gradlew --no-daemon --max-workers=2 spotlessCheck test --rerun build jacocoTestReport'
+        first = self.start(environment, HEAVY_SCRIPT)
+        second = self.start(self.environment("frontend", "frontend", TEST_DELAY="0.4"))
+        self.finish(first)
+        self.finish(second)
+        self.assertEqual([e["phase"] for e in self.records()], ["start", "end", "start", "end"])
+
+    def test_heavy_wrapper_timeout_releases_slot_and_preserves_failure(self):
+        environment = self.environment("build-timeout", TEST_DELAY="5")
+        environment["HEAVY_COMMAND"] = 'cd backend && ./gradlew --no-daemon --max-workers=2 spotlessCheck test --rerun build jacocoTestReport'
+        self.finish(self.start(environment, HEAVY_SCRIPT.replace('30m sh', '0.3s sh')), expected=124)
+        self.finish(self.start(self.environment("retry", "frontend")))
+
+    def test_heavy_wrapper_cancel_stops_children_before_releasing_slot(self):
+        environment = self.environment("cancel-build", TEST_DELAY="5")
+        environment["HEAVY_COMMAND"] = 'cd backend && ./gradlew --no-daemon --max-workers=2 spotlessCheck test --rerun build jacocoTestReport'
+        process = self.start(environment, HEAVY_SCRIPT)
+        deadline = time.monotonic() + 5
+        while not self.records() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.assertTrue(self.records())
+        os.killpg(process.pid, signal.SIGTERM)
+        process.communicate(timeout=5)
+        self.assertNotEqual(process.returncode, 0)
+        self.finish(self.start(self.environment("retry", "frontend")))
+
+    def test_slot_timeout_does_not_start_checks_or_publish_success(self):
+        import fcntl
+
+        environment = self.environment("waiting")
+        lock = Path(environment["JENKINS_HOME"]) / "ci-locks/heavy.lock"
+        lock.parent.mkdir(parents=True)
+        with lock.open("w") as handle:
+            fcntl.flock(handle, fcntl.LOCK_EX)
+            output = self.finish(self.start(environment, SCRIPT.replace('flock -w 2100', 'flock -w 0.1')), expected=1)
+        self.assertIn("35분 초과", output)
+        self.assertEqual(self.records(), [])
+
+    def test_check_timeout_removes_container_without_publishing_and_releases_slot(self):
+        environment = self.environment("timed-out", "frontend", TEST_DELAY="5")
+        self.finish(self.start(environment, SCRIPT.replace('run_check 30m docker run', 'run_check 0.5s docker run')), expected=124)
+        self.assertEqual((self.root / "removed").read_text(), 'fixture-container')
+        cache = self.root / "jenkins/ci-results/frontend"
+        self.assertFalse(cache.exists() and any(cache.iterdir()))
+        self.finish(self.start(self.environment("retry", "frontend")))
+
+    def test_cancelled_container_is_removed_and_slot_is_released(self):
+        process = self.start(self.environment("cancelled", "ai", TEST_DELAY="5"))
+        deadline = time.monotonic() + 5
+        while not self.records() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.assertTrue(self.records())
+        os.killpg(process.pid, signal.SIGTERM)
+        process.communicate(timeout=5)
+        self.assertNotEqual(process.returncode, 0)
+        self.assertEqual((self.root / "removed").read_text(), 'fixture-container')
+        self.finish(self.start(self.environment("retry", "ai")))
+
+    def test_cache_timeout_cleans_helper_and_falls_back_to_full_checks(self):
+        environment = self.environment('cache-timeout', TEST_CACHE_BLOCK='1',
+            TEST_CACHE_STARTED=str(self.root / 'cache-started'))
+        self.finish(self.start(environment, SCRIPT.replace('run_check 2m docker run', 'run_check 0.3s docker run')))
+        self.assertIn('fixture-cache', (self.root / 'removed-log').read_text().splitlines())
+        self.assertEqual([item['phase'] for item in self.records()], ['start', 'end'])
+
+    def test_cancel_during_cache_restore_cleans_helper(self):
+        started = self.root / 'cache-started'
+        environment = self.environment('cache-cancel', TEST_CACHE_BLOCK='1',
+            TEST_CACHE_STARTED=str(started))
+        process = self.start(environment)
+        deadline = time.monotonic() + 5
+        while not started.exists() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.assertTrue(started.exists())
+        os.killpg(process.pid, signal.SIGTERM)
+        process.communicate(timeout=5)
+        self.assertNotEqual(process.returncode, 0)
+        self.assertIn('fixture-cache', (self.root / 'removed-log').read_text().splitlines())
+        self.assertEqual(self.records(), [])
 
     def test_failed_checks_propagate_and_are_not_reused_by_waiting_job(self):
         failed = self.start(self.environment("failed", TEST_DELAY="0.3", TEST_FAIL="1"))

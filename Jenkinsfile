@@ -51,6 +51,7 @@ pipeline {
 
     stages {
         stage('Checkout') {
+            options { timeout(time: 10, unit: 'MINUTES') }
             steps {
                 script {
                     if (env.IS_SONAR_JOB == 'true' && params.ANALYSIS_COMMIT &&
@@ -177,10 +178,39 @@ pipeline {
         }
 
         stage('Infra check') {
+            options { timeout(time: 10, unit: 'MINUTES') }
             when { expression { env.IS_DEPLOY_JOB != 'true' && env.IS_SONAR_JOB != 'true' && env.CHECK_INFRA == 'true' } }
             steps {
                 script { ensureLatestMrCommit() }
                 sh '''
+                    set -eu
+                    INFRA_CONTAINER_DIR=$(mktemp -d)
+                    INFRA_PID=''
+                    cleanup_infra() {
+                        status=$?
+                        trap - EXIT
+                        if [ -n "$INFRA_PID" ]; then
+                            kill -TERM "$INFRA_PID" 2>/dev/null || true
+                            wait "$INFRA_PID" 2>/dev/null || true
+                        fi
+                        if [ -s "$INFRA_CONTAINER_DIR/id" ]; then
+                            timeout -k 5s 15s docker rm -f "$(cat "$INFRA_CONTAINER_DIR/id")" >/dev/null 2>&1 || true
+                        fi
+                        rm -f "$INFRA_CONTAINER_DIR/id"
+                        rmdir "$INFRA_CONTAINER_DIR"
+                        exit "$status"
+                    }
+                    trap cleanup_infra EXIT
+                    trap 'exit 130' INT
+                    trap 'exit 143' TERM
+                    run_infra() {
+                        rm -f "$INFRA_CONTAINER_DIR/id"
+                        timeout -k 30s 5m docker run --rm --cidfile "$INFRA_CONTAINER_DIR/id" "$@" <&0 &
+                        INFRA_PID=$!
+                        if wait "$INFRA_PID"; then result=0; else result=$?; fi
+                        INFRA_PID=''
+                        return "$result"
+                    }
                     bash -n infra/deploy/sync-config.sh
                     if [ -f infra/deploy/retain-frontend-assets.sh ]; then
                         bash -n infra/deploy/retain-frontend-assets.sh
@@ -190,13 +220,13 @@ pipeline {
                     fi
                     bash -n infra/scripts/pg-backup.sh
                     HOST_WS=$(printf '%s' "$WORKSPACE" | sed 's#^/var/jenkins_home#/home/ubuntu/axcore/jenkins-data#')
-                    docker run --rm --network none --memory 256m \
+                    run_infra --network none --memory 256m --cpus 0.5 \
                         -e PYTHONDONTWRITEBYTECODE=1 \
                         --mount "type=bind,src=$HOST_WS/infra/deploy,dst=/work,readonly" -w /work \
                         python:3.11-slim python -m unittest discover -p 'test_*.py' -v
                     if git cat-file -e HEAD:infra/ci 2>/dev/null; then
                         test -f infra/ci/test_result_cache.py
-                        docker run --rm --network none --memory 256m \
+                        run_infra --network none --memory 256m --cpus 0.5 \
                             -e PYTHONDONTWRITEBYTECODE=1 \
                             --mount "type=bind,src=$HOST_WS/infra/ci,dst=/work,readonly" \
                             --mount "type=bind,src=$HOST_WS/Jenkinsfile,dst=/Jenkinsfile,readonly" -w /work \
@@ -219,7 +249,7 @@ pipeline {
                             test "$(realpath "$f")" = "$(pwd -P)/$f"
                             set -- "$@" --mount "type=bind,src=$HOST_WS/$f,dst=/repo/$f,readonly"
                         done
-                        docker run --rm --network none --memory 256m \
+                        run_infra --network none --memory 256m --cpus 0.5 \
                             -e PYTHONDONTWRITEBYTECODE=1 "$@" \
                             -w /repo python:3.11-slim python -m unittest discover -s infra/tests -p 'test_source_allowlist.py' -v
                     else
@@ -233,7 +263,7 @@ pipeline {
                             test "$(realpath "$f")" = "$(pwd -P)/$f"
                             set -- "$@" --mount "type=bind,src=$HOST_WS/$f,dst=/repo/$f,readonly"
                         done
-                        docker run --rm --network none --memory 256m \
+                        run_infra --network none --memory 256m --cpus 0.5 \
                             -e PYTHONDONTWRITEBYTECODE=1 -e AXCORE_REQUIRE_SHELL_TESTS=1 "$@" \
                             -w /repo python:3.11-slim python -m unittest discover -s infra/tests -p 'test_jenkins_mounts.py' -v
                     else
@@ -432,31 +462,51 @@ pipeline {
                             def credentialId = component == 'frontend' ? 'axcore-sonarqube-token' : "axcore-sonarqube-${component}-token"
                             withCredentials([string(credentialsId: credentialId, variable: 'SONAR_TOKEN')]) {
                                 withEnv(["SONAR_COMPONENT=${component}", "SONAR_GATE_CHECK=${gateRecipient ? 'true' : 'false'}"]) {
-                                    def gate = sh(returnStdout: true, script: '''
+                                    def gate = runHeavyTask('''
                                         set +x
+                                        container_dir=$(mktemp -d)
+                                        report_dir=''
+                                        cleanup() {
+                                            status=$?
+                                            trap - EXIT
+                                            for cid in "$container_dir/scanner" "$container_dir/gate"; do
+                                                if [ -s "$cid" ]; then
+                                                    timeout -k 5s 15s docker rm -f "$(cat "$cid")" >/dev/null 2>&1 || true
+                                                fi
+                                                rm -f "$cid"
+                                            done
+                                            rmdir "$container_dir"
+                                            if [ -n "$report_dir" ]; then
+                                                rm -f "$report_dir/report-task.txt"
+                                                rmdir "$report_dir"
+                                            fi
+                                            exit "$status"
+                                        }
+                                        trap cleanup EXIT
+                                        trap 'exit 130' INT
+                                        trap 'exit 143' TERM
                                         mkdir -p ".sonar-cache/$SONAR_COMPONENT"
                                         HOST_WS=$(printf '%s' "$WORKSPACE" | sed 's#^/var/jenkins_home/#/home/ubuntu/axcore/jenkins-data/#')
                                         set --
                                         if [ "$SONAR_GATE_CHECK" = true ]; then
                                             report_dir=$(mktemp -d "$WORKSPACE/.sonar-gate.XXXXXXXX")
-                                            trap 'rm -f "$report_dir/report-task.txt"; rmdir "$report_dir"' EXIT
                                             set -- "-Dsonar.scanner.metadataFilePath=/workspace/${report_dir##*/}/report-task.txt"
                                         fi
-                                        docker run --rm --memory 2g --cpus 2 --network axcore-net \
+                                        docker run --rm --cidfile "$container_dir/scanner" --memory 2g --cpus 1 --network axcore-net \
                                             --user "$(id -u):$(id -g)" \
                                             -e SONAR_HOST_URL=http://sonarqube:9000 -e SONAR_TOKEN \
                                             -e SONAR_USER_HOME="/workspace/.sonar-cache/$SONAR_COMPONENT" \
                                             -v "$HOST_WS:/workspace" -w "/workspace/$SONAR_COMPONENT" \
                                             sonarsource/sonar-scanner-cli:12.3.0.4285_8.1.0 "$@" >&2
                                         if [ "$SONAR_GATE_CHECK" = true ]; then
-                                            docker run --rm --network axcore-net --memory 128m \
+                                            docker run --rm --cidfile "$container_dir/gate" --network axcore-net --memory 128m --cpus 0.5 \
                                                 -e SONAR_TOKEN -e SONAR_HOST_URL=http://sonarqube:9000 \
                                                 -v "$HOST_WS:/workspace:ro" python:3.11-slim \
                                                 python /workspace/infra/sonarqube/quality_gate.py \
                                                 "/workspace/${report_dir##*/}/report-task.txt" "axcore-$SONAR_COMPONENT" \
                                                 || echo "SonarQube Quality Gate 상태 확인 실패: $SONAR_COMPONENT" >&2
                                         fi
-                                    ''').trim()
+                                    ''', true).trim()
                                     if (gate == 'ERROR') {
                                         def dashboard = (env.SONARQUBE_DASHBOARD_URL ?: 'http://localhost:9000').replaceAll('/+$', '')
                                         failedGateLinks.add("${dashboard}/dashboard?id=axcore-${component}")
@@ -473,6 +523,7 @@ pipeline {
         }
 
         stage('Cleanup images') {
+            options { timeout(time: 5, unit: 'MINUTES') }
             when { expression { env.IS_DEPLOY_JOB == 'true' } }
             steps {
                 // 서비스 이미지는 최근 3개 태그만 남긴다 (지금 것 + 롤백용 2개). 쓰는 중인 이미지는 지워지지 않는다.
@@ -599,7 +650,9 @@ def runComponentChecks(String component) {
     }
     def checkScript = componentCheckScript()
     withEnv(["CHECK_COMPONENT=${component}", "CHECK_POLICY_BODY=${checkScript}"]) {
-        sh checkScript
+        timeout(time: 70, unit: 'MINUTES') {
+            sh checkScript
+        }
     }
 }
 
@@ -614,6 +667,39 @@ def componentCheckScript() {
         CACHE_DIR="${JENKINS_HOME:-/var/jenkins_home}/ci-results"
         LOCK_DIR="${JENKINS_HOME:-/var/jenkins_home}/ci-locks"
         mkdir -p "$CACHE_DIR" "$LOCK_DIR"
+        CONTAINER_DIR=$(mktemp -d)
+        ACTIVE_PID=''
+        remove_check_container() {
+            if [ -s "$CONTAINER_DIR/id" ]; then
+                timeout -k 5s 15s docker rm -f "$(cat "$CONTAINER_DIR/id")" >/dev/null 2>&1 || true
+            fi
+            rm -f "$CONTAINER_DIR/id"
+        }
+        run_check() {
+            duration=$1
+            shift
+            rm -f "$CONTAINER_DIR/id"
+            timeout -k 30s "$duration" "$@" <&0 &
+            ACTIVE_PID=$!
+            if wait "$ACTIVE_PID"; then result=0; else result=$?; fi
+            ACTIVE_PID=''
+            remove_check_container
+            return "$result"
+        }
+        cleanup_check() {
+            status=$?
+            trap - EXIT
+            if [ -n "$ACTIVE_PID" ]; then
+                kill -TERM "$ACTIVE_PID" 2>/dev/null || true
+                wait "$ACTIVE_PID" 2>/dev/null || true
+            fi
+            remove_check_container
+            rmdir "$CONTAINER_DIR"
+            exit "$status"
+        }
+        trap cleanup_check EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
         CACHE_HOST=$(printf '%s' "$CACHE_DIR" | sed 's#^/var/jenkins_home/#/home/ubuntu/axcore/jenkins-data/#')
         TREE=$(git rev-parse "HEAD:$COMPONENT")
         if [ "$COMPONENT" = backend ]; then
@@ -639,7 +725,7 @@ def componentCheckScript() {
             fi
             ACTION=$1
             shift
-            docker run --rm --network none --memory 256m "$@" \
+            run_check 2m docker run --rm --cidfile "$CONTAINER_DIR/id" --network none --memory 256m --cpus 0.5 "$@" \
                 -e BUILD_URL \
                 --mount "type=bind,src=$HOST_WS/infra/ci,dst=/script,readonly" \
                 --mount "type=bind,src=$HOST_WS/$COMPONENT,dst=/work" \
@@ -653,10 +739,9 @@ def componentCheckScript() {
         fi
         WAIT_STARTED=$(date +%s)
         echo "$COMPONENT: 전체 검사 실행 슬롯 대기"
-        # 같은 구성 요소의 테스트만 직렬화한다. 특히 두 Gradle JVM이 Jenkins의 2 CPU/4 GiB를 나눠 쓰지 않는다.
-        # 프로세스 종료/취소 시 OS가 잠금을 해제한다. 배포와 Sonar 스캐너는 이 잠금을 잡지 않는다.
-        exec 9>"$LOCK_DIR/$COMPONENT.lock"
-        flock 9
+        # MR·분석의 전체 검사와 Sonar 스캔·이미지 빌드가 같은 슬롯을 사용한다.
+        exec 9>"$LOCK_DIR/heavy.lock"
+        flock -w 2100 9 || { echo 'CI 실행 슬롯 대기 35분 초과' >&2; exit 1; }
         echo "$COMPONENT: 실행 슬롯 획득 (잠금 대기 $(($(date +%s) - WAIT_STARTED))초)"
         # 기다리는 동안 다른 Job이 같은 코드의 전체 검사를 끝냈을 수 있다.
         if cache_results restore; then
@@ -667,16 +752,18 @@ def componentCheckScript() {
         case "$COMPONENT" in
             backend)
                 # 캐시 미스면 공유 fixture 변경도 실제로 검사한다. 컴파일 등 다른 작업의 증분 처리는 유지한다.
-                (cd backend && ./gradlew --no-daemon spotlessCheck test --rerun build jacocoTestReport)
+                cd backend
+                run_check 30m ./gradlew --no-daemon --max-workers=2 spotlessCheck test --rerun build jacocoTestReport
+                cd ..
                 ;;
             frontend)
-                docker run --rm --memory 2g -e CI=true \
+                run_check 30m docker run --rm --cidfile "$CONTAINER_DIR/id" --memory 2g --cpus 1 -e CI=true \
                     -v "$HOST_WS/frontend:/app" -w /app \
                     -v axcore-npm-cache:/root/.npm node:24.18.0-alpine \
                     sh -c 'npm ci --no-audit --no-fund && npm run format:check && npm run lint && npm run test:coverage && npm run build'
                 ;;
             ai)
-                docker run --rm --memory 1g -e CI=true \
+                run_check 30m docker run --rm --cidfile "$CONTAINER_DIR/id" --memory 1g --cpus 1 -e CI=true \
                     -v "$HOST_WS/ai:/app" -w /app \
                     -v axcore-pip-cache:/root/.cache/pip python:3.11-slim \
                     sh -c 'pip install -q -r requirements-dev.txt && ruff check . && pytest -q --junitxml=test-results/pytest.xml --cov --cov-report=xml'
@@ -849,13 +936,53 @@ def waitForHttpHealth(List services) {
 // 태그가 서로 다른 이미지를 가리키게 된다(2026-11-14 FORCE_DEPLOY #432 뒤 #435·#436 배포 실패). 굽는 데 쓰는 것은 그 커밋의
 // 폴더뿐이라(빌드 인자 없음) 다시 구울 이유가 없다. 이미지가 잘못 구워졌으면 태그를 지우고 다시 돌린다.
 def buildOnce(String image, String dir) {
-    sh """
+    runHeavyTask("""
         if docker image inspect ${image}:${env.GIT_SHA} >/dev/null 2>&1; then
             echo "${image}:${env.GIT_SHA} 이미지가 이미 있어 다시 굽지 않는다"
         else
             docker build -t ${image}:${env.GIT_SHA} ${dir}
         fi
-    """
+    """)
+}
+
+// 잠금 대기 35분 + 실행 30분. 배포·health·롤백 단계는 이 슬롯을 점유하지 않는다.
+def runHeavyTask(String command, boolean captureOutput = false) {
+    timeout(time: 70, unit: 'MINUTES') {
+        withEnv(["HEAVY_COMMAND=${command}"]) {
+            sh(returnStdout: captureOutput, script: heavyTaskScript())
+        }
+    }
+}
+
+def heavyTaskScript() {
+    return '''
+        set +x
+        set -eu
+        umask 077
+        LOCK_DIR="${JENKINS_HOME:-/var/jenkins_home}/ci-locks"
+        mkdir -p "$LOCK_DIR"
+        exec 9>"$LOCK_DIR/heavy.lock"
+        echo 'CI 실행 슬롯 대기 (최대 35분)' >&2
+        flock -w 2100 9 || { echo 'CI 실행 슬롯 대기 35분 초과' >&2; exit 1; }
+        ACTIVE_PID=''
+        cleanup_heavy() {
+            status=$?
+            trap - EXIT
+            if [ -n "$ACTIVE_PID" ]; then
+                kill -TERM "$ACTIVE_PID" 2>/dev/null || true
+                wait "$ACTIVE_PID" 2>/dev/null || true
+            fi
+            exit "$status"
+        }
+        trap cleanup_heavy EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
+        timeout -k 30s 30m sh -eu -c "$HEAVY_COMMAND" <&0 &
+        ACTIVE_PID=$!
+        if wait "$ACTIVE_PID"; then result=0; else result=$?; fi
+        ACTIVE_PID=''
+        exit "$result"
+    '''
 }
 
 def deploymentCompose() {

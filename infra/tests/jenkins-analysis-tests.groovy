@@ -42,6 +42,7 @@ def allowed = { String name ->
         }
         def steps(Closure ignored) {}
         def post(Closure ignored) {}
+        def options(Closure ignored) {}
     }, script, script)
     body.resolveStrategy = Closure.DELEGATE_FIRST
     body()
@@ -117,6 +118,7 @@ def runner = new GroovyShell().parse(source)
 def bindings = []
 def commands = []
 runner.binding = new Binding([
+    timeout: { Map options, Closure body -> assert options == [time: 70, unit: 'MINUTES']; body() },
     withEnv: { List values, Closure body -> bindings << values; body() },
     sh: { String command -> commands << command },
     error: { Object message -> throw new IllegalStateException(message.toString()) }
@@ -125,7 +127,7 @@ runner.binding = new Binding([
 assert bindings.collect { it[0] } == ['CHECK_COMPONENT=backend', 'CHECK_COMPONENT=frontend', 'CHECK_COMPONENT=ai']
 assert bindings.every { it[1] == "CHECK_POLICY_BODY=${runner.componentCheckScript()}" }
 assert commands.every { it == runner.componentCheckScript() }
-assert commands[0].contains('flock 9')
+assert commands[0].contains('flock -w 2100 9')
 assert commands[0].contains('spotlessCheck test --rerun build jacocoTestReport')
 assert commands[0].contains('npm run format:check && npm run lint && npm run test:coverage && npm run build')
 assert commands[0].contains('ruff check . && pytest -q --junitxml=test-results/pytest.xml --cov --cov-report=xml')

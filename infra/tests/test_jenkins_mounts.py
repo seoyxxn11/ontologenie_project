@@ -4,8 +4,10 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import subprocess
 import tempfile
+import time
 import unittest
 
 
@@ -33,6 +35,13 @@ if Path(sys.argv[0]).name == 'git':
     sys.exit(2)
 with open(os.environ['DOCKER_CALLS'], 'a') as handle:
     handle.write(json.dumps(args) + '\n')
+if args[:2] == ['rm', '-f']:
+    sys.exit(0)
+if args[0] == 'run' and os.environ.get('BLOCK_INFRA') == '1':
+    import time
+    Path(args[args.index('--cidfile') + 1]).write_text('infra-fixture-container')
+    Path(os.environ['INFRA_STARTED']).write_text('started')
+    time.sleep(30)
 if args[:2] == ['image', 'inspect']:
     print('sha256:test-image')
     sys.exit(0)
@@ -133,6 +142,40 @@ class JenkinsMountTests(unittest.TestCase):
 
     def docker_calls(self):
         return [json.loads(line) for line in self.calls.read_text().splitlines()] if self.calls.exists() else []
+
+    def test_infra_timeout_removes_its_container(self):
+        self.environment['BLOCK_INFRA'] = '1'
+        self.environment['INFRA_STARTED'] = str(self.base / 'infra-started')
+        self.source = self.source.replace('5m docker run', '0.3s docker run')
+        result = self.run_shell("stage('Infra check')")
+        self.assertEqual(result.returncode, 124, result.stdout + result.stderr)
+        calls = self.docker_calls()
+        self.assertEqual(calls[-1], ['rm', '-f', 'infra-fixture-container'])
+        cidfile = Path(calls[0][calls[0].index('--cidfile') + 1])
+        self.assertFalse(cidfile.parent.exists())
+
+    def test_infra_cancel_removes_its_container(self):
+        self.environment['BLOCK_INFRA'] = '1'
+        started = self.base / 'infra-started'
+        self.environment['INFRA_STARTED'] = str(started)
+        process = subprocess.Popen(
+            ['bash', '-e', '-c', self.shell("stage('Infra check')")],
+            cwd=self.workspace, env=self.environment, start_new_session=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+        try:
+            deadline = time.monotonic() + 5
+            while not started.exists() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertTrue(started.exists())
+            os.killpg(process.pid, signal.SIGTERM)
+            process.communicate(timeout=5)
+            self.assertNotEqual(process.returncode, 0)
+            self.assertEqual(self.docker_calls()[-1], ['rm', '-f', 'infra-fixture-container'])
+        finally:
+            if process.poll() is None:
+                os.killpg(process.pid, signal.SIGKILL)
+            process.communicate(timeout=5)
 
     def test_old_mr_does_not_create_ci_directory(self):
         result = self.run_shell("stage('Infra check')")
