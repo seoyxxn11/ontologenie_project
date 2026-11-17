@@ -51,7 +51,7 @@
 .explorer-workbench {
   margin-top: 32px;
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr) 292px;
+  grid-template-columns: 320px minmax(0, 1fr) 320px;
   align-items: start;
   gap: 16px;
 }
@@ -565,7 +565,7 @@
   width: 142px;
   min-height: 64px;
   padding: 8px 12px;
-  text-align: left;
+  text-align: center;
 }
 .explorer-object-graph .object-graph-canvas {
   min-width: 560px;
@@ -584,13 +584,40 @@
   width: 176px;
   min-height: 88px;
   padding: 12px;
-  text-align: left;
+  text-align: center;
   cursor: pointer;
 }
+.object-graph-center-type {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.object-graph-center-code {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+  white-space: nowrap;
+}
+.object-graph-code-prefix {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.object-graph-code-suffix {
+  flex-shrink: 0;
+}
+.object-graph-center-type,
+.object-graph-center-code {
+  color: var(--ui-text-secondary);
+}
 .object-graph-center-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   margin-top: 8px;
-  font-size: 16px;
-  line-height: 24px;
+  font-size: 14px;
+  line-height: 21px;
+  text-wrap: balance;
 }
 .explorer-graph-summary {
   display: flex;
@@ -663,9 +690,6 @@
   margin-bottom: 8px;
   color: var(--ui-text-secondary);
 }
-.explorer-source-status {
-  margin-top: 12px;
-}
 .model-graph-zoom button {
   min-height: 40px;
   height: 40px;
@@ -673,7 +697,7 @@
 }
 @media (min-width: 1024px) and (max-width: 1200px) {
   .explorer-workbench {
-    grid-template-columns: 304px minmax(0, 1fr) 240px;
+    grid-template-columns: 304px minmax(0, 1fr) 304px;
     gap: 12px;
   }
 }
@@ -726,7 +750,7 @@
 }
 @container explorer-page (max-width: 1200px) {
   .explorer-workbench {
-    grid-template-columns: 304px minmax(0, 1fr) 240px;
+    grid-template-columns: 304px minmax(0, 1fr) 304px;
     gap: 12px;
   }
 }

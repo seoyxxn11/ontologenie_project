@@ -73,6 +73,12 @@ function ObjectGraphContent({
   }
 
   const object = objectQuery.data
+  const objectCode = formatObjectKey(object) ?? formatObjectCode(object.id)
+  const codeSeparator = objectCode.lastIndexOf('-')
+  const codeSuffixLength =
+    codeSeparator > 0 && objectCode.length - codeSeparator <= 8
+      ? objectCode.length - codeSeparator
+      : Math.min(4, objectCode.length)
   const groups = toLinkGroups(groupsQuery.data)
   const totalCount = groups.reduce((sum, group) => sum + group.linkCount, 0)
   const compactPositions = [
@@ -178,9 +184,16 @@ function ObjectGraphContent({
             aria-label={`${object.displayName} 상세 보기`}
             className="object-graph-center absolute left-1/2 top-1/2 w-28 -translate-x-1/2 -translate-y-1/2 rounded border px-2 py-2 text-center text-sm"
           >
-            <span className="block text-slate-300">
-              {object.objectTypeName} ·{' '}
-              {formatObjectKey(object) ?? formatObjectCode(object.id)}
+            <span className="object-graph-center-type">
+              {object.objectTypeName}
+            </span>
+            <span className="object-graph-center-code" title={objectCode}>
+              <span className="object-graph-code-prefix">
+                {objectCode.slice(0, -codeSuffixLength)}
+              </span>
+              <span className="object-graph-code-suffix">
+                {objectCode.slice(-codeSuffixLength)}
+              </span>
             </span>
             <strong
               className="object-graph-center-name text-white"

@@ -161,7 +161,7 @@ test('객체를 고르면 상세 API로 받은 정보를 보여준다', async ()
     properties.compareDocumentPosition(evidence) &
       Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy()
-  expect(screen.getByText('원천에 있음')).toBeInTheDocument()
+  expect(screen.queryByText('원천에 있음')).not.toBeInTheDocument()
   expect(screen.queryByText('정상')).not.toBeInTheDocument()
   expect(
     screen.queryByRole('heading', { name: '원천 근거' }),
