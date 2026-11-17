@@ -4,11 +4,24 @@ import { formatKstDateTime } from '../../utils/dateTime'
 import Button from '../../components/Button'
 import Dialog from '../../components/Dialog'
 import { ErrorState, LoadingState } from '../../components/Feedback'
+import StatusDot from '../../components/ui/status-dot'
 import { fetchExecutionChanges, fetchExecutionDetail } from './api'
 import EntityChangeTable from './EntityChangeTable'
+import './executionDetail.css'
+import { summarizeExecutionValues, targetIdKey } from './executionSummary'
 import ExecutionValues from './ExecutionValues'
-import { eventKindLabels, executionStatusLabels } from './labels'
-import type { Execution, ExecutionDetail as Detail } from './types'
+import {
+  eventKindLabels,
+  executionStatusLabels,
+  executionTones,
+  targetText,
+} from './labels'
+import type {
+  Execution,
+  ExecutionDetail as Detail,
+  ExecutionStatus,
+} from './types'
+import { valueLabels } from './valueLabels'
 
 function formatJson(
   value: Record<string, unknown> | null,
@@ -31,122 +44,174 @@ function failureReasonText(reason: string | null) {
     : reason
 }
 
-function DetailContent({
+function executionName(execution: Execution) {
+  return execution.actionName || eventKindLabels[execution.eventKind]
+}
+
+function actorText(execution: Execution) {
+  if (execution.actorType === 'SYSTEM') return '시스템'
+  return (
+    execution.actorName ??
+    (execution.actorId ? '사용자 #' + execution.actorId : '실행자 미제공')
+  )
+}
+
+// 대상 번호. 입력값에서 뺀 번호 항목과 같은 이름으로 보여 준다.
+function targetNumberText(execution: Execution) {
+  if (!execution.targetType || execution.targetId == null) return null
+  const key = targetIdKey(execution.targetType)
+  return key
+    ? `${valueLabels[key]} ${execution.targetId}`
+    : targetText(execution)
+}
+
+// 실패 기록의 결과에 담긴 내부 오류 문구는 실패 이유와 겹치므로 뺀다.
+function resultValuesOf(detail: Detail) {
+  const values = { ...detail.result }
+  if (detail.status === 'FAILED') {
+    delete values.errorMessage
+    delete values.reason
+  }
+  return values
+}
+
+// restrictedPropertyCodes는 입력값과 성공한 실행의 처리 결과에서 가린 속성을 함께 담는다(404).
+// 실패·차단 기록의 결과는 서버가 가리지 않는 고정 내용이라 가림 표시를 붙이지 않는다.
+function resultRestrictedCodes(detail: Detail) {
+  return detail.status === 'SUCCEEDED' ? detail.restrictedPropertyCodes : []
+}
+
+function ExecutionStatusDot({ status }: { status: ExecutionStatus }) {
+  return (
+    <StatusDot
+      tone={executionTones[status]}
+      label={executionStatusLabels[status]}
+      showLabel
+    />
+  )
+}
+
+// 대상·실행자·시각·변경 건수. 목록 행 안에서 펼칠 때는 행에 이미 있는 내용을 빼고 변경 건수만 둔다.
+function ExecutionInfo({
+  execution,
+  full,
+}: {
+  execution: Execution
+  full: boolean
+}) {
+  const number = targetNumberText(execution)
+  return (
+    <dl className="audit-info">
+      {full && (
+        <>
+          <div>
+            <dt>대상</dt>
+            <dd>
+              {execution.targetLabel ?? number ?? '—'}
+              {execution.targetLabel && number && (
+                <span className="audit-info-number"> · {number}</span>
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt>실행자</dt>
+            <dd>{actorText(execution)}</dd>
+          </div>
+          <div>
+            <dt>요청 시각</dt>
+            <dd className="audit-info-time">
+              {formatKstDateTime(new Date(execution.requestedAt))}
+            </dd>
+          </div>
+        </>
+      )}
+      <div>
+        <dt>데이터 변경</dt>
+        <dd>
+          {execution.changeCount > 0
+            ? `${execution.changeCount}건`
+            : '기록된 변경 없음'}
+        </dd>
+      </div>
+    </dl>
+  )
+}
+
+function DetailSections({
   detail,
   execution,
-  compact = false,
 }: {
-  compact?: boolean
   detail: Detail
   execution: Execution
 }) {
-  const failed = detail.status === 'FAILED'
-  const resultValues = { ...detail.result }
-  if (failed) {
-    delete resultValues.errorMessage
-    delete resultValues.reason
-  }
-  const input = formatJson(detail.input, detail.restrictedPropertyCodes)
-  // restrictedPropertyCodes는 입력값과 성공한 실행의 처리 결과에서 가린 속성을 함께 담는다(404).
-  // 실패·차단 기록의 결과는 서버가 가리지 않는 고정 내용이라 가림 표시를 붙이지 않는다.
-  const result = formatJson(
-    resultValues,
-    detail.status === 'SUCCEEDED' ? detail.restrictedPropertyCodes : [],
-  )
-  const inputContent = (
-    <>
-      {' '}
-      <p className="mt-2 font-semibold text-slate-700">입력값</p>
-      {detail.restrictedPropertyCodes.length > 0 && (
-        <p className="text-slate-500">
-          입력값·처리 결과 중 권한으로 가린 속성이 있습니다.
-        </p>
-      )}
-      <ExecutionValues
-        values={detail.input}
-        restricted={detail.restrictedPropertyCodes}
-      />
-    </>
+  const { input, result } = summarizeExecutionValues(
+    execution,
+    detail.input,
+    resultValuesOf(detail),
   )
   return (
     <>
-      <p className="mt-2 font-semibold text-slate-900">
-        {execution.actionName || eventKindLabels[execution.eventKind]} ·{' '}
-        {executionStatusLabels[detail.status]}
-      </p>
-      <p className="text-sm text-slate-600">
-        변경 {execution.changeCount}건
-        {execution.targetLabel ? ` · 대상: ${execution.targetLabel}` : ''}
-      </p>
-      {compact && (
-        <p className="audit-execution-meta">
-          {execution.actorType === 'SYSTEM'
-            ? '시스템'
-            : (execution.actorName ??
-              (execution.actorId
-                ? '사용자 #' + execution.actorId
-                : '실행자 미제공'))}{' '}
-          · {formatKstDateTime(new Date(execution.requestedAt))}
-        </p>
-      )}
-      {!compact && inputContent}
-      {compact && detail.restrictedPropertyCodes.length > 0 && (
-        <p className="text-slate-500">
+      {detail.restrictedPropertyCodes.length > 0 && (
+        <p className="audit-detail-note">
           입력값·처리 결과 중 권한으로 가린 속성이 있습니다.
         </p>
       )}
       {detail.status === 'BLOCKED' && (
-        <>
-          <p className="mt-2 font-semibold text-slate-700">차단 이유</p>
-          <p className="text-slate-900">
-            {detail.blockedReason ?? '기록된 이유가 없습니다.'}
-          </p>
-        </>
+        <section className="audit-reason audit-reason--blocked">
+          <h3 className="audit-detail-heading">차단 이유</h3>
+          <p>{detail.blockedReason ?? '기록된 이유가 없습니다.'}</p>
+        </section>
       )}
-      {failed && (
-        <>
-          <p className="mt-2 font-semibold text-slate-700">실패 이유</p>
-          <p className="text-slate-900">
-            {failureReasonText(detail.failureReason)}
-          </p>
-        </>
+      {detail.status === 'FAILED' && (
+        <section className="audit-reason">
+          <h3 className="audit-detail-heading">실패 이유</h3>
+          <p>{failureReasonText(detail.failureReason)}</p>
+        </section>
       )}
-      {result && (
-        <>
-          <p className="mt-2 font-semibold text-slate-700">처리 결과</p>
-          <ExecutionValues values={resultValues} />
-        </>
-      )}
-      {compact && detail.status === 'RUNNING' && (
+      {detail.status === 'RUNNING' && (
         <p role="status">진행 중입니다. 완료된 처리 결과가 아직 없습니다.</p>
       )}
-      {compact && (
-        <details className="mt-3 text-sm">
-          <summary className="cursor-pointer text-slate-500">입력값</summary>
-          <div className="audit-input-values">
-            <ExecutionValues
-              values={detail.input}
-              restricted={detail.restrictedPropertyCodes}
-            />
-          </div>
-        </details>
+      {Object.keys(result).length > 0 && (
+        <section className="audit-detail-section">
+          <h3 className="audit-detail-heading">처리 결과</h3>
+          <ExecutionValues
+            values={result}
+            restricted={resultRestrictedCodes(detail)}
+          />
+        </section>
       )}
-      <details className="mt-3 text-sm">
-        <summary className="cursor-pointer text-slate-500">
-          기술 정보 · JSON
-        </summary>
-        <p className="mt-2 font-semibold">입력 JSON</p>
-        <pre className="whitespace-pre-wrap break-all">
-          {input ?? '기록된 입력값 없음'}
-        </pre>
-        {result && (
-          <>
-            <p className="mt-2 font-semibold">결과 JSON</p>
-            <pre className="whitespace-pre-wrap break-all">{result}</pre>
-          </>
-        )}
-      </details>
+      <section className="audit-detail-section">
+        <h3 className="audit-detail-heading">입력한 내용</h3>
+        <ExecutionValues
+          values={input}
+          restricted={detail.restrictedPropertyCodes}
+        />
+      </section>
     </>
+  )
+}
+
+// 중복·내부 값을 빼지 않은 입력·결과. 실패 기록의 내부 오류 문구만 실패 이유와 겹쳐서 뺀다.
+function TechnicalInfo({ detail }: { detail: Detail }) {
+  const result = formatJson(
+    resultValuesOf(detail),
+    resultRestrictedCodes(detail),
+  )
+  return (
+    <details>
+      <summary>기술 정보 · JSON</summary>
+      <p className="mt-2 font-semibold">입력 JSON</p>
+      <pre>
+        {formatJson(detail.input, detail.restrictedPropertyCodes) ??
+          '기록된 입력값 없음'}
+      </pre>
+      {result && (
+        <>
+          <p className="mt-2 font-semibold">결과 JSON</p>
+          <pre>{result}</pre>
+        </>
+      )}
+    </details>
   )
 }
 
@@ -158,18 +223,11 @@ function ExecutionChanges({ id, count }: { id: number; count: number }) {
     enabled: open && count > 0,
   })
 
-  if (count === 0) {
-    return <p className="mt-2 text-slate-500">변경 전후: 기록된 변경 없음</p>
-  }
+  if (count === 0) return null
 
   return (
-    <details
-      className="mt-2"
-      onToggle={(event) => setOpen(event.currentTarget.open)}
-    >
-      <summary className="cursor-pointer text-slate-500">
-        {`실행 전후 비교 ${count}건`}
-      </summary>
+    <details onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary>{`실행 전후 비교 ${count}건`}</summary>
       {open &&
         (isPending ? (
           <LoadingState message="변경 내역을 불러오는 중…" />
@@ -217,8 +275,11 @@ export default function ExecutionDetail({
     queryFn: ({ signal }) => fetchExecutionDetail(execution.id, { signal }),
     enabled: open,
   })
-  const content = open && (
-    <>
+  const status = (
+    <ExecutionStatusDot status={data?.data.status ?? execution.status} />
+  )
+  const body = open && (
+    <div className="audit-detail-body">
       {isPending ? (
         <LoadingState message="실행 내용을 불러오는 중…" />
       ) : isError ? (
@@ -229,14 +290,11 @@ export default function ExecutionDetail({
           }}
         />
       ) : (
-        <DetailContent
-          detail={data.data}
-          execution={execution}
-          compact={modal}
-        />
+        <DetailSections detail={data.data} execution={execution} />
       )}
       <ExecutionChanges id={execution.id} count={execution.changeCount} />
-    </>
+      {data && <TechnicalInfo detail={data.data} />}
+    </div>
   )
   if (modal)
     return (
@@ -249,9 +307,20 @@ export default function ExecutionDetail({
           내용 보기
         </Button>
         {open && (
-          <Dialog title="실행 내용" size="wide" onClose={() => setOpen(false)}>
+          <Dialog
+            title={executionName(execution)}
+            titleAddon={status}
+            size="wide"
+            onClose={() => setOpen(false)}
+          >
             <div className="audit-dialog-content management-detail">
-              {content}
+              <div className="audit-detail audit-detail--wide">
+                <section className="audit-detail-info">
+                  <h3 className="audit-detail-heading">실행 정보</h3>
+                  <ExecutionInfo execution={execution} full />
+                </section>
+                {body}
+              </div>
             </div>
           </Dialog>
         )}
@@ -263,7 +332,18 @@ export default function ExecutionDetail({
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
       <summary className="cursor-pointer text-slate-500">내용 보기</summary>
-      {content}
+      {open && (
+        <div className="audit-detail">
+          <section className="audit-detail-info">
+            <p className="audit-detail-title">
+              {executionName(execution)}
+              {status}
+            </p>
+            <ExecutionInfo execution={execution} full={false} />
+          </section>
+          {body}
+        </div>
+      )}
     </details>
   )
 }

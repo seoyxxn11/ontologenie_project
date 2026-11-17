@@ -18,6 +18,8 @@ import {
   categoryLabels,
   eventKindLabels,
   executionStatusLabels,
+  executionTones,
+  targetText,
 } from './labels'
 import type {
   Execution,
@@ -25,13 +27,6 @@ import type {
   ExecutionScope,
   ExecutionStatus,
 } from './types'
-
-const executionTones = {
-  RUNNING: 'active',
-  SUCCEEDED: 'success',
-  BLOCKED: 'warning',
-  FAILED: 'error',
-} as const
 
 // "분류 · 동작 이름". 수집·검사 같은 데이터 작업은 분류 대신 작업 종류(데이터 수집 등)를 쓴다.
 function actionLabel(execution: Execution) {
@@ -45,20 +40,6 @@ function actionLabel(execution: Execution) {
       ? `Action #${execution.actionDefinitionId ?? '-'}`
       : null)
   return name ? `${kind} · ${name}` : kind
-}
-
-// 표의 굵은 대상 글자. 객체 이력이면 객체 이름을, 내 이력이면 대상 종류와 번호를 쓴다.
-function targetText(execution: Execution) {
-  if (!execution.targetType) {
-    return '-'
-  }
-  const kind =
-    execution.targetType === 'object_instance'
-      ? '객체'
-      : execution.targetType === 'source_resource'
-        ? '원천 표'
-        : execution.targetType
-  return `${kind} #${execution.targetId}`
 }
 
 // 실행자 이름이 없으면 번호로 보여 준다. SYSTEM은 이름 없이 "시스템".

@@ -358,6 +358,14 @@ body {
   overflow-wrap: anywhere;
 }
 
+.ui-dialog-title {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
 .ui-dialog-heading > .ui-button {
   flex-shrink: 0;
   white-space: nowrap;

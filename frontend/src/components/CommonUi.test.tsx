@@ -142,6 +142,22 @@ function DialogExample() {
 }
 
 describe('공통 모달', () => {
+  it('제목 옆 표시는 창 이름에 넣지 않고 제목 줄에 함께 보여준다', () => {
+    render(
+      <Dialog
+        title="데이터 수집"
+        titleAddon={<span>성공</span>}
+        onClose={() => {}}
+      >
+        내용
+      </Dialog>,
+    )
+    const dialog = screen.getByRole('dialog', { name: '데이터 수집' })
+    expect(dialog.querySelector('h2')?.parentElement).toHaveTextContent(
+      '데이터 수집성공',
+    )
+  })
+
   it('포커스를 모달 안에 두고 탭 순환·Esc 종료·호출 버튼 복귀를 지원한다', async () => {
     const user = userEvent.setup()
     const focus = vi.spyOn(HTMLElement.prototype, 'focus')

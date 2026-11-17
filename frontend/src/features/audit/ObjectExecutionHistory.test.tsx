@@ -314,7 +314,6 @@ test('객체 실행 상세에서 성공 결과·차단 이유·실패 이유와 
       expect(await dialog.findByText('설비 조건 불일치')).toBeVisible()
     else {
       expect(await dialog.findByText('외부 응답 시간 초과')).toBeVisible()
-      await user.click(dialog.getByText('입력값', { selector: 'summary' }))
       expect(dialog.getByText('권한으로 가림', { exact: true })).toBeVisible()
       expect(
         dialog.getByText(/"unitCost": "\(권한으로 가림\)"/),

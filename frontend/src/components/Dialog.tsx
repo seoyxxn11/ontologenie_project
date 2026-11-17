@@ -9,6 +9,8 @@ import Button from './Button'
 
 type DialogProps = {
   title: string
+  // 제목 옆에 붙는 짧은 표시(예: 상태). 창의 이름에는 포함되지 않는다.
+  titleAddon?: ReactNode
   onClose: () => void
   children: ReactNode
   // wide: 표 두 개를 나란히 두는 선택 창처럼 넓은 내용
@@ -19,6 +21,7 @@ type DialogProps = {
 // 화면 위에 뜨는 팝업 공통 틀. [닫기], Esc 키, 바깥 배경 클릭으로 닫힌다.
 function Dialog({
   title,
+  titleAddon,
   onClose,
   children,
   size = 'default',
@@ -107,7 +110,14 @@ function Dialog({
         className={`ui-dialog ui-dialog--${size}`}
       >
         <div className="ui-dialog-heading">
-          <h2 id={titleId}>{title}</h2>
+          {titleAddon ? (
+            <div className="ui-dialog-title">
+              <h2 id={titleId}>{title}</h2>
+              {titleAddon}
+            </div>
+          ) : (
+            <h2 id={titleId}>{title}</h2>
+          )}
           <Button variant="secondary" onClick={onClose}>
             닫기
           </Button>
