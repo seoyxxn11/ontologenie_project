@@ -2,7 +2,6 @@ import StatusBadge from '../../components/StatusBadge'
 import DataTable from '../../components/DataTable'
 import Button from '../../components/Button'
 import { LoadingState, EmptyState, ErrorState } from '../../components/Feedback'
-import { formatSourceKey } from './format'
 import { linkContext } from './detailPresentation'
 import type { ObjectLink } from './types'
 import { useObjectLinks } from './useObjectLinks'
@@ -61,56 +60,51 @@ function LinkDetail({ link }: LinkEvidenceProps) {
 
   if (link.origin === 'RULE') {
     const comparisons = evidence.comparisons ?? []
-    const hasSourceKey = Object.values(evidence.sourceKey ?? {}).some(
-      (value) => value != null,
-    )
-    if (!hasSourceKey && !comparisons.length) return null
+    if (!comparisons.length) return null
     return (
       <details className="mt-1 text-xs text-slate-500">
         <summary className="cursor-pointer">상세 근거</summary>
-        {hasSourceKey && (
-          <dl className="mt-1 grid grid-cols-[5rem_1fr] gap-y-1">
-            <dt>원천 행</dt>
-            <dd>{formatSourceKey(evidence.sourceKey)}</dd>
-          </dl>
-        )}
-        {comparisons.length > 0 && (
-          <table
-            aria-label="비교 조건"
-            className="mt-2 w-full table-fixed text-left"
-          >
-            <thead>
-              <tr>
-                <th scope="col" className="py-1 pr-3 font-medium">
-                  출발 원본
-                </th>
-                <th scope="col" className="py-1 font-medium">
-                  비교 대상
-                </th>
+        <table
+          aria-label="비교 조건"
+          className="mt-2 w-full table-fixed border-separate border-spacing-0 rounded border border-slate-200 bg-white text-left"
+        >
+          <thead>
+            <tr>
+              <th
+                scope="col"
+                className="border-b border-slate-200 px-2 py-1 font-medium"
+              >
+                출발 원본
+              </th>
+              <th
+                scope="col"
+                className="border-b border-slate-200 px-2 py-1 font-medium"
+              >
+                비교 대상
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {comparisons.map((condition) => (
+              <tr key={condition.sequenceNo}>
+                <td className="break-all whitespace-pre-wrap px-2 py-1 align-top">
+                  <ComparisonValue
+                    property={condition.sourceProperty}
+                    value={condition.sourceValue}
+                    column={condition.sourceColumn}
+                  />
+                </td>
+                <td className="break-all whitespace-pre-wrap px-2 py-1 align-top">
+                  <ComparisonValue
+                    property={condition.targetProperty}
+                    value={condition.targetValue}
+                    column={condition.targetColumn}
+                  />
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {comparisons.map((condition) => (
-                <tr key={condition.sequenceNo}>
-                  <td className="break-all whitespace-pre-wrap py-1 pr-3">
-                    <ComparisonValue
-                      property={condition.sourceProperty}
-                      value={condition.sourceValue}
-                      column={condition.sourceColumn}
-                    />
-                  </td>
-                  <td className="break-all whitespace-pre-wrap py-1">
-                    <ComparisonValue
-                      property={condition.targetProperty}
-                      value={condition.targetValue}
-                      column={condition.targetColumn}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+            ))}
+          </tbody>
+        </table>
       </details>
     )
   }
