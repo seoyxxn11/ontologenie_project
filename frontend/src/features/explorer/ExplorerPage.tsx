@@ -332,7 +332,11 @@ function ExplorerPage() {
                   </span>
                 )}
               </div>
-              <div className="explorer-object-list" aria-busy={isFetching}>
+              <div
+                className="explorer-object-list"
+                aria-busy={isFetching}
+                data-page-full={objectPage?.data.length === pageSize}
+              >
                 {listContent}
               </div>
 
