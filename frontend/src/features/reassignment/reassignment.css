@@ -104,6 +104,9 @@
   overflow: auto;
   overscroll-behavior: contain;
 }
+.plan-list-body > .ui-feedback--empty {
+  border: 0;
+}
 .plan-list-body .ui-table-container {
   width: 100%;
   max-height: 100%;
