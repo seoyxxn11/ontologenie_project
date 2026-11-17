@@ -79,6 +79,23 @@ test('jsonb가 칼럼 순서를 바꿔 보내도 표시 이름과 같은 키를 
   ).toBe('P101 / W1')
 })
 
+test('키 비교는 표기가 비슷한 문자열과 중복 값의 개수까지 구분한다', () => {
+  expect(
+    formatObjectKey({
+      id: 7,
+      displayName: 'é / e\u0301',
+      sourceKey: { a: 'e\u0301', b: 'é' },
+    }),
+  ).toBeNull()
+  expect(
+    formatObjectKey({
+      id: 7,
+      displayName: 'A / B / B',
+      sourceKey: { a: 'A', b: 'A', c: 'B' },
+    }),
+  ).toBe('A / A / B')
+})
+
 test('권한으로 가린 원천 키 값은 null 글자로 보여 주지 않는다', () => {
   expect(
     formatObjectKey({ id: 9, displayName: '#9', sourceKey: { wo_no: null } }),

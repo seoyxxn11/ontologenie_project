@@ -53,11 +53,15 @@ export function formatObjectKey(object: {
 }
 
 function sameValues(left: string[], right: string[]) {
-  const sortedRight = [...right].sort()
-  return (
-    left.length === right.length &&
-    [...left].sort().every((value, index) => value === sortedRight[index])
-  )
+  if (left.length !== right.length) return false
+  const counts = new Map<string, number>()
+  for (const value of left) counts.set(value, (counts.get(value) ?? 0) + 1)
+  return right.every((value) => {
+    const count = counts.get(value) ?? 0
+    if (count === 0) return false
+    counts.set(value, count - 1)
+    return true
+  })
 }
 
 // 마지막 글자에 받침이 있으면 '과', 없으면 '와'를 붙인다. 한글로 끝나지 않으면 둘 다 보여 준다.

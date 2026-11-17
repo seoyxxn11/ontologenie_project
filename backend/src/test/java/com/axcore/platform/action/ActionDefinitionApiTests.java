@@ -30,6 +30,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import tools.jackson.databind.json.JsonMapper;
 
 /** Action 정의 관리(API 087~090)와 V9·V10 초기 데이터를 실제 보안 설정과 DB로 확인한다. */
 @SpringBootTest
@@ -703,7 +704,7 @@ class ActionDefinitionApiTests {
 
     private static long idOf(MvcResult result) throws Exception {
         String body = result.getResponse().getContentAsString();
-        return Long.parseLong(body.replaceAll("(?s).*?\"id\"\\s*:\\s*(\\d+).*", "$1"));
+        return JsonMapper.builder().build().readTree(body).path("data").path("id").longValue();
     }
 
     private List<String> permissionsOf(String roleCode) {

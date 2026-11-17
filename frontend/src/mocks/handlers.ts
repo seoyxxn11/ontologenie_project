@@ -788,8 +788,13 @@ const ruleRevisions: Record<string, RuleRevision[]> = {
 
 // 연결 규칙 목록 응답 (백엔드 신설 예정): 규칙 코드별 최신 개정본
 function ruleSummaries(): RuleSummary[] {
-  return Object.values(ruleRevisions).map((revisions) => {
-    const latest = revisions.reduce((a, b) => (a.revision > b.revision ? a : b))
+  return Object.values(ruleRevisions).flatMap((revisions) => {
+    const [first, ...rest] = revisions
+    if (!first) return []
+    const latest = rest.reduce(
+      (a, b) => (a.revision > b.revision ? a : b),
+      first,
+    )
     return {
       code: latest.code,
       revision: latest.revision,

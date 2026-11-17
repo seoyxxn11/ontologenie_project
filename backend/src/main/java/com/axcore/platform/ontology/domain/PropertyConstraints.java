@@ -13,11 +13,11 @@ import java.util.Set;
 public record PropertyConstraints(
         BigDecimal min, BigDecimal max, Integer maxLength, List<Object> allowedValues) {
 
-    private static final String MIN = "min";
-    private static final String MAX = "max";
+    private static final String MIN_KEY = "min";
+    private static final String MAX_KEY = "max";
     private static final String MAX_LENGTH = "maxLength";
     private static final String ALLOWED_VALUES = "allowedValues";
-    private static final Set<String> KEYS = Set.of(MIN, MAX, MAX_LENGTH, ALLOWED_VALUES);
+    private static final Set<String> KEYS = Set.of(MIN_KEY, MAX_KEY, MAX_LENGTH, ALLOWED_VALUES);
 
     /** 이 자료형에 쓸 수 없는 제약이 있으면 사유를 돌려준다. */
     public static Optional<String> violation(Map<String, Object> raw, PropertyDataType dataType) {
@@ -27,7 +27,7 @@ public record PropertyConstraints(
                         "지원하지 않는 제약입니다: " + key + " (min, max, maxLength, allowedValues)");
             }
         }
-        for (String key : List.of(MIN, MAX)) {
+        for (String key : List.of(MIN_KEY, MAX_KEY)) {
             if (raw.containsKey(key)) {
                 if (!dataType.isNumeric()) {
                     return Optional.of(key + "는 INTEGER·DECIMAL 속성에만 쓸 수 있습니다.");
@@ -38,8 +38,8 @@ public record PropertyConstraints(
                 }
             }
         }
-        if (raw.get(MIN) instanceof Number min
-                && raw.get(MAX) instanceof Number max
+        if (raw.get(MIN_KEY) instanceof Number min
+                && raw.get(MAX_KEY) instanceof Number max
                 && decimal(min).compareTo(decimal(max)) > 0) {
             return Optional.of("min은 max보다 클 수 없습니다.");
         }
@@ -71,8 +71,8 @@ public record PropertyConstraints(
     @SuppressWarnings("unchecked")
     public static PropertyConstraints from(Map<String, Object> raw) {
         return new PropertyConstraints(
-                raw.get(MIN) instanceof Number min ? decimal(min) : null,
-                raw.get(MAX) instanceof Number max ? decimal(max) : null,
+                raw.get(MIN_KEY) instanceof Number min ? decimal(min) : null,
+                raw.get(MAX_KEY) instanceof Number max ? decimal(max) : null,
                 raw.get(MAX_LENGTH) instanceof Integer length ? length : null,
                 raw.get(ALLOWED_VALUES) instanceof List<?> values ? (List<Object>) values : null);
     }

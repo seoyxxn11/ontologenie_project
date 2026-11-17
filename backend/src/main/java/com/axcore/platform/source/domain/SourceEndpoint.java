@@ -9,17 +9,17 @@ import java.util.regex.Pattern;
  */
 public record SourceEndpoint(String host, int port, String database) {
 
-    private static final Pattern HOST = Pattern.compile("[A-Za-z0-9.\\-]{1,253}");
-    private static final Pattern DATABASE = Pattern.compile("[A-Za-z0-9_.\\-]{1,63}");
+    private static final Pattern HOST_PATTERN = Pattern.compile("[A-Za-z0-9.\\-]{1,253}");
+    private static final Pattern DATABASE_PATTERN = Pattern.compile("[A-Za-z0-9_.\\-]{1,63}");
 
     /** 형식이 틀리면 화면에 보여 줄 수 있는 메시지로 {@link IllegalArgumentException}을 던진다. 메시지에 설정 값은 넣지 않는다. */
     public static SourceEndpoint from(Map<String, Object> config) {
-        if (!(config.get("host") instanceof String host) || !HOST.matcher(host).matches()) {
+        if (!(config.get("host") instanceof String host) || !HOST_PATTERN.matcher(host).matches()) {
             throw new IllegalArgumentException("접속 설정의 host가 없거나 형식이 맞지 않습니다.");
         }
         int port = port(config.get("port"));
         if (!(config.get("database") instanceof String database)
-                || !DATABASE.matcher(database).matches()) {
+                || !DATABASE_PATTERN.matcher(database).matches()) {
             throw new IllegalArgumentException("접속 설정의 database가 없거나 형식이 맞지 않습니다.");
         }
         return new SourceEndpoint(host, port, database);

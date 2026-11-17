@@ -16,6 +16,21 @@ from app.llm.client import (
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
+        ('  ```json\n {"ok": true}\n```  ', '{"ok": true}'),
+        ('```\n{"text": "```"}\n```', '{"text": "```"}'),
+        ("``````", ""),
+        ("  {}  ", "  {}  "),
+        ("```json\n{}", "```json\n{}"),
+        ("```json\n" + " " * 30_000, "```json\n" + " " * 30_000),
+    ],
+)
+def test_strip_fence_preserves_unfenced_or_incomplete_text(text, expected):
+    assert _strip_fence(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
         ('```json\n{"ok": true}\n```', '{"ok": true}'),
         ('  ```\n {"ok": true} \n```  ', '{"ok": true}'),
         ('```json{"ok": true}```', '{"ok": true}'),

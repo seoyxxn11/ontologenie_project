@@ -24,6 +24,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
+import tools.jackson.databind.json.JsonMapper;
 
 /** 관리자 계정 조회·생성·변경(API 004~007)을 실제 보안 설정과 DB로 확인한다. */
 @SpringBootTest
@@ -497,7 +498,7 @@ class AdminAccountApiTests {
 
     private static long idOf(MvcResult result) throws Exception {
         String body = result.getResponse().getContentAsString();
-        return Long.parseLong(body.replaceAll("(?s).*\"id\"\\s*:\\s*(\\d+).*", "$1"));
+        return JsonMapper.builder().build().readTree(body).path("data").path("id").longValue();
     }
 
     private Map<String, Object> lastAudit(String actionCode, Long actorId) {

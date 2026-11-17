@@ -11,6 +11,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 import lombok.extern.slf4j.Slf4j;
@@ -65,13 +66,14 @@ public class QueuedJobRunner {
     /** 가져올 작업이 없으면 false를 돌려준다. 작업이 실패해도 처리한 것이므로 true다. */
     public <R> boolean runNext(QueuedJobHandler<R> handler) {
         Optional<ClaimedJob> claimed =
-                transactionTemplate.execute(
-                        status ->
-                                queuedJobRepository.claimNext(
-                                        handler.type(),
-                                        handler.claimCondition(),
-                                        Instant.now(clock)));
-        if (claimed == null || claimed.isEmpty()) {
+                Objects.requireNonNull(
+                        transactionTemplate.execute(
+                                status ->
+                                        queuedJobRepository.claimNext(
+                                                handler.type(),
+                                                handler.claimCondition(),
+                                                Instant.now(clock))));
+        if (claimed.isEmpty()) {
             return false;
         }
         ClaimedJob job = claimed.get();

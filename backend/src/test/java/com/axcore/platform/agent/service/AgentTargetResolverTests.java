@@ -174,6 +174,23 @@ class AgentTargetResolverTests {
     }
 
     @Test
+    void splitsAlphanumericNumbersAndRejectsLongMalformedTargets() {
+        assertThat(AgentTargetResolver.typedNumber("설비 EQ-01번"))
+                .contains(new AgentTargetResolver.TypedNumber("설비", "EQ-01"));
+        assertThat(AgentTargetResolver.typedNumber("EQ-01 번 현장 설비"))
+                .contains(new AgentTargetResolver.TypedNumber("현장 설비", "EQ-01"));
+        assertThat(AgentTargetResolver.typedNumber("EQ-01 현장 설비"))
+                .contains(new AgentTargetResolver.TypedNumber("현장 설비", "EQ-01"));
+        assertThat(AgentTargetResolver.typedNumber("설비_ABC"))
+                .contains(new AgentTargetResolver.TypedNumber("설비_", "ABC"));
+        assertThat(AgentTargetResolver.typedNumber("1 번 EQ"))
+                .contains(new AgentTargetResolver.TypedNumber("번 EQ", "1"));
+        assertThat(AgentTargetResolver.typedNumber("가".repeat(30_000))).isEmpty();
+        assertThat(AgentTargetResolver.typedNumber("A-".repeat(30_000) + "!")).isEmpty();
+        assertThat(AgentTargetResolver.typedNumber("작업자 " + " ".repeat(30_000) + "!")).isEmpty();
+    }
+
+    @Test
     void picksObjectWithSameNameAmongSimilarOnes() {
         searchReturns("PR-03", object(301L, "PR-03"), object(331L, "PR-03A"));
 

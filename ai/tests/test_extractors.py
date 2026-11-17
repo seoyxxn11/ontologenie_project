@@ -3,8 +3,9 @@ from datetime import datetime
 import pytest
 
 from app.dataset.build import generate
-from app.extractors.equipment import load_equipment
+from app.extractors.equipment import LINE, LINE_UNIT, UNIT, load_equipment, parse
 from app.extractors.notes import (
+    HOUR,
     Document,
     LLMDoc,
     build_prompt,
@@ -26,6 +27,25 @@ ROWS = [
     {"code": "P201", "name": "2라인 1호 프레스", "line": "2라인"},
     {"code": "B101", "name": "1라인 블랭킹기", "line": "1라인"},
 ]
+
+
+def test_equipment_patterns_preserve_numbers_whitespace_and_groups():
+    mention = parse("12 \t- 34 호 프레스", {"프레스"})
+    assert (mention.line, mention.unit, mention.words) == (12, 34, {"프레스"})
+    mention = parse("12 라인 34 호", set())
+    assert (mention.line, mention.unit) == (12, 34)
+
+
+def test_equipment_patterns_handle_long_nonmatching_numbers():
+    for pattern in (LINE, UNIT, LINE_UNIT):
+        assert pattern.search("1" * 30_000 + " " * 30_000 + "!") is None
+
+
+def test_hour_pattern_preserves_prefix_and_excludes_durations():
+    assert HOUR.search("정지. 오후 3 시쯤").groups() == ("오후", "3")
+    assert HOUR.search("정지 후   3시").groups() == (None, "3")
+    assert HOUR.search(" 3시간 정지") is None
+    assert HOUR.search(" " * 30_000 + "끝") is None
 
 
 @pytest.mark.parametrize(
