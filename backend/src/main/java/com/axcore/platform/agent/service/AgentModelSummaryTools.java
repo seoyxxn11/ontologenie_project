@@ -73,7 +73,7 @@ public class AgentModelSummaryTools {
     @Tool(
             name = MODEL_SUMMARY,
             description =
-                    "볼 수 있는 객체 유형과 관계 유형의 ID·이름을 조회한다. 사용자가 유형 이름을 말해 객체 검색이나 관계 조회를 그 유형으로 좁혀야 할 때만 부른다.")
+                    "볼 수 있는 객체 유형과 관계 유형의 ID·이름·설명을 조회한다. 유형을 좁히거나 뜻·관계를 확인할 때, 진행 질문에서 현재 상태를 관리하는 유형과 과거 실적 유형을 구별할 설명이 필요할 때 부른다. 이미 받은 정의는 다시 조회하지 않는다.")
     public Map<String, Object> modelSummary() {
         return session.run(
                 MODEL_SUMMARY,

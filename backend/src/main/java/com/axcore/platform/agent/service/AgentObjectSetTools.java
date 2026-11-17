@@ -64,7 +64,7 @@ public class AgentObjectSetTools {
     static final int MAX_COUNTED_VALUES = 10;
 
     /** 한 답변에서 목표 유형 찾기를 부를 수 있는 수. 한 번에 경로 여러 개(최대 20단계)를 건너므로 작게 둔다. */
-    static final int MAX_FINDS = 3;
+    static final int MAX_FINDS = 5;
 
     /** 한 답변에서 건널 수 있는 단계 수. 단계가 많으면 경로를 잘못 골랐을 가능성이 크다. */
     static final int MAX_SEARCH_AROUNDS = 5;
