@@ -25,6 +25,7 @@ import com.axcore.platform.ontology.repository.PropertyValueRepository;
 import com.axcore.platform.ontology.repository.PropertyValueRepository.ValueConflict;
 import com.axcore.platform.source.domain.SourceColumn;
 import com.axcore.platform.source.domain.SourceResource;
+import com.axcore.platform.source.policy.ClosedTransform;
 import com.axcore.platform.source.policy.SourceColumnGrade;
 import com.axcore.platform.source.policy.SourceColumnPolicy;
 import com.axcore.platform.source.repository.SourceColumnRepository;
@@ -318,9 +319,13 @@ public class PropertyService {
                     sourceColumnRepository.findById(mapping.getSourceColumnId()).orElse(null);
             SourceResource resource =
                     sourceResourceRepository.findById(mapping.getSourceResourceId()).orElse(null);
+            // 대응표에 있는 값만 바꾸는(MAP_KNOWN) 매핑은 결과가 닫혀 있어 막지 않는다(448).
             if (column != null
                     && resource != null
-                    && sourceColumnPolicy.gradeOf(resource.getResourceKey(), column.getColumnName())
+                    && ClosedTransform.gradeOfStored(
+                                    sourceColumnPolicy.gradeOf(
+                                            resource.getResourceKey(), column.getColumnName()),
+                                    mapping.getTransformSteps())
                             == SourceColumnGrade.RESTRICTED) {
                 throw new BusinessException(
                         CommonErrorCode.BUSINESS_RULE_VIOLATION,

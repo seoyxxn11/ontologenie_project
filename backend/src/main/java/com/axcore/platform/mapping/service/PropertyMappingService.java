@@ -22,6 +22,7 @@ import com.axcore.platform.ontology.service.DefinitionSideEffects;
 import com.axcore.platform.ontology.service.LinkKeyUsage;
 import com.axcore.platform.source.domain.SourceColumn;
 import com.axcore.platform.source.domain.SourceResource;
+import com.axcore.platform.source.policy.ClosedTransform;
 import com.axcore.platform.source.policy.SourceColumnGrade;
 import com.axcore.platform.source.policy.SourceColumnPolicy;
 import com.axcore.platform.source.repository.SourceColumnRepository;
@@ -89,7 +90,7 @@ public class PropertyMappingService {
                         request.sourceColumnId(),
                         request.sourceResourceId(),
                         steps);
-        boolean raised = applySourcePolicy(resource, target);
+        boolean raised = applySourcePolicy(resource, target, steps);
         restrictedKeyGuard.requireNotKey(
                 target.property(), parent, target.column().getColumnName(), "sourceColumnId");
         if (propertyMappingRepository.existsForProperty(
@@ -146,7 +147,7 @@ public class PropertyMappingService {
                         request.sourceColumnId(),
                         request.sourceResourceId(),
                         steps);
-        boolean raised = applySourcePolicy(locked.get(request.sourceResourceId()), target);
+        boolean raised = applySourcePolicy(locked.get(request.sourceResourceId()), target, steps);
         restrictedKeyGuard.requireNotKey(
                 target.property(), parent, target.column().getColumnName(), "sourceColumnId");
         if (propertyMappingRepository.existsForProperty(
@@ -254,13 +255,19 @@ public class PropertyMappingService {
      * 원천 데이터 정책을 적용하고, 속성을 민감으로 올렸으면 true를 돌려준다(384·391). 금지 컬럼이면 거절한다. 민감 컬럼이면 속성을
      * 민감(RESTRICTED)으로 올린다. 속성 민감도는 매핑된 원천 컬럼 등급보다 낮을 수 없다. 식별·연결 키 속성은 민감이 될 수 없어 거절하고, 대표 속성이면
      * 대표를 비운다(표시 이름은 원천 키로 대신한다).
+     *
+     * <p>변환의 마지막 단계가 대응표에 있는 값만 바꾸기(MAP_KNOWN)이면 결과가 대응표의 바꿀 값으로 닫혀 있어 민감 컬럼이라도 올리지 않는다(448, {@link
+     * ClosedTransform}).
      */
-    private boolean applySourcePolicy(SourceResource resource, Target target) {
+    private boolean applySourcePolicy(
+            SourceResource resource, Target target, List<TransformStep> steps) {
         String column = target.column().getColumnName();
         sourceColumnPolicy.requireCollectable(
                 resource.getResourceKey(), List.of(column), "sourceColumnId");
         PropertyDefinition property = target.property();
-        if (sourceColumnPolicy.gradeOf(resource.getResourceKey(), column)
+        if (ClosedTransform.grade(
+                                sourceColumnPolicy.gradeOf(resource.getResourceKey(), column),
+                                steps)
                         != SourceColumnGrade.RESTRICTED
                 || property.getSensitivity() == PropertySensitivity.RESTRICTED) {
             return false;

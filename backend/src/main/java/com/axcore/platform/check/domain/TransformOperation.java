@@ -11,5 +11,6 @@ public enum TransformOperation {
     TO_INTEGER, // 정수로 변환
     TO_DECIMAL, // 소수로 변환
     TO_DATE, // 날짜로 변환
-    MAP_VALUE // 대응표에 지정된 값으로 변환
+    MAP_VALUE, // 대응표에 지정된 값으로 변환
+    MAP_KNOWN // 대응표에 있는 값만 바꾸고 나머지는 비움. 결과가 대응표의 바꿀 값으로 닫혀 있다(제한 컬럼에서 일반 값 뽑기)
 }

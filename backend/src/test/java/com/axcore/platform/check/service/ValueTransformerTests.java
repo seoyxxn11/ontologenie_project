@@ -48,6 +48,23 @@ class ValueTransformerTests {
         assertThat(transformer.transform(" 31 ", List.of())).isEqualTo(" 31 ");
     }
 
+    /** 448: 대응표에 있는 값만 바꾸고 없는 값은 비운다. 비운 뒤에는 뒤 단계를 적용하지 않는다. 원래 값은 결과로 나오지 않는다. */
+    @Test
+    void mapKnownKeepsOnlyMappedValues() {
+        Map<String, String> table = Map.of("보전팀", "DP40", "생산관리팀", "DP10");
+        check(TransformOperation.MAP_KNOWN, table, "보전팀", "DP40");
+        check(TransformOperation.MAP_KNOWN, table, "홍길동", null);
+        check(TransformOperation.MAP_KNOWN, table, "", null);
+
+        var steps =
+                List.of(
+                        new TransformStep(TransformOperation.TRIM, null),
+                        new TransformStep(TransformOperation.MAP_KNOWN, table),
+                        new TransformStep(TransformOperation.ADD_PREFIX, "D-"));
+        assertThat(transformer.transform(" 보전팀 ", steps)).isEqualTo("D-DP40");
+        assertThat(transformer.transform("홍길동", steps)).isNull();
+    }
+
     @Test
     void rejectsInvalidValues() {
         fails(TransformOperation.EXTRACT_NUMBER, null, "숫자 없음");

@@ -224,7 +224,7 @@ test.each(['ADMIN', 'VIEWER'] as const)(
   },
 )
 
-test('041은 서버의 10개 변환과 인자·자료형·예시를 제공한다', async () => {
+test('041은 서버의 11개 변환과 인자·자료형·예시를 제공한다', async () => {
   type Entry = {
     op: string
     argument: { name: string } | null
@@ -249,9 +249,10 @@ test('041은 서버의 10개 변환과 인자·자료형·예시를 제공한다
       'TO_DECIMAL',
       'TO_DATE',
       'MAP_VALUE',
+      'MAP_KNOWN',
     ]),
   )
-  expect(data).toHaveLength(10)
+  expect(data).toHaveLength(11)
   for (const item of data) {
     expect(item.inputTypes.length).toBeGreaterThan(0)
     expect(typeof item.outputType).toBe('string')

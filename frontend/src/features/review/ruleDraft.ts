@@ -12,6 +12,7 @@ export const transformLabels: Record<string, string> = {
   TO_DECIMAL: '소수 변환',
   TO_DATE: '날짜 변환',
   MAP_VALUE: '값 대응표',
+  MAP_KNOWN: '대응표에 있는 값만 남기기',
 }
 export type TransformDraft = { op: string; arg: string }
 export function toTransformDraft(step: {
@@ -134,7 +135,7 @@ export function buildTransform(step: TransformDraft) {
       Number(arg) > 2147483647
     )
       throw new Error('0 채우기 자릿수는 1 이상의 정수여야 합니다.')
-  } else if (step.op === 'MAP_VALUE') {
+  } else if (step.op === 'MAP_VALUE' || step.op === 'MAP_KNOWN') {
     try {
       arg = JSON.parse(step.arg)
     } catch {

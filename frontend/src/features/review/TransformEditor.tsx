@@ -15,6 +15,7 @@ const defaultFunctions: TransformOption[] = Object.entries(transformLabels).map(
       ADD_PREFIX: '접두어',
       PAD_ZEROS: '자릿수',
       MAP_VALUE: '값 대응표',
+      MAP_KNOWN: '값 대응표',
     }
     return {
       op,
@@ -100,7 +101,9 @@ export default function TransformEditor({
                     replace(index, { ...step, arg: event.target.value })
                   }
                   placeholder={
-                    step.op === 'MAP_VALUE' ? '{"PR03":"PR-03"}' : undefined
+                    step.op === 'MAP_VALUE' || step.op === 'MAP_KNOWN'
+                      ? '{"PR03":"PR-03"}'
+                      : undefined
                   }
                 />
               </label>

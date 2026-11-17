@@ -20,15 +20,15 @@ public record TransformStep(TransformOperation op, Object arg) {
                     throw new IllegalArgumentException("PAD_ZEROS에는 1 이상의 정수 인자가 필요합니다.");
                 }
             }
-            case MAP_VALUE -> {
+            case MAP_VALUE, MAP_KNOWN -> {
                 if (!(arg instanceof Map<?, ?> mapping) || mapping.isEmpty()) {
-                    throw new IllegalArgumentException("MAP_VALUE에는 비어 있지 않은 대응표가 필요합니다.");
+                    throw new IllegalArgumentException(op + "에는 비어 있지 않은 대응표가 필요합니다.");
                 }
 
                 for (Map.Entry<?, ?> entry : mapping.entrySet()) {
                     if (!(entry.getKey() instanceof String)
                             || !(entry.getValue() instanceof String)) {
-                        throw new IllegalArgumentException("MAP_VALUE 대응표의 키와 값은 모두 문자열이어야 합니다.");
+                        throw new IllegalArgumentException(op + " 대응표의 키와 값은 모두 문자열이어야 합니다.");
                     }
                 }
 

@@ -147,4 +147,22 @@ export const transformData: CatalogEntry[] = [
       output: '가동',
     },
   },
+  {
+    op: 'MAP_KNOWN',
+    label: '대응표에 있는 값만 바꾸기',
+    description:
+      '대응표에 있는 값만 짝지은 값으로 바꾸고, 대응표에 없는 값은 비웁니다. 마지막 단계에 두면 제한 컬럼에서도 일반 속성을 뽑을 수 있습니다.',
+    argument: {
+      name: 'mapping',
+      type: 'object',
+      label: '대응표(원래 값 → 바꿀 값)',
+    },
+    inputTypes: text,
+    outputType: 'STRING',
+    example: {
+      step: { op: 'MAP_KNOWN', arg: { 보전팀: 'DP40' } },
+      input: '보전팀',
+      output: 'DP40',
+    },
+  },
 ]

@@ -171,9 +171,14 @@ public class SourcePolicyReconciler {
         if (column == null) {
             return SourceColumnGrade.NORMAL;
         }
+        // 대응표에 있는 값만 바꾸는(MAP_KNOWN) 매핑은 결과가 닫혀 있어 민감 컬럼이라도 속성을 올리지 않는다(448).
         return resources
                 .findResourceKey(column.getSourceResourceId())
-                .map(key -> policy.gradeOf(key, column.getColumnName()))
+                .map(
+                        key ->
+                                ClosedTransform.gradeOfStored(
+                                        policy.gradeOf(key, column.getColumnName()),
+                                        mapping.getTransformSteps()))
                 .orElse(SourceColumnGrade.NORMAL);
     }
 

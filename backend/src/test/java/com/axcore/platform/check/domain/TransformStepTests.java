@@ -42,6 +42,7 @@ class TransformStepTests {
         }
         for (Object arg : Arrays.asList(null, Map.of(), Map.of("RUN", 1), Map.of(1, "가동"))) {
             reject(TransformOperation.MAP_VALUE, arg);
+            reject(TransformOperation.MAP_KNOWN, arg);
         }
         assertThrows(NullPointerException.class, () -> new TransformStep(null, null));
     }

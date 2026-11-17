@@ -45,6 +45,10 @@ class PropertyMappingApiTests {
 
     @Autowired JdbcClient jdbcClient;
 
+    @Autowired com.axcore.platform.source.service.FullLoadPlanner fullLoadPlanner;
+
+    @Autowired com.axcore.platform.source.policy.SourcePolicyReconciler reconciler;
+
     @Autowired PasswordEncoder passwordEncoder;
 
     @Test
@@ -641,6 +645,56 @@ class PropertyMappingApiTests {
         send(admin, post(BASE_PATH), body(f, identifier, skill, ""))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.error.details.column").value("skill_level"));
+    }
+
+    /**
+     * 448: 변환의 마지막 단계가 대응표에 있는 값만 바꾸기(MAP_KNOWN)이면 결과가 대응표의 바꿀 값으로 닫혀 있어, 민감 컬럼이라도 일반 속성에 담는다. 적재
+     * 계획의 위반도 아니고 기동 때 정책 재적용도 올리지 않는다. 마지막 단계가 아니면 지금처럼 민감으로 올린다.
+     */
+    @Test
+    void closedMapKnownMappingKeepsAPropertyFromARestrictedColumnNormal() throws Exception {
+        LoginSession admin = loginAs("ADMIN");
+        Fixture f = fixture(4096L, true);
+        renameResource(f, "mes.maintenance_order");
+        long technician = f.columns.get("emp_name");
+        jdbcClient
+                .sql("update source_column set column_name = 'technician' where id = :id")
+                .param("id", technician)
+                .update();
+        long department = f.properties.get("emp_name");
+        long other = f.properties.get("hire_date");
+
+        createMapping(
+                admin,
+                f,
+                department,
+                technician,
+                ", \"transformSteps\": [{\"op\": \"MAP_KNOWN\", \"arg\": {\"보전팀\": \"DP40\"}}]",
+                true);
+        assertThat(sensitivity(department)).isEqualTo("NORMAL");
+        assertThat(fullLoadPlanner.violations(f.resource))
+                .noneMatch(violation -> violation.columnName().equals("technician"));
+        assertThat(reconciler.reconcile()).noneMatch(change -> change.contains("emp_name"));
+        assertThat(sensitivity(department)).isEqualTo("NORMAL");
+
+        // 대응표 뒤에 다른 변환이 오면 닫혀 있다고 보지 않는다
+        createMapping(
+                admin,
+                f,
+                other,
+                technician,
+                ", \"transformSteps\": [{\"op\": \"MAP_KNOWN\", \"arg\": {\"보전팀\": \"DP40\"}},"
+                        + " {\"op\": \"TRIM\"}]",
+                true);
+        assertThat(sensitivity(other)).isEqualTo("RESTRICTED");
+    }
+
+    private String sensitivity(long property) {
+        return jdbcClient
+                .sql("select sensitivity from property_definition where id = :id")
+                .param("id", property)
+                .query(String.class)
+                .single();
     }
 
     /**

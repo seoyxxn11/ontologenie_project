@@ -17,6 +17,7 @@ import com.axcore.platform.source.domain.FullLoadPlan.MappingPlan;
 import com.axcore.platform.source.domain.FullLoadPlan.PropertyPlan;
 import com.axcore.platform.source.domain.SourceColumn;
 import com.axcore.platform.source.domain.SourceResource;
+import com.axcore.platform.source.policy.ClosedTransform;
 import com.axcore.platform.source.policy.SourceColumnGrade;
 import com.axcore.platform.source.policy.SourceColumnPolicy;
 import com.axcore.platform.source.policy.SourcePolicyViolation;
@@ -253,8 +254,11 @@ public class FullLoadPlanner {
                 }
                 PropertyDefinition property =
                         loaded.properties().get(propertyMapping.getPropertyDefinitionId());
+                // 마지막 단계가 대응표에 있는 값만 바꾸기(MAP_KNOWN)이면 결과가 닫혀 있어 민감 컬럼을 일반 속성에 담아도 위반이 아니다(448).
                 SourceColumnGrade grade =
-                        sourceColumnPolicy.gradeOf(resourceKey, column.getColumnName());
+                        ClosedTransform.gradeOfStored(
+                                sourceColumnPolicy.gradeOf(resourceKey, column.getColumnName()),
+                                propertyMapping.getTransformSteps());
                 if (grade == SourceColumnGrade.FORBIDDEN) {
                     found.add(
                             violation(
