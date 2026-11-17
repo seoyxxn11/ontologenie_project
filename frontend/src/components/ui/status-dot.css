@@ -3,7 +3,8 @@
   display: inline-flex;
   max-width: 100%;
   align-items: center;
-  gap: 8px;
+  /* 점 영역 안쪽 여백까지 포함한 실제 점·글자 간격을 절반으로 줄인다. */
+  gap: calc(4px - (var(--status-dot-container) - var(--status-dot-size)) / 4);
   color: var(--ui-text-secondary);
   font-size: 14px;
   font-weight: 500;

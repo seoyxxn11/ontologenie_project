@@ -4,14 +4,12 @@ import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router'
 import Button from '../../components/Button'
 import { ErrorState } from '../../components/Feedback'
-import StatusBadge from '../../components/StatusBadge'
 import { createConversation } from '../agent/api'
 import type { AgentConversation, AgentEntryState } from '../agent/types'
 import { fetchObject, fetchObjectProperties } from './api'
 import EvidenceDialog from './EvidenceDialog'
 import { formatObjectKey } from './format'
 import { detailValue } from './detailPresentation'
-import { statusLabels } from './labels'
 import type { ObjectInstanceDetail } from './types'
 
 function formatDateTime(value: string | null | undefined) {
@@ -197,16 +195,6 @@ function ObjectDetailContent({ objectId }: ObjectDetailContentProps) {
           <dd>{formatDateTime(object.lastSyncedAt)}</dd>
         </dl>
       </details>
-      {object.sourceSystemName && (
-        <div className="explorer-source-status">
-          <StatusBadge
-            tone={object.status === 'ACTIVE' ? 'success' : 'warning'}
-          >
-            {statusLabels[object.status]}
-          </StatusBadge>
-        </div>
-      )}
-
       {evidenceOpen && (
         <EvidenceDialog
           object={object}
