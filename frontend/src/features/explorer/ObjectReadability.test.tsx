@@ -219,3 +219,79 @@ test('관계 묶음의 목록 카드도 시간·원천 행 문맥을 표시한�
   const card = await screen.findByRole('button', { name: /검사 기록/ })
   expect(within(card).getByText(/work_order_no: WO-101/)).toBeVisible()
 })
+
+const longName = '가'.repeat(120)
+const ruleLink: ObjectLink = {
+  id: 811,
+  linkTypeId: 3,
+  linkTypeName: '생산 품목',
+  sourceObjectId: 301,
+  targetObjectId: 412,
+  origin: 'RULE',
+  status: 'ACTIVE',
+  linkMappingId: 9,
+  relatedObject: {
+    id: 412,
+    objectTypeId: 7,
+    objectTypeName: '품목',
+    displayName: 'CL-590',
+  },
+  evidence: {
+    comparisons: [
+      {
+        sequenceNo: 1,
+        sourceProperty: 'item_code',
+        sourceValue: 'CL-590',
+        targetProperty: 'item_code',
+        targetValue: 'CL-590',
+        matchedValue: 'CL-590',
+      },
+    ],
+  },
+}
+
+async function comparisonHeaders(item: ObjectLink, objectTypeName?: string) {
+  server.use(
+    http.get('/api/v1/objects/301/links', () =>
+      HttpResponse.json({
+        data: [item],
+        meta: { page: 0, size: 100, totalElements: 1, hasNext: false },
+      }),
+    ),
+  )
+  mount(<ObjectLinks objectId={301} objectTypeName={objectTypeName} />)
+  await userEvent.setup().click(await screen.findByText('상세 근거'))
+  return within(screen.getByRole('table', { name: '비교 조건' })).getAllByRole(
+    'columnheader',
+  )
+}
+
+test('양쪽 값이 같은 규칙 연결도 머리글로 어느 객체의 값인지 구분한다', async () => {
+  const headers = await comparisonHeaders(ruleLink, '작업지시')
+  expect(headers.map((cell) => cell.textContent)).toEqual([
+    '이 객체 · 작업지시',
+    'CL-590 · 품목',
+  ])
+  expect(screen.getAllByText('item_code = CL-590')).toHaveLength(2)
+  expect(screen.queryByText('출발 원본')).not.toBeInTheDocument()
+})
+
+test('보고 있는 객체의 유형 이름을 모르면 이 객체로만 표시한다', async () => {
+  const headers = await comparisonHeaders(ruleLink)
+  expect(headers.map((cell) => cell.textContent)).toEqual([
+    '이 객체',
+    'CL-590 · 품목',
+  ])
+})
+
+test('연결된 객체 이름이 길어도 머리글 칸 안에서 줄바꿈한다', async () => {
+  const headers = await comparisonHeaders(
+    {
+      ...ruleLink,
+      relatedObject: { ...ruleLink.relatedObject, displayName: longName },
+    },
+    '작업지시',
+  )
+  expect(headers[1]).toHaveTextContent(`${longName} · 품목`)
+  expect(headers[1]).toHaveClass('[overflow-wrap:anywhere]')
+})

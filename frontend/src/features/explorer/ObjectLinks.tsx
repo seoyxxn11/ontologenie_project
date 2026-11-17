@@ -54,7 +54,25 @@ function ComparisonValue({
   )
 }
 
-function LinkDetail({ link }: LinkEvidenceProps) {
+type LinkDetailProps = LinkEvidenceProps & {
+  objectId: number
+  objectTypeName?: string
+}
+
+// 비교 값의 주인. 보고 있는 객체면 "이 객체", 아니면 연결된 객체의 이름으로 적는다.
+function comparisonOwner(
+  ownerId: number,
+  { link, objectId, objectTypeName }: LinkDetailProps,
+) {
+  const [name, typeName] =
+    ownerId === objectId
+      ? ['이 객체', objectTypeName]
+      : [link.relatedObject.displayName, link.relatedObject.objectTypeName]
+  return typeName ? `${name} · ${typeName}` : name
+}
+
+function LinkDetail(props: LinkDetailProps) {
+  const { link } = props
   const evidence = link.evidence
   if (evidence.evidenceRestricted) return null
 
@@ -72,15 +90,15 @@ function LinkDetail({ link }: LinkEvidenceProps) {
             <tr>
               <th
                 scope="col"
-                className="border-b border-slate-200 px-2 py-1 font-medium"
+                className="border-b border-slate-200 px-2 py-1 align-top font-medium [overflow-wrap:anywhere]"
               >
-                출발 원본
+                {comparisonOwner(link.sourceObjectId, props)}
               </th>
               <th
                 scope="col"
-                className="border-b border-slate-200 px-2 py-1 font-medium"
+                className="border-b border-slate-200 px-2 py-1 align-top font-medium [overflow-wrap:anywhere]"
               >
-                비교 대상
+                {comparisonOwner(link.targetObjectId, props)}
               </th>
             </tr>
           </thead>
@@ -128,9 +146,11 @@ function LinkDetail({ link }: LinkEvidenceProps) {
 
 type ObjectLinksProps = {
   objectId: number
+  // 보고 있는 객체의 유형 이름. 상세 근거 표에서 "이 객체" 옆에 적는다.
+  objectTypeName?: string
 }
 
-function ObjectLinks({ objectId }: ObjectLinksProps) {
+function ObjectLinks({ objectId, objectTypeName }: ObjectLinksProps) {
   const {
     links,
     totalCount,
@@ -198,7 +218,11 @@ function ObjectLinks({ objectId }: ObjectLinksProps) {
               </td>
               <td className="py-2 pr-3 [overflow-wrap:anywhere]">
                 <LinkSummary link={link} />
-                <LinkDetail link={link} />
+                <LinkDetail
+                  link={link}
+                  objectId={objectId}
+                  objectTypeName={objectTypeName}
+                />
               </td>
             </tr>
           ))}

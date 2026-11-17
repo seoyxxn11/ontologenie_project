@@ -728,12 +728,10 @@ test('들어오는 관계에서도 여러 조건의 출발과 도착 값을 같�
   await user.click(dialog.getByText('상세 근거'))
 
   const comparisons = within(dialog.getByRole('table', { name: '비교 조건' }))
+  // 들어오는 연결이라 출발(왼쪽)이 연결된 객체, 도착(오른쪽)이 보고 있는 객체다.
   expect(
-    comparisons.getByRole('columnheader', { name: '출발 원본' }),
-  ).toBeInTheDocument()
-  expect(
-    comparisons.getByRole('columnheader', { name: '비교 대상' }),
-  ).toBeInTheDocument()
+    comparisons.getAllByRole('columnheader').map((cell) => cell.textContent),
+  ).toEqual(['프레스 작업 · 작업지시', '이 객체 · 설비'])
   const rows = comparisons.getAllByRole('row')
   const firstCondition = within(rows[1])
   expect(firstCondition.getByText('assigned_equipment = pr03')).toBeVisible()
