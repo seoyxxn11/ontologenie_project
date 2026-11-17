@@ -1,5 +1,6 @@
 import { delay, http, HttpResponse } from 'msw'
 import type { ReassignmentPlan } from '../features/reassignment/types'
+import { demoAccount } from './auth'
 
 // Agent 목 답변이 만든 것으로 보여 주는 재배정 계획. 프레스 3호기(301)의 WO-101을 프레스 1호기(302)로 옮긴다.
 export const samplePlan: ReassignmentPlan = {
@@ -25,6 +26,32 @@ export const samplePlan: ReassignmentPlan = {
 }
 
 export const reassignmentHandlers = [
+  http.get('/api/v1/reassignment-plans', async ({ request }) => {
+    await delay(150)
+    const params = new URL(request.url).searchParams
+    const page = Math.max(0, Number(params.get('page') ?? 0))
+    const size = Math.max(1, Number(params.get('size') ?? 20))
+    const plans = [samplePlan].filter(
+      (plan) =>
+        (!params.get('fromEquipmentId') ||
+          plan.fromEquipmentId === Number(params.get('fromEquipmentId'))) &&
+        (!params.get('createdBy') ||
+          plan.createdBy === Number(params.get('createdBy'))) &&
+        (!params.get('createdByName')?.trim() ||
+          demoAccount.displayName
+            .toLocaleLowerCase()
+            .includes(params.get('createdByName')!.trim().toLocaleLowerCase())),
+    )
+    return HttpResponse.json({
+      data: plans.slice(page * size, (page + 1) * size),
+      meta: {
+        page,
+        size,
+        totalElements: plans.length,
+        hasNext: (page + 1) * size < plans.length,
+      },
+    })
+  }),
   // 094 재배정 계획 상세
   http.get('/api/v1/reassignment-plans/:id', async ({ params }) => {
     await delay(150)

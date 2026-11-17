@@ -96,6 +96,25 @@ test('대화 목록을 접고 펴도 질문·답변·열린 출처를 유지한�
   expect(evidence).toHaveAttribute('open')
 })
 
+test('삭제됐거나 내 목록에 없는 대화 URL은 최신 대화를 대신 열지 않는다', async () => {
+  const user = userEvent.setup()
+  renderAgentPage('/agent?conversation=99999')
+  expect(
+    await screen.findByText(
+      '연결된 대화를 열 수 없습니다. 삭제됐거나 조회 권한이 없는 대화입니다.',
+    ),
+  ).toBeVisible()
+  expect(screen.queryByText(SAMPLE_ANSWER)).toBeNull()
+  await user.click(screen.getByRole('button', { name: '내 대화 목록으로' }))
+  expect(await screen.findByText(EMPTY_MESSAGE)).toBeVisible()
+  await user.click(
+    screen.getByRole('button', {
+      name: '설비 PR-03의 최근 비가동 이력과 장부가를 알려줘',
+    }),
+  )
+  expect(await screen.findByText(SAMPLE_ANSWER)).toBeVisible()
+})
+
 test('아이콘 새 대화를 열고 돌아오면 대화별 초안을 복원하고 같은 새 대화의 질문은 지우지 않는다', async () => {
   const user = userEvent.setup()
   renderAgentPage('/agent?conversation=1')

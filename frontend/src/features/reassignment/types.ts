@@ -8,6 +8,13 @@ export type ReassignmentPlanItem = {
   toEquipmentId: number
   // 계획 당시 원천 상태. 작업지시 번호(workOrderNo) 등이 들어 있다.
   sourceSnapshot: Record<string, unknown>
+  restrictedPropertyCodes?: string[]
+}
+
+export type ReassignmentPlanFilters = {
+  fromEquipmentId?: number
+  createdBy?: number
+  createdByName?: string
 }
 
 export type ReassignmentPlan = {

@@ -1,0 +1,210 @@
+.plan-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(360px, 1fr);
+  align-items: start;
+  gap: 20px;
+}
+.plan-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 590px;
+  overflow: hidden;
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-panel-radius);
+}
+.plan-panel-heading,
+.plan-detail-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.plan-panel-heading {
+  flex-shrink: 0;
+  min-height: 56px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--ui-border);
+}
+.plan-panel-heading h2 {
+  font-size: 16px;
+  font-weight: 600;
+}
+.plan-count,
+.plan-help {
+  color: var(--ui-text-secondary);
+  font-size: 14px;
+  font-weight: 400;
+}
+.plan-count {
+  margin-left: 12px;
+}
+.plan-filters,
+.plan-equipment-search {
+  flex-shrink: 0;
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 16px;
+}
+.plan-filters label,
+.plan-equipment-field,
+.plan-equipment-search label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+}
+.plan-equipment-field > div,
+.plan-filter-actions,
+.plan-route {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.plan-filters input {
+  min-width: 160px;
+}
+.plan-list-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  padding: 0 16px 16px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.plan-list-body .ui-table-container {
+  width: 100%;
+  max-height: 100%;
+  align-self: flex-start;
+  overflow: auto;
+}
+.plan-list-body .ui-table {
+  min-width: 680px;
+}
+.plan-list-body .ui-table :is(th, td) {
+  text-align: center;
+  vertical-align: middle;
+}
+.plan-route {
+  justify-content: center;
+}
+.plan-list-body thead {
+  position: sticky;
+  top: 0;
+  background: var(--ui-surface-subtle);
+}
+.plan-list-body tr[data-selected='true'] {
+  background: var(--ui-brand-subtle);
+}
+.plan-list-body tbody tr {
+  cursor: pointer;
+}
+.plan-list-body tbody tr:hover {
+  background: var(--ui-brand-subtle);
+}
+.plan-select {
+  color: var(--ui-brand-strong);
+  font-weight: 600;
+  padding: 0;
+  white-space: nowrap;
+}
+.plan-panel .ui-pagination {
+  flex-shrink: 0;
+  margin: 0 16px 16px;
+}
+.plan-panel a {
+  color: var(--ui-brand-strong);
+  overflow-wrap: anywhere;
+}
+.plan-panel a:hover {
+  text-decoration: underline;
+}
+.plan-route > div {
+  display: flex;
+  flex-direction: column;
+}
+.plan-detail-body {
+  flex: 1;
+  min-height: 0;
+  padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.plan-detail-title {
+  justify-content: start;
+  margin-bottom: 16px;
+}
+.plan-detail-title h3 {
+  font-size: 20px;
+  font-weight: 700;
+}
+.plan-movement {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  gap: 16px;
+  background: var(--ui-surface-subtle);
+  border-radius: var(--ui-radius);
+  padding: 16px;
+}
+.plan-movement > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.plan-movement > div > span {
+  color: var(--ui-text-secondary);
+  font-size: 12px;
+}
+.plan-movement a {
+  font-weight: 600;
+}
+.plan-detail-body dl {
+  grid-template-columns: 6rem minmax(0, 1fr);
+  gap: 10px 12px;
+}
+.plan-detail-body dd {
+  overflow-wrap: anywhere;
+}
+.plan-conversation-link.ui-button {
+  display: flex;
+  margin-top: 24px;
+  color: white;
+}
+.plan-detail-body > .plan-help {
+  margin-top: 24px;
+}
+.plan-equipment-results {
+  max-height: 320px;
+  overflow-y: auto;
+}
+.plan-equipment-results li + li {
+  border-top: 1px solid var(--ui-border);
+}
+.plan-equipment-results button {
+  width: 100%;
+  justify-content: start;
+  text-align: left;
+  white-space: normal;
+}
+@media (max-width: 1150px) {
+  .plan-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .plan-filters > label,
+  .plan-equipment-field {
+    width: 100%;
+  }
+  .plan-equipment-search {
+    padding: 0;
+  }
+}

@@ -78,10 +78,11 @@ function AgentPage() {
 
   const conversations = conversationsQuery.data ?? []
   const requestedId = Number(searchParams.get('conversation'))
-  // 주소의 대화가 목록에 없으면 가장 최근 대화를 연다.
-  const selected =
-    conversations.find((conversation) => conversation.id === requestedId) ??
-    conversations[0]
+  const hasRequestedConversation = searchParams.has('conversation')
+  // 계획에서 연결된 대화가 삭제됐거나 내 대화가 아니면 다른 대화를 대신 열지 않는다.
+  const selected = hasRequestedConversation
+    ? conversations.find((conversation) => conversation.id === requestedId)
+    : conversations[0]
 
   function renderBody() {
     if (conversationsQuery.isPending) {
@@ -93,6 +94,23 @@ function AgentPage() {
           error={conversationsQuery.error}
           onRetry={() => void conversationsQuery.refetch()}
         />
+      )
+    }
+    if (hasRequestedConversation && !selected) {
+      return (
+        <section
+          className="agent-empty-panel"
+          aria-label="연결된 대화 조회 불가"
+        >
+          <EmptyState message="연결된 대화를 열 수 없습니다. 삭제됐거나 조회 권한이 없는 대화입니다." />
+          <button
+            type="button"
+            className="ui-button ui-button--secondary"
+            onClick={() => setSearchParams({})}
+          >
+            내 대화 목록으로
+          </button>
+        </section>
       )
     }
     return (
