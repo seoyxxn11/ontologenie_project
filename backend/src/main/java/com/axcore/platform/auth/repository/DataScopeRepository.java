@@ -3,6 +3,7 @@ package com.axcore.platform.auth.repository;
 import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,12 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class DataScopeRepository {
 
+    /**
+     * 그룹이 없는(미분류) 유형을 허용 행과 맞출 때 쓰는 예약 이름(S15P31C106-384 보완). 이 이름의 허용 행을 가진 역할만 미분류 유형을 본다(V28:
+     * ADMIN). 유형의 그룹으로는 받을 수 없다({@code ObjectTypeService}가 거절한다).
+     */
+    public static final String UNCLASSIFIED_GROUP = "UNCLASSIFIED";
+
     private final JdbcClient jdbc;
 
     /** 객체 유형 하나에 대한 역할의 범위. restrictedPropertyCodes는 그 유형의 RESTRICTED 속성 코드 전체다. */
@@ -28,10 +35,14 @@ public class DataScopeRepository {
             Set<String> restrictedPropertyCodes) {}
 
     /**
-     * 모든 객체 유형에 대해 역할의 범위를 돌려준다. 유형의 access_group과 같은 그룹이 role_data_scope에 있어야 보인다. 그래서 그룹이 없는(미분류)
-     * 유형과 역할에 허용 행이 없는 유형은 보이지 않는다. ADMIN도 다른 역할과 같이 허용 행으로만 정한다(384: 정의 관리와 값 열람을 나눈다).
+     * 모든 객체 유형에 대해 역할의 범위를 돌려준다. 유형의 access_group과 같은 그룹이 role_data_scope에 있어야 보인다. 그래서 역할에 허용 행이
+     * 없는 유형은 보이지 않는다. ADMIN도 다른 역할과 같이 허용 행으로만 정한다(384: 정의 관리와 값 열람을 나눈다).
+     *
+     * <p>그룹이 없는(미분류) 유형은 {@link #UNCLASSIFIED_GROUP} 허용 행을 가진 역할에게만 보인다. 그룹을 정하는 사람이 그 유형의 값과 제안
+     * 근거를 볼 수 있어야 검토한 뒤 공개할 수 있다(384 보완). includeUnclassified가 false면 그 허용 행이 있어도 미분류 유형은 보이지 않는다.
+     * 외부 모델에 보내는 범위가 쓴다.
      */
-    public List<ObjectTypeScope> findAll(String roleCode) {
+    public List<ObjectTypeScope> findAll(String roleCode, boolean includeUnclassified) {
         return jdbc.sql(
                         """
                         select t.id as object_type_id, t.code as object_type_code,
@@ -42,13 +53,18 @@ public class DataScopeRepository {
                                         array[]::varchar[]) as restricted_codes
                         from object_type t
                         left join role_data_scope s
-                               on s.access_group = t.access_group
+                               on s.access_group
+                                      = coalesce(t.access_group, cast(:unclassified as varchar))
                               and s.role_id = (select r.id from role r where r.code = :roleCode)
                         left join property_definition p
                                on p.object_type_id = t.id and p.sensitivity = 'RESTRICTED'
                         group by t.id, s.access_group, s.can_view_restricted
                         """)
                 .param("roleCode", roleCode)
+                .param(
+                        "unclassified",
+                        includeUnclassified ? UNCLASSIFIED_GROUP : null,
+                        Types.VARCHAR)
                 .query((rs, row) -> scope(rs))
                 .list();
     }

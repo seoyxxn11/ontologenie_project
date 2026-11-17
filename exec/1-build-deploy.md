@@ -325,7 +325,7 @@ curl -s 127.0.0.1:18080/actuator/health    # {"status":"UP"}
 - **원천은 읽기만 합니다.** 플랫폼은 원천에 쓰지 않습니다. 조회는 `platform_ro`(batch)·`platform_ai`(분석) 읽기 전용 계정, CDC는 `platform_cdc`(REPLICATION)만 씁니다. 원천에 트리거나 변경 이력 표를 만들지 않습니다.
 - **원천 데이터 정책은 두 곳이 같아야 합니다.** 백엔드 `axcore.source-data-policy`와 원천 허용 목록 `infra/source-db/sql/allowlist.sql`. 금지 표·컬럼(근태, 고정자산, change_log, 직원 이름·직위·입사일·고용형태·재직 상태, 작업자 이름)은 원천 권한부터 막고, 민감 컬럼(정비 담당자, 거래처 담당자, 작업자 숙련도)은 민감 속성으로만 담습니다. 자세한 기준은 [docs/data-access.md](../docs/data-access.md)입니다.
 - **최초 관리자는 Flyway가 아니라 기동 때 만들어집니다.** DB에 ADMIN이 한 명도 없을 때만 `AXCORE_INITIAL_ADMIN_*`로 만듭니다.
-- **객체 유형은 그룹을 지정해야 보입니다.** 그룹이 없는 유형은 어느 역할에도 보이지 않습니다. 분석·승인 뒤 유형 편집에서 그룹(PRODUCTION, SALES_SUPPLY)을 지정합니다.
+- **객체 유형은 그룹을 지정해야 보입니다.** 그룹이 없는 유형은 관리자에게만 보이고, 다른 역할과 AI 업무 도우미에는 보이지 않습니다. 분석·승인 뒤 유형 편집에서 그룹(PRODUCTION, SALES_SUPPLY)을 지정합니다.
 - **Agent LLM은 기본으로 꺼져 있습니다**(`AXCORE_AGENT_LLM=none`). 배포 준비 단계가 운영에서 `openai`로 켭니다.
 - **원천 접속 비밀번호**는 화면이나 API로 등록하면 `AXCORE_SOURCE_CREDENTIAL_KEY_1`로 암호화해 플랫폼 DB에 저장합니다. 키를 바꾸면 기존 암호문을 다시 등록해야 합니다.
 - **AI 서버와 backend는 같은 내부 토큰**을 씁니다. 다르면 분석 결과 수신이 막힙니다.

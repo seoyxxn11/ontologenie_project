@@ -46,6 +46,13 @@ public class AgentAccessScope {
 
     private static final String POLICY = "policy";
     private static final String TYPES = "types";
+
+    /**
+     * 외부 모델에 보낼 수 있는 유형(모델 용도 범위). 화면 범위(TYPES)와 다를 수 있다. 미분류 유형은 관리자 화면에는 보이지만 모델 범위에는 없다(445). 모델
+     * 문맥을 다시 쓸지는 이 칸으로 판단한다. 이 칸이 없는 예전 범위는 화면 범위로 판단한다(445 전에는 두 범위의 유형이 같았다).
+     */
+    private static final String MODEL_TYPES = "modelTypes";
+
     private static final String RESTRICTED_VIEW = "restrictedView";
     private static final String RESTRICTED = "restricted";
 
@@ -59,6 +66,7 @@ public class AgentAccessScope {
         Map<String, Object> scope = new LinkedHashMap<>();
         scope.put(POLICY, sourceColumnPolicy.fingerprint());
         scope.put(TYPES, dataAccessPolicy.of(asker).visibleScopes());
+        scope.put(MODEL_TYPES, dataAccessPolicy.forModel(asker).visibleScopes());
         return scope;
     }
 
@@ -111,8 +119,8 @@ public class AgentAccessScope {
         if (!Objects.equals(before.get(POLICY), now.get(POLICY))) {
             return true;
         }
-        Map<?, ?> nowTypes = map(now.get(TYPES));
-        for (Map.Entry<?, ?> entry : map(before.get(TYPES)).entrySet()) {
+        Map<?, ?> nowTypes = map(modelTypes(now));
+        for (Map.Entry<?, ?> entry : map(modelTypes(before)).entrySet()) {
             Object current = nowTypes.get(entry.getKey());
             if (current == null || !codes(map(entry.getValue())).containsAll(codes(map(current)))) {
                 return true;
@@ -206,6 +214,11 @@ public class AgentAccessScope {
         } catch (JacksonException unreadable) {
             return false;
         }
+    }
+
+    /** 모델 범위의 유형. 없으면(445 전 범위) 화면 범위의 유형이다. */
+    private static Object modelTypes(Map<?, ?> scope) {
+        return scope.containsKey(MODEL_TYPES) ? scope.get(MODEL_TYPES) : scope.get(TYPES);
     }
 
     private static Object scopeOf(Map<String, Object> context) {

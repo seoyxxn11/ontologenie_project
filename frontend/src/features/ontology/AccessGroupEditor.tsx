@@ -12,7 +12,7 @@ import {
 import { objectTypesKey, saveAccessGroup } from './api'
 import type { ObjectTypeItem } from './types'
 
-// 유형의 조회 그룹 지정(024, 392). 그룹이 없으면 어느 역할에도 보이지 않는다.
+// 유형의 조회 그룹 지정(024, 392). 그룹이 없으면 관리자에게만 보이고 업무 역할과 AI 업무 도우미에는 보이지 않는다(384 보완).
 // 켜진 매핑이 원천 데이터 정책을 어기면 서버가 거절하고(402) 어긴 매핑을 알려 준다.
 export default function AccessGroupEditor({
   type,
@@ -70,7 +70,8 @@ export default function AccessGroupEditor({
         </select>
       </label>
       <p id="object-types-group-help" className="object-types-help">
-        그룹이 없으면 어느 역할에도 이 유형의 객체가 보이지 않습니다.
+        그룹이 없으면 이 유형의 객체는 관리자에게만 보입니다. 다른 역할과 AI
+        업무 도우미에는 그룹을 지정해야 보입니다.
       </p>
       <details className="object-types-policy">
         <summary>원천 데이터 정책</summary>

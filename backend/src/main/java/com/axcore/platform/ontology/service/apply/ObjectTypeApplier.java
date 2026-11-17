@@ -149,7 +149,8 @@ class ObjectTypeApplier implements ProposalApplier {
         summary.put("objectMappingId", objectMappingId);
         summary.put("propertyMappingCount", propertyMappings);
         summary.put("displayPropertyCode", displayCode);
-        // 그룹이 없으면 어느 역할에도 보이지 않는다(V21). 승인 결과와 감사 기록에서 비공개로 들어간 것을 알 수 있게 남긴다(392)
+        // 그룹이 없으면 관리자에게만 보이고 업무 역할과 Agent에는 보이지 않는다(V21·V28). 승인 결과와 감사 기록에서 비공개로 들어간 것을 알 수 있게
+        // 남긴다(392). visibleToRoles는 업무 역할에게 공개됐는지다.
         summary.put("accessGroup", type.getAccessGroup());
         summary.put("visibleToRoles", type.getAccessGroup() != null);
         if (skippedDisplay != null) {

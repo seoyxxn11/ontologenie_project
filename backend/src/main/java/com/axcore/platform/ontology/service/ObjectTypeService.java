@@ -1,5 +1,6 @@
 package com.axcore.platform.ontology.service;
 
+import com.axcore.platform.auth.repository.DataScopeRepository;
 import com.axcore.platform.global.error.BusinessException;
 import com.axcore.platform.global.error.CommonErrorCode;
 import com.axcore.platform.mapping.repository.ObjectSourceMappingRepository;
@@ -65,6 +66,7 @@ public class ObjectTypeService {
         if (objectTypeRepository.existsByCode(request.code())) {
             throw new BusinessException(CommonErrorCode.CONFLICT);
         }
+        requireUsableGroup(request.accessGroup());
         ObjectType objectType =
                 ObjectType.createManual(
                         request.code(),
@@ -124,6 +126,7 @@ public class ObjectTypeService {
         String accessGroup =
                 request.hasAccessGroup() ? request.getAccessGroup() : objectType.getAccessGroup();
         if (accessGroup != null && !accessGroup.equals(objectType.getAccessGroup())) {
+            requireUsableGroup(accessGroup);
             requirePublishable(id);
         }
         objectType.update(
@@ -136,6 +139,18 @@ public class ObjectTypeService {
         // 응답의 rowVersion·수정 시각이 이번 변경을 반영하도록 먼저 DB에 쓴다.
         objectTypeRepository.flush();
         return ObjectTypeResponse.from(objectType);
+    }
+
+    /**
+     * 미분류 유형을 허용 행과 맞추는 예약 이름은 유형의 그룹으로 받지 않는다(384 보완). 받으면 그룹을 지정한 유형이 미분류와 같은 범위(관리자 전용)로 보여, 공개
+     * 전 검사(402)를 거친 유형과 구분할 수 없게 된다. 대소문자만 다른 이름도 헷갈리므로 같이 막는다.
+     */
+    private static void requireUsableGroup(String accessGroup) {
+        if (accessGroup != null
+                && DataScopeRepository.UNCLASSIFIED_GROUP.equalsIgnoreCase(accessGroup.trim())) {
+            throw BusinessException.invalidField(
+                    "accessGroup", "미분류를 뜻하는 예약 이름이라 그룹으로 쓸 수 없습니다. 그룹을 비우면 미분류가 됩니다.");
+        }
     }
 
     /**

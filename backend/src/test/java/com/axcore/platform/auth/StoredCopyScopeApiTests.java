@@ -81,7 +81,8 @@ class StoredCopyScopeApiTests {
 
         long source = type("SRC", group);
         long target = type("TGT", group);
-        long ungrouped = type("HID", null);
+        // 어느 역할에도 허용 행이 없는 그룹. 미분류(그룹 없음)는 관리자에게 보이므로(V28) 범위 밖 유형은 이렇게 만든다.
+        long ungrouped = type("HID", "COPY_H_" + suffix);
         long revealSource = type("RSRC", revealGroup);
         long revealTarget = type("RTGT", revealGroup);
         Map<String, Long> sourceProps = properties(source);
@@ -127,7 +128,7 @@ class StoredCopyScopeApiTests {
     }
 
     @Test
-    void adminSeesNormalValuesButNotRestrictedOrUngroupedInIssues() throws Exception {
+    void adminSeesNormalValuesButNotRestrictedOrUnlistedInIssues() throws Exception {
         Cookie session = login(admin);
 
         mockMvc.perform(get("/api/v1/issues/" + normal.issueId).cookie(session))
@@ -175,7 +176,7 @@ class StoredCopyScopeApiTests {
     }
 
     @Test
-    void adminDoesNotSeeRestrictedOrUngroupedValuesInVerifications() throws Exception {
+    void adminDoesNotSeeRestrictedOrUnlistedValuesInVerifications() throws Exception {
         Cookie session = login(admin);
 
         mockMvc.perform(get("/api/v1/issues/" + normal.issueId + "/verifications").cookie(session))
@@ -204,7 +205,7 @@ class StoredCopyScopeApiTests {
     }
 
     @Test
-    void adminDoesNotSeeRestrictedOrUngroupedValuesInCheckResults() throws Exception {
+    void adminDoesNotSeeRestrictedOrUnlistedValuesInCheckResults() throws Exception {
         Cookie session = login(admin);
 
         mockMvc.perform(
@@ -252,7 +253,7 @@ class StoredCopyScopeApiTests {
     }
 
     @Test
-    void adminDoesNotSeeRestrictedOrUngroupedValuesInReverificationComparison() throws Exception {
+    void adminDoesNotSeeRestrictedOrUnlistedValuesInReverificationComparison() throws Exception {
         String body =
                 mockMvc.perform(
                                 get("/api/v1/checks/runs/" + reverifyRun + "/comparison")
@@ -314,7 +315,7 @@ class StoredCopyScopeApiTests {
     }
 
     @Test
-    void adminDoesNotSeeRestrictedOrUngroupedExampleValuesInProposalEvidence() throws Exception {
+    void adminDoesNotSeeRestrictedOrUnlistedExampleValuesInProposalEvidence() throws Exception {
         long proposal = proposalWithEvidence();
         Cookie session = login(admin);
 
@@ -388,6 +389,88 @@ class StoredCopyScopeApiTests {
                         .getResponse()
                         .getContentAsString();
         assertThat(body).doesNotContain("과장", "NORMAL", "T-KIM", "직급 예: 대리");
+    }
+
+    /**
+     * 그룹이 없는(미분류) 유형의 일반 값은 관리자에게 보인다(384 보완, V28). 유형을 승인한 뒤 그룹을 정하기 전에도, 그 유형이 걸린 규칙의 문제 값과 제안
+     * 근거를 보고 검토할 수 있어야 한다. 민감 속성을 조건으로 쓴 규칙의 값은 미분류 유형이어도 가린다.
+     */
+    @Test
+    void adminSeesNormalValuesOfUnclassifiedTypes() throws Exception {
+        long unclassified = type("UNC", null);
+        Map<String, Long> props = properties(unclassified);
+        long target = typeId("TGT_" + suffix);
+        Rule open =
+                rule(
+                        "UNC_NORMAL",
+                        unclassified,
+                        target,
+                        props.get("code"),
+                        propertyId(target, "code"));
+        Rule secret =
+                rule(
+                        "UNC_SECRET",
+                        unclassified,
+                        target,
+                        props.get("secret"),
+                        propertyId(target, "secret"));
+        open.issueId = issue(open);
+        secret.issueId = issue(secret);
+        Cookie session = login(admin);
+
+        mockMvc.perform(get("/api/v1/issues/" + open.issueId).cookie(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.rawValue").value(open.raw()))
+                .andExpect(jsonPath("$.data.transformedValue").value(open.transformed()));
+        mockMvc.perform(get("/api/v1/issues/" + secret.issueId).cookie(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.rawValue").value(nullValue()))
+                .andExpect(jsonPath("$.data.transformedValue").value(nullValue()));
+
+        long dataSource =
+                jdbc.sql(
+                                """
+                                insert into data_source (code, name, source_kind)
+                                values (:code, :code, 'POSTGRES') returning id
+                                """)
+                        .param("code", "copy403-unc-" + UUID.randomUUID())
+                        .query(Long.class)
+                        .single();
+        long table = resource(dataSource, schema() + ".unc_tbl");
+        long mapping = objectMapping(table, unclassified, "code");
+        propertyMapping(mapping, table, props.get("code"), column(table, "code", 1));
+        propertyMapping(mapping, table, props.get("secret"), column(table, "secret_col", 2));
+        long proposal =
+                proposal(
+                        "PROPERTY",
+                        "REJECTED",
+                        """
+                        {"reason": "예: UNC-V", "items": [
+                          {"locator": "%1$s.unc_tbl.code", "values": ["UNC-V"], "snippet": "UNC-V"}]}
+                        """
+                                .formatted(schema()));
+        long restrictedProposal =
+                proposal(
+                        "PROPERTY",
+                        "REJECTED",
+                        """
+                        {"reason": "예: UNC-SECRET", "items": [
+                          {"locator": "%1$s.unc_tbl.secret_col", "values": ["UNC-SECRET"], "snippet": "UNC-SECRET"}]}
+                        """
+                                .formatted(schema()));
+
+        mockMvc.perform(get("/api/v1/proposals/" + proposal).cookie(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.evidence.items[0].values[0]").value("UNC-V"))
+                .andExpect(jsonPath("$.data.evidence.reason").value("예: UNC-V"));
+        String restricted =
+                mockMvc.perform(get("/api/v1/proposals/" + restrictedProposal).cookie(session))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.data.evidence.items[0].values").isEmpty())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+        assertThat(restricted).doesNotContain("UNC-SECRET");
     }
 
     @Test
@@ -1039,15 +1122,15 @@ class StoredCopyScopeApiTests {
     }
 
     /**
-     * 출발 유형(SRC)에 매핑된 표의 민감 컬럼·일반 컬럼, 그룹 없는 유형(HID)에 매핑된 표의 컬럼을 가리키는 근거 세 개를 가진 제안. 근거 값은 원천 정책상 일반
-     * 컬럼이라 105 수신 때는 가려지지 않았다.
+     * 출발 유형(SRC)에 매핑된 표의 민감 컬럼·일반 컬럼, 허용 행이 없는 그룹의 유형(HID)에 매핑된 표의 컬럼을 가리키는 근거 세 개를 가진 제안. 근거 값은 원천
+     * 정책상 일반 컬럼이라 105 수신 때는 가려지지 않았다.
      */
     private long proposalWithEvidence() {
         mapEvidenceTables();
         return proposal("PROPERTY", "REJECTED", evidence());
     }
 
-    /** 근거 위치가 가리키는 표·컬럼을 SRC(일반·민감 컬럼)와 HID(그룹 없음)에 매핑한다. */
+    /** 근거 위치가 가리키는 표·컬럼을 SRC(일반·민감 컬럼)와 HID(허용 행이 없는 그룹)에 매핑한다. */
     private void mapEvidenceTables() {
         long sourceType = typeId("SRC_" + suffix);
         long hiddenType = typeId("HID_" + suffix);
