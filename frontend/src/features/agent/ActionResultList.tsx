@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
 import Button from '../../components/Button'
 import StatusBadge from '../../components/StatusBadge'
 import ReassignmentPlanDetails from '../reassignment/ReassignmentPlanDetails'
@@ -79,6 +80,14 @@ function ActionResultList({ actions }: { actions: AgentAction[] }) {
                 <div className="basis-full">
                   <ReassignmentPlanDetails planId={planId} />
                 </div>
+              )}
+              {planId !== null && (
+                <Link
+                  className="agent-plan-toggle text-sm underline"
+                  to={`/explorer/plans?plan=${planId}`}
+                >
+                  계획 목록 보기
+                </Link>
               )}
             </li>
           )

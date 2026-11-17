@@ -16,10 +16,14 @@ import RequireAuth from './features/auth/RequireAuth'
 import LoginPage from './features/auth/LoginPage'
 import PasswordChangePage from './features/auth/PasswordChangePage'
 import RequireAccess from './features/auth/RequireAccess'
+import WorkDataLayout from './features/explorer/WorkDataLayout'
 
 const AgentPage = lazy(() => import('./features/agent/AgentPage'))
 const AuditPage = lazy(() => import('./features/audit/AuditPage'))
 const ExplorerPage = lazy(() => import('./features/explorer/ExplorerPage'))
+const ReassignmentPlansPage = lazy(
+  () => import('./features/reassignment/ReassignmentPlansPage'),
+)
 const HistoryPage = lazy(() => import('./features/history/HistoryPage'))
 const SourcesPage = lazy(() => import('./features/sources/SourcesPage'))
 const ProposalsPage = lazy(() => import('./features/review/ProposalsPage'))
@@ -66,7 +70,10 @@ function App() {
             <Route element={<AppLayout />}>
               <Route element={<RequireAccess access="workspace" />}>
                 <Route path="/" element={<Navigate to="/explorer" replace />} />
-                <Route path="/explorer" element={<ExplorerPage />} />
+                <Route path="/explorer" element={<WorkDataLayout />}>
+                  <Route index element={<ExplorerPage />} />
+                  <Route path="plans" element={<ReassignmentPlansPage />} />
+                </Route>
                 <Route path="/agent" element={<AgentPage />} />
                 <Route path="/audit" element={<AuditPage />} />
                 <Route path="*" element={<NotFoundPage />} />

@@ -43,7 +43,11 @@ public class ReassignmentPlanController {
                         request.size() == null ? DEFAULT_PAGE_SIZE : request.size());
         return ApiResponse.ofPage(
                 reassignmentPlanQueryService.search(
-                        loginAccount, request.fromEquipmentId(), request.createdBy(), page));
+                        loginAccount,
+                        request.fromEquipmentId(),
+                        request.createdBy(),
+                        request.createdByName(),
+                        page));
     }
 
     @GetMapping("/{id}")

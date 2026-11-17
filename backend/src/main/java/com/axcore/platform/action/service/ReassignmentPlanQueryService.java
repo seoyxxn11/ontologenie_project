@@ -73,13 +73,23 @@ public class ReassignmentPlanQueryService {
     /** 조건이 null이면 거르지 않는다. 계획 한 페이지를 고른 뒤 그 계획들의 항목은 한 번에 붙인다. */
     public Page<ReassignmentPlanResponse> search(
             LoginAccount viewer, Long fromEquipmentId, Long createdBy, Pageable pageable) {
+        return search(viewer, fromEquipmentId, createdBy, null, pageable);
+    }
+
+    public Page<ReassignmentPlanResponse> search(
+            LoginAccount viewer,
+            Long fromEquipmentId,
+            Long createdBy,
+            String createdByName,
+            Pageable pageable) {
         DataAccess access = dataAccessPolicy.of(viewer);
         if (!seesPlanObjects(access)) {
             return Page.empty(pageable);
         }
         Page<ReassignmentPlan> page =
                 plans.findAll(
-                        ReassignmentPlanSpecifications.byFilters(fromEquipmentId, createdBy),
+                        ReassignmentPlanSpecifications.byFilters(
+                                fromEquipmentId, createdBy, createdByName),
                         PageRequest.of(
                                 pageable.getPageNumber(), pageable.getPageSize(), NEWEST_FIRST));
         return new PageImpl<>(

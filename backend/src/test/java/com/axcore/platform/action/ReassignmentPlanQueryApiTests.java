@@ -170,6 +170,77 @@ class ReassignmentPlanQueryApiTests {
         mockMvc.perform(get(PLANS)).andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void filtersByCreatorNameForViewerAndCombinesExistingFilters() throws Exception {
+        jdbcClient
+                .sql("update account set display_name = :name where id = :id")
+                .param("name", "Alpha 손주연")
+                .param("id", planner.id())
+                .update();
+        TestAccount viewer = createAccount("VIEWER");
+        LoginSession session = login(viewer);
+        mockMvc.perform(
+                        get(PLANS)
+                                .param("fromEquipmentId", String.valueOf(fromEquipment))
+                                .param("createdByName", "  aLPHa 손  ")
+                                .cookie(session.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(planId))
+                .andExpect(jsonPath("$.meta.totalElements").value(1));
+        mockMvc.perform(
+                        get(PLANS)
+                                .param("fromEquipmentId", String.valueOf(fromEquipment))
+                                .param("createdByName", "손주연")
+                                .param("createdBy", String.valueOf(viewer.id()))
+                                .cookie(session.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isEmpty());
+        mockMvc.perform(
+                        get(PLANS)
+                                .param("fromEquipmentId", String.valueOf(fromEquipment))
+                                .param("createdByName", "없는 이름")
+                                .cookie(session.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isEmpty());
+        mockMvc.perform(
+                        get(PLANS)
+                                .param("fromEquipmentId", String.valueOf(fromEquipment))
+                                .param("createdByName", "   ")
+                                .cookie(session.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(planId));
+    }
+
+    @Test
+    void treatsCreatorNameWildcardsAsLiteralAndRejectsLongName() throws Exception {
+        LoginSession session = login(planner);
+        mockMvc.perform(
+                        get(PLANS)
+                                .param("fromEquipmentId", String.valueOf(fromEquipment))
+                                .param("createdByName", "%")
+                                .cookie(session.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isEmpty());
+        jdbcClient
+                .sql("update account set display_name = :name where id = :id")
+                .param("name", "담당_%\\special")
+                .param("id", planner.id())
+                .update();
+        mockMvc.perform(
+                        get(PLANS)
+                                .param("fromEquipmentId", String.valueOf(fromEquipment))
+                                .param("createdByName", "_%\\")
+                                .cookie(session.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(planId));
+        mockMvc.perform(
+                        get(PLANS)
+                                .param("createdByName", "가".repeat(101))
+                                .cookie(session.session()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+    }
+
     // ---------------------------------------------------------------- 094·095 상세·항목
 
     @Test
