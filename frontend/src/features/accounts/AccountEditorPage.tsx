@@ -30,11 +30,21 @@ const permissionNames: Record<string, string> = {
   SYNC_SCHEDULE_MANAGE: '수집 일정 관리',
 }
 
+const requiredLabel = 'account-label account-label--required'
+
 function RolePermissions({ roles, code }: { roles: Role[]; code: string }) {
   const selected = roles.find((role) => role.code === code)
   return selected ? (
     <section className="account-permissions text-sm">
-      <h2 className="font-semibold">{selected.name} 권한</h2>
+      <h4>
+        {selected.name} 권한
+        {selected.permissions.length > 0 && (
+          <>
+            {' '}
+            <span>{selected.permissions.length}개</span>
+          </>
+        )}
+      </h4>
       {selected.permissions.length ? (
         <ul className="account-permission-list">
           {selected.permissions.map((permission) => (
@@ -45,7 +55,7 @@ function RolePermissions({ roles, code }: { roles: Role[]; code: string }) {
           ))}
         </ul>
       ) : (
-        <p className="mt-2">등록된 권한 코드가 없습니다.</p>
+        <p>등록된 권한 코드가 없습니다.</p>
       )}
     </section>
   ) : null
@@ -193,124 +203,162 @@ function AccountForm({
     )
   return (
     <form
-      className="management-form management-form--account account-form space-y-5"
+      className="management-form management-form--account account-form"
       onSubmit={(event) => {
         event.preventDefault()
         void submit()
       }}
     >
+      <p className="account-required-note text-sm text-slate-500">
+        <span aria-hidden="true">*</span> 필수 입력
+      </p>
       <fieldset
         disabled={pending || Boolean(blocked)}
-        className="account-editor-grid"
+        className="account-sections"
       >
-        <div className="account-fields">
-          <label className="flex flex-col gap-2 text-sm">
-            로그인 ID
-            <input
-              className="rounded-lg border p-2"
-              value={loginId}
-              onChange={(event) => setLoginId(event.target.value)}
-              disabled={Boolean(original)}
-              maxLength={100}
-              autoComplete="off"
-            />
-          </label>
-          <label className="flex flex-col gap-2 text-sm">
-            표시 이름
-            <input
-              className="rounded-lg border p-2"
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-              maxLength={100}
-            />
-          </label>
-          <label className="flex flex-col gap-2 text-sm">
-            역할
-            <select
-              className="rounded-lg border p-2"
-              value={roleCode}
-              onChange={(event) => {
-                setRoleCode(event.target.value as Account['roleCode'])
-                setAcknowledged(false)
-              }}
-            >
-              <option value="">역할 선택</option>
-              {roles.map((role) => (
-                <option key={role.code} value={role.code}>
-                  {role.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {original ? (
-            <>
+        <section className="account-section">
+          <div className="account-section-heading">
+            <h3>기본 정보</h3>
+          </div>
+          <div className="account-section-body">
+            <div className="account-fields">
               <label className="flex flex-col gap-2 text-sm">
-                계정 상태
-                <select
+                <span className={original ? 'account-label' : requiredLabel}>
+                  로그인 ID
+                </span>
+                <input
                   className="rounded-lg border p-2"
-                  value={status}
-                  onChange={(event) => {
-                    setStatus(event.target.value as Account['status'])
-                    setAcknowledged(false)
-                  }}
-                >
-                  {Object.entries(statusLabels).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                  value={loginId}
+                  onChange={(event) => setLoginId(event.target.value)}
+                  disabled={Boolean(original)}
+                  maxLength={100}
+                  autoComplete="off"
+                  aria-required={!original}
+                />
               </label>
+              <label className="flex flex-col gap-2 text-sm">
+                <span className={requiredLabel}>표시 이름</span>
+                <input
+                  className="rounded-lg border p-2"
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  maxLength={100}
+                  aria-required="true"
+                />
+              </label>
+            </div>
+            {original && (
               <p className="text-sm text-slate-500">
                 {original.mustChangePassword
                   ? '첫 로그인 시 비밀번호 변경 필요'
                   : '비밀번호 설정 완료'}{' '}
                 · 수정 기준 버전 {original.rowVersion}
               </p>
+            )}
+          </div>
+        </section>
+        <section className="account-section">
+          <div className="account-section-heading">
+            <h3>역할과 권한</h3>
+          </div>
+          <div className="account-section-body">
+            <div className="account-fields">
+              <label className="flex flex-col gap-2 text-sm">
+                <span className={requiredLabel}>역할</span>
+                <select
+                  className="rounded-lg border p-2"
+                  value={roleCode}
+                  onChange={(event) => {
+                    setRoleCode(event.target.value as Account['roleCode'])
+                    setAcknowledged(false)
+                  }}
+                  aria-required="true"
+                >
+                  <option value="">역할 선택</option>
+                  {roles.map((role) => (
+                    <option key={role.code} value={role.code}>
+                      {role.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {original && (
+                <label className="flex flex-col gap-2 text-sm">
+                  <span className="account-label">계정 상태</span>
+                  <select
+                    className="rounded-lg border p-2"
+                    value={status}
+                    onChange={(event) => {
+                      setStatus(event.target.value as Account['status'])
+                      setAcknowledged(false)
+                    }}
+                  >
+                    {Object.entries(statusLabels).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
+            {original && (
               <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
                 역할 변경·잠금·비활성화 시 해당 계정의 모든 세션이 종료됩니다.
                 마지막 활성 관리자의 역할·상태 변경은 서버가 거절합니다.
               </p>
-              {selfChange && (
-                <label className="account-self-confirmation flex gap-2 text-sm">
+            )}
+            {selfChange && (
+              <label className="account-self-confirmation flex gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={acknowledged}
+                  onChange={(event) => setAcknowledged(event.target.checked)}
+                />
+                본인 계정 변경 시 현재 세션도 종료되는 것을 확인했습니다.
+              </label>
+            )}
+            <RolePermissions roles={roles} code={roleCode} />
+          </div>
+        </section>
+        {!original && (
+          <section className="account-section">
+            <div className="account-section-heading">
+              <h3>임시 비밀번호</h3>
+              <p className="text-sm text-slate-500">
+                새 계정은 활성 상태이며 첫 로그인 시 비밀번호를 변경합니다.
+              </p>
+            </div>
+            <div className="account-section-body">
+              <div className="account-fields">
+                <label className="flex flex-col gap-2 text-sm">
+                  <span className={requiredLabel}>임시 비밀번호</span>
                   <input
-                    type="checkbox"
-                    checked={acknowledged}
-                    onChange={(event) => setAcknowledged(event.target.checked)}
+                    ref={password}
+                    className="rounded-lg border p-2"
+                    type="password"
+                    autoComplete="new-password"
+                    aria-required="true"
                   />
-                  본인 계정 변경 시 현재 세션도 종료되는 것을 확인했습니다.
                 </label>
-              )}
-            </>
-          ) : (
-            <>
-              <label className="flex flex-col gap-2 text-sm">
-                임시 비밀번호
-                <input
-                  ref={password}
-                  className="rounded-lg border p-2"
-                  type="password"
-                  autoComplete="new-password"
-                />
-              </label>
-              <label className="flex flex-col gap-2 text-sm">
-                임시 비밀번호 확인
-                <input
-                  ref={confirmation}
-                  className="rounded-lg border p-2"
-                  type="password"
-                  autoComplete="new-password"
-                />
-              </label>
+                <label className="flex flex-col gap-2 text-sm">
+                  <span className={requiredLabel}>임시 비밀번호 확인</span>
+                  <input
+                    ref={confirmation}
+                    className="rounded-lg border p-2"
+                    type="password"
+                    autoComplete="new-password"
+                    aria-required="true"
+                  />
+                </label>
+              </div>
               <p className="text-sm text-slate-500">
                 8자 이상·72바이트 이하, 영문·숫자·특수문자를 모두 포함하며
-                로그인 ID와 달라야 합니다. 새 계정은 활성 상태이며 첫 로그인 시
-                비밀번호를 변경합니다.
+                로그인 ID와 달라야 합니다.
               </p>
-            </>
-          )}
-        </div>
-        <RolePermissions roles={roles} code={roleCode} />
+            </div>
+          </section>
+        )}
       </fieldset>
       {error && <ErrorState error={error} />}
       {Boolean(blocked) && (
@@ -324,13 +372,15 @@ function AccountForm({
           </Button>
         </>
       )}
-      <p className="text-sm text-slate-500">
-        통신 오류가 발생하면 자동 재전송하지 않습니다. 목록에서 처리 여부를
-        확인한 뒤 다시 시도하세요.
-      </p>
-      <Button type="submit" pending={pending} disabled={Boolean(blocked)}>
-        {original ? '변경 저장' : '계정 생성'}
-      </Button>
+      <div className="account-form-footer">
+        <p className="text-sm text-slate-500">
+          통신 오류가 발생하면 자동 재전송하지 않습니다. 목록에서 처리 여부를
+          확인한 뒤 다시 시도하세요.
+        </p>
+        <Button type="submit" pending={pending} disabled={Boolean(blocked)}>
+          {original ? '변경 저장' : '계정 생성'}
+        </Button>
+      </div>
     </form>
   )
 }
