@@ -99,24 +99,20 @@
   outline: 2px solid var(--ui-brand);
   outline-offset: -2px;
 }
-.checks-run-heading {
+.checks-run-heading,
+.checks-run-status-heading {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px;
+  grid-template-columns: minmax(0, 1fr) 76px;
+}
+.checks-run-heading {
   align-items: center;
   gap: 8px;
   width: 100%;
 }
-.checks-run-heading > :last-child {
-  justify-self: center;
-  transform: translateX(6px);
-}
-.checks-run-status-heading {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px;
-}
+.checks-run-heading > :last-child,
 .checks-run-status-heading > :last-child {
-  justify-self: center;
-  transform: translateX(6px);
+  justify-self: start;
+  white-space: nowrap;
 }
 .checks-secondary,
 .checks-list-heading > span {
