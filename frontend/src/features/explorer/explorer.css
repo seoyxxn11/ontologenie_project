@@ -794,6 +794,13 @@
   grid-auto-rows: var(--explorer-row-min-height);
   align-content: start;
 }
+.explorer-list .explorer-object-list[data-page-full='true'] {
+  grid-auto-rows: minmax(var(--explorer-row-min-height), 1fr);
+  align-content: stretch;
+}
+.explorer-list .explorer-object-row:last-child {
+  border-bottom: 0;
+}
 .explorer-list .explorer-object-row {
   height: auto;
   display: flex;
@@ -825,6 +832,22 @@
 }
 .explorer-graph {
   height: var(--explorer-graph-height);
+}
+.explorer-detail {
+  display: flex;
+  height: var(--explorer-graph-height);
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+.explorer-detail > .explorer-panel-heading {
+  flex-shrink: 0;
+}
+.explorer-detail > .explorer-detail-body {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
 }
 .explorer-graph > .explorer-panel-heading {
   flex-shrink: 0;

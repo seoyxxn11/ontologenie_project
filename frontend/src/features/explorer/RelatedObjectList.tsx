@@ -137,7 +137,11 @@ function RelatedObjectPage(props: Omit<Props, 'vanished'>) {
   return (
     <section aria-label={`${group.relatedTypeName} 연결 목록`}>
       <ListHeading {...props} total={total} />
-      <div className="explorer-object-list" aria-busy={query.isFetching}>
+      <div
+        className="explorer-object-list"
+        aria-busy={query.isFetching}
+        data-page-full={!query.isError && data?.data.length === pageSize}
+      >
         {query.isError && (
           <ErrorState
             error={query.error}
