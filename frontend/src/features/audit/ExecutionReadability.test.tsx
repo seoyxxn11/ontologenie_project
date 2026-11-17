@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { expect, test, vi } from 'vitest'
@@ -20,13 +20,13 @@ const execution: Execution = {
   changeCount: 0,
   targetLabel: 'P101',
 }
-function mount() {
+function mount(item: Execution = execution, modal = false) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
   render(
     <QueryClientProvider client={client}>
-      <ExecutionDetail execution={execution} />
+      <ExecutionDetail execution={item} modal={modal} />
     </QueryClientProvider>,
   )
   return client
@@ -59,7 +59,8 @@ test('JSON 대신 처리 결과·입력 요약을 먼저 보여주고 기술 JSO
   await userEvent
     .setup()
     .click(screen.getByText('내용 보기', { selector: 'summary' }))
-  expect(await screen.findByText('재배정 계획 생성 · 성공')).toBeVisible()
+  expect(await screen.findByText('재배정 계획 생성')).toBeVisible()
+  expect(screen.getByText('성공')).toBeVisible()
   expect(screen.getByText('재배정 계획 번호')).toBeVisible()
   expect(screen.getByText('501')).toBeVisible()
   expect(screen.getByText('생성됨')).toBeVisible()
@@ -148,4 +149,82 @@ test('수집과 적용 결과의 공통 필드를 미리보기나 검사 결과�
   expect(screen.getByText('결과 요약')).toBeVisible()
   expect(screen.queryByText('미리보기 객체 수')).not.toBeInTheDocument()
   expect(screen.queryByText('검사 집계')).not.toBeInTheDocument()
+})
+
+test('팝업은 중복·내부 값을 빼고 대상 번호를 대상 줄에 합쳐 보여준다', async () => {
+  server.use(
+    http.get('/api/v1/audit/actions/888', () =>
+      HttpResponse.json({
+        data: {
+          id: 888,
+          status: 'SUCCEEDED',
+          input: {
+            rowVersion: 6,
+            syncEnabled: false,
+            dataSourceId: 1,
+            syncIntervalMinutes: null,
+          },
+          result: { dataSourceId: 1 },
+          restrictedPropertyCodes: [],
+          blockedReason: null,
+          failureReason: null,
+        },
+      }),
+    ),
+  )
+  mount(
+    {
+      ...execution,
+      actionName: '원천별 수집 주기 설정',
+      actorName: '홍길동',
+      targetType: 'data_source',
+      targetId: 1,
+      targetLabel: 'ERP 운영 DB',
+    },
+    true,
+  )
+  await userEvent
+    .setup()
+    .click(screen.getByRole('button', { name: '내용 보기' }))
+  const dialog = within(
+    await screen.findByRole('dialog', { name: '원천별 수집 주기 설정' }),
+  )
+  expect(await dialog.findByText('자동 수집 사용')).toBeVisible()
+  expect(dialog.getByText('아니요')).toBeVisible()
+  expect(dialog.getByText('수집 주기(분)')).toBeVisible()
+  expect(dialog.getByText('값 없음')).toBeVisible()
+  expect(dialog.getByText('ERP 운영 DB')).toBeVisible()
+  expect(dialog.getByText('· 원천 번호 1')).toBeVisible()
+  expect(dialog.getByText('홍길동')).toBeVisible()
+  expect(dialog.getByText('기록된 변경 없음')).toBeVisible()
+  expect(dialog.queryByText('처리 결과')).not.toBeInTheDocument()
+  expect(dialog.queryByText('rowVersion')).not.toBeInTheDocument()
+  expect(dialog.queryByText('원천 번호')).not.toBeInTheDocument()
+  expect(dialog.getByText(/"rowVersion": 6/)).not.toBeVisible()
+})
+
+test('진행 중인 기록은 처리 결과 칸 없이 진행 안내와 입력 내용을 보여준다', async () => {
+  server.use(
+    http.get('/api/v1/audit/actions/888', () =>
+      HttpResponse.json({
+        data: {
+          ...response('RUNNING'),
+          input: { workOrderNo: 'W'.repeat(200) },
+          result: null,
+        },
+      }),
+    ),
+  )
+  mount({ ...execution, status: 'RUNNING' })
+  await userEvent
+    .setup()
+    .click(screen.getByText('내용 보기', { selector: 'summary' }))
+  expect(
+    await screen.findByText('진행 중입니다. 완료된 처리 결과가 아직 없습니다.'),
+  ).toBeVisible()
+  expect(screen.getByText('진행 중')).toBeVisible()
+  expect(screen.queryByText('처리 결과')).not.toBeInTheDocument()
+  expect(
+    screen.getByText('W'.repeat(200)).closest('.audit-values'),
+  ).not.toBeNull()
 })

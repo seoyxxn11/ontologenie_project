@@ -268,13 +268,9 @@ test('상세를 닫으면 검색 입력과 목록을 유지하고 호출 버튼�
   const trigger = screen.getAllByRole('button', { name: '내용 보기' })[0]
   await user.click(trigger)
   const dialog = await screen.findByRole('dialog')
-  expect(await within(dialog).findByText('데이터 수집 · 성공')).toBeVisible()
-  const inputToggle = within(dialog).getByText('입력값', {
-    selector: 'summary',
-  })
-  expect(inputToggle.closest('details')).not.toHaveAttribute('open')
+  expect(dialog).toHaveAccessibleName('데이터 수집')
+  expect(await within(dialog).findByText('입력한 내용')).toBeVisible()
   expect(within(dialog).getByText('처리 결과')).toBeVisible()
-  await user.click(inputToggle)
   expect(within(dialog).getByText('MES')).toBeVisible()
   await user.keyboard('{Escape}')
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

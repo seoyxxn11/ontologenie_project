@@ -40,3 +40,24 @@ export const changeKindLabels: Record<EntityChange['changeKind'], string> = {
   UPDATE: '수정',
   DELETE: '삭제',
 }
+
+export const executionTones = {
+  RUNNING: 'active',
+  SUCCEEDED: 'success',
+  BLOCKED: 'warning',
+  FAILED: 'error',
+} as const
+
+// 대상 종류와 번호. 객체 이력이면 객체 이름을, 내 이력이면 이 글자를 굵게 쓴다.
+export function targetText(execution: Execution) {
+  if (!execution.targetType) {
+    return '-'
+  }
+  const kind =
+    execution.targetType === 'object_instance'
+      ? '객체'
+      : execution.targetType === 'source_resource'
+        ? '원천 표'
+        : execution.targetType
+  return `${kind} #${execution.targetId}`
+}

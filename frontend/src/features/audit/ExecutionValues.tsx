@@ -1,51 +1,5 @@
-const labels: Record<string, string> = {
-  planId: '재배정 계획 번호',
-  itemCount: '계획 항목 수',
-  proposalCount: '생성 제안 수',
-  targetCount: '분석 대상 수',
-  rowCount: '표본 행 수',
-  objects: '객체 수',
-  rowErrors: '행 오류 수',
-  collected: '수집 건수',
-  updated: '수정 여부',
-  workOrderNo: '작업지시 번호',
-  toEquipment: '도착 설비',
-  equipmentCode: '설비 코드',
-  fromEquipmentId: '출발 설비 번호',
-  toEquipmentId: '도착 설비 번호',
-  workOrderId: '작업지시 객체 번호',
-  sourceName: '원천 이름',
-  name: '이름',
-  decision: '검토 결정',
-  reason: '사유',
-  status: '처리 상태',
-  joined: '기존 작업 합류',
-  revision: '개정 번호',
-  linkMappingId: '연결 매핑 번호',
-  checkRunId: '검사 실행 번호',
-  dataSourceId: '원천 번호',
-  accountId: '계정 번호',
-  actionDefinitionId: '실행 정의 번호',
-  proposalItemId: '제안 항목 번호',
-  summary: '결과 요약',
-  errorCode: '오류 코드',
-  connectionStatus: '연결 상태',
-  message: '안내',
-}
-const states: Record<string, string> = {
-  QUEUED: '대기',
-  RUNNING: '진행 중',
-  SUCCEEDED: '성공',
-  COMPLETED: '완료',
-  FAILED: '실패',
-  BLOCKED: '차단',
-  PASSED: '검사 통과',
-  APPROVE: '승인',
-  REJECT: '반려',
-  APPROVED: '승인됨',
-  REJECTED: '반려됨',
-  CREATED: '생성됨',
-}
+import './executionDetail.css'
+import { valueLabels, valueStates } from './valueLabels'
 
 function Value({
   value,
@@ -67,8 +21,8 @@ function Value({
         {!value.trim()
           ? '빈 문자열'
           : ['status', 'decision', 'connectionStatus'].includes(code) &&
-              Object.hasOwn(states, value)
-            ? states[value]
+              Object.hasOwn(valueStates, value)
+            ? valueStates[value]
             : value}
       </>
     )
@@ -119,15 +73,14 @@ export default function ExecutionValues({
   depth?: number
 }) {
   const entries = Object.entries(values ?? {})
-  if (!entries.length) return <p>기록된 항목 없음</p>
+  if (!entries.length)
+    return <p className="audit-values-empty">기록된 항목 없음</p>
   return (
-    <dl className="space-y-2 text-sm">
+    <dl className="audit-values">
       {entries.slice(0, 20).map(([code, value]) => (
-        <div key={code} className="[overflow-wrap:anywhere]">
-          <dt className="font-medium text-slate-600">
-            {Object.hasOwn(labels, code) ? labels[code] : code}
-          </dt>
-          <dd className="mt-1 pl-3 text-slate-900">
+        <div key={code}>
+          <dt>{Object.hasOwn(valueLabels, code) ? valueLabels[code] : code}</dt>
+          <dd>
             <Value
               value={value}
               code={code}
