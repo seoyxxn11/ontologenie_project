@@ -19,7 +19,7 @@ import org.springframework.stereotype.Repository;
 public class DataScopeRepository {
 
     /**
-     * 그룹이 없는(미분류) 유형을 허용 행과 맞출 때 쓰는 예약 이름(S15P31C106-384 보완). 이 이름의 허용 행을 가진 역할만 미분류 유형을 본다(V28:
+     * 그룹이 없는(미분류) 유형을 허용 행과 맞출 때 쓰는 예약 이름(S15P31C106-384 보완). 이 이름의 허용 행을 가진 역할만 미분류 유형을 본다(V29:
      * ADMIN). 유형의 그룹으로는 받을 수 없다({@code ObjectTypeService}가 거절한다).
      */
     public static final String UNCLASSIFIED_GROUP = "UNCLASSIFIED";

@@ -131,7 +131,7 @@ class ExposureMatrixTests {
                     .as(role + " 076 검색")
                     .doesNotContain(UNGROUPED);
         }
-        // 미분류 유형은 관리자에게만 보인다. 그룹을 정하는 사람이 값을 보고 검토한 뒤 공개한다(384 보완, V28).
+        // 미분류 유형은 관리자에게만 보인다. 그룹을 정하는 사람이 값을 보고 검토한 뒤 공개한다(384 보완, V29).
         Cookie admin = login(account("ADMIN"));
         mockMvc.perform(get("/api/v1/objects/" + hiddenId).cookie(admin))
                 .andExpect(status().isOk());
