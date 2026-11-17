@@ -414,11 +414,13 @@
   display: flex;
   align-items: flex-start;
   gap: 8px 12px;
-  margin-bottom: 8px;
+  margin-bottom: 16px;
 }
 .agent-shortcut-label {
+  display: flex;
+  min-height: 40px;
   flex-shrink: 0;
-  padding: 8px 0;
+  align-items: center;
   color: var(--ui-text-secondary);
   font-size: 14px;
   line-height: 21px;
@@ -450,18 +452,21 @@
 .agent-saved-question {
   display: flex;
   max-width: 100%;
+  border-radius: 20px;
   background: var(--ui-surface-subtle);
 }
 .agent-saved-question-pick {
   min-width: 0;
-  padding: 6px 4px 6px 12px;
+  padding: 6px 4px 6px 16px;
+  border-radius: 20px 0 0 20px;
   overflow-wrap: anywhere;
   text-align: left;
 }
 .agent-saved-question-remove {
-  min-width: 32px;
+  min-width: 36px;
   flex-shrink: 0;
-  padding: 6px;
+  padding: 6px 10px 6px 6px;
+  border-radius: 0 20px 20px 0;
 }
 .agent-shortcut-button:hover:not(:disabled),
 .agent-saved-question :is(button):hover:not(:disabled) {
