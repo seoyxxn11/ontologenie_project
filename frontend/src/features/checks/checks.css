@@ -101,22 +101,22 @@
 }
 .checks-run-heading {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   width: 100%;
 }
 .checks-run-heading > :last-child {
-  justify-self: center;
-  transform: translateX(6px);
+  justify-self: end;
+  white-space: nowrap;
 }
 .checks-run-status-heading {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px;
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 .checks-run-status-heading > :last-child {
-  justify-self: center;
-  transform: translateX(6px);
+  justify-self: end;
+  white-space: nowrap;
 }
 .checks-secondary,
 .checks-list-heading > span {
