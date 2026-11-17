@@ -17,6 +17,7 @@ import {
   syncStatusNotices,
 } from './labels'
 import type { AgentMessage, AgentResult } from './types'
+import remarkKoreanStrong from './remarkKoreanStrong'
 
 // 실행 이력 도구의 결과면 그 객체의 실행 이력으로도 이동한다(080).
 const EXECUTION_TOOL_CODE = 'OBJECT_EXECUTIONS'
@@ -25,6 +26,7 @@ const EXECUTION_TOOL_CODE = 'OBJECT_EXECUTIONS'
 // 취소선으로 그어지지 않게 하기 위해서다.
 const answerPlugins: Options['remarkPlugins'] = [
   [remarkGfm, { singleTilde: false }],
+  remarkKoreanStrong,
 ]
 
 // AI 답변은 마크다운으로 온다. Tailwind가 목록 기호 같은 기본 모양을 지우므로 태그마다 모양을 정한다.
