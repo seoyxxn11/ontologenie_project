@@ -3,7 +3,7 @@ import Button from '../../components/Button'
 import DataTable from '../../components/DataTable'
 import { LoadingState, EmptyState, ErrorState } from '../../components/Feedback'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import Pagination from '../../components/Pagination'
 import { startOfDay, startOfNextDay } from '../audit/dateRange'
 import EntityChangeTable from '../audit/EntityChangeTable'
@@ -34,6 +34,7 @@ function DefinitionChanges() {
   const [formError, setFormError] = useState('')
   const [filters, setFilters] = useState<DefinitionChangeFilters>({})
   const [page, setPage] = useState(0)
+  const [openIds, setOpenIds] = useState<number[]>([])
   const {
     data: changePage,
     isPending,
@@ -46,18 +47,34 @@ function DefinitionChanges() {
     placeholderData: keepPreviousData,
   })
 
+  function toggle(id: number) {
+    setOpenIds((ids) =>
+      ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id],
+    )
+  }
+
   function search() {
     if (fromDate && toDate && fromDate > toDate) {
       setFormError('종료일은 시작일 이후로 선택해 주세요.')
       return
     }
     setFormError('')
-    setFilters({
+    const next: DefinitionChangeFilters = {
       tableName: tableName || undefined,
       from: fromDate ? startOfDay(fromDate) : undefined,
       to: toDate ? startOfNextDay(toDate) : undefined,
-    })
-    setPage(0)
+    }
+    const sameList =
+      page === 0 &&
+      next.tableName === filters.tableName &&
+      next.from === filters.from &&
+      next.to === filters.to
+    // 같은 조건으로 다시 검색하면 목록이 그대로라 펼쳐 둔 기록을 유지한다.
+    if (sameList) {
+      return
+    }
+    setFilters(next)
+    movePage(0)
   }
 
   function reset() {
@@ -66,7 +83,13 @@ function DefinitionChanges() {
     setTableName('')
     setFormError('')
     setFilters({})
-    setPage(0)
+    movePage(0)
+  }
+
+  // 목록이 바뀌면 펼쳐 둔 기록을 모두 접는다.
+  function movePage(next: number) {
+    setPage(next)
+    setOpenIds([])
   }
 
   const totalCount = changePage?.meta?.totalElements ?? changePage?.data.length
@@ -88,45 +111,63 @@ function DefinitionChanges() {
   } else {
     content = (
       <DataTable label="정의 변경 이력" className="table-fixed min-w-[640px]">
-        <thead className="bg-slate-50 text-sm text-slate-500">
+        <thead>
           <tr>
-            <th className="w-[22%] px-3 py-2 font-normal">시각·실행자</th>
-            <th className="w-[26%] px-3 py-2 font-normal">대상</th>
-            <th className="w-[16%] px-3 py-2 font-normal">변경</th>
-            <th className="px-3 py-2 font-normal">변경 전후</th>
+            <th className="w-[28%]">시각·실행자</th>
+            <th className="w-[28%]">대상</th>
+            <th>변경</th>
+            <th className="w-[132px] text-right">변경 전후</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 align-top">
-          {changePage.data.map((change) => (
-            <tr key={change.id}>
-              <td className="px-3 py-3">
-                <p>{formatKstDateTime(change.requestedAt)}</p>
-                <p className="text-sm text-slate-500">{actorLabel(change)}</p>
-              </td>
-              <td className="px-3 py-3">
-                <p>{tableLabel(change.tableName)}</p>
-                <p className="font-semibold">
-                  {formatSourceKey(change.rowKey)}
-                </p>
-              </td>
-              <td className="px-3 py-3">
-                <p className="font-semibold">
-                  {changeKindLabels[change.changeKind]}
-                </p>
-                <p className="break-all text-sm text-slate-500">
-                  {change.actionCode ?? '-'}
-                </p>
-              </td>
-              <td className="px-3 py-3 text-sm">
-                <details>
-                  <summary className="cursor-pointer text-slate-500">
-                    내용 보기
-                  </summary>
-                  <EntityChangeTable change={change} />
-                </details>
-              </td>
-            </tr>
-          ))}
+        <tbody>
+          {changePage.data.map((change) => {
+            const open = openIds.includes(change.id)
+            const detailId = `definition-change-${change.id}`
+            return (
+              <Fragment key={change.id}>
+                <tr>
+                  <td>
+                    <p>{formatKstDateTime(change.requestedAt)}</p>
+                    <p className="text-sm text-slate-500">
+                      {actorLabel(change)}
+                    </p>
+                  </td>
+                  <td>
+                    <p>{tableLabel(change.tableName)}</p>
+                    <p className="font-semibold">
+                      {formatSourceKey(change.rowKey)}
+                    </p>
+                  </td>
+                  <td>
+                    <p className="font-semibold">
+                      {changeKindLabels[change.changeKind]}
+                    </p>
+                    <p className="break-all text-sm text-slate-500">
+                      {change.actionCode ?? '-'}
+                    </p>
+                  </td>
+                  <td className="text-right">
+                    <Button
+                      variant="secondary"
+                      className="whitespace-nowrap"
+                      aria-expanded={open}
+                      aria-controls={open ? detailId : undefined}
+                      onClick={() => toggle(change.id)}
+                    >
+                      {open ? '내용 접기' : '내용 보기'}
+                    </Button>
+                  </td>
+                </tr>
+                {open && (
+                  <tr id={detailId}>
+                    <td colSpan={4} className="bg-[var(--ui-surface)]">
+                      <EntityChangeTable change={change} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            )
+          })}
         </tbody>
       </DataTable>
     )
@@ -198,7 +239,7 @@ function DefinitionChanges() {
             page={page}
             size={DEFINITION_CHANGE_PAGE_SIZE}
             totalElements={totalCount ?? 0}
-            onChange={setPage}
+            onChange={movePage}
           />
         </div>
       )}
