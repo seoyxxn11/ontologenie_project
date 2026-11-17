@@ -34,7 +34,10 @@ function EvidenceDialog({ object, onClose }: EvidenceDialogProps) {
       <section className="mt-6 text-sm">
         <h3 className="font-semibold text-slate-900">연결 근거</h3>
         <div className="mt-2">
-          <ObjectLinks objectId={object.id} />
+          <ObjectLinks
+            objectId={object.id}
+            objectTypeName={object.objectTypeName}
+          />
         </div>
       </section>
     </Dialog>
