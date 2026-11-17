@@ -116,3 +116,19 @@
 - 백엔드는 검증된 수정 커밋과 파일 내용이 동일함을 확인했다. 동일 코드의 전체 build 결과(2,052건 통과·38건 조건부 건너뜀)를 재사용하며 테스트를 중복 실행하지 않았다.
 - 별도 서브에이전트가 origin/develop 대비 최종 작업 트리 26파일과 관련 호출부·테스트를 읽기 전용으로 리뷰했다. 최종 Critical 0 / Major 0 / Minor 0. 최초 Minor 1건(병합 테스트의 빈 줄)은 수정 후 재확인됐다. 리뷰어는 별도 테스트나 외부 호출을 실행하지 않았다. 사람의 리뷰·승인을 대신하지 않는다.
 - 병합 완료 전 최신 fetch에서 target이 같은 `1fb79dbe`임을 재확인했으며 충돌 마커·미해결 파일 없이 diff 검사를 통과했다. Push·MR 생성 결과는 최종 답변과 MR 본문에서 보고한다. SonarQube 재분석과 원격 CI 결과는 아직 확인하지 않았다.
+
+## 후속: 백엔드 건수 추출 정규식 2건
+
+- 최신 `origin/develop`의 `f30bb768`에서 `fix/backend-sonar-counts` 브랜치를 만들었다.
+- SonarQube 새 코드 미해결 목록에서 `AgentScenarioGmsTests.java`의 `java:S8786` 2건을 확인했다. 이슈 ID는 `87c28de5-5f1b-4453-a1bf-0de6d3718f4e`(178행), `d0fcf3e7-644b-4dcb-ab48-7b7fcccbaf64`(180행)다. 앞선 소유 수량자 수정 뒤에도 남아 있는 지적이다.
+- 건수 추출 정규식 2개를 제거하고 테스트 보조 클래스 `AgentScenarioAnswerCounts`에서 ASCII 숫자 묶음을 한 번씩 순회한다. `N건 중 M건`의 M을 우선하고, 없으면 처음 나온 `N건`을 선택한다. 기존의 한 칸 공백 허용 범위와 실제 나열된 비가동 번호 수 비교를 유지했다.
+- 관련 검증: `backend/`에서 `gradlew.bat spotlessApply test --tests 'com.axcore.platform.agent.service.AgentScenarioAnswerCountsTests' --tests 'com.axcore.platform.agent.service.AgentScenarioGmsTests'` 성공. 건수 추출 회귀 24건 통과(각 100,000자리 숫자 묶음을 포함한 긴 입력 포함), 실제 GMS 시나리오 20건은 기존 환경 변수 조건에 따라 건너뛰었다.
+- develop `f30bb768` 기준 전체 검증: `backend/`에서 `gradlew.bat build` 성공(2026-11-17 22:50 KST, 5분 11초). JUnit XML 225파일 합계 2,114건 중 2,076건 통과, 실패·오류 0건, 기존 조건부 건너뜀 38건. 포맷 검사도 통과했다. 실제 GMS 35건, 로컬 스냅샷 마이그레이션·브라우저 E2E·CDC 처리량 측정 각 1건의 실행 조건을 유지했다.
+- SonarQube 재분석은 실행하지 않았으며 서버의 이슈 해소 여부는 코드 반영 후 확인해야 한다. 이슈 상태 변경이나 경고 억제는 하지 않았다.
+- 사용자 후속 요청으로 Commit·Push·develop 대상 MR 생성 범위가 승인됐다. 최신 `origin/develop=82e826e052ec66001e6b477ee7cb44663ffc93a1`을 fast-forward로 반영했으며 Git 충돌은 없었다.
+- 최신 develop 반영 후 `gradlew.bat spotlessApply build`는 컴파일·포맷 검사를 통과했으나 전체 테스트에서 실패했다(2026-11-17 23:01 KST, 3분 35초). JUnit XML 합계 2,120건 중 810건 통과, 1,272건 실패, 오류 0건, 조건부 건너뜀 38건이다. 이번 건수 추출 회귀 24건은 모두 통과했다.
+- 실패의 최초 원인은 `Found more than one migration with version 28`이다. Target develop 자체에 `V28__allow_admin_unclassified_types.sql`과 `V28__remove_approved_reassignment_test_plans.sql`이 함께 존재해 Flyway 초기화와 다수의 DB 테스트가 실패한다. `git ls-tree origin/develop`으로 Target에도 두 파일이 있음을 확인했다. 이번 수정에는 migration 변경이 없으며, 이 별도 문제를 임의로 수정하거나 테스트를 건너뛰지 않았다. 앞선 전체 성공 결과는 최신 develop 반영 후 성공 근거가 아니다.
+- 별도 서브에이전트가 Target 대비 변경 4파일과 관련 호출부·테스트를 읽기 전용으로 리뷰했다. Critical 0 / Major 0 / Minor 0. 중복 V28은 Target의 별도 빌드 차단 문제로 구분했다. 실제 GMS·SonarQube 재분석을 확인하지 않았으며 사람의 리뷰·승인을 대신하지 않는다.
+- 재시도: 최신 `origin/develop=bf1cd022`의 V29 번호 수정(`b77297c8`)을 병합 커밋 `2c4b16cb`로 반영했다. Git 충돌은 없었으며 V28·V29가 각각 하나씩 존재한다.
+- 재시도 최종 검증: `backend/`에서 `gradlew.bat clean build` 성공(2026-11-17 23:57 KST, 6분 57초). JUnit XML 225파일 합계 2,120건 중 2,082건 통과, 실패·오류 0건, 기존 조건부 건너뜀 38건. 건수 추출 회귀 24건과 컴파일·포맷 검사도 통과했다. 이전 산출물을 제거한 상태에서 검증했다.
+- 새 Target `bf1cd022` 대비 4파일을 별도 서브에이전트가 재리뷰했으며 Critical 0 / Major 0 / Minor 0이다. 리뷰어는 테스트를 재실행하지 않았다. 기존 Jenkins #699도 810건 통과·1,272건 실패·38건 건너뜀과 Flyway 초기화 오류를 보여 이전 실패와 일치했다.
