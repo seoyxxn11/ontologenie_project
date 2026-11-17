@@ -396,7 +396,14 @@
   margin-inline-start: -17px;
   text-underline-offset: 3px;
 }
-.agent-actions .agent-plan-toggle:is(:hover, :active):not(:disabled) {
+.agent-actions .agent-plan-link {
+  /* 앞 버튼의 오른쪽 여백(17px)이 두 글자 사이 간격이 되도록 왼쪽 패딩과 테두리 폭을 없앤다. */
+  margin-inline-start: -1px;
+  padding-inline-start: 0;
+  text-underline-offset: 3px;
+}
+.agent-actions
+  :is(.agent-plan-toggle, .agent-plan-link):is(:hover, :active):not(:disabled) {
   background: transparent;
   text-decoration: underline;
 }

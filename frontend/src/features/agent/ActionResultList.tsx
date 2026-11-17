@@ -83,7 +83,7 @@ function ActionResultList({ actions }: { actions: AgentAction[] }) {
               )}
               {planId !== null && (
                 <Link
-                  className="agent-plan-toggle text-sm underline"
+                  className="ui-button ui-button--text agent-plan-link"
                   to={`/explorer/plans?plan=${planId}`}
                 >
                   계획 목록 보기
