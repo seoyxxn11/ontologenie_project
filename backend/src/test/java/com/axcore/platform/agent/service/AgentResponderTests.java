@@ -230,7 +230,9 @@ class AgentResponderTests {
                 .contains("모델 요약 결과에 그 이름의 유형이")
                 .contains("직접 연결된 관계는 없다고 말한다")
                 .contains("목록 질문(\"종류 전체\"가 있고 종류의 뜻·관계를 묻지 않음)")
-                .contains("종류의 뜻·관계를 물을 때만 부른다");
+                .contains("종류의 뜻·관계를 물을 때")
+                .contains("진행 질문에서 현재 상태와 과거 실적을 구별할 유형 설명이")
+                .contains("필요할 때 부른다. 이미 정의를 받았으면 다시 부르지 않는다");
     }
 
     @Test

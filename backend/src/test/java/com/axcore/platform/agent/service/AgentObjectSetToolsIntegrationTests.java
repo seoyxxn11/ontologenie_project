@@ -619,10 +619,15 @@ class AgentObjectSetToolsIntegrationTests {
         assertThat(one).containsEntry("chosenPathIndex", 2);
         assertThat((List<?>) one.get("paths")).hasSize(1);
 
-        tools.find(List.of(p103), tag + "-order", null, null, null, null, null);
+        for (int attempt = 3; attempt <= 5; attempt++) {
+            assertThat(tools.find(List.of(p103), tag + "-order", null, null, null, null, null))
+                    .as("목표 유형 찾기의 %s번째 성공 호출을 허용한다", attempt)
+                    .doesNotContainKey("error")
+                    .containsKey("data");
+        }
         assertThat(tools.find(List.of(p103), tag + "-order", null, null, null, null, null))
-                .as("한 답변에서 목표 유형 찾기는 3번까지")
-                .hasEntrySatisfying("error", error -> assertThat((String) error).contains("3번까지"));
+                .as("한 답변에서 목표 유형 찾기는 5번까지")
+                .hasEntrySatisfying("error", error -> assertThat((String) error).contains("5번까지"));
     }
 
     @Test
