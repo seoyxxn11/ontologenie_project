@@ -59,11 +59,21 @@ function DefinitionChanges() {
       return
     }
     setFormError('')
-    setFilters({
+    const next: DefinitionChangeFilters = {
       tableName: tableName || undefined,
       from: fromDate ? startOfDay(fromDate) : undefined,
       to: toDate ? startOfNextDay(toDate) : undefined,
-    })
+    }
+    const sameList =
+      page === 0 &&
+      next.tableName === filters.tableName &&
+      next.from === filters.from &&
+      next.to === filters.to
+    // 같은 조건으로 다시 검색하면 목록이 그대로라 펼쳐 둔 기록을 유지한다.
+    if (sameList) {
+      return
+    }
+    setFilters(next)
     movePage(0)
   }
 
@@ -101,35 +111,34 @@ function DefinitionChanges() {
   } else {
     content = (
       <DataTable label="정의 변경 이력" className="table-fixed min-w-[640px]">
-        <thead className="bg-slate-50 text-sm text-slate-500">
+        <thead>
           <tr>
-            <th className="w-[28%] px-3 py-2 font-normal">시각·실행자</th>
-            <th className="w-[28%] px-3 py-2 font-normal">대상</th>
-            <th className="px-3 py-2 font-normal">변경</th>
-            <th className="w-[132px] px-3 py-2 text-right font-normal">
-              변경 전후
-            </th>
+            <th className="w-[28%]">시각·실행자</th>
+            <th className="w-[28%]">대상</th>
+            <th>변경</th>
+            <th className="w-[132px] text-right">변경 전후</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 align-top">
+        <tbody>
           {changePage.data.map((change) => {
             const open = openIds.includes(change.id)
+            const detailId = `definition-change-${change.id}`
             return (
               <Fragment key={change.id}>
                 <tr>
-                  <td className="px-3 py-3">
+                  <td>
                     <p>{formatKstDateTime(change.requestedAt)}</p>
                     <p className="text-sm text-slate-500">
                       {actorLabel(change)}
                     </p>
                   </td>
-                  <td className="px-3 py-3">
+                  <td>
                     <p>{tableLabel(change.tableName)}</p>
                     <p className="font-semibold">
                       {formatSourceKey(change.rowKey)}
                     </p>
                   </td>
-                  <td className="px-3 py-3">
+                  <td>
                     <p className="font-semibold">
                       {changeKindLabels[change.changeKind]}
                     </p>
@@ -137,10 +146,12 @@ function DefinitionChanges() {
                       {change.actionCode ?? '-'}
                     </p>
                   </td>
-                  <td className="px-3 py-3 text-right">
+                  <td className="text-right">
                     <Button
                       variant="secondary"
+                      className="whitespace-nowrap"
                       aria-expanded={open}
+                      aria-controls={open ? detailId : undefined}
                       onClick={() => toggle(change.id)}
                     >
                       {open ? '내용 접기' : '내용 보기'}
@@ -148,8 +159,8 @@ function DefinitionChanges() {
                   </td>
                 </tr>
                 {open && (
-                  <tr>
-                    <td colSpan={4} className="bg-slate-50 px-3 pb-4 pt-1">
+                  <tr id={detailId}>
+                    <td colSpan={4} className="bg-[var(--ui-surface)]">
                       <EntityChangeTable change={change} />
                     </td>
                   </tr>
