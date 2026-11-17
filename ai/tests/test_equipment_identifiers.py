@@ -17,6 +17,12 @@ ROWS = [
     [
         ("3호기", None, 3),
         ("프레스 1 - 3 호", 1, 3),
+        ("1-2-3호", 2, 3),
+        ("1 - x 2 - 4호", 2, 4),
+        ("9라인 8호 뒤 2-3호", 2, 3),
+        ("１２\u2003-\n０３\t호기", 12, 3),
+        ("1-\u200b3호", None, 3),
+        ("1-2호 3-4호", 1, 2),
         ("설비 001\t라인 03\n호기", 1, 3),
         ("１라인 ３호기", 1, 3),
         ("1" + " " * 2000 + "라인 3" + " " * 2000 + "호", 1, 3),
@@ -25,6 +31,13 @@ ROWS = [
 def test_equipment_numbers_keep_spacing_and_unicode_support(text, line, unit):
     mention = parse(text, set())
     assert (mention.line, mention.unit) == (line, unit)
+
+
+def test_equipment_words_remove_every_combined_line_unit_mention():
+    equipment = load_equipment(
+        [{"code": "TEST", "name": "프레스1-3호절곡기 2-4호용접기"}]
+    )
+    assert equipment[0].words == {"프레스", "절곡기", "용접기"}
 
 
 def test_equipment_linking_keeps_every_candidate():
