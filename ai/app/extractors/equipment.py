@@ -4,6 +4,7 @@
 """
 
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 
 from app.models.extraction import Resolution, ResolutionStatus
@@ -11,7 +12,7 @@ from app.models.extraction import Resolution, ResolutionStatus
 # 숫자열 중간에서 다시 검색하지 않고 숫자·공백을 되돌리지 않는다(Python 3.11+).
 LINE = re.compile(r"(?<!\d)(\d++)\s*+라인")
 UNIT = re.compile(r"(?<!\d)(\d++)\s*+호")
-LINE_UNIT = re.compile(r"(?<!\d)(\d++)\s*+-\s*+(\d++)\s*+호")
+LINE_UNIT_PREFIX = re.compile(r"(?<!\d)(\d++)\s*+-")
 
 
 @dataclass
@@ -32,8 +33,24 @@ class Mention:
     words: set[str] = field(default_factory=set)
 
 
+def _line_units(text: str) -> Iterator[tuple[re.Match[str], re.Match[str]]]:
+    for line in LINE_UNIT_PREFIX.finditer(text):
+        unit_start = line.end()
+        while unit_start < len(text) and text[unit_start].isspace():
+            unit_start += 1
+        unit = UNIT.match(text, unit_start)
+        if unit:
+            yield line, unit
+
+
 def _words(name: str) -> set[str]:
-    rest = LINE_UNIT.sub(" ", name)
+    parts = []
+    start = 0
+    for line, unit in _line_units(name):
+        parts.append(name[start : line.start()])
+        start = unit.end()
+    parts.append(name[start:])
+    rest = " ".join(parts)
     rest = LINE.sub(" ", rest)
     rest = UNIT.sub(" ", rest)
     return {w for w in rest.split() if re.fullmatch(r"[가-힣]{2,}", w)}
@@ -59,9 +76,10 @@ def load_equipment(rows: list[dict]) -> list[Equipment]:
 
 def parse(text: str, vocabulary: set[str]) -> Mention:
     m = Mention()
-    both = LINE_UNIT.search(text)
+    both = next(_line_units(text), None)
     if both:
-        m.line, m.unit = int(both.group(1)), int(both.group(2))
+        line, unit = both
+        m.line, m.unit = int(line.group(1)), int(unit.group(1))
     else:
         line, unit = LINE.search(text), UNIT.search(text)
         m.line = int(line.group(1)) if line else None

@@ -7,14 +7,21 @@ from pathlib import Path
 
 def test_long_nonmatching_text_does_not_trigger_backtracking():
     script = """
-from app.extractors.equipment import LINE, UNIT, LINE_UNIT
+from app.extractors.equipment import LINE, UNIT, parse
 from app.extractors.notes import HOUR
 from app.llm.client import _strip_fence
 
 digits = '1' * 100_000 + '!'
-for pattern in (LINE, UNIT, LINE_UNIT):
+for pattern in (LINE, UNIT):
     assert pattern.search(digits) is None
-assert LINE_UNIT.search('1-' + ' ' * 100_000 + '!') is None
+for text in (
+    digits,
+    '1-' + ' ' * 100_000 + '!',
+    '1-' + '1' * 100_000 + '!',
+    '1- ' * 50_000 + '!',
+):
+    mention = parse(text, set())
+    assert (mention.line, mention.unit) == (None, None)
 assert HOUR.search(' ' * 100_000 + '!') is None
 assert HOUR.search('오후 ' + ' ' * 100_000 + '!') is None
 unfinished = '```' + ' ' * 100_000

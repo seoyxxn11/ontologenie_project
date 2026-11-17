@@ -3,7 +3,7 @@ from datetime import datetime
 import pytest
 
 from app.dataset.build import generate
-from app.extractors.equipment import LINE, LINE_UNIT, UNIT, load_equipment, parse
+from app.extractors.equipment import LINE, UNIT, load_equipment, parse
 from app.extractors.notes import (
     HOUR,
     Document,
@@ -37,8 +37,11 @@ def test_equipment_patterns_preserve_numbers_whitespace_and_groups():
 
 
 def test_equipment_patterns_handle_long_nonmatching_numbers():
-    for pattern in (LINE, UNIT, LINE_UNIT):
-        assert pattern.search("1" * 30_000 + " " * 30_000 + "!") is None
+    text = "1" * 30_000 + " " * 30_000 + "!"
+    for pattern in (LINE, UNIT):
+        assert pattern.search(text) is None
+    mention = parse(text, set())
+    assert (mention.line, mention.unit) == (None, None)
 
 
 def test_hour_pattern_preserves_prefix_and_excludes_durations():
