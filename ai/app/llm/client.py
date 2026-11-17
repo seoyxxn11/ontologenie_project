@@ -1,7 +1,6 @@
 import copy
 import http.client
 import json
-import re
 import urllib.error
 import urllib.request
 from collections.abc import Callable
@@ -190,8 +189,12 @@ class ChatLLMClient(_HttpLLMClient):
 
 def _strip_fence(text: str) -> str:
     """JSON 형식 지정을 무시하는 모델이 ```json ... ``` 로 감싸 보내는 경우를 벗긴다."""
-    match = re.fullmatch(r"\s*```(?:json)?\s*(.*?)\s*```\s*", text, re.DOTALL)
-    return match.group(1) if match else text
+    stripped = text.strip()
+    if len(stripped) < 6 or not (
+        stripped.startswith("```") and stripped.endswith("```")
+    ):
+        return text
+    return stripped[3:-3].removeprefix("json").strip()
 
 
 def _post_json(url: str, headers: dict, body: dict, timeout: float) -> dict:

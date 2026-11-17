@@ -28,6 +28,27 @@ ROWS = [
 ]
 
 
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("오후 3시", "2026-10-29T15:00:00"),
+        ("오후" + " " * 2000 + "3시", "2026-10-29T15:00:00"),
+        ("   3 시", "2026-10-29T15:00:00"),
+        ("점검은 오전\t３\n시", "2026-10-29T03:00:00"),
+        ("3시간 정지", None),
+    ],
+)
+def test_hour_matching_keeps_meridiem_spacing_and_duration_rules(text, expected):
+    doc = Document(
+        doc_id="clock",
+        source_kind="note",
+        text=text,
+        shift="주간",
+        start=datetime(2026, 10, 29, 8),
+    )
+    assert normalize_time(text, doc) == expected
+
+
 def test_night_shift_early_hours_are_next_day():
     night = Document(
         doc_id="n",

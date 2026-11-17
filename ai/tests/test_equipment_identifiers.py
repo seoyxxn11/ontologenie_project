@@ -1,7 +1,7 @@
 import pytest
 
 from app.dataset.build import generate
-from app.extractors.equipment import load_equipment, resolve
+from app.extractors.equipment import load_equipment, parse, resolve
 from app.extractors.identifiers import find, load_dictionary
 
 ROWS = [
@@ -10,6 +10,21 @@ ROWS = [
     {"code": "P201", "name": "2라인 1호 프레스", "line": "2라인"},
     {"code": "B101", "name": "1라인 블랭킹기", "line": "1라인"},
 ]
+
+
+@pytest.mark.parametrize(
+    ("text", "line", "unit"),
+    [
+        ("3호기", None, 3),
+        ("프레스 1 - 3 호", 1, 3),
+        ("설비 001\t라인 03\n호기", 1, 3),
+        ("１라인 ３호기", 1, 3),
+        ("1" + " " * 2000 + "라인 3" + " " * 2000 + "호", 1, 3),
+    ],
+)
+def test_equipment_numbers_keep_spacing_and_unicode_support(text, line, unit):
+    mention = parse(text, set())
+    assert (mention.line, mention.unit) == (line, unit)
 
 
 def test_equipment_linking_keeps_every_candidate():
