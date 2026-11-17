@@ -159,7 +159,7 @@ class ModelGraphApiTests {
                             jsonPath(
                                     "$.data.edges[?(@.id == " + toUnclassified + ")]", hasSize(0)));
             // 관리자도 범위 밖(허용 행이 없는 그룹) 유형과 그 관계는 받지 않는다(427).
-            // 미분류(그룹 없음) 유형은 관리자에게만 보인다(384 보완, V28).
+            // 미분류(그룹 없음) 유형은 관리자에게만 보인다(384 보완, V29).
             mockMvc.perform(get(PATH).with(account("ADMIN", false)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.nodes[?(@.id == " + shown + ")]", hasSize(1)))

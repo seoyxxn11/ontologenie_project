@@ -81,7 +81,7 @@ class StoredCopyScopeApiTests {
 
         long source = type("SRC", group);
         long target = type("TGT", group);
-        // 어느 역할에도 허용 행이 없는 그룹. 미분류(그룹 없음)는 관리자에게 보이므로(V28) 범위 밖 유형은 이렇게 만든다.
+        // 어느 역할에도 허용 행이 없는 그룹. 미분류(그룹 없음)는 관리자에게 보이므로(V29) 범위 밖 유형은 이렇게 만든다.
         long ungrouped = type("HID", "COPY_H_" + suffix);
         long revealSource = type("RSRC", revealGroup);
         long revealTarget = type("RTGT", revealGroup);
@@ -392,7 +392,7 @@ class StoredCopyScopeApiTests {
     }
 
     /**
-     * 그룹이 없는(미분류) 유형의 일반 값은 관리자에게 보인다(384 보완, V28). 유형을 승인한 뒤 그룹을 정하기 전에도, 그 유형이 걸린 규칙의 문제 값과 제안
+     * 그룹이 없는(미분류) 유형의 일반 값은 관리자에게 보인다(384 보완, V29). 유형을 승인한 뒤 그룹을 정하기 전에도, 그 유형이 걸린 규칙의 문제 값과 제안
      * 근거를 보고 검토할 수 있어야 한다. 민감 속성을 조건으로 쓴 규칙의 값은 미분류 유형이어도 가린다.
      */
     @Test
