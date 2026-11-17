@@ -20,11 +20,12 @@ public record ReassignmentPlanResponse(
         Long actionExecutionId,
         Long agentConversationId,
         Long createdBy,
+        String createdByName,
         Instant createdAt,
         List<ReassignmentPlanItemResponse> items) {
 
     public static ReassignmentPlanResponse from(
-            ReassignmentPlan plan, List<ReassignmentPlanItemResponse> items) {
+            ReassignmentPlan plan, String createdByName, List<ReassignmentPlanItemResponse> items) {
         return new ReassignmentPlanResponse(
                 plan.getId(),
                 plan.getStatus(),
@@ -34,6 +35,7 @@ public record ReassignmentPlanResponse(
                 plan.getActionExecutionId(),
                 plan.getAgentConversationId(),
                 plan.getCreatedBy(),
+                createdByName,
                 plan.getCreatedAt(),
                 items);
     }

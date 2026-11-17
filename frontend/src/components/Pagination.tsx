@@ -6,6 +6,7 @@ type PaginationProps = {
   pending?: boolean
   compact?: boolean
   showSummary?: boolean
+  showSinglePage?: boolean
 }
 
 function Pagination({
@@ -16,6 +17,7 @@ function Pagination({
   pending = false,
   compact = false,
   showSummary = true,
+  showSinglePage = false,
 }: PaginationProps) {
   const totalPages = size > 0 ? Math.ceil(totalElements / size) : 0
   const currentPage = Math.max(0, Math.min(page, totalPages - 1))
@@ -24,7 +26,7 @@ function Pagination({
     if (!pending && page !== currentPage) onChange(currentPage)
   }, [page, currentPage, totalPages, pending, onChange])
 
-  if (totalPages <= 1) {
+  if (totalPages === 0 || (totalPages === 1 && !showSinglePage)) {
     return showSummary ? (
       <p className="ui-pagination-empty" aria-live="polite" aria-atomic="true">
         {totalPages > 0 ? `총 ${totalElements}건` : '0건'}

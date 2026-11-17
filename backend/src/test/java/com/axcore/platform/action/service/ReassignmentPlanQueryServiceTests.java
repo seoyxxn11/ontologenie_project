@@ -89,8 +89,11 @@ class ReassignmentPlanQueryServiceTests {
         savePlan(List.of("10", "20"));
         long withOnePlan = statementsToSearch();
 
+        plannerId = createAccount();
         savePlan(List.of("10", "20"));
+        plannerId = createAccount();
         savePlan(List.of("10", "20"));
+        plannerId = createAccount();
         savePlan(List.of("10", "20"));
         long withFourPlans = statementsToSearch();
 
@@ -98,13 +101,16 @@ class ReassignmentPlanQueryServiceTests {
                 service.search(ADMIN, fromEquipment, null, PageRequest.of(0, 20));
         assertThat(page.getContent()).hasSize(4);
         assertThat(page.getContent())
+                .extracting(ReassignmentPlanResponse::createdByName)
+                .containsOnly("테스트 사용자");
+        assertThat(page.getContent())
                 .allSatisfy(
                         plan ->
                                 assertThat(plan.items())
                                         .extracting(ReassignmentPlanItemResponse::operationCode)
                                         .containsExactly("10", "20"));
-        // 계획 한 페이지 + 항목 IN 조회(+ 필요하면 건수). 계획마다 항목을 읽으면 1개와 4개일 때 수가 달라진다.
-        assertThat(withOnePlan).isBetween(2L, 3L);
+        // 계획 한 페이지 + 생성자 IN 조회 + 항목 IN 조회(+ 필요하면 건수). 계획 수와 무관하게 일정하다.
+        assertThat(withOnePlan).isBetween(3L, 4L);
         assertThat(withFourPlans).isEqualTo(withOnePlan);
     }
 

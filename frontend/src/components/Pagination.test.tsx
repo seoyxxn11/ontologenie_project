@@ -4,6 +4,39 @@ import { describe, expect, it, vi } from 'vitest'
 import Pagination from './Pagination'
 
 describe('페이지네이션', () => {
+  it('한 페이지 표시 옵션은 이동할 수 없는 1페이지 컨트롤을 제공하고 빈 목록에서는 숨긴다', () => {
+    const { rerender } = render(
+      <Pagination
+        page={0}
+        size={20}
+        totalElements={1}
+        compact
+        showSinglePage
+        showSummary={false}
+        onChange={vi.fn()}
+      />,
+    )
+    expect(
+      screen.getAllByRole('button').map((button) => button.textContent),
+    ).toEqual(['«', '‹', '1', '›', '»'])
+    for (const button of screen.getAllByRole('button'))
+      expect(button).toBeDisabled()
+    expect(
+      screen.getByRole('button', { name: '1페이지로 이동' }),
+    ).toHaveAttribute('aria-current', 'page')
+    rerender(
+      <Pagination
+        page={0}
+        size={20}
+        totalElements={0}
+        compact
+        showSinglePage
+        showSummary={false}
+        onChange={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
+  })
   it('현재 주변 5개 번호와 처음·이전·다음·마지막을 0 기반 콜백으로 연결한다', async () => {
     const user = userEvent.setup()
     const change = vi.fn()
