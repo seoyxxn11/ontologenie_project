@@ -2,6 +2,7 @@ package com.axcore.platform.agent.service;
 
 import com.axcore.platform.agent.service.AgentObjectListTools.PropertyItem;
 import com.axcore.platform.agent.service.AgentQuerySession.InvalidInput;
+import com.axcore.platform.agent.service.AgentQuerySession.LimitReached;
 import com.axcore.platform.agent.service.AgentQuerySession.ObjectSet;
 import com.axcore.platform.agent.service.AgentQuerySession.Outcome;
 import com.axcore.platform.audit.domain.AgentResultCategory;
@@ -418,11 +419,10 @@ public class AgentObjectSetTools {
         ObjectSet set = requireSet(objectSetId);
         AgentConditions conditions = AgentConditions.of(propertyValues);
         if (session.searchArounds() >= MAX_SEARCH_AROUNDS) {
-            throw new InvalidInput(
+            throw new LimitReached(
                     "한 질문에서 관계 따라가기는 "
                             + MAX_SEARCH_AROUNDS
-                            + "번까지입니다. 지금까지 만든 Object Set으로 답해 주세요.",
-                    null);
+                            + "번까지입니다. 지금까지 만든 Object Set으로 답해 주세요.");
         }
         if (linkTypeId == null) {
             throw new InvalidInput(
@@ -608,8 +608,8 @@ public class AgentObjectSetTools {
             throw new InvalidInput("objectIds가 없습니다. '참고 객체 ID'를 넣어 주세요.", null);
         }
         if (session.finds() >= MAX_FINDS) {
-            throw new InvalidInput(
-                    "한 질문에서 목표 유형 찾기는 " + MAX_FINDS + "번까지입니다. 지금까지 찾은 objectSetId로 답해 주세요.", null);
+            throw new LimitReached(
+                    "한 질문에서 목표 유형 찾기는 " + MAX_FINDS + "번까지입니다. 지금까지 찾은 objectSetId로 답해 주세요.");
         }
         Set<Long> requested = new LinkedHashSet<>(objectIds);
         if (requested.size() > MAX_START_OBJECTS) {

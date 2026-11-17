@@ -137,7 +137,8 @@ class AgentAnswerConcurrencyTests {
                                                 List.of(),
                                                 null),
                                         List.of(),
-                                        List.of(PLAN_CREATED)));
+                                        List.of(PLAN_CREATED),
+                                        0));
         awaitLockWaiter();
         release.countDown();
         cleaning.get(10, TimeUnit.SECONDS);

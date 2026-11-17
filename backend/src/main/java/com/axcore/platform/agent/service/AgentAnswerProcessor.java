@@ -153,7 +153,12 @@ public class AgentAnswerProcessor {
                             session.storedValues());
             session.requireRecorded();
             answers.answerWithResults(
-                    answerId, content, interpretation, session.results(), session.actions());
+                    answerId,
+                    content,
+                    interpretation,
+                    session.results(),
+                    session.actions(),
+                    session.unconfirmedLookups());
         } catch (RuntimeException ex) {
             log.error("Agent 답변 {}의 AI 처리가 실패했습니다.", answerId, ex);
             try {
@@ -167,7 +172,8 @@ public class AgentAnswerProcessor {
                     answers.failWithResults(
                             answerId,
                             session.allRecorded() ? session.results() : List.of(),
-                            session.actions());
+                            session.actions(),
+                            session.allRecorded() ? session.unconfirmedLookups() : 0);
                 }
             } catch (RuntimeException saveEx) {
                 log.error("Agent 답변 {}을 실패로 저장하지 못했습니다. 처리 중으로 남습니다.", answerId, saveEx);

@@ -280,6 +280,7 @@
 }
 .agent-failure,
 .agent-sync-notice,
+.agent-unconfirmed-notice,
 .agent-storage-notice {
   margin: 12px 0;
   border-left: 3px solid currentColor;
@@ -293,6 +294,7 @@
   color: #991b1b;
 }
 .agent-sync-notice,
+.agent-unconfirmed-notice,
 .agent-storage-notice {
   background: #fffbeb;
   color: #92400e;

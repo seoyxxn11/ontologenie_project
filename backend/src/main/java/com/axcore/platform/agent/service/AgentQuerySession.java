@@ -69,7 +69,8 @@ public class AgentQuerySession {
     private final long questionId;
     private final AgentQueryRecorder recorder;
     private final Clock clock;
-    private final List<AgentQueryResult> results = new ArrayList<>();
+    // AI가 부른 조회 도구 호출(거절 포함)을 부른 순서대로 담는다. 실패한 호출을 뒤에서 다시 조회해 성공했는지 볼 때 쓴다(449).
+    private final List<Attempt> attempts = new ArrayList<>();
     private final List<AgentActionOutcome> actions = new ArrayList<>();
     // 결과가 나온(FOUND) 조회가 거른 저장 값을 (유형, 속성 코드)별로 모은다. 사용자가 물은 값과 다른 값으로 찾았는지 서버가
     // 비교한다(PropertyValueNotice).
@@ -219,6 +220,27 @@ public class AgentQuerySession {
         }
     }
 
+    /**
+     * 이번 답변의 조회 한도(목표 유형 찾기·관계 따라가기 횟수)에 닿아 조회하지 않았다(449). 입력 오류와 같이 AI에게 이유를 돌려주지만, 조회 기록에는 한도로
+     * 남기고 AI에게 입력을 고치라고 하지 않는다.
+     */
+    static final class LimitReached extends RuntimeException {
+        LimitReached(String reason) {
+            super(reason);
+        }
+    }
+
+    /**
+     * 조회 도구 호출 한 번(449). 거절된 호출은 result가 null이다. objectId는 객체 하나를 보는 도구일 때만 있다. 같은 도구·같은 객체로 뒤에 성공한
+     * 호출이 있으면 이 호출이 실패했어도 다시 조회해 확인한 것으로 본다.
+     */
+    private record Attempt(
+            String toolCode, Long objectId, boolean succeeded, AgentQueryResult result) {
+        boolean sameLookup(Attempt other) {
+            return toolCode.equals(other.toolCode) && Objects.equals(objectId, other.objectId);
+        }
+    }
+
     /** 조회 결과. data는 AI에게 넘길 값이다. */
     public record Outcome(
             Object data,
@@ -282,13 +304,16 @@ public class AgentQuerySession {
             String targetType,
             Long targetId,
             String reason) {
-        record(
-                input,
-                targetType,
-                targetId,
-                new AgentQueryResult(label, toolCode, false, null, List.of(), null, false, reason),
-                Instant.now(clock));
+        AgentFailureKind kind =
+                NOT_TARGET.equals(reason) ? AgentFailureKind.NOT_TARGET : AgentFailureKind.LIMIT;
+        AgentQueryResult result = AgentQueryResult.failed(label, toolCode, reason, kind, reason);
+        attempts.add(new Attempt(toolCode, objectIdOf(targetType, targetId), false, null));
+        record(input, targetType, targetId, result, Instant.now(clock));
         return Map.of("error", reason);
+    }
+
+    private static Long objectIdOf(String targetType, Long targetId) {
+        return OBJECT_INSTANCE.equals(targetType) ? targetId : null;
     }
 
     /**
@@ -353,19 +378,39 @@ public class AgentQuerySession {
         } catch (InvalidInput ex) {
             log.warn("Agent 조회 도구 {} 입력 오류 question={}: {}", toolCode, questionId, ex.getMessage());
             result =
-                    new AgentQueryResult(
-                            label, toolCode, false, null, List.of(), null, false, QUERY_FAILED);
+                    AgentQueryResult.failed(
+                            label,
+                            toolCode,
+                            QUERY_FAILED,
+                            AgentFailureKind.INVALID_INPUT,
+                            ex.getMessage());
             reply.put("error", QUERY_FAILED + " 입력 오류: " + ex.getMessage());
+        } catch (LimitReached ex) {
+            log.warn("Agent 조회 도구 {} 한도 question={}: {}", toolCode, questionId, ex.getMessage());
+            result =
+                    AgentQueryResult.failed(
+                            label, toolCode, QUERY_FAILED, AgentFailureKind.LIMIT, ex.getMessage());
+            reply.put("error", QUERY_FAILED + " " + ex.getMessage());
         } catch (RuntimeException ex) {
             log.error("Agent 조회 도구 {} 실패 question={}", toolCode, questionId, ex);
             result =
-                    new AgentQueryResult(
-                            label, toolCode, false, null, List.of(), null, false, QUERY_FAILED);
+                    AgentQueryResult.failed(
+                            label, toolCode, QUERY_FAILED, AgentFailureKind.ERROR, errorKind(ex));
             reply.put("error", QUERY_FAILED);
         }
-        results.add(result);
+        attempts.add(
+                new Attempt(
+                        toolCode, objectIdOf(targetType, targetId), result.succeeded(), result));
         record(input, targetType, targetId, result, requestedAt);
         return reply;
+    }
+
+    /**
+     * 서버 오류를 조회 기록에 남길 때의 까닭. 예외 메시지에는 SQL이나 저장된 값이 들어갈 수 있어 남기지 않고 예외 종류만 남긴다. 전체 내용은 서버 로그에 질문
+     * 번호와 함께 남는다.
+     */
+    private static String errorKind(RuntimeException ex) {
+        return ex.getClass().getSimpleName();
     }
 
     /**
@@ -385,8 +430,12 @@ public class AgentQuerySession {
                         input,
                         null,
                         null,
-                        new AgentQueryResult(
-                                label, toolCode, false, null, List.of(), null, false, QUERY_FAILED),
+                        AgentQueryResult.failed(
+                                label,
+                                toolCode,
+                                QUERY_FAILED,
+                                AgentFailureKind.ERROR,
+                                errorKind(ex)),
                         requestedAt);
             } catch (RuntimeException recordEx) {
                 ex.addSuppressed(recordEx);
@@ -438,7 +487,15 @@ public class AgentQuerySession {
         return !unrecorded;
     }
 
+    /** 정보별 결과(answerMeta.results). 실패한 결과에는 뒤에서 다시 조회해 성공했는지(retried)를 붙인다(449). 거절된 호출은 넣지 않는다. */
     public synchronized List<AgentQueryResult> results() {
+        List<AgentQueryResult> results = new ArrayList<>();
+        for (int i = 0; i < attempts.size(); i++) {
+            Attempt attempt = attempts.get(i);
+            if (attempt.result() != null) {
+                results.add(attempt.result().withRetried(!attempt.succeeded() && retried(i)));
+            }
+        }
         return List.copyOf(results);
     }
 
@@ -563,6 +620,31 @@ public class AgentQuerySession {
                 .filter(c -> !Character.isWhitespace(c) && !Character.isSpaceChar(c))
                 .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
                 .toString();
+    }
+
+    /**
+     * 실패하거나 거절된 뒤 다시 조회해 성공하지 못한 호출 수(449). 같은 도구(객체 하나를 보는 도구는 같은 객체)로 뒤에 성공한 호출이 있으면 AI가 입력을 고치거나
+     * 다시 불러 확인한 것으로 보고 세지 않는다. 화면이 답변에 빠진 정보가 있을 수 있다고 알리는 데 쓴다. 모델이 답에 밝히는지에 맡기지 않는다.
+     */
+    public synchronized int unconfirmedLookups() {
+        int count = 0;
+        for (int i = 0; i < attempts.size(); i++) {
+            if (!attempts.get(i).succeeded() && !retried(i)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private boolean retried(int index) {
+        Attempt failed = attempts.get(index);
+        for (int i = index + 1; i < attempts.size(); i++) {
+            Attempt later = attempts.get(i);
+            if (later.succeeded() && later.sameLookup(failed)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Action 도구 결과를 모은다. 실행 기록은 실행기가 이미 남겼으므로 여기에는 답변에 보여 줄 값만 둔다. */

@@ -509,6 +509,137 @@ class AgentQuerySessionTests {
         assertThat(detail(301L)).containsEntry("resultCategory", "FOUND");
     }
 
+    /** 실패한 까닭은 조회 기록에만 남기고, 사용자에게 보이는 결과 문구는 까닭과 관계없이 같다(449, 359). */
+    @Test
+    void recordsWhyQueryFailedWithoutShowingItToUser() {
+        run(
+                "OBJECT_LIST",
+                failing(new AgentQuerySession.InvalidInput("'status'에 저장된 값이 아닌 값이 있습니다", null)));
+        Map<String, Object> limitReply =
+                run(
+                        "OBJECT_SET_FIND",
+                        failing(new AgentQuerySession.LimitReached("목표 유형 찾기는 3번까지입니다.")));
+        run("OBJECT_SEARCH", failing(new IllegalStateException("select ... where name = '홍길동'")));
+
+        ArgumentCaptor<AgentQueryResult> recorded = ArgumentCaptor.forClass(AgentQueryResult.class);
+        verify(recorder, times(3))
+                .record(any(), anyLong(), anyInt(), any(), any(), any(), recorded.capture(), any());
+        assertThat(recorded.getAllValues())
+                .extracting(AgentQueryResult::failureKind, AgentQueryResult::failureReason)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(
+                                AgentFailureKind.INVALID_INPUT, "'status'에 저장된 값이 아닌 값이 있습니다"),
+                        org.assertj.core.groups.Tuple.tuple(
+                                AgentFailureKind.LIMIT, "목표 유형 찾기는 3번까지입니다."),
+                        // 서버 오류의 메시지에는 SQL이나 저장된 값이 들어갈 수 있어 예외 종류만 남긴다.
+                        org.assertj.core.groups.Tuple.tuple(
+                                AgentFailureKind.ERROR, "IllegalStateException"));
+        assertThat(AgentQueryRecorder.failure(recorded.getAllValues().getFirst()))
+                .containsEntry("errorMessage", AgentQuerySession.QUERY_FAILED)
+                .containsEntry("failureKind", "INVALID_INPUT")
+                .containsEntry("reason", "'status'에 저장된 값이 아닌 값이 있습니다");
+        assertThat(session.results())
+                .allSatisfy(
+                        result ->
+                                assertThat(result.toMap())
+                                        .containsEntry(
+                                                "errorMessage", AgentQuerySession.QUERY_FAILED)
+                                        .doesNotContainKeys(
+                                                "failureKind", "failureReason", "reason"));
+        // 한도는 입력을 고치라는 뜻이 아니므로 AI에게 "입력 오류"라고 하지 않는다.
+        assertThat((String) limitReply.get("error"))
+                .startsWith(AgentQuerySession.QUERY_FAILED)
+                .doesNotContain("입력 오류")
+                .contains("3번까지");
+    }
+
+    /** 거절도 까닭을 남긴다. 대상 아님과 한도를 구별한다(449). */
+    @Test
+    void recordsRefusalKind() {
+        session.allowObjects(List.of(301L));
+        detail(999L);
+
+        ArgumentCaptor<AgentQueryResult> recorded = ArgumentCaptor.forClass(AgentQueryResult.class);
+        verify(recorder)
+                .record(any(), anyLong(), anyInt(), any(), any(), any(), recorded.capture(), any());
+        assertThat(recorded.getValue().failureKind()).isEqualTo(AgentFailureKind.NOT_TARGET);
+    }
+
+    /** AI가 입력을 고쳐 같은 도구로 다시 조회해 성공하면 그 실패는 확인하지 못한 조회로 세지 않는다(449). */
+    @Test
+    void doesNotCountFailureThatWasRetriedSuccessfully() {
+        run("OBJECT_LIST", failing(new AgentQuerySession.InvalidInput("dateProperty가 없습니다", null)));
+        run("OBJECT_LIST", found());
+
+        assertThat(session.unconfirmedLookups()).isZero();
+        assertThat(session.results())
+                .extracting(AgentQueryResult::succeeded, AgentQueryResult::retried)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(false, true),
+                        org.assertj.core.groups.Tuple.tuple(true, false));
+        assertThat(session.results().getFirst().toMap()).containsEntry("retried", true);
+        assertThat(session.results().getLast().toMap()).doesNotContainKey("retried");
+    }
+
+    /** 실패 뒤 같은 도구로 성공하지 못했으면(다른 도구만 성공했어도) 확인하지 못한 조회다. 성공한 뒤의 실패도 센다(449). */
+    @Test
+    void countsFailureThatWasNeverRetriedSuccessfully() {
+        run("OBJECT_SET_FIND", found());
+        run("OBJECT_SET_FIND", failing(new AgentQuerySession.LimitReached("목표 유형 찾기는 3번까지입니다.")));
+        run("OBJECT_SET_LIST", found());
+
+        assertThat(session.unconfirmedLookups()).isEqualTo(1);
+        assertThat(session.results().get(1).retried()).isFalse();
+    }
+
+    /** 객체 하나를 보는 도구는 같은 객체를 다시 조회해 성공해야 확인한 것이다. 다른 객체의 성공으로 덮지 않는다(449). */
+    @Test
+    void retryOfObjectToolMustBeTheSameObject() {
+        session.run(
+                "OBJECT_DETAIL",
+                "객체 상세",
+                Map.of("objectId", 301L),
+                "object_instance",
+                301L,
+                failing(new IllegalStateException("시간 초과")));
+        detail(302L);
+
+        assertThat(session.unconfirmedLookups()).isEqualTo(1);
+
+        detail(301L);
+
+        assertThat(session.unconfirmedLookups()).isZero();
+    }
+
+    /** 한도·대상 아님으로 거절된 호출은 정보별 결과에 넣지 않지만 확인하지 못한 조회로 센다(449). */
+    @Test
+    void countsRefusedCallsAsUnconfirmed() {
+        for (int i = 0; i <= AgentQuerySession.MAX_TOOL_CALLS; i++) {
+            session.countToolCall("OBJECT_SEARCH", Map.of());
+        }
+
+        assertThat(session.results()).isEmpty();
+        assertThat(session.unconfirmedLookups()).isEqualTo(1);
+    }
+
+    private Map<String, Object> run(
+            String toolCode, java.util.function.Supplier<AgentQuerySession.Outcome> query) {
+        return session.run(toolCode, toolCode, Map.of(), null, null, query);
+    }
+
+    private static java.util.function.Supplier<AgentQuerySession.Outcome> failing(
+            RuntimeException ex) {
+        return () -> {
+            throw ex;
+        };
+    }
+
+    private static java.util.function.Supplier<AgentQuerySession.Outcome> found() {
+        return () ->
+                new AgentQuerySession.Outcome(
+                        List.of(), AgentResultCategory.FOUND, List.of(), null);
+    }
+
     private Map<String, Object> detail(long objectId) {
         return session.run(
                 "OBJECT_DETAIL",
