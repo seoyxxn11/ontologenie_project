@@ -28,6 +28,8 @@ export type AgentResult = {
   dataAsOf: string | null
   estimated: boolean
   errorMessage: string | null
+  // 실패한 뒤 같은 조회를 다시 해 성공했는가(449). 실패한 결과에만 온다.
+  retried?: boolean
 }
 
 // Agent가 답변 중에 부른 Action의 결과(160). 실행했으면 실행 기록 상태, 실행하지 않았으면 CONFIRMATION_REQUIRED·NOT_RUN
@@ -54,6 +56,8 @@ export type AnswerMeta = {
   syncStatus?: SyncStatus
   results?: AgentResult[]
   actions?: AgentAction[]
+  // 다시 조회해 성공하지 못한 실패·거절 조회 수(449). 0보다 크면 답변에 빠진 정보가 있을 수 있다.
+  unconfirmedLookups?: number
 }
 
 export type AgentMessage = {

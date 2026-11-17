@@ -2,6 +2,7 @@ package com.axcore.platform.agent.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -431,7 +432,7 @@ class ModelComparisonGmsTests {
                             return null;
                         })
                 .when(answers)
-                .answerWithResults(anyLong(), any(), any(), any(), any());
+                .answerWithResults(anyLong(), any(), any(), any(), any(), anyInt());
         doAnswer(
                         call -> {
                             QuestionInterpretation conditions = call.getArgument(1);
@@ -480,7 +481,7 @@ class ModelComparisonGmsTests {
                             return null;
                         })
                 .when(answers)
-                .failWithResults(anyLong(), any(), any());
+                .failWithResults(anyLong(), any(), any(), anyInt());
         return answers;
     }
 

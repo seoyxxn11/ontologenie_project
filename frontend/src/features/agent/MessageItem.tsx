@@ -10,6 +10,8 @@ import {
   ANSWER_SNAPSHOT_NOTICE,
   DATA_AS_OF_UNKNOWN,
   RESULT_FAILED_LABEL,
+  RESULT_RETRIED_LABEL,
+  unconfirmedNotice,
   resultCategoryLabels,
   stageLabels,
   syncStatusNotices,
@@ -72,6 +74,9 @@ function formatAsOf(value: string) {
 
 // 정보 하나의 결과 이름. 조회를 못 끝낸 항목은 "데이터 없음"과 구분한다.
 function resultLabel(result: AgentResult) {
+  if (result.status === 'FAILED' && result.retried) {
+    return RESULT_RETRIED_LABEL
+  }
   if (result.status === 'FAILED' || !result.resultCategory) {
     return RESULT_FAILED_LABEL
   }
@@ -117,6 +122,8 @@ function MessageItem({ message }: { message: AgentMessage }) {
   const actions = message.answerMeta.actions ?? []
   const syncStatus = message.answerMeta.syncStatus
   const syncNotice = syncStatus ? syncStatusNotices[syncStatus] : undefined
+  // 펼치지 않아도 보이게 본문 바로 아래에 알린다. 모델이 답에 밝히는지에 맡기지 않는다(449).
+  const unconfirmed = message.answerMeta.unconfirmedLookups ?? 0
   const evidenceWarnings = [
     {
       label: '권한 제한',
@@ -125,8 +132,11 @@ function MessageItem({ message }: { message: AgentMessage }) {
     },
     {
       label: '미확인',
+      // 다시 조회해 확인한 실패는 미확인으로 세지 않는다(449).
       count: results.filter(
-        (result) => result.status === 'FAILED' || !result.resultCategory,
+        (result) =>
+          (result.status === 'FAILED' && !result.retried) ||
+          (result.status !== 'FAILED' && !result.resultCategory),
       ).length,
     },
     {
@@ -155,6 +165,11 @@ function MessageItem({ message }: { message: AgentMessage }) {
         </Markdown>
       </div>
       {syncNotice && <p className="agent-sync-notice">{syncNotice}</p>}
+      {unconfirmed > 0 && (
+        <p role="note" className="agent-unconfirmed-notice">
+          {unconfirmedNotice(unconfirmed)}
+        </p>
+      )}
       {actions.length > 0 && <ActionResultList actions={actions} />}
       {results.length > 0 && (
         <details className="agent-evidence group">
@@ -196,7 +211,7 @@ function MessageItem({ message }: { message: AgentMessage }) {
                       <span
                         className="agent-result-status"
                         data-caution={
-                          result.status === 'FAILED' ||
+                          (result.status === 'FAILED' && !result.retried) ||
                           result.resultCategory !== 'FOUND' ||
                           result.estimated ||
                           undefined

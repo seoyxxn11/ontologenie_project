@@ -103,7 +103,7 @@ class AgentAnswerProcessorTests {
         verify(targetResolver, never()).resolve(any(), any(), any());
         verify(responder, never()).answer(any(), any(), any(), any());
         verify(answers, never()).answerClarification(anyLong(), any(), any(), any());
-        verify(answers, never()).answerWithResults(anyLong(), any(), any(), any(), any());
+        verify(answers, never()).answerWithResults(anyLong(), any(), any(), any(), any(), anyInt());
     }
 
     @Test
@@ -124,7 +124,7 @@ class AgentAnswerProcessorTests {
         InOrder order = inOrder(interpreter, answers, summaries);
         order.verify(interpreter)
                 .interpret(any(), any(), any(), any(), any(), eq("처음에 PR-03 비가동 이력을 물었다."));
-        order.verify(answers).answerWithResults(eq(900L), any(), any(), any(), any());
+        order.verify(answers).answerWithResults(eq(900L), any(), any(), any(), any(), anyInt());
         order.verify(summaries).refreshAfter(900L);
     }
 
@@ -162,7 +162,7 @@ class AgentAnswerProcessorTests {
 
         processor.onRequested(EVENT);
 
-        verify(answers).failWithResults(900L, List.of(), List.of(PLAN_CREATED));
+        verify(answers).failWithResults(900L, List.of(), List.of(PLAN_CREATED), 0);
         verify(answers, never()).fail(anyLong(), anyString(), anyString());
     }
 
@@ -196,7 +196,7 @@ class AgentAnswerProcessorTests {
         processor.onRequested(EVENT);
 
         // 기록 없는 조회 결과는 보여 주지 않고, 실행기가 따로 기록한 Action만 남긴다(160).
-        verify(answers).failWithResults(900L, List.of(), List.of(PLAN_CREATED));
+        verify(answers).failWithResults(900L, List.of(), List.of(PLAN_CREATED), 0);
     }
 
     @Test
@@ -209,7 +209,7 @@ class AgentAnswerProcessorTests {
 
         verify(answers)
                 .fail(900L, AgentAnswerService.FAILED_CONTENT, AgentAnswerService.FAILED_REASON);
-        verify(answers, never()).failWithResults(anyLong(), any(), any());
+        verify(answers, never()).failWithResults(anyLong(), any(), any(), anyInt());
     }
 
     @Test
@@ -364,7 +364,7 @@ class AgentAnswerProcessorTests {
 
         // 조회하지 않고 이유를 돌려주어, "데이터 없음"으로 답하지 않게 한다. 정보별 결과에도 남기지 않는다.
         assertThat(replies).containsExactly(Map.of("error", AgentQuerySession.NOT_TARGET));
-        verify(answers).answerWithResults(eq(900L), any(), any(), eq(List.of()), any());
+        verify(answers).answerWithResults(eq(900L), any(), any(), eq(List.of()), any(), anyInt());
     }
 
     @Test
@@ -450,7 +450,8 @@ class AgentAnswerProcessorTests {
         processor.onRequested(EVENT);
 
         ArgumentCaptor<String> content = ArgumentCaptor.forClass(String.class);
-        verify(answers).answerWithResults(eq(900L), content.capture(), any(), any(), any());
+        verify(answers)
+                .answerWithResults(eq(900L), content.capture(), any(), any(), any(), anyInt());
         assertThat(content.getValue())
                 .isEqualTo(
                         "정지 중인 설비는 1라인 3호 프레스(정비중) 1대입니다.\n\n"
@@ -528,7 +529,8 @@ class AgentAnswerProcessorTests {
         processor.onRequested(EVENT);
 
         verify(answers)
-                .answerWithResults(eq(900L), eq("P103(정비중)의 비가동 이력은 2건입니다."), any(), any(), any());
+                .answerWithResults(
+                        eq(900L), eq("P103(정비중)의 비가동 이력은 2건입니다."), any(), any(), any(), anyInt());
     }
 
     @Test
@@ -582,7 +584,8 @@ class AgentAnswerProcessorTests {
         // 답변에 넘긴 해석은 앞 질문의 상태를 이어받았지만 안내는 붙지 않는다.
         assertThat(answeredWith().propertyValues()).containsExactly("정지 중");
         verify(answers)
-                .answerWithResults(eq(900L), eq("P103의 비가동 이력은 2건입니다."), any(), any(), any());
+                .answerWithResults(
+                        eq(900L), eq("P103의 비가동 이력은 2건입니다."), any(), any(), any(), anyInt());
     }
 
     @Test
@@ -639,7 +642,8 @@ class AgentAnswerProcessorTests {
                 new AgentAnswerRequested(900L, 899L, ASKER, "10월", Map.of(), pending, null));
 
         ArgumentCaptor<String> content = ArgumentCaptor.forClass(String.class);
-        verify(answers).answerWithResults(eq(900L), content.capture(), any(), any(), any());
+        verify(answers)
+                .answerWithResults(eq(900L), content.capture(), any(), any(), any(), anyInt());
         assertThat(content.getValue())
                 .endsWith("'정지 중'으로 저장된 값은 없어 '정비중'으로 찾았어요. 다른 값을 찾으시면 말씀해 주세요.");
     }
@@ -1011,7 +1015,8 @@ class AgentAnswerProcessorTests {
         ArgumentCaptor<QuestionInterpretation> used =
                 ArgumentCaptor.forClass(QuestionInterpretation.class);
         verify(responder).answer(any(), used.capture(), any(), any());
-        verify(answers).answerWithResults(eq(900L), any(), eq(used.getValue()), any(), any());
+        verify(answers)
+                .answerWithResults(eq(900L), any(), eq(used.getValue()), any(), any(), anyInt());
         return used.getValue();
     }
 

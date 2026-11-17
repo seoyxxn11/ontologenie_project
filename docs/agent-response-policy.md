@@ -42,7 +42,7 @@ Agent가 답변을 화면에 보내는 방식, 답변에 붙는 기준 시점의
    2. 질문 시 동기화 `SYNCING` (5장)
    3. 조회 도구 호출 `QUERYING`. 호출마다 `action_execution`(AGENT_QUERY)에 기록하고 `agent_message_id`에 이 답변의 질문(USER) 메시지를 넣는다. Agent의 Action 실행(091)과 같은 기준이다(2026-11-05 결정).
    4. 답변 작성 `ANSWERING`
-4. 끝나면 AGENT 메시지의 `status`, `content`, `answerMeta`(`syncStatus`, `results`, `actions`)를 최종 값으로 저장한다. `stage`는 지운다.
+4. 끝나면 AGENT 메시지의 `status`, `content`, `answerMeta`(`syncStatus`, `results`, `actions`, `unconfirmedLookups`)를 최종 값으로 저장한다. `stage`는 지운다.
 
 질문 하나에 답변이 하나이므로, 조회 도구 기록은 질문 메시지로 해당 답변을 찾을 수 있다.
 
@@ -53,14 +53,18 @@ Agent가 답변을 화면에 보내는 방식, 답변에 붙는 기준 시점의
 | `status` | `content` | `answerMeta` | 뜻 |
 |---|---|---|---|
 | `RUNNING` | `""` | `{"stage": "INTERPRETING" \| "SYNCING" \| "QUERYING" \| "ANSWERING"}` | 처리 중 |
-| `SUCCEEDED` | 최종 답변 | `syncStatus`, `results`, `conditions`, `actions`, `clarification`(되묻기만) | 답변을 끝냄 (데이터 없음·미연결·권한 제한 설명 포함) |
+| `SUCCEEDED` | 최종 답변 | `syncStatus`, `results`, `conditions`, `actions`, `unconfirmedLookups`(도구로 답한 답변), `clarification`(되묻기만) | 답변을 끝냄 (데이터 없음·미연결·권한 제한 설명 포함) |
 | `SUCCEEDED` (업무 외·사용 안내, 361) | 정해진 안내 문장 | `syncStatus`, `results`(빈 배열), `actions`(빈 배열), `scope`(`OUT_OF_SCOPE`·`HELP`). `conditions` 없음 | 업무 외 질문·사용 안내에 답함(3.8) |
-| `FAILED` | 실패 안내 | `syncStatus`, `results`·`actions` (얻은 만큼) | 답변을 끝내지 못함. `errorMessage` 필수 |
+| `FAILED` | 실패 안내 | `syncStatus`, `results`·`actions` (얻은 만큼), `unconfirmedLookups`(도구를 부른 뒤 실패했을 때) | 답변을 끝내지 못함. `errorMessage` 필수 |
 
 - `conditions`는 이번 답변에서 확정한 조건이다(`purpose`, `targets`, `period`{`from`,`to`} 또는 null, `referenceObjectIds`, `referenceObjects`, `kinds`, `propertyValues`). 다음 질문 때 마지막 정상(`SUCCEEDED`) 답변의 값을 읽어 이어 간다(아래 3.6, 147).
   - `referenceObjects`는 이 답변이 대상으로 삼은 객체 목록이다. 한 건은 `id`, `name`, `typeName`이다. 화면이 ID만 보낸 참고 객체는 `name`·`typeName`이 null이다. `referenceObjectIds`는 그 ID만 모은 것이다.
   - `kinds`는 "전체 설비"처럼 특정 대상이 아니라 종류 전체를 물었을 때의 종류 이름이다(예: `["설비"]`). 없으면 빈 배열이다.
   - `propertyValues`는 "진행 중", "1라인"처럼 조회 조건으로 말한 속성값이다(360). 사용자가 쓴 말 그대로이고, 없으면 빈 배열이다. 360 전에 저장한 답변에는 키가 없어 빈 배열로 읽는다.
+- `unconfirmedLookups`는 다시 조회해 성공하지 못한 실패·거절 조회 수다(449). 0보다 크면 화면은 답변 본문 바로 아래에 "일부 정보를 확인하지 못했어요(조회 N건). 답변에 빠진 내용이 있을 수 있어요."를 펼치지 않아도 보이게 띄운다. 실패를 답에 밝히는지는 모델에 맡기지 않는다. 운영 대화 147에서 AI가 목표 유형 찾기 실패 2건을 밝히지 않고 확인한 일부만으로 단정해 앞뒤가 안 맞는 답을 냈기 때문이다. 예전 답변에는 키가 없어 0으로 읽는다.
+  - 세는 기준: 실패하거나 거절된(한도·대상 아님) 호출 뒤에 같은 도구로 성공한 호출이 있으면 AI가 입력을 고치거나 다시 불러 확인한 것으로 보고 세지 않는다. 객체 하나를 보는 도구(상세·관계·관계 근거·실행 이력)는 같은 객체를 다시 조회해 성공해야 한다.
+  - 한계: 객체를 정하지 않는 도구(목록·검색·객체 집합·목표 유형 찾기)는 도구가 같으면 다른 것을 찾은 성공도 다시 조회한 것으로 본다. 예를 들어 목표 유형 찾기로 공정을 찾다 실패한 뒤 설비 찾기에 성공하면 공정 찾기 실패는 세지 않는다. 도구마다 "같은 조회"의 기준을 따로 두면 도구가 늘 때마다 규칙이 늘어, 도구 이름과 객체만으로 정했다.
+  - `results[]`의 실패 결과에는 `retried`(boolean)가 있다. `true`면 화면은 "다시 조회해 확인함"으로 보여 주고 "미확인" 건수에 넣지 않는다.
 - `actions`는 이 답변에서 Agent가 부른 Action 결과다(160). 한 건은 `code`, `name`, `status`, `executionId`, `result`, `blockedReason`이다.
   - `status`: 실행했으면 실행 기록 상태 `SUCCEEDED`·`BLOCKED`·`FAILED`, 실행하지 않았으면 `CONFIRMATION_REQUIRED`(확인 필요)·`NOT_RUN`(입력 오류·실행 중 오류)
   - `executionId`: 실행 기록(`action_execution`) ID. 실행하지 않았으면 null
@@ -266,7 +270,9 @@ Agent가 답변을 화면에 보내는 방식, 답변에 붙는 기준 시점의
 
 - 볼 수 없는 유형의 객체는 `DENIED`가 아니라 `NO_DATA`로 답한다. 077·080과 같은 규칙으로, 그 객체가 있다는 사실도 알리지 않기 위해서다. 실행 이력도 관리자가 아니면 본인이 실행한 기록만 보이므로, 다른 사람의 기록만 있으면 "없다"로 답한다.
 - 결과가 `FOUND`여도 민감 속성은 값을 가리고 `restrictedPropertyCodes`에 이름을 넣는다. 답변은 그 속성의 값이 없다고 하지 않고 볼 권한이 없다고 말한다.
-- 이번 답변에서 조회를 허용하지 않은 객체(3.6, 326)와 조회·도구 호출 한도를 넘은 호출은 조회하지 않으므로 `results`에 남지 않는다. AI에게는 이유를 돌려주고, 조회 기록(`AGENT_QUERY`)에는 실패와 그 이유를 남긴다(433).
+- 이번 답변에서 조회를 허용하지 않은 객체(3.6, 326)와 조회·도구 호출 한도를 넘은 호출은 조회하지 않으므로 `results`에 남지 않는다. AI에게는 이유를 돌려주고, 조회 기록(`AGENT_QUERY`)에는 실패와 그 이유를 남긴다(433). 다시 조회해 성공하지 못했으면 `unconfirmedLookups`에 센다(449).
+- 실패 까닭 기록(449): 조회 기록(`AGENT_QUERY`)의 실패 결과에는 사용자에게 보이는 문구(`errorMessage`)와 함께 `failureKind`(`INVALID_INPUT` 입력 오류, `LIMIT` 한도, `NOT_TARGET` 대상 아님, `ERROR` 서버 오류)와 `reason`을 남긴다. 입력 오류·한도·대상 아님의 `reason`은 AI에게 돌려준 문장이고, 서버 오류는 예외 종류만 남긴다(메시지에 SQL이나 저장된 값이 들어갈 수 있다. 전체 내용은 서버 로그에 질문 번호와 함께 있다). `answerMeta.results[].errorMessage`는 지금처럼 까닭과 관계없이 "조회하지 못했습니다."다(359). 전에는 기록에도 이 문구만 남아, 운영 대화 147의 실패가 입력 오류인지 한도인지 사후에 가릴 수 없었다.
+- 목표 유형 찾기(3번)·관계 따라가기(5번) 한도에 닿으면 AI에게 "입력 오류"라고 하지 않고 한도라고만 돌려준다(449). 입력을 고쳐 다시 부르라는 뜻으로 읽지 않게 하기 위해서다.
 - 도구 호출 한도(433, 2026-11-15): 답변 하나에서 AI가 부를 수 있는 도구는 25번이다(서버가 미리 하는 설비 비교는 세지 않는다). 실제 호출 수를 보고 정했다. 시험 데이터 GMS 72회(질문 10개)는 중앙값 3번·상위 10% 7번·최대 10번이었고, 운영 탐색 QA 15건은 대부분 1~9번, 관계를 12번 따라간 질문(Q07)이 14번, 측정 기록을 하나씩 열다 폭주한 질문(Q12)이 49번이었다. 재배정 계획 대화(`AgentScenarioGmsTests` r1~r3)에서 "P101에 배정된 진행·대기 작업과 두 작업지시의 수주·납기 비교"는 관계를 하나씩 따라가 14·16번을 썼다(객체 조회를 15번으로 두었을 때 한 번 걸림). 도구 한 번에 약 2.3초가 들어 처음 정한 40번이면 폭주를 1분 반 넘게 지나서야 끊어, 시연 질문에 여유를 둔 25번(객체 조회 20번)으로 했다. 넘으면 도구를 부르지 않고 "더 부르지 말고 지금까지 결과로 답하고, 확인하지 못한 부분은 일부만 확인했다고 말하라"를 돌려준다. 이 한도는 Spring AI의 도구 호출 한도보다 먼저 걸린다. Spring AI 한도(도구당 30번, 전체 35번)는 AI가 그 뒤에도 계속 부를 때만 닿는 마지막 안전장치다. 닿으면 Spring AI는 예외 대신 영어 안내("Tool call limit (40) exceeded…")를 본문으로 한 응답을 돌려주는데, 전에는 본문만 읽어 그 안내가 정상(`SUCCEEDED`) 답변으로 저장됐다(운영 Q12, 2026-11-15 탐색 QA). 이제 응답의 종료 사유(`toolCallLimitExceeded`)로 알아채 답변을 실패로 끝낸다. `ChatClient.create`는 설정(`spring.ai.tools.limits`)을 읽지 않고 라이브러리 기본값(도구당 40, 전체 150)을 써서, 한도는 코드(`AgentResponder.chatClient`)에서 정한다.
 - 관계 조회(078)는 볼 수 있는 관계에 대해 저장된 근거 내용이 권한 때문에 가려지면 `evidence.evidenceRestricted: true`를 돌려준다. 근거 원문과 비교값은 생략한다. 관계 근거 도구는 이 경우 `DENIED`로 분류하고, Agent는 현재 권한으로 근거를 볼 수 없다고 말한다.
 - 근거가 없는 수동 관계는 `evidenceRestricted: false`이고 관계 근거 도구 결과는 `NO_DATA`다. Agent는 관계가 확인됐지만 저장된 근거가 없다고 말한다. 원천 키만 보이는 경우도 근거 내용은 없는 것으로 분류한다. 볼 수 없는 관계와 존재하지 않는 관계는 동일하게 처리한다.
@@ -431,6 +437,7 @@ Agent가 답변을 화면에 보내는 방식, 답변에 붙는 기준 시점의
 - `answerMeta.conditions.referenceObjects[]`(`id`, `name`, `typeName`)·`conditions.kinds[]`와 `answerMeta.clarification.targets[]`(`target`, `candidates`)·`clarification.contextObjectIds[]` 설명을 3.2대로 추가한다(147).
 - 업무 외·사용 안내·개인 평가 안내 답변은 `conditions`가 없고 `answerMeta.scope`(`OUT_OF_SCOPE`·`HELP`·`PERSON_EVALUATION`)가 있다고 적는다(3.2·3.8, 361·393).
 - `answerMeta.conditions.propertyValues[]`(질문에서 조회 조건으로 말한 속성값, 사용자가 쓴 말 그대로)를 추가한다(3.6, 360). 예전 답변에는 없으므로 없으면 빈 배열로 읽는다.
+- `answerMeta.unconfirmedLookups`(다시 조회해 성공하지 못한 실패·거절 조회 수)와 `answerMeta.results[].retried`(실패 결과에만, 다시 조회해 성공했는가)를 3.2대로 추가한다(449). 예전 답변에는 없으므로 없으면 0·false로 읽는다.
 
 **085 처리 규칙 (147)**
 

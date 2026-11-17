@@ -800,6 +800,74 @@ test('실행 이력 도구가 아닌 결과에는 실행 이력 링크를 달지
   ).not.toBeInTheDocument()
 })
 
+test('다시 조회해 확인하지 못한 조회가 있으면 펼치지 않아도 보이게 알리고, 다시 조회해 확인한 실패는 미확인으로 세지 않는다', async () => {
+  const user = userEvent.setup()
+  const failed = {
+    toolCode: 'OBJECT_SET_FIND',
+    status: 'FAILED',
+    resultCategory: null,
+    sources: [],
+    dataAsOf: null,
+    estimated: false,
+    errorMessage: '조회하지 못했습니다.',
+  }
+  server.use(
+    http.get('/api/v1/agent/conversations/:id/messages', () =>
+      HttpResponse.json({
+        data: [
+          {
+            id: 902,
+            conversationId: 1,
+            sender: 'AGENT',
+            content: '두 작업지시 모두 진행 중입니다.',
+            context: {},
+            status: 'SUCCEEDED',
+            errorMessage: null,
+            answerMeta: {
+              syncStatus: 'NONE',
+              results: [
+                { ...failed, label: '객체 목록', retried: true },
+                { ...failed, label: '목표 유형 찾기', retried: false },
+                {
+                  ...failed,
+                  label: '객체 목록',
+                  status: 'SUCCEEDED',
+                  resultCategory: 'FOUND',
+                  errorMessage: null,
+                },
+              ],
+              actions: [],
+              unconfirmedLookups: 1,
+            },
+            createdAt: '2026-11-16T14:00:00Z',
+          },
+        ],
+        meta: { page: 0, size: 100, totalElements: 1, hasNext: false },
+      }),
+    ),
+  )
+  renderAgentPage('/agent?conversation=1')
+
+  expect(await screen.findByRole('note')).toHaveTextContent(
+    '일부 정보를 확인하지 못했어요(조회 1건). 답변에 빠진 내용이 있을 수 있어요.',
+  )
+  const details = screen.getByText('출처 및 조회 상태').closest('details')!
+  expect(within(details).getByText('미확인 1건')).toBeVisible()
+
+  await user.click(screen.getByText('출처 및 조회 상태'))
+  expect(screen.getByText('다시 조회해 확인함')).toBeInTheDocument()
+  expect(screen.getByText('확인하지 못함')).toBeInTheDocument()
+})
+
+test('다시 조회하지 못한 조회가 없으면 안내를 보이지 않는다', async () => {
+  renderAgentPage('/agent?conversation=1')
+
+  await screen.findByText(SAMPLE_ANSWER)
+  expect(
+    screen.queryByText(/일부 정보를 확인하지 못했어요/),
+  ).not.toBeInTheDocument()
+})
+
 // 대화 1에 Agent 답변 하나만 있고, 그 답변이 실행한 작업이 actions인 상태로 바꾼다(160).
 // failed면 Action을 실행한 뒤 답변을 끝내지 못한 경우다.
 function mockAnswerWithActions(actions: AgentAction[], failed = false) {

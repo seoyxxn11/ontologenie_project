@@ -106,7 +106,8 @@ public class AgentAnswerService {
 
     /**
      * 도구로 답했다(144). 답변 문장은 AI가 도구 결과로 쓰고, 정보별 결과(results)는 서버가 남긴 조회 기록에서 만든다. 실행한 Action(actions)은
-     * 실행 결과에서 만든다(160). 질문 시 동기화는 아직 없어 syncStatus는 NONE이다.
+     * 실행 결과에서 만든다(160). 질문 시 동기화는 아직 없어 syncStatus는 NONE이다. unconfirmedLookups는 다시 조회해 성공하지 못한
+     * 실패·거절 호출 수이며(449), 0보다 크면 화면이 답변에 빠진 정보가 있을 수 있다고 알린다.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void answerWithResults(
@@ -114,7 +115,8 @@ public class AgentAnswerService {
             String content,
             QuestionInterpretation interpretation,
             List<AgentQueryResult> results,
-            List<AgentActionOutcome> actions) {
+            List<AgentActionOutcome> actions,
+            int unconfirmedLookups) {
         messages.findForUpdateById(answerId)
                 .ifPresent(
                         answer -> {
@@ -128,7 +130,8 @@ public class AgentAnswerService {
                                             "syncStatus", "NONE",
                                             "results", toMaps(results),
                                             "conditions", interpretation.toConditions(),
-                                            "actions", actionMaps(actions)));
+                                            "actions", actionMaps(actions),
+                                            "unconfirmedLookups", unconfirmedLookups));
                         });
     }
 
@@ -202,7 +205,10 @@ public class AgentAnswerService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void failWithResults(
-            long answerId, List<AgentQueryResult> results, List<AgentActionOutcome> actions) {
+            long answerId,
+            List<AgentQueryResult> results,
+            List<AgentActionOutcome> actions,
+            int unconfirmedLookups) {
         messages.findForUpdateById(answerId)
                 .ifPresent(
                         answer -> {
@@ -214,9 +220,14 @@ public class AgentAnswerService {
                                     failedContent(actions),
                                     FAILED_REASON,
                                     Map.of(
-                                            "syncStatus", "NONE",
-                                            "results", toMaps(results),
-                                            "actions", actionMaps(actions)));
+                                            "syncStatus",
+                                            "NONE",
+                                            "results",
+                                            toMaps(results),
+                                            "actions",
+                                            actionMaps(actions),
+                                            "unconfirmedLookups",
+                                            unconfirmedLookups));
                         });
     }
 

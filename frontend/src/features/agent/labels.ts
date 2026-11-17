@@ -21,6 +21,14 @@ export const resultCategoryLabels: Record<ResultCategory, string> = {
 
 export const RESULT_FAILED_LABEL = '확인하지 못함'
 
+// 실패했지만 같은 조회를 다시 해 확인한 결과(449)
+export const RESULT_RETRIED_LABEL = '다시 조회해 확인함'
+
+// 다시 조회해 확인하지 못한 조회가 있을 때 답변 아래에 보이는 안내(449)
+export function unconfirmedNotice(count: number) {
+  return `일부 정보를 확인하지 못했어요(조회 ${count}건). 답변에 빠진 내용이 있을 수 있어요.`
+}
+
 export const syncStatusNotices: Partial<Record<SyncStatus, string>> = {
   TIMED_OUT: '최신 데이터 반영 중',
   FAILED: '최신 데이터를 가져오지 못함',

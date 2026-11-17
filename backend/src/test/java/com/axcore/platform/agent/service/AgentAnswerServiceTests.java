@@ -148,16 +148,31 @@ class AgentAnswerServiceTests {
         AgentMessage answer = runningAnswer();
 
         answers.answerWithResults(
-                900L, "재배정 계획을 만들었습니다.", INTERPRETATION, List.of(), List.of(PLAN_CREATED));
+                900L, "재배정 계획을 만들었습니다.", INTERPRETATION, List.of(), List.of(PLAN_CREATED), 0);
 
         assertThat(answer.getAnswerMeta().get("actions")).isEqualTo(List.of(PLAN_CREATED.toMap()));
+    }
+
+    /** 다시 조회해 성공하지 못한 실패 수를 남겨 화면이 답변에 빠진 정보가 있을 수 있다고 알리게 한다(449). 실패 답변도 같다. */
+    @Test
+    void savesUnconfirmedLookupCount() {
+        AgentMessage answer = runningAnswer();
+
+        answers.answerWithResults(900L, "확인한 결과입니다.", INTERPRETATION, List.of(), List.of(), 2);
+
+        assertThat(answer.getAnswerMeta()).containsEntry("unconfirmedLookups", 2);
+
+        AgentMessage failed = runningAnswer();
+        answers.failWithResults(900L, List.of(), List.of(), 1);
+
+        assertThat(failed.getAnswerMeta()).containsEntry("unconfirmedLookups", 1);
     }
 
     @Test
     void keepsActionsWhenAnswerFailsAfterRunningThem() {
         AgentMessage answer = runningAnswer();
 
-        answers.failWithResults(900L, List.of(), List.of(PLAN_CREATED));
+        answers.failWithResults(900L, List.of(), List.of(PLAN_CREATED), 0);
 
         // 계획은 이미 만들어졌으므로 실패 답변에도 남기고, 다시 질문하라고 하지 않는다(160).
         assertThat(answer.getStatus()).isEqualTo(MessageStatus.FAILED);
@@ -173,7 +188,7 @@ class AgentAnswerServiceTests {
     void asksToRetryOnlyWhenNothingWasExecuted() {
         AgentMessage answer = runningAnswer();
 
-        answers.failWithResults(900L, List.of(), List.of(PLAN_BLOCKED));
+        answers.failWithResults(900L, List.of(), List.of(PLAN_BLOCKED), 0);
 
         // 막힌 작업은 실행되지 않았으므로 다시 질문해도 계획이 겹치지 않는다.
         assertThat(answer.getContent()).isEqualTo(AgentAnswerService.FAILED_CONTENT);
@@ -184,7 +199,7 @@ class AgentAnswerServiceTests {
         AgentMessage answer = closedByCleanup();
 
         answers.answerWithResults(
-                900L, "재배정 계획을 만들었습니다.", INTERPRETATION, List.of(), List.of(PLAN_CREATED));
+                900L, "재배정 계획을 만들었습니다.", INTERPRETATION, List.of(), List.of(PLAN_CREATED), 0);
 
         // 결과로 덮지는 않지만, 만든 계획은 답변에 덧붙여 화면에서 사라지지 않게 한다(160).
         assertThat(answer.getStatus()).isEqualTo(MessageStatus.FAILED);
@@ -199,7 +214,7 @@ class AgentAnswerServiceTests {
     void attachesLateActionsWhenFailingAnswerAlreadyClosedByCleanup() {
         AgentMessage answer = closedByCleanup();
 
-        answers.failWithResults(900L, List.of(), List.of(PLAN_CREATED));
+        answers.failWithResults(900L, List.of(), List.of(PLAN_CREATED), 0);
 
         // 실패 저장 경로에서도 같은 방식으로 덧붙인다. 실패 이유는 정리 때 값을 그대로 둔다.
         assertThat(answer.getStatus()).isEqualTo(MessageStatus.FAILED);
@@ -212,7 +227,7 @@ class AgentAnswerServiceTests {
     void attachesBlockedActionWithoutChangingCleanupNotice() {
         AgentMessage answer = closedByCleanup();
 
-        answers.failWithResults(900L, List.of(), List.of(PLAN_BLOCKED));
+        answers.failWithResults(900L, List.of(), List.of(PLAN_BLOCKED), 0);
 
         // 막힌 작업은 실행되지 않았으므로 막힌 이유는 보여 주되, 정리 안내 문구는 그대로 둔다.
         assertThat(answer.getContent()).isEqualTo(AgentMessageService.STALE_CONTENT);
@@ -223,7 +238,7 @@ class AgentAnswerServiceTests {
     void leavesClosedAnswerAsIsWhenNoActionRan() {
         AgentMessage answer = closedByCleanup();
 
-        answers.failWithResults(900L, List.of(), List.of());
+        answers.failWithResults(900L, List.of(), List.of(), 0);
 
         assertThat(answer.getContent()).isEqualTo(AgentMessageService.STALE_CONTENT);
         assertThat(answer.getAnswerMeta()).containsEntry("actions", List.of());
