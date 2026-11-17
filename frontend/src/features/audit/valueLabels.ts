@@ -34,6 +34,18 @@ export const valueLabels: Record<string, string> = {
   message: '안내',
   syncEnabled: '자동 수집 사용',
   syncIntervalMinutes: '수집 주기(분)',
+  items: '옮길 작업',
+  dataAsOf: '기준 시점',
+  selectionBasis: '선정 근거',
+  operationCode: '공정 코드',
+  loginId: '계정 ID',
+  roleCode: '역할',
+  displayName: '표시 이름',
+  description: '설명',
+  dataType: '자료형',
+  keyColumns: '키 컬럼',
+  sourceResourceId: '원천 표 번호',
+  objectTypeId: '객체 유형 번호',
 }
 // 상태·결정 값의 화면 이름
 export const valueStates: Record<string, string> = {

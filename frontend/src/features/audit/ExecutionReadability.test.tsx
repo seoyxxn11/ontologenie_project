@@ -228,3 +228,41 @@ test('진행 중인 기록은 처리 결과 칸 없이 진행 안내와 입력 �
     screen.getByText('W'.repeat(200)).closest('.audit-values'),
   ).not.toBeNull()
 })
+
+test('실제 기록에 오는 항목 이름과 역할·기준 시점 값을 화면 표현으로 보여준다', () => {
+  render(
+    <ExecutionValues
+      values={{
+        items: [{ workOrderId: 731, toEquipmentId: 2, operationCode: '20' }],
+        dataAsOf: '2026-11-17T22:44:13.005793+09:00',
+        selectionBasis: { reason: '필요한 능력을 충족합니다.' },
+        loginId: 'maintenance',
+        roleCode: 'MAINTENANCE',
+        displayName: '이민수',
+      }}
+    />,
+  )
+  for (const label of [
+    '옮길 작업',
+    '공정 코드',
+    '기준 시점',
+    '선정 근거',
+    '계정 ID',
+    '역할',
+    '표시 이름',
+  ])
+    expect(screen.getByText(label)).toBeVisible()
+  expect(screen.getByText('2026-11-17 22:44:13 KST')).toBeVisible()
+  expect(screen.getByText('정비 담당')).toBeVisible()
+  expect(screen.queryByText('MAINTENANCE')).not.toBeInTheDocument()
+})
+
+test('모르는 역할 코드와 시각으로 읽을 수 없는 기준 시점은 원래 값을 그대로 둔다', () => {
+  render(
+    <ExecutionValues
+      values={{ roleCode: 'constructor', dataAsOf: '확인 중' }}
+    />,
+  )
+  expect(screen.getByText('constructor')).toBeVisible()
+  expect(screen.getByText('확인 중')).toBeVisible()
+})

@@ -1,5 +1,16 @@
 import './executionDetail.css'
+import { formatKstDateTime } from '../../utils/dateTime'
+import { roleLabels } from '../auth/access'
 import { valueLabels, valueStates } from './valueLabels'
+
+// 서버 형식 그대로 오는 값 중 화면 표현이 정해진 것만 바꾼다. 모르는 값은 그대로 둔다.
+function displayText(code: string, value: string) {
+  if (code === 'roleCode' && Object.hasOwn(roleLabels, value))
+    return roleLabels[value as keyof typeof roleLabels]
+  if (code === 'dataAsOf' && !Number.isNaN(Date.parse(value)))
+    return formatKstDateTime(value)
+  return value
+}
 
 function Value({
   value,
@@ -23,7 +34,7 @@ function Value({
           : ['status', 'decision', 'connectionStatus'].includes(code) &&
               Object.hasOwn(valueStates, value)
             ? valueStates[value]
-            : value}
+            : displayText(code, value)}
       </>
     )
   }
