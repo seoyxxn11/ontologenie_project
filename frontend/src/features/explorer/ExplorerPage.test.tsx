@@ -685,14 +685,14 @@ test('변환 전 값이 없는 예전 관계는 목록에 표시하고 변환 �
     sourceKey: { work_order_no: 'WO-101' },
     transformedValue: 'LEGACY-CODE',
   })
-  const user = await openEvidenceDialog(/프레스 3호기/)
+  await openEvidenceDialog(/프레스 3호기/)
   const dialog = within(screen.getByRole('dialog'))
 
   expect(await dialog.findByText('현재 배정 설비')).toBeInTheDocument()
   expect(dialog.getByText('프레스 작업')).toBeInTheDocument()
   expect(dialog.queryAllByText(/LEGACY-CODE/)).toHaveLength(0)
-  await user.click(dialog.getByText('상세 근거'))
-  expect(dialog.getByText('work_order_no: WO-101')).toBeVisible()
+  expect(dialog.getByText('연결 원천 행: work_order_no: WO-101')).toBeVisible()
+  expect(dialog.queryByText('상세 근거')).not.toBeInTheDocument()
   expect(
     dialog.queryByRole('table', { name: '비교 조건' }),
   ).not.toBeInTheDocument()
