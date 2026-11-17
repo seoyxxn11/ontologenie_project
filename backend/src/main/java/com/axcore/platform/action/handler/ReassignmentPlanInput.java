@@ -10,6 +10,6 @@ public record ReassignmentPlanInput(
         Map<String, Object> selectionBasis,
         String dataAsOf) {
 
-    /** operationCode가 없으면 작업지시에서 정지 설비에 배정된 남은 공정 전체를 옮긴다. */
+    /** operationCode가 없으면 작업지시에서 정지 설비에 배정된 남은 공정 전체를 옮기고, 저장할 때는 그 공정마다 한 항목으로 나눈다. */
     public record Item(Long workOrderId, String operationCode, Long toEquipmentId) {}
 }

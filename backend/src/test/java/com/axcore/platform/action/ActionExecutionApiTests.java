@@ -177,16 +177,30 @@ class ActionExecutionApiTests {
                                                 .formatted(s4.order, s4.p101)))
                         .andExpect(status().isOk())
                         .andExpect(jsonPath("$.data.status").value("SUCCEEDED"))
-                        .andExpect(jsonPath("$.data.result.itemCount").value(1))
+                        .andExpect(jsonPath("$.data.result.itemCount").value(2))
                         .andReturn();
 
-        Map<String, Object> item = itemsOf(longAt(result, "planId")).get(0);
-        assertThat(item).containsEntry("operation_code", null);
-        // 정지 설비에 배정된 남은 공정(20·30)만 담고, 다른 설비의 끝난 공정(10)은 담지 않는다.
-        assertThat(item.get("source_snapshot").toString())
+        // 정지 설비에 배정된 남은 공정(20·30)만 옮기고, 다른 설비의 끝난 공정(10)은 옮기지 않는다. 공정을 적은 계획과 같게 공정마다 한
+        // 항목으로 저장한다.
+        List<Map<String, Object>> items = itemsOf(longAt(result, "planId"));
+        assertThat(items)
+                .extracting(item -> item.get("operation_code"))
+                .containsExactly("20", "30");
+        assertThat(items)
+                .allSatisfy(
+                        item -> {
+                            assertThat(item)
+                                    .containsEntry("work_order_id", s4.order)
+                                    .containsEntry("to_equipment_id", s4.p101);
+                            assertThat(item.get("source_snapshot").toString())
+                                    .doesNotContain("\"10\"");
+                        });
+        assertThat(items.get(0).get("source_snapshot").toString())
                 .contains("\"20\"")
+                .doesNotContain("\"30\"");
+        assertThat(items.get(1).get("source_snapshot").toString())
                 .contains("\"30\"")
-                .doesNotContain("\"10\"");
+                .doesNotContain("\"20\"");
     }
 
     @Test

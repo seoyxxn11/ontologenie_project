@@ -31,7 +31,7 @@ public class ReassignmentPlanItem {
     @Column(nullable = false)
     private Long workOrderId;
 
-    /** 공정. null이면 작업지시 전체다. */
+    /** 공정. 새 계획은 공정마다 한 항목이라 늘 값이 있다. null은 공정별로 나누기 전에 저장한 작업지시 전체 항목이다. */
     private String operationCode;
 
     /** 기존 설비. 계획의 정지 설비와 같다(복합 FK). */

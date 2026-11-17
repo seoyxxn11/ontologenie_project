@@ -5,12 +5,14 @@ import com.axcore.platform.action.repository.ReassignmentObjectRepository.Object
 import com.axcore.platform.auth.service.DataAccess;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -23,7 +25,8 @@ import org.springframework.stereotype.Component;
  *   <li>대체 설비가 정지 설비와 다른가
  *   <li>같은 계획에 같은 작업지시·공정이 두 번 들어가지 않았는가
  *   <li>작업지시가 옮길 수 있는 상태인가
- *   <li>옮길 공정이 정지 설비에 배정돼 있는가(2026-11-04 추가). 공정을 정하지 않으면 정지 설비에 배정된 남은 공정 전체다
+ *   <li>옮길 공정이 정지 설비에 배정돼 있는가(2026-11-04 추가). 공정을 정하지 않으면 정지 설비에 배정된 남은 공정 전체이고, 그 공정마다 한 항목으로 나눠
+ *       돌려준다(저장도 공정별 항목)
  *   <li>공정이 이미 끝나지 않았는가
  *   <li>대체 설비가 공정 표준의 설비 종류와 최소 능력(톤)을 만족하는가
  * </ol>
@@ -43,6 +46,13 @@ class ReassignmentPlanValidator {
 
     /** 차단 문구에서 민감 값 대신 쓰는 말. */
     static final String HIDDEN = "(민감 값)";
+
+    /** 공정 순서 정렬. 숫자면 숫자 크기, 같거나 숫자가 아니면 글자 순이다. */
+    private static final Comparator<String> SEQUENCE_ORDER =
+            Comparator.comparing(ReassignmentPlanValidator::numericSequence)
+                    .thenComparing(Comparator.naturalOrder());
+
+    private static final BigDecimal NON_NUMERIC_SEQUENCE = BigDecimal.valueOf(Long.MAX_VALUE);
 
     private final ReassignmentObjectRepository objects;
     private final ReassignmentProperties properties;
@@ -184,6 +194,21 @@ class ReassignmentPlanValidator {
                     return Result.blocked(
                             "작업지시 %s에 정지 설비 %s에 배정된 남은 공정이 없습니다.".formatted(orderLabel, fromLabel));
                 }
+                // 공정을 정하지 않은 항목은 찾은 공정마다 한 항목으로 나눠 저장한다. 공정을 적은 항목과 같은 모양으로 남겨, 계획만 보고도 어느
+                // 공정을 옮겼는지 알 수 있게 한다.
+                for (Map.Entry<String, List<ObjectRow>> group :
+                        bySequence(targets, operation.sequence()).entrySet()) {
+                    validated.add(
+                            new ValidatedItem(
+                                    new ReassignmentPlanInput.Item(
+                                            item.workOrderId(),
+                                            group.getKey(),
+                                            item.toEquipmentId()),
+                                    order,
+                                    rows.get(item.toEquipmentId()),
+                                    group.getValue()));
+                }
+                continue;
             }
             validated.add(new ValidatedItem(item, order, rows.get(item.toEquipmentId()), targets));
         }
@@ -302,6 +327,28 @@ class ReassignmentPlanValidator {
             }
         }
         return null;
+    }
+
+    /**
+     * 공정 행을 공정 순서별로 묶는다. 같은 순서의 행이 여럿이면 한 항목이 함께 옮긴다(공정을 적은 항목과 같다). 순서는 숫자면 숫자 크기, 아니면 글자 순이다. 순서
+     * 값이 없는 행은 공정 코드를 정할 수 없어 null 한 묶음으로 둔다.
+     */
+    private static Map<String, List<ObjectRow>> bySequence(
+            List<ObjectRow> operations, String sequenceCode) {
+        Map<String, List<ObjectRow>> groups = new TreeMap<>(Comparator.nullsLast(SEQUENCE_ORDER));
+        for (ObjectRow op : operations) {
+            groups.computeIfAbsent(op.text(sequenceCode), key -> new ArrayList<>()).add(op);
+        }
+        return groups;
+    }
+
+    /** 숫자가 아닌 순서는 숫자 순서 뒤에 둔다. */
+    private static BigDecimal numericSequence(String sequence) {
+        try {
+            return new BigDecimal(sequence.trim());
+        } catch (NumberFormatException ex) {
+            return NON_NUMERIC_SEQUENCE;
+        }
     }
 
     private boolean isFinished(ObjectRow operation) {
