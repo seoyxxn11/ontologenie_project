@@ -8,6 +8,39 @@
         CACHE_DIR="${JENKINS_HOME:-/var/jenkins_home}/ci-results"
         LOCK_DIR="${JENKINS_HOME:-/var/jenkins_home}/ci-locks"
         mkdir -p "$CACHE_DIR" "$LOCK_DIR"
+        CONTAINER_DIR=$(mktemp -d)
+        ACTIVE_PID=''
+        remove_check_container() {
+            if [ -s "$CONTAINER_DIR/id" ]; then
+                timeout -k 5s 15s docker rm -f "$(cat "$CONTAINER_DIR/id")" >/dev/null 2>&1 || true
+            fi
+            rm -f "$CONTAINER_DIR/id"
+        }
+        run_check() {
+            duration=$1
+            shift
+            rm -f "$CONTAINER_DIR/id"
+            timeout -k 30s "$duration" "$@" <&0 &
+            ACTIVE_PID=$!
+            if wait "$ACTIVE_PID"; then result=0; else result=$?; fi
+            ACTIVE_PID=''
+            remove_check_container
+            return "$result"
+        }
+        cleanup_check() {
+            status=$?
+            trap - EXIT
+            if [ -n "$ACTIVE_PID" ]; then
+                kill -TERM "$ACTIVE_PID" 2>/dev/null || true
+                wait "$ACTIVE_PID" 2>/dev/null || true
+            fi
+            remove_check_container
+            rmdir "$CONTAINER_DIR"
+            exit "$status"
+        }
+        trap cleanup_check EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
         CACHE_HOST=$(printf '%s' "$CACHE_DIR" | sed 's#^/var/jenkins_home/#/home/ubuntu/axcore/jenkins-data/#')
         TREE=$(git rev-parse "HEAD:$COMPONENT")
         if [ "$COMPONENT" = backend ]; then
@@ -33,7 +66,7 @@
             fi
             ACTION=$1
             shift
-            docker run --rm --network none --memory 256m "$@" \
+            run_check 2m docker run --rm --cidfile "$CONTAINER_DIR/id" --network none --memory 256m --cpus 0.5 "$@" \
                 -e BUILD_URL \
                 --mount "type=bind,src=$HOST_WS/infra/ci,dst=/script,readonly" \
                 --mount "type=bind,src=$HOST_WS/$COMPONENT,dst=/work" \
@@ -47,10 +80,9 @@
         fi
         WAIT_STARTED=$(date +%s)
         echo "$COMPONENT: 전체 검사 실행 슬롯 대기"
-        # 같은 구성 요소의 테스트만 직렬화한다. 특히 두 Gradle JVM이 Jenkins의 2 CPU/4 GiB를 나눠 쓰지 않는다.
-        # 프로세스 종료/취소 시 OS가 잠금을 해제한다. 배포와 Sonar 스캐너는 이 잠금을 잡지 않는다.
-        exec 9>"$LOCK_DIR/$COMPONENT.lock"
-        flock 9
+        # MR·분석의 전체 검사와 Sonar 스캔·이미지 빌드가 같은 슬롯을 사용한다.
+        exec 9>"$LOCK_DIR/heavy.lock"
+        flock -w 2100 9 || { echo 'CI 실행 슬롯 대기 35분 초과' >&2; exit 1; }
         echo "$COMPONENT: 실행 슬롯 획득 (잠금 대기 $(($(date +%s) - WAIT_STARTED))초)"
         # 기다리는 동안 다른 Job이 같은 코드의 전체 검사를 끝냈을 수 있다.
         if cache_results restore; then
@@ -61,16 +93,18 @@
         case "$COMPONENT" in
             backend)
                 # 캐시 미스면 공유 fixture 변경도 실제로 검사한다. 컴파일 등 다른 작업의 증분 처리는 유지한다.
-                (cd backend && ./gradlew --no-daemon spotlessCheck test --rerun build jacocoTestReport)
+                cd backend
+                run_check 30m ./gradlew --no-daemon --max-workers=2 spotlessCheck test --rerun build jacocoTestReport
+                cd ..
                 ;;
             frontend)
-                docker run --rm --memory 2g -e CI=true \
+                run_check 30m docker run --rm --cidfile "$CONTAINER_DIR/id" --memory 2g --cpus 1 -e CI=true \
                     -v "$HOST_WS/frontend:/app" -w /app \
                     -v axcore-npm-cache:/root/.npm node:24.18.0-alpine \
                     sh -c 'npm ci --no-audit --no-fund && npm run format:check && npm run lint && npm run test:coverage && npm run build'
                 ;;
             ai)
-                docker run --rm --memory 1g -e CI=true \
+                run_check 30m docker run --rm --cidfile "$CONTAINER_DIR/id" --memory 1g --cpus 1 -e CI=true \
                     -v "$HOST_WS/ai:/app" -w /app \
                     -v axcore-pip-cache:/root/.cache/pip python:3.11-slim \
                     sh -c 'pip install -q -r requirements-dev.txt && ruff check . && pytest -q --junitxml=test-results/pytest.xml --cov --cov-report=xml'

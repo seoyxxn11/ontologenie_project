@@ -104,6 +104,7 @@ def runStage = { Map test, String name ->
         }
         def steps(Closure action) { if (allowed) action() }
         def post(Closure ignored) {}
+        def options(Closure ignored) {}
     }, test.script, test.script)
     body.resolveStrategy = Closure.DELEGATE_FIRST
     body()
