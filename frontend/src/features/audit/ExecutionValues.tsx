@@ -3,11 +3,19 @@ import { formatKstDateTime } from '../../utils/dateTime'
 import { roleLabels } from '../auth/access'
 import { valueLabels, valueStates } from './valueLabels'
 
+// 시간대가 붙은 ISO 시각만 시각으로 본다. 2026 같은 숫자나 시간대 없는 값은 바꾸지 않는다.
+const isoDateTime =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/
+
 // 서버 형식 그대로 오는 값 중 화면 표현이 정해진 것만 바꾼다. 모르는 값은 그대로 둔다.
 function displayText(code: string, value: string) {
   if (code === 'roleCode' && Object.hasOwn(roleLabels, value))
     return roleLabels[value as keyof typeof roleLabels]
-  if (code === 'dataAsOf' && !Number.isNaN(Date.parse(value)))
+  if (
+    code === 'dataAsOf' &&
+    isoDateTime.test(value) &&
+    !Number.isNaN(Date.parse(value))
+  )
     return formatKstDateTime(value)
   return value
 }

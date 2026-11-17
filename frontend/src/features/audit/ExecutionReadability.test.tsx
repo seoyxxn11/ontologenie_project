@@ -257,12 +257,20 @@ test('실제 기록에 오는 항목 이름과 역할·기준 시점 값을 화�
   expect(screen.queryByText('MAINTENANCE')).not.toBeInTheDocument()
 })
 
-test('모르는 역할 코드와 시각으로 읽을 수 없는 기준 시점은 원래 값을 그대로 둔다', () => {
-  render(
-    <ExecutionValues
-      values={{ roleCode: 'constructor', dataAsOf: '확인 중' }}
-    />,
-  )
+test('모르는 역할 코드는 원래 값을 그대로 둔다', () => {
+  render(<ExecutionValues values={{ roleCode: 'constructor' }} />)
   expect(screen.getByText('constructor')).toBeVisible()
-  expect(screen.getByText('확인 중')).toBeVisible()
+})
+
+test.each(['확인 중', '2026', 'plan 3', '2026-11-17 22:44', '2026-11-17'])(
+  '시간대가 붙은 시각이 아닌 기준 시점 %s는 원래 값을 그대로 둔다',
+  (value) => {
+    render(<ExecutionValues values={{ dataAsOf: value }} />)
+    expect(screen.getByText(value)).toBeVisible()
+  },
+)
+
+test('UTC로 온 기준 시점도 한국 시각으로 보여준다', () => {
+  render(<ExecutionValues values={{ dataAsOf: '2026-11-17T13:44:13Z' }} />)
+  expect(screen.getByText('2026-11-17 22:44:13 KST')).toBeVisible()
 })
