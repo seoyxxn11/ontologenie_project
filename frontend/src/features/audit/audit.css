@@ -119,13 +119,6 @@
 .audit-context > p {
   margin: 0;
 }
-.audit-input-values {
-  margin-top: 12px;
-}
-.audit-execution-meta {
-  margin-top: 12px;
-  color: var(--ui-text-secondary);
-}
 .audit-history .audit-table > tbody > tr > td:nth-child(3) > p:first-child {
   font-weight: 600;
 }

@@ -191,7 +191,7 @@ function DetailSections({
   )
 }
 
-// 정리하지 않은 원래 입력·결과. 화면에서 뺀 내부 값도 여기서는 확인할 수 있다.
+// 중복·내부 값을 빼지 않은 입력·결과. 실패 기록의 내부 오류 문구만 실패 이유와 겹쳐서 뺀다.
 function TechnicalInfo({ detail }: { detail: Detail }) {
   const result = formatJson(
     resultValuesOf(detail),
