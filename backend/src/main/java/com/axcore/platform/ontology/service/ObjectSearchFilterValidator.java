@@ -176,9 +176,8 @@ public class ObjectSearchFilterValidator {
                             access,
                             field,
                             UNKNOWN_PROPERTY);
-            if (comparableFamily(left.getDataType()) == null
-                    || !comparableFamily(left.getDataType())
-                            .equals(comparableFamily(right.getDataType()))) {
+            String leftFamily = comparableFamily(left.getDataType());
+            if (leftFamily == null || !leftFamily.equals(comparableFamily(right.getDataType()))) {
                 throw BusinessException.invalidField(field, "숫자끼리나 날짜·시각끼리만 비교할 수 있습니다.");
             }
             comparisons.add(

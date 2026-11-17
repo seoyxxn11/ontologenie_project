@@ -153,11 +153,10 @@ public class AgentTargetResolver {
     /** 유형 이름과 번호. 예: "작업자 6" → 작업자, 6. */
     record TypedNumber(String typeWord, String number) {}
 
-    private static final Pattern WORD_THEN_NUMBER =
-            Pattern.compile("^(\\D*[가-힣]\\D*?)\\s*([A-Za-z0-9][A-Za-z0-9_-]*)\\s*번?$");
-
-    private static final Pattern NUMBER_THEN_WORD =
-            Pattern.compile("^([A-Za-z0-9][A-Za-z0-9_-]*)\\s*번?\\s+(\\D*[가-힣]\\D*)$");
+    private static final List<Pattern> NUMBER_FIRST_PATTERNS =
+            List.of(
+                    Pattern.compile("^([A-Za-z0-9][A-Za-z0-9_-]*+)\\s*+번\\s++(\\D*+)$"),
+                    Pattern.compile("^([A-Za-z0-9][A-Za-z0-9_-]*+)\\s++(\\D*+)$"));
 
     /**
      * "작업자 6", "직원 24번", "6번 작업자"처럼 유형 이름과 번호를 함께 쓴 말이면 둘로 나눈다(419). 작업자·직원은 이름이 금지라 대표 속성이 없고 표시
@@ -168,15 +167,51 @@ public class AgentTargetResolver {
             return Optional.empty();
         }
         String text = target.strip();
-        Matcher wordFirst = WORD_THEN_NUMBER.matcher(text);
-        if (wordFirst.matches()) {
-            return Optional.of(new TypedNumber(wordFirst.group(1).strip(), wordFirst.group(2)));
+        String withoutSuffix = text.endsWith("번") ? text.substring(0, text.length() - 1) : text;
+        int end = withoutSuffix.length();
+        while (end > 0 && regexSpace(withoutSuffix.charAt(end - 1))) {
+            end--;
         }
-        Matcher numberFirst = NUMBER_THEN_WORD.matcher(text);
-        if (numberFirst.matches()) {
-            return Optional.of(new TypedNumber(numberFirst.group(2).strip(), numberFirst.group(1)));
+        int start = end;
+        while (start > 0 && numberCharacter(withoutSuffix.charAt(start - 1))) {
+            start--;
+        }
+        while (start < end
+                && (withoutSuffix.charAt(start) == '_' || withoutSuffix.charAt(start) == '-')) {
+            start++;
+        }
+        String typeWord = withoutSuffix.substring(0, start).strip();
+        if (start < end && isTypeWord(typeWord)) {
+            return Optional.of(new TypedNumber(typeWord, withoutSuffix.substring(start, end)));
+        }
+        for (Pattern pattern : NUMBER_FIRST_PATTERNS) {
+            Matcher numberFirst = pattern.matcher(text);
+            if (numberFirst.matches() && isTypeWord(numberFirst.group(2))) {
+                return Optional.of(
+                        new TypedNumber(numberFirst.group(2).strip(), numberFirst.group(1)));
+            }
         }
         return Optional.empty();
+    }
+
+    private static boolean numberCharacter(char value) {
+        return value < 128 && (Character.isLetterOrDigit(value) || value == '_' || value == '-');
+    }
+
+    private static boolean regexSpace(char value) {
+        return " \t\n\r\f\u000b".indexOf(value) >= 0;
+    }
+
+    private static boolean isTypeWord(String value) {
+        boolean korean = false;
+        for (int index = 0; index < value.length(); index++) {
+            char character = value.charAt(index);
+            if (character >= '0' && character <= '9') {
+                return false;
+            }
+            korean |= character >= '가' && character <= '힣';
+        }
+        return korean;
     }
 
     /**

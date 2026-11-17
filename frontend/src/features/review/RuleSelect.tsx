@@ -107,6 +107,7 @@ export default function RuleSelect({
                 key={option.value}
                 id={`${id}-option-${index}`}
                 role="option"
+                tabIndex={-1}
                 aria-selected={option.value === value}
                 className={active === index ? 'is-active' : undefined}
                 onMouseDown={(event) => event.preventDefault()}

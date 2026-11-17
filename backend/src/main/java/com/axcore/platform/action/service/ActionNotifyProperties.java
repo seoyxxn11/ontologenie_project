@@ -65,7 +65,11 @@ public record ActionNotifyProperties(
         } catch (URISyntaxException ex) {
             return Optional.empty();
         }
-        return Optional.of(base.replaceAll("/+$", ""));
+        int end = base.length();
+        while (end > 0 && base.charAt(end - 1) == '/') {
+            end--;
+        }
+        return Optional.of(base.substring(0, end));
     }
 
     @Override

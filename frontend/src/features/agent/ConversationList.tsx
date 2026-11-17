@@ -91,10 +91,10 @@ function ConversationList({
         if (entry.target === row) {
           const button = row.querySelector('.agent-conversation-select')
           const minimumHeight = button
-            ? parseFloat(getComputedStyle(button).minHeight)
+            ? Number.parseFloat(getComputedStyle(button).minHeight)
             : 0
           const borderHeight =
-            parseFloat(getComputedStyle(row).borderBottomWidth) || 0
+            Number.parseFloat(getComputedStyle(row).borderBottomWidth) || 0
           // 늘어난 행 높이로 페이지 크기를 다시 줄이는 순환을 막는다.
           rowHeight =
             minimumHeight > 0

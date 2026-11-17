@@ -20,6 +20,11 @@ test('전체 후보를 보여주고 검색 후보를 클릭해 선택한다', as
   const input = screen.getByRole('combobox', { name: '관계 유형 검색' })
   await user.click(input)
   expect(
+    within(screen.getByRole('listbox'))
+      .getAllByRole('option')
+      .every((option) => option.tabIndex === -1),
+  ).toBe(true)
+  expect(
     within(screen.getByRole('listbox')).getAllByRole('option'),
   ).toHaveLength(2)
   await user.type(input, 'work')
@@ -49,6 +54,7 @@ test('키보드로 선택하고 Escape와 포커스 이동으로 닫는다', asy
   const input = screen.getByRole('combobox', { name: '출발 속성 검색' })
   await user.click(input)
   await user.keyboard('{ArrowDown}{ArrowDown}{Enter}')
+  expect(input).toHaveFocus()
   expect(onChange).toHaveBeenCalledWith('2')
   await user.type(input, '설비')
   await user.keyboard('{Escape}')

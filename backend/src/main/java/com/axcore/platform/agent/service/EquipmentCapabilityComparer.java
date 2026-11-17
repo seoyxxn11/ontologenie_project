@@ -253,7 +253,7 @@ public class EquipmentCapabilityComparer {
                 used.add(machine.id());
             }
         }
-        if (!missing.isEmpty()) {
+        if (order == null || !missing.isEmpty()) {
             return notCompared(
                     AgentResultCategory.NO_DATA, null, null, null, missing, used, visibility);
         }

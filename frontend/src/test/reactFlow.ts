@@ -43,12 +43,12 @@ export function mockReactFlow() {
   Object.defineProperties(HTMLElement.prototype, {
     offsetHeight: {
       get() {
-        return parseFloat(this.style.height) || 1
+        return Number.parseFloat(this.style.height) || 1
       },
     },
     offsetWidth: {
       get() {
-        return parseFloat(this.style.width) || 1
+        return Number.parseFloat(this.style.width) || 1
       },
     },
   })

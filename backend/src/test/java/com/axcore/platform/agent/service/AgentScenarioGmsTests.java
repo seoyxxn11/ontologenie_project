@@ -174,8 +174,10 @@ class AgentScenarioGmsTests {
             listed.add(code.group());
         }
         // "전체 N건 중 M건"이면 나열한 수는 M이다. 아니면 처음 쓴 "N건"이 나열한 수다.
-        Matcher partial = Pattern.compile("([0-9]+) ?건 ?중 ?([0-9]+) ?건").matcher(answer);
-        Matcher said = Pattern.compile("([0-9]+) ?건").matcher(answer);
+        Matcher partial =
+                Pattern.compile("(?<![0-9])([0-9]++) ?건 ?중 ?(?<![0-9])([0-9]++) ?건")
+                        .matcher(answer);
+        Matcher said = Pattern.compile("(?<![0-9])([0-9]++) ?건").matcher(answer);
         String count = partial.find() ? partial.group(2) : said.find() ? said.group(1) : null;
         if (count != null && Integer.parseInt(count) != listed.size()) {
             run.failures.add("답에 쓴 건수 " + count + "와 나열한 비가동 수 " + listed.size() + "가 다름");
