@@ -40,7 +40,55 @@ test('처음에는 정의 변경 탭에서 정의를 바꾼 기록을 보여준�
   )
   expect(await screen.findByText('3건')).toBeInTheDocument()
   expect(screen.getByText('UPDATE_OBJECT_TYPE')).toBeInTheDocument()
+  expect(
+    screen.queryByText('object_type · id: 3 · 수정'),
+  ).not.toBeInTheDocument()
+})
+
+test('내용 보기를 누르면 그 기록의 변경 전후를 펼치고 다시 누르면 접는다', async () => {
+  const user = userEvent.setup()
+  renderHistoryPage()
+  await screen.findByText('3건')
+
+  const [firstButton] = screen.getAllByRole('button', { name: '내용 보기' })
+  expect(firstButton).toHaveAttribute('aria-expanded', 'false')
+  await user.click(firstButton)
+
   expect(screen.getByText('object_type · id: 3 · 수정')).toBeInTheDocument()
+  const comparison = screen.getByRole('table', { name: '변경 전후 비교' })
+  expect(within(comparison).getByText('프레스 설비')).toBeInTheDocument()
+  expect(screen.getAllByRole('button', { name: '내용 보기' })).toHaveLength(2)
+
+  const closeButton = screen.getByRole('button', { name: '내용 접기' })
+  expect(closeButton).toHaveAttribute('aria-expanded', 'true')
+  await user.click(closeButton)
+
+  expect(
+    screen.queryByText('object_type · id: 3 · 수정'),
+  ).not.toBeInTheDocument()
+  expect(screen.getAllByRole('button', { name: '내용 보기' })).toHaveLength(3)
+})
+
+test('여러 기록을 함께 펼칠 수 있고 초기화하면 모두 접는다', async () => {
+  const user = userEvent.setup()
+  renderHistoryPage()
+  await screen.findByText('3건')
+
+  await user.click(screen.getAllByRole('button', { name: '내용 보기' })[0])
+  await user.click(screen.getAllByRole('button', { name: '내용 보기' })[0])
+
+  expect(screen.getByText('object_type · id: 3 · 수정')).toBeInTheDocument()
+  expect(
+    screen.getByText('property_definition · id: 31 · 생성'),
+  ).toBeInTheDocument()
+  expect(screen.getAllByRole('button', { name: '내용 접기' })).toHaveLength(2)
+
+  await user.click(screen.getByRole('button', { name: '초기화' }))
+
+  expect(
+    screen.queryByRole('button', { name: '내용 접기' }),
+  ).not.toBeInTheDocument()
+  expect(screen.getAllByRole('button', { name: '내용 보기' })).toHaveLength(3)
 })
 
 test('대상으로 검색하면 그 정의의 변경만 보여준다', async () => {
