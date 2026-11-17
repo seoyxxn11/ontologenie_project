@@ -77,6 +77,22 @@ test('Viewer 계정 생성 후 임시 비밀번호를 표시·캐시하지 않�
   expect(screen.getByLabelText('역할')).toHaveValue('VIEWER')
 })
 
+test('선택한 역할의 권한 개수를 표시하고 필수 입력을 알린다', async () => {
+  open('/admin/accounts/new')
+  const user = userEvent.setup()
+  const role = await screen.findByLabelText('역할')
+  expect(
+    screen.getByRole('heading', { name: '조회 사용자 권한' }),
+  ).toBeInTheDocument()
+  expect(screen.getByText('등록된 권한 코드가 없습니다.')).toBeInTheDocument()
+  await user.selectOptions(role, 'ADMIN')
+  expect(
+    screen.getByRole('heading', { name: '관리자 권한 1개' }),
+  ).toBeInTheDocument()
+  for (const label of ['로그인 ID', '표시 이름', '역할', '임시 비밀번호 확인'])
+    expect(screen.getByLabelText(label)).toBeRequired()
+})
+
 test('임시 비밀번호 확인이 다르면 생성 요청을 보내지 않는다', async () => {
   const request = vi.fn(() => HttpResponse.json({ data: accountFixtures[1] }))
   server.use(http.post('/api/v1/admin/accounts', request))
