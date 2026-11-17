@@ -186,6 +186,7 @@ class ReassignmentPlanQueryApiTests {
                                 .cookie(session.session()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].id").value(planId))
+                .andExpect(jsonPath("$.data[0].createdByName").value("Alpha 손주연"))
                 .andExpect(jsonPath("$.meta.totalElements").value(1));
         mockMvc.perform(
                         get(PLANS)

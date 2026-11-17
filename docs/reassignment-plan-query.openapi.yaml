@@ -3,8 +3,8 @@ info:
   title: 저장된 재배정 계획 목록 조회 (API 093)
   version: "2026-11-17"
   description: >-
-    S15P31C106-451 생성자 이름 필터 확장 계약.
-    기존 fromEquipmentId, createdBy, page, size 조건과 응답 형식을 유지한다.
+    S15P31C106-451 생성자 이름 필터·표시 확장 계약.
+    기존 fromEquipmentId, createdBy, page, size 조건을 유지하며 응답에 createdByName을 추가한다.
     계획이 참조하는 객체 유형의 기존 조회 권한과 민감 값 가림을 적용한다.
 paths:
   /api/v1/reassignment-plans:
@@ -16,7 +16,7 @@ paths:
         생성자 이름은 현재 계정 표시 이름의 대소문자 구분 없는 부분 일치이며,
         앞뒤 공백을 제거하고 빈 이름은 조건을 적용하지 않는다.
         %, _, 역슬래시는 글자 그대로 검색하며 동명이인의 계획은 모두 포함한다.
-        계정 목록 관리 권한은 요구하지 않고 별도 계정 정보는 반환하지 않는다.
+        계정 목록 관리 권한은 요구하지 않으며 계획 생성자의 현재 표시 이름(createdByName)만 추가한다. 계정 로그인 ID·역할·인증 정보는 반환하지 않는다.
       parameters:
         - in: query
           name: fromEquipmentId
@@ -45,8 +45,9 @@ paths:
                 properties:
                   data:
                     type: array
-                    description: 기존 API 093·094의 ReassignmentPlan 응답 (항목 포함, 변경 없음)
-                    items: { type: object }
+                    description: API 093·094의 ReassignmentPlan 응답 (항목 포함)
+                    items:
+                      $ref: "#/components/schemas/ReassignmentPlan"
                   meta:
                     type: object
                     required: [page, size, totalElements, hasNext]
@@ -59,3 +60,41 @@ paths:
           description: 이름 100자 초과 또는 기존 ID·페이지 조건 검증 실패
         "401":
           description: 로그인 필요
+
+  /api/v1/reassignment-plans/{id}:
+    get:
+      operationId: getReassignmentPlan
+      summary: 저장된 재배정 계획 상세
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64, minimum: 1 }
+      responses:
+        "200":
+          description: 기존 계획 상세에 현재 생성자 표시 이름 추가
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ReassignmentPlan"
+        "401":
+          description: 로그인 필요
+        "404":
+          description: 계획 없음 또는 기존 객체 조회 범위 제한
+components:
+  schemas:
+    ReassignmentPlan:
+      type: object
+      description: 기존 ReassignmentPlan 필드는 유지하고 생성자 표시 이름만 확장한다.
+      properties:
+        createdBy:
+          type: integer
+          format: int64
+          description: 기존 생성자 계정 ID
+        createdByName:
+          type: [string, "null"]
+          description: 생성자의 현재 계정 표시 이름. 확인할 수 없으면 null이며 생성 당시 이름 스냅샷이 아니다.

@@ -14,7 +14,7 @@ import {
   fetchReassignmentPlans,
   PLAN_PAGE_SIZE,
 } from './api'
-import EquipmentPicker from './EquipmentPicker'
+import SavedEquipmentSelect from './SavedEquipmentSelect'
 import {
   formatPlanDateTime,
   operationLabel,
@@ -37,7 +37,6 @@ function PlanFilters({
 }) {
   const [equipmentId, setEquipmentId] = useState(filters.fromEquipmentId)
   const [creatorName, setCreatorName] = useState(filters.createdByName ?? '')
-  const [picking, setPicking] = useState(false)
   return (
     <>
       <form
@@ -51,30 +50,7 @@ function PlanFilters({
           })
         }}
       >
-        <div className="plan-equipment-field">
-          <span id="plan-equipment-label">기존 설비</span>
-          <div>
-            {equipmentId ? (
-              <PlanObjectLink objectId={equipmentId} />
-            ) : (
-              <span>전체</span>
-            )}
-            <Button
-              variant="secondary"
-              aria-labelledby="plan-equipment-label plan-equipment-select"
-              onClick={() => setPicking(true)}
-            >
-              <span id="plan-equipment-select">
-                {equipmentId ? '변경' : '선택'}
-              </span>
-            </Button>
-            {equipmentId && (
-              <Button variant="text" onClick={() => setEquipmentId(undefined)}>
-                설비 해제
-              </Button>
-            )}
-          </div>
-        </div>
+        <SavedEquipmentSelect value={equipmentId} onChange={setEquipmentId} />
         <label>
           생성자
           <input
@@ -102,15 +78,6 @@ function PlanFilters({
           </Button>
         </div>
       </form>
-      {picking && (
-        <EquipmentPicker
-          onClose={() => setPicking(false)}
-          onSelect={(id) => {
-            setEquipmentId(id)
-            setPicking(false)
-          }}
-        />
-      )}
     </>
   )
 }
@@ -132,7 +99,7 @@ function PlanPanel({ planId }: { planId: number }) {
   return (
     <>
       <div className="plan-detail-title">
-        <h3>계획 #{plan.id}</h3>
+        <h3>계획 {plan.id}</h3>
         <StatusBadge tone="info">{planStatusLabel(plan.status)}</StatusBadge>
       </div>
       <div className="plan-movement" aria-label="설비 변경 경로">
@@ -254,6 +221,7 @@ export default function ReassignmentPlansPage() {
                       <th>설비 변경</th>
                       <th>공정</th>
                       <th>상태</th>
+                      <th>생성자</th>
                       <th>생성 시각</th>
                     </tr>
                   </thead>
@@ -273,13 +241,14 @@ export default function ReassignmentPlansPage() {
                           <button
                             type="button"
                             className="plan-select"
+                            aria-label={`계획 ${plan.id}`}
                             aria-pressed={selectedId === plan.id}
                             onClick={(event) => {
                               selectedButton.current = event.currentTarget
                               select(plan.id)
                             }}
                           >
-                            계획 #{plan.id}
+                            {plan.id}
                           </button>
                         </td>
                         <td>
@@ -312,6 +281,9 @@ export default function ReassignmentPlansPage() {
                             {planStatusLabel(plan.status)}
                           </StatusBadge>
                         </td>
+                        <td>
+                          {plan.createdByName?.trim() || '이름 확인 불가'}
+                        </td>
                         <td>{formatPlanDateTime(plan.createdAt)}</td>
                       </tr>
                     ))}
@@ -319,24 +291,27 @@ export default function ReassignmentPlansPage() {
                 </DataTable>
               ))}
           </div>
-          {list.data?.meta && (
-            <Pagination
-              page={page}
-              size={list.data.meta.size || PLAN_PAGE_SIZE}
-              totalElements={list.data.meta.totalElements}
-              pending={list.isFetching}
-              compact
-              showSummary={false}
-              onChange={(nextPage) =>
-                setParams((previous) => {
-                  const next = new URLSearchParams(previous)
-                  if (nextPage) next.set('page', String(nextPage))
-                  else next.delete('page')
-                  return next
-                })
-              }
-            />
-          )}
+          <footer className="plan-pagination">
+            {list.data?.meta && (
+              <Pagination
+                page={page}
+                size={list.data.meta.size || PLAN_PAGE_SIZE}
+                totalElements={list.data.meta.totalElements}
+                pending={list.isFetching}
+                compact
+                showSummary={false}
+                showSinglePage
+                onChange={(nextPage) =>
+                  setParams((previous) => {
+                    const next = new URLSearchParams(previous)
+                    if (nextPage) next.set('page', String(nextPage))
+                    else next.delete('page')
+                    return next
+                  })
+                }
+              />
+            )}
+          </footer>
         </section>
         <section
           className="plan-panel plan-detail"

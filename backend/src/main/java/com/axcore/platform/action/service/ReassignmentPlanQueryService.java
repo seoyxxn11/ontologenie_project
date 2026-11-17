@@ -1,5 +1,6 @@
 package com.axcore.platform.action.service;
 
+import com.axcore.platform.account.repository.AccountRepository;
 import com.axcore.platform.action.domain.ReassignmentPlan;
 import com.axcore.platform.action.domain.ReassignmentPlanItem;
 import com.axcore.platform.action.dto.ReassignmentPlanItemResponse;
@@ -65,6 +66,7 @@ public class ReassignmentPlanQueryService {
 
     private final ReassignmentPlanQueryRepository plans;
     private final ReassignmentPlanItemRepository planItems;
+    private final AccountRepository accounts;
     private final ReassignmentProperties properties;
     private final DataAccessPolicy dataAccessPolicy;
     private final AuditValueMasker masker;
@@ -126,6 +128,9 @@ public class ReassignmentPlanQueryService {
         if (found.isEmpty()) {
             return List.of();
         }
+        Map<Long, String> creatorNames = new HashMap<>();
+        accounts.findAllById(found.stream().map(ReassignmentPlan::getCreatedBy).distinct().toList())
+                .forEach(account -> creatorNames.put(account.getId(), account.getDisplayName()));
         Map<Long, List<ReassignmentPlanItemResponse>> itemsByPlan = new HashMap<>();
         Map<Long, Set<String>> revealedByPlan = new TreeMap<>();
         // 스냅샷은 계획을 만든 때의 값이라, 그 뒤 민감에서 내린 속성도 그때 민감이었으면 가린다(431)
@@ -158,7 +163,9 @@ public class ReassignmentPlanQueryService {
                 .map(
                         plan ->
                                 ReassignmentPlanResponse.from(
-                                        plan, itemsByPlan.getOrDefault(plan.getId(), List.of())))
+                                        plan,
+                                        creatorNames.get(plan.getCreatedBy()),
+                                        itemsByPlan.getOrDefault(plan.getId(), List.of())))
                 .toList();
     }
 

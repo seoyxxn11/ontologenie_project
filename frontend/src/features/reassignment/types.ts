@@ -26,6 +26,7 @@ export type ReassignmentPlan = {
   actionExecutionId: number
   agentConversationId: number | null
   createdBy: number
+  createdByName?: string | null
   createdAt: string
   items: ReassignmentPlanItem[]
 }

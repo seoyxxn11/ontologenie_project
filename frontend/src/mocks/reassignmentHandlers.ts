@@ -12,6 +12,7 @@ export const samplePlan: ReassignmentPlan = {
   actionExecutionId: 512,
   agentConversationId: 1,
   createdBy: 7,
+  createdByName: demoAccount.displayName,
   createdAt: '2026-10-27T09:10:02+09:00',
   items: [
     {

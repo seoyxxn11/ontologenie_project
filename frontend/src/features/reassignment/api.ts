@@ -20,6 +20,17 @@ export function fetchReassignmentPlans(
   return apiGet<ReassignmentPlan[]>(`/reassignment-plans?${params}`, { signal })
 }
 
+// 조회 조건·현재 페이지와 관계없이 저장된 계획에 등장한 기존 설비만 모은다.
+export async function fetchSavedPlanEquipmentIds(signal?: AbortSignal) {
+  const ids = new Set<number>()
+  for (let page = 0; ; page += 1) {
+    const result = await fetchReassignmentPlans({}, page, signal)
+    for (const plan of result.data) ids.add(plan.fromEquipmentId)
+    if (!result.meta?.hasNext || result.data.length === 0) break
+  }
+  return [...ids].sort((a, b) => a - b)
+}
+
 // 094 재배정 계획 상세 (옮길 작업 목록 포함)
 export async function fetchReassignmentPlan(id: number, signal?: AbortSignal) {
   const body = await apiGet<ReassignmentPlan>(`/reassignment-plans/${id}`, {
