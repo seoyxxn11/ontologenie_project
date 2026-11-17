@@ -27,9 +27,7 @@
   line-height: 24px;
 }
 .audit-detail-heading {
-  font-size: 14px;
   font-weight: 600;
-  line-height: 21px;
 }
 .audit-detail-section > .audit-detail-heading {
   border-bottom: 1px solid var(--ui-border);
@@ -63,13 +61,13 @@
 .audit-values dd {
   margin-top: 2px;
 }
-/* 팝업처럼 폭이 넉넉한 곳에서만 이름과 값을 좌우로 나눈다. 표 칸 안에서는 위아래로 쌓는다. */
-.audit-detail--wide .audit-values > div {
+/* 팝업의 맨 바깥 항목만 이름과 값을 좌우로 나눈다. 표 칸 안과 값 안에 중첩된 항목은 위아래로 쌓는다. */
+.audit-detail--wide .audit-detail-section > .audit-values > div {
   display: grid;
   grid-template-columns: minmax(96px, 160px) minmax(0, 1fr);
   gap: 4px 16px;
 }
-.audit-detail--wide .audit-values dd {
+.audit-detail--wide .audit-detail-section > .audit-values > div > dd {
   margin-top: 0;
 }
 .audit-values .audit-values > div {
