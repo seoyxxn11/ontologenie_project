@@ -8,8 +8,28 @@ from app.llm.client import (
     LLMError,
     MockLLMClient,
     ResponsesLLMClient,
+    _strip_fence,
     create_llm_client,
 )
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ('```json\n{"ok": true}\n```', '{"ok": true}'),
+        ('  ```\n {"ok": true} \n```  ', '{"ok": true}'),
+        ('```json{"ok": true}```', '{"ok": true}'),
+        ('```  json{"ok": true}```', 'json{"ok": true}'),
+        ('{"note": "```"}', '{"note": "```"}'),
+        ("```", "```"),
+        ("``````", ""),
+        ("```json```", ""),
+        (' ```json\n{"ok": true}', ' ```json\n{"ok": true}'),
+        ("```text```middle```", "text```middle"),
+    ],
+)
+def test_strip_fence_preserves_supported_wrappers_and_unfinished_text(text, expected):
+    assert _strip_fence(text) == expected
 
 
 def test_create_llm_client_by_provider():

@@ -66,7 +66,7 @@ DOCUMENT_KEYS = {
 }
 LLM_TYPES = {"EQUIPMENT", "OBSERVATION", "ACTION", "TIME"}
 # '1시간 정지'의 '시간'은 시각이 아니다
-HOUR = re.compile(r"(새벽|아침|오전|오후|저녁|밤)?\s*(\d{1,2})\s*시(?!간)")
+HOUR = re.compile(r"(?:(새벽|아침|오전|오후|저녁|밤)\s*+)?(\d{1,2})\s*+시(?!간)")
 SHIFT_START = re.compile(r"교대\s*(직후|하자마자|시작)")
 SHIFT_HOURS = {"주간": 8, "야간": 20}  # 교대 시작 시각
 SHIFT_LENGTH = 12  # 교대 근무 시간

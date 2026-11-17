@@ -8,9 +8,10 @@ from dataclasses import dataclass, field
 
 from app.models.extraction import Resolution, ResolutionStatus
 
-LINE = re.compile(r"(\d+)\s*라인")
-UNIT = re.compile(r"(\d+)\s*호")
-LINE_UNIT = re.compile(r"(\d+)\s*-\s*(\d+)\s*호")
+# 숫자열 중간에서 다시 검색하지 않고 숫자·공백을 되돌리지 않는다(Python 3.11+).
+LINE = re.compile(r"(?<!\d)(\d++)\s*+라인")
+UNIT = re.compile(r"(?<!\d)(\d++)\s*+호")
+LINE_UNIT = re.compile(r"(?<!\d)(\d++)\s*+-\s*+(\d++)\s*+호")
 
 
 @dataclass
