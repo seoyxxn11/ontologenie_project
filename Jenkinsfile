@@ -220,6 +220,17 @@ pipeline {
                     fi
                     bash -n infra/scripts/pg-backup.sh
                     HOST_WS=$(printf '%s' "$WORKSPACE" | sed 's#^/var/jenkins_home#/home/ubuntu/axcore/jenkins-data#')
+                    if git cat-file -e HEAD:infra/scripts/test_pg_backup.py 2>/dev/null; then
+                        set --
+                        for f in infra/scripts/pg-backup.sh infra/scripts/test_pg_backup.py; do
+                            test -f "$f"
+                            test "$(realpath "$f")" = "$(pwd -P)/$f"
+                            set -- "$@" --mount "type=bind,src=$HOST_WS/$f,dst=/repo/$f,readonly"
+                        done
+                        run_infra --network none --memory 256m --cpus 0.5 \
+                            -e PYTHONDONTWRITEBYTECODE=1 "$@" \
+                            -w /repo python:3.11-slim python -m unittest discover -s infra/scripts -p 'test_pg_backup.py' -v
+                    fi
                     run_infra --network none --memory 256m --cpus 0.5 \
                         -e PYTHONDONTWRITEBYTECODE=1 \
                         --mount "type=bind,src=$HOST_WS/infra/deploy,dst=/work,readonly" -w /work \

@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import signal
 import subprocess
 import tempfile
@@ -83,7 +84,7 @@ if tool == 'docker' and '/script/result_cache.py' in args:
     if os.environ.get('TEST_CACHE_BLOCK') == '1' and 'restore' in args:
         pathlib.Path(args[args.index('--cidfile') + 1]).write_text('fixture-cache')
         pathlib.Path(os.environ['TEST_CACHE_STARTED']).write_text('started')
-        time.sleep(5)
+        time.sleep(60)
     if os.environ.get('TEST_CACHE_FAIL') == '1': sys.exit(1)
     index = args.index('/script/result_cache.py')
     sys.exit(subprocess.call([sys.executable, os.environ['REAL_CACHE_SCRIPT'], *args[index + 1:],
@@ -102,6 +103,7 @@ events = pathlib.Path(os.environ['TEST_EVENTS'])
 def event(phase):
     with events.open('a') as stream:
         stream.write(json.dumps({'phase': phase, 'time': time.monotonic(), 'workspace': str(work)}) + '\n')
+time.sleep(float(os.environ.get('TEST_BOOT_DELAY', '0')))
 event('start')
 time.sleep(float(os.environ.get('TEST_DELAY', '0')))
 if os.environ.get('TEST_FAIL') == '1':
@@ -123,11 +125,26 @@ event('end')
 '''
 
 
+# 준비된 컨테이너가 정체된 상황을 먼저 만든 뒤 실제 GNU timeout을 실행한다.
+# 0.3초에 Python CLI 초기화까지 끝나야 한다는 환경 의존성을 없앤다.
+READY_TIMEOUT = r'''#!/usr/bin/env python3
+import os, pathlib, sys
+args = sys.argv[1:]
+if len(args) > 3 and args[2] == 'fixture-helper-timeout':
+    assert args[3:5] == ['docker', 'run'], args
+    pathlib.Path(args[args.index('--cidfile') + 1]).write_text(os.environ['TEST_TIMEOUT_CID'])
+    args = args[:2] + ['0.3s', sys.executable, '-c', 'import time; time.sleep(60)']
+real_timeout = os.environ['TEST_REAL_TIMEOUT']
+os.execv(real_timeout, [real_timeout, *args])
+'''
+
+
 class ComponentChecksTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+        self.real_timeout = shutil.which('timeout')
         self.bin = self.root / "bin"
         self.bin.mkdir()
         for name in ("git", "java", "docker"):
@@ -152,6 +169,7 @@ class ComponentChecksTests(unittest.TestCase):
                 "WORKSPACE": str(work), "JENKINS_HOME": str(self.root / "jenkins"),
                 "CHECK_COMPONENT": component, "REAL_CACHE_SCRIPT": str(CACHE_SCRIPT),
                 "TEST_EVENTS": str(self.events), "CHECK_POLICY_BODY": SCRIPT,
+                "TEST_REAL_TIMEOUT": self.real_timeout,
                 "TEST_REMOVED": str(self.root / "removed"),
                 "TEST_REMOVED_LOG": str(self.root / "removed-log"), **options}
 
@@ -166,16 +184,42 @@ class ComponentChecksTests(unittest.TestCase):
 
     def stop(self, process):
         if process.poll() is None:
-            os.killpg(process.pid, signal.SIGKILL)
-        process.communicate(timeout=5)
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+        try:
+            process.communicate(timeout=15)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.communicate(timeout=15)
 
     def finish(self, process, expected=0):
-        output, _ = process.communicate(timeout=20)
+        output, _ = process.communicate(timeout=60)
         self.assertEqual(process.returncode, expected, output)
         return output
 
     def records(self):
         return [json.loads(line) for line in self.events.read_text().splitlines()] if self.events.exists() else []
+
+    def wait_for_records(self):
+        deadline = time.monotonic() + 30
+        while not self.records() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        self.assertTrue(self.records(), 'check fixture did not become ready within 30 seconds')
+
+    def ready_timeout_environment(self, environment, cid):
+        self.executable(self.bin / 'timeout', READY_TIMEOUT)
+        return {**environment, 'TEST_TIMEOUT_CID': cid}
+
+    def test_slow_worker_startup_is_not_mistaken_for_check_failure(self):
+        process = self.start(self.environment('slow-start', TEST_BOOT_DELAY='6'))
+        self.wait_for_records()
+        self.finish(process)
+        self.assertEqual([item['phase'] for item in self.records()], ['start', 'end'])
 
     def test_sequential_jobs_reuse_complete_success_without_repeating_any_checks(self):
         for component in ("backend", "frontend", "ai"):
@@ -222,15 +266,12 @@ class ComponentChecksTests(unittest.TestCase):
         self.finish(self.start(self.environment("retry", "frontend")))
 
     def test_heavy_wrapper_cancel_stops_children_before_releasing_slot(self):
-        environment = self.environment("cancel-build", TEST_DELAY="5")
+        environment = self.environment("cancel-build", TEST_DELAY="60")
         environment["HEAVY_COMMAND"] = 'cd backend && ./gradlew --no-daemon --max-workers=2 spotlessCheck test --rerun build jacocoTestReport'
         process = self.start(environment, HEAVY_SCRIPT)
-        deadline = time.monotonic() + 5
-        while not self.records() and time.monotonic() < deadline:
-            time.sleep(0.01)
-        self.assertTrue(self.records())
+        self.wait_for_records()
         os.killpg(process.pid, signal.SIGTERM)
-        process.communicate(timeout=5)
+        process.communicate(timeout=15)
         self.assertNotEqual(process.returncode, 0)
         self.finish(self.start(self.environment("retry", "frontend")))
 
@@ -248,20 +289,18 @@ class ComponentChecksTests(unittest.TestCase):
 
     def test_check_timeout_removes_container_without_publishing_and_releases_slot(self):
         environment = self.environment("timed-out", "frontend", TEST_DELAY="5")
-        self.finish(self.start(environment, SCRIPT.replace('run_check 30m docker run', 'run_check 0.5s docker run')), expected=124)
+        environment = self.ready_timeout_environment(environment, 'fixture-container')
+        self.finish(self.start(environment, SCRIPT.replace('run_check 30m docker run', 'run_check fixture-helper-timeout docker run')), expected=124)
         self.assertEqual((self.root / "removed").read_text(), 'fixture-container')
         cache = self.root / "jenkins/ci-results/frontend"
         self.assertFalse(cache.exists() and any(cache.iterdir()))
         self.finish(self.start(self.environment("retry", "frontend")))
 
     def test_cancelled_container_is_removed_and_slot_is_released(self):
-        process = self.start(self.environment("cancelled", "ai", TEST_DELAY="5"))
-        deadline = time.monotonic() + 5
-        while not self.records() and time.monotonic() < deadline:
-            time.sleep(0.01)
-        self.assertTrue(self.records())
+        process = self.start(self.environment("cancelled", "ai", TEST_DELAY="60"))
+        self.wait_for_records()
         os.killpg(process.pid, signal.SIGTERM)
-        process.communicate(timeout=5)
+        process.communicate(timeout=15)
         self.assertNotEqual(process.returncode, 0)
         self.assertEqual((self.root / "removed").read_text(), 'fixture-container')
         self.finish(self.start(self.environment("retry", "ai")))
@@ -269,7 +308,8 @@ class ComponentChecksTests(unittest.TestCase):
     def test_cache_timeout_cleans_helper_and_falls_back_to_full_checks(self):
         environment = self.environment('cache-timeout', TEST_CACHE_BLOCK='1',
             TEST_CACHE_STARTED=str(self.root / 'cache-started'))
-        self.finish(self.start(environment, SCRIPT.replace('run_check 2m docker run', 'run_check 0.3s docker run')))
+        environment = self.ready_timeout_environment(environment, 'fixture-cache')
+        self.finish(self.start(environment, SCRIPT.replace('run_check 2m docker run', 'run_check fixture-helper-timeout docker run')))
         self.assertIn('fixture-cache', (self.root / 'removed-log').read_text().splitlines())
         self.assertEqual([item['phase'] for item in self.records()], ['start', 'end'])
 
@@ -278,12 +318,12 @@ class ComponentChecksTests(unittest.TestCase):
         environment = self.environment('cache-cancel', TEST_CACHE_BLOCK='1',
             TEST_CACHE_STARTED=str(started))
         process = self.start(environment)
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + 30
         while not started.exists() and time.monotonic() < deadline:
-            time.sleep(0.01)
+            time.sleep(0.05)
         self.assertTrue(started.exists())
         os.killpg(process.pid, signal.SIGTERM)
-        process.communicate(timeout=5)
+        process.communicate(timeout=15)
         self.assertNotEqual(process.returncode, 0)
         self.assertIn('fixture-cache', (self.root / 'removed-log').read_text().splitlines())
         self.assertEqual(self.records(), [])
@@ -291,10 +331,7 @@ class ComponentChecksTests(unittest.TestCase):
     def test_failed_checks_propagate_and_are_not_reused_by_waiting_job(self):
         failed = self.start(self.environment("failed", TEST_DELAY="0.3", TEST_FAIL="1"))
         # Ensure the failed producer owns the real OS lock before starting its waiter.
-        deadline = time.monotonic() + 5
-        while not self.records() and time.monotonic() < deadline:
-            time.sleep(0.01)
-        self.assertTrue(self.records())
+        self.wait_for_records()
         waiting = self.start(self.environment("waiting"))
         self.finish(failed, expected=23)
         self.finish(waiting)
@@ -347,13 +384,10 @@ class ComponentChecksTests(unittest.TestCase):
                 self.finish(self.start(self.environment(component + "-retry", component)))
 
     def test_cancelled_process_group_releases_backend_lock_without_publishing(self):
-        cancelled = self.start(self.environment("cancelled", TEST_DELAY="5"))
-        deadline = time.monotonic() + 5
-        while not self.records() and time.monotonic() < deadline:
-            time.sleep(0.01)
-        self.assertTrue(self.records())
+        cancelled = self.start(self.environment("cancelled", TEST_DELAY="60"))
+        self.wait_for_records()
         os.killpg(cancelled.pid, signal.SIGTERM)
-        cancelled.communicate(timeout=5)
+        cancelled.communicate(timeout=15)
         self.assertNotEqual(cancelled.returncode, 0)
         self.finish(self.start(self.environment("retry")))
         self.assertEqual([e["phase"] for e in self.records()], ["start", "start", "end"])
