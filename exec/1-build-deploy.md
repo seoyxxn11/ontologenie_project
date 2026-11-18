@@ -126,7 +126,7 @@ cd backend
 ./gradlew bootTestRun --args='--spring.profiles.active=api'   # 로컬 DB 없이 실행(Testcontainers)
 ```
 
-로컬 PostgreSQL에 붙여 실행할 때는 프로필 `local,api`(API) 또는 `local,batch`(배치)를 쓰고 `DB_PASSWORD`를 넣습니다. 기본 접속은 `jdbc:postgresql://localhost:5432/axcore`, 사용자 `axcore`입니다(`application-local.yml`). 빈 DB에서 처음 띄우면 Flyway가 스키마 `platform`에 V1~V26을 적용합니다.
+로컬 PostgreSQL에 붙여 실행할 때는 프로필 `local,api`(API) 또는 `local,batch`(배치)를 쓰고 `DB_PASSWORD`를 넣습니다. 기본 접속은 `jdbc:postgresql://localhost:5432/axcore`, 사용자 `axcore`입니다(`application-local.yml`). 빈 DB에서 처음 띄우면 Flyway가 스키마 `platform`에 V1~V29를 적용합니다.
 
 빌드 결과 이미지는 `docker build -t axcore-backend:<태그> backend`로 만듭니다. 같은 이미지를 `backend`(api)와 `batch`(batch)가 프로필만 바꿔 씁니다.
 
@@ -283,6 +283,7 @@ ssh -i $K $H "~/source-db/setup.sh $DB"     # .env·인증서 생성, 기동, �
   2. Jenkins Credentials와 서버 `.env.config`로 실행용 `.env`, `cdc/.env`를 만듭니다(`infra/deploy/prepare_credentials.py`, 권한 600).
   3. 허용된 설정 파일만 서버에 반영하고 검사합니다(`infra/deploy/sync-config.sh`, 실패하면 복구).
   4. 바뀐 서비스만 이미지를 빌드합니다(`axcore-<서비스>:<커밋 SHA>`). backend는 배포 전에 DB를 백업하고, 태그를 바꿔 `docker compose up -d backend`를 한 뒤 최대 90초 healthy를 기다리고 batch를 다시 만듭니다. 실패하면 직전 태그로 롤백합니다. AI, frontend 순으로 같은 방식입니다.
+     frontend는 교체 전에 지금 컨테이너와 새 이미지의 `assets/`(해시가 붙은 JS·CSS)를 서버 `~/axcore/frontend-assets`에 보관합니다(`infra/deploy/retain-frontend-assets.sh`). 메인 nginx가 `/assets/` 요청을 이 폴더에서 먼저 찾고 없으면 frontend로 넘기므로, 배포 전에 열어 둔 탭도 이전 화면 파일을 계속 받습니다. 보관 기간은 Jenkins 파라미터 `FRONTEND_ASSET_RETENTION_DAYS`(기본 7일)이고, 지난 버전은 다음 frontend 배포 때 정리합니다.
   5. 이미지는 최근 3개 태그만 남깁니다. 결과는 GitLab 커밋 상태와 Mattermost DM으로 알립니다.
 
 ### 수동 배포와 롤백 (자동 배포가 안 될 때)
@@ -331,6 +332,7 @@ curl -s 127.0.0.1:18080/actuator/health    # {"status":"UP"}
 - **AI 서버와 backend는 같은 내부 토큰**을 씁니다. 다르면 분석 결과 수신이 막힙니다.
 - **Testcontainers**: Jenkins 컨테이너 안에서 시험을 돌릴 때 `TESTCONTAINERS_HOST_OVERRIDE=172.18.0.1`(axcore-net 게이트웨이)이 필요합니다.
 - **PostgreSQL 18 덤프 복구**에는 psql 18 이상이 필요합니다(덤프 첫머리의 `\restrict` 줄).
+- **프론트 정적 파일 보관**: `~/axcore/frontend-assets`는 nginx에 읽기 전용으로 붙고(`/srv/frontend-assets`), 폴더는 Jenkins가 배포 때 만듭니다(심볼릭 링크면 배포 중단). 보관 목록이 깨지거나 같은 이름의 파일 내용이 다르면 배포를 멈추므로, 폴더를 통째로 지우지 말고 오류와 마지막 정상 목록부터 확인합니다. 보관 기간이 지난 탭은 화면의 `새 버전을 불러와 주세요` 안내에서 새로고침합니다. 자세한 내용은 `infra/deploy/frontend-assets.md`입니다.
 - Blue-Green 전환(`compose.blue-green.yaml`)은 준비만 되어 있고 자동 배포에서는 쓰지 않습니다.
 
 ## 1.8 주요 계정과 설정 파일
@@ -339,7 +341,7 @@ curl -s 127.0.0.1:18080/actuator/health    # {"status":"UP"}
 
 | DB | 접속 주소 | DB·스키마 | 계정 | 정의된 파일 |
 | --- | --- | --- | --- | --- |
-| 플랫폼 DB | 컨테이너 안 `postgres:5432`, 서버 `127.0.0.1:15432` | DB `axcore`, 스키마 `platform` (표 54개, ERD와 같은 구조를 Flyway V1~V26이 만듦) | `axcore` | `infra/.env`(`POSTGRES_*`), `infra/compose.yaml`(`DB_URL`), `backend/src/main/resources/application*.yml`(`spring.datasource`, `spring.flyway.schemas`) |
+| 플랫폼 DB | 컨테이너 안 `postgres:5432`, 서버 `127.0.0.1:15432` | DB `axcore`, 스키마 `platform` (표 54개, ERD와 같은 구조를 Flyway V1~V29가 만듦) | `axcore` | `infra/.env`(`POSTGRES_*`), `infra/compose.yaml`(`DB_URL`), `backend/src/main/resources/application*.yml`(`spring.datasource`, `spring.flyway.schemas`) |
 | 플랫폼 DB(로컬 개발) | `localhost:5432` | `axcore` / `platform` | `axcore` | `backend/src/main/resources/application-local.yml`, `backend/.env.example` |
 | 원천 ERP | ERP 원천 서버 `:15432`(SSL 필수, 메인 서버 IP만 허용) | DB `erp`, 스키마 `erp` | `platform_ro`, `platform_ai`, `platform_cdc` | 원천 서버 `~/source-db/.env`, `infra/source-db/sql/setup_roles.sql`·`allowlist.sql`, 플랫폼 화면의 데이터 연결(접속 정보는 `data_source`·`data_source_credential`에 암호화 저장) |
 | 원천 MES | MES 원천 서버 `:15432` | DB `mes`, 스키마 `mes` | 같음 | 같음 |
@@ -376,8 +378,9 @@ curl -s 127.0.0.1:18080/actuator/health    # {"status":"UP"}
 | `infra/source-db/compose.yaml`, `pg_hba.conf`, `sql/*.sql`, `setup.sh` | 원천 DB·계정·허용 목록·publication |
 | `infra/nginx/conf.d/*.conf` | 프록시 경로·HTTPS |
 | `infra/deploy/prepare_credentials.py`, `configuration.py`, `sync-config.sh` | 배포 때 `.env` 생성과 설정 반영 |
+| `infra/deploy/retain-frontend-assets.sh`, `infra/deploy/frontend-assets.md` | 이전 프론트 정적 파일 보관과 정리 |
 | `Jenkinsfile`, `infra/jenkins/` | CI/CD |
 | `backend/src/main/resources/application.yml`, `application-api.yml`, `application-batch.yml`, `application-local.yml` | 백엔드 설정(원천 데이터 정책 포함) |
-| `backend/src/main/resources/db/migration/V1~V26` | 플랫폼 DB 스키마·초기 데이터 |
+| `backend/src/main/resources/db/migration/V1~V29` | 플랫폼 DB 스키마·초기 데이터 |
 | `backend/.env.example`, `ai/.env.example`, `frontend/.env.example` | 로컬 개발 변수 |
 | `ai/app/config.py` | AI 서버 설정 |

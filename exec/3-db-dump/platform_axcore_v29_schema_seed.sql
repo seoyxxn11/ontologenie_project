@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict vta38cNcm6x8O9t1qWfPXk1K578ihawnVyeWqGeOgoz3wQI4yUBxZ3DVmYAjmKU
+\restrict tAA4Idzm6vGUArLcgQt82CqLrgDONrYLU4sFeYnpXQz7MK9kkoKwD4LspuuczNW
 
 -- Dumped from database version 18.6 (Debian 18.6-1.pgdg13+2)
 -- Dumped by pg_dump version 18.6 (Debian 18.6-1.pgdg13+2)
@@ -2056,7 +2056,7 @@ CREATE TABLE platform.role_data_scope (
 -- Name: TABLE role_data_scope; Type: COMMENT; Schema: platform; Owner: -
 --
 
-COMMENT ON TABLE platform.role_data_scope IS '역할별 조회 범위(U5, V13 초기값·V21 수정, 384). 모든 역할(ADMIN 포함)은 object_type.access_group이 이 표에 있는 유형만 본다. 그룹이 없는 유형은 아무도 보지 않는다. 민감(RESTRICTED) 값은 can_view_restricted=true일 때만 보고, 외부 모델로 보내는 값은 이 값과 관계없이 가린다. 역할 이름으로 나누지 않으므로 역할을 추가하거나 MAINTENANCE를 쓰려면 이 표에 행을 넣는다. 행 단위 제한은 MVP 밖';
+COMMENT ON TABLE platform.role_data_scope IS '역할별 조회 범위(U5, V13 초기값·V21 수정·V29 보완, 384). 모든 역할(ADMIN 포함)은 object_type.access_group이 이 표에 있는 유형만 본다. 그룹이 없는(미분류) 유형은 예약 이름 UNCLASSIFIED의 허용 행을 가진 역할만 보고(V29: ADMIN), 외부 모델로 보내는 범위에는 넣지 않는다. 민감(RESTRICTED) 값은 can_view_restricted=true일 때만 보고, 외부 모델로 보내는 값은 이 값과 관계없이 가린다. 역할 이름으로 나누지 않으므로 역할을 추가하거나 MAINTENANCE를 쓰려면 이 표에 행을 넣는다. 행 단위 제한은 MVP 밖';
 
 
 --
@@ -2313,9 +2313,9 @@ CREATE TABLE platform.source_preview (
     CONSTRAINT ck_source_preview_error CHECK ((((status)::text = 'FAILED'::text) = (error_message IS NOT NULL))),
     CONSTRAINT ck_source_preview_expires CHECK ((expires_at > requested_at)),
     CONSTRAINT ck_source_preview_finished CHECK ((((status)::text = ANY ((ARRAY['SUCCEEDED'::character varying, 'FAILED'::character varying])::text[])) = (finished_at IS NOT NULL))),
-    CONSTRAINT ck_source_preview_kind CHECK (((preview_kind)::text = ANY ((ARRAY['SAMPLE'::character varying, 'MAPPING_PREVIEW'::character varying])::text[]))),
+    CONSTRAINT ck_source_preview_kind CHECK (((preview_kind)::text = ANY ((ARRAY['SAMPLE'::character varying, 'MAPPING_PREVIEW'::character varying, 'RESTRICTED_VALUES'::character varying])::text[]))),
     CONSTRAINT ck_source_preview_limit CHECK (((row_limit >= 1) AND (row_limit <= 20))),
-    CONSTRAINT ck_source_preview_request CHECK (((jsonb_typeof(request) = 'object'::text) AND (((preview_kind)::text <> 'MAPPING_PREVIEW'::text) OR (request ? 'mapping'::text)))),
+    CONSTRAINT ck_source_preview_request CHECK (((jsonb_typeof(request) = 'object'::text) AND (((preview_kind)::text <> 'MAPPING_PREVIEW'::text) OR (request ? 'mapping'::text)) AND (((preview_kind)::text <> 'RESTRICTED_VALUES'::text) OR ((request ? 'proposalId'::text) AND (request ? 'column'::text))))),
     CONSTRAINT ck_source_preview_result CHECK (((((status)::text = 'SUCCEEDED'::text) = (result IS NOT NULL)) AND ((result IS NULL) OR (jsonb_typeof(result) = 'object'::text)))),
     CONSTRAINT ck_source_preview_started CHECK ((((status)::text = 'QUEUED'::text) = (started_at IS NULL))),
     CONSTRAINT ck_source_preview_status CHECK (((status)::text = ANY ((ARRAY['QUEUED'::character varying, 'RUNNING'::character varying, 'SUCCEEDED'::character varying, 'FAILED'::character varying])::text[])))
@@ -2327,6 +2327,13 @@ CREATE TABLE platform.source_preview (
 --
 
 COMMENT ON TABLE platform.source_preview IS '원천 표본(016)·매핑 미리보기 작업. 짧게 쓰고 버리는 표라 이력은 action_execution(SOURCE_PREVIEW: 누가 어느 테이블을 봤는지, 행 값은 넣지 않음)에 남긴다';
+
+
+--
+-- Name: COLUMN source_preview.preview_kind; Type: COMMENT; Schema: platform; Owner: -
+--
+
+COMMENT ON COLUMN platform.source_preview.preview_kind IS 'SAMPLE: 원천 표본(016) / MAPPING_PREVIEW: 매핑 미리보기(040) / RESTRICTED_VALUES: 제안 검토 때 제한 컬럼의 서로 다른 값(447)';
 
 
 --
@@ -2551,31 +2558,31 @@ COPY platform.account (id, login_id, display_name, password_hash, role_id, statu
 --
 
 COPY platform.action_definition (id, code, name, description, target_kind, target_object_type_id, handler_key, input_schema, action_kind, requires_confirmation, required_permission, is_active, created_at, created_by, updated_at, updated_by, row_version, action_mode) FROM stdin;
-1	CREATE_ACCOUNT	계정 생성	관리자가 새 계정을 만든다(API 005). 계정 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ACCOUNT_MANAGE	t	2026-11-16 02:43:26.06098+00	\N	2026-11-16 02:43:26.06098+00	\N	0	RECORD
-2	UPDATE_ACCOUNT	계정·역할 변경	관리자가 계정의 이름·역할·상태를 바꾼다(API 007). 계정 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ACCOUNT_MANAGE	t	2026-11-16 02:43:26.06098+00	\N	2026-11-16 02:43:26.06098+00	\N	0	RECORD
-3	RESET_ACCOUNT_PASSWORD	관리자 비밀번호 초기화	관리자가 계정의 비밀번호를 임시 비밀번호로 바꾼다(API 103). 계정 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ACCOUNT_MANAGE	t	2026-11-16 02:43:26.06098+00	\N	2026-11-16 02:43:26.06098+00	\N	0	RECORD
-4	CREATE_REASSIGNMENT_PLAN	재배정 계획 생성	정지 설비의 작업지시·공정을 대체 설비로 옮기는 계획을 저장한다. 원천 MES 배정은 바꾸지 않는다.	OBJECT	\N	CREATE_REASSIGNMENT_PLAN	{"type": "object", "required": ["fromEquipmentId", "items", "dataAsOf"], "properties": {"items": {"type": "array", "items": {"type": "object", "required": ["workOrderId", "toEquipmentId"], "properties": {"workOrderId": {"type": "integer", "minimum": 1}, "operationCode": {"type": ["string", "null"], "maxLength": 50}, "toEquipmentId": {"type": "integer", "minimum": 1}}}, "minItems": 1}, "dataAsOf": {"type": "string", "format": "date-time"}, "selectionBasis": {"type": "object"}, "fromEquipmentId": {"type": "integer", "minimum": 1}}}	WRITE	f	PLAN_CREATE	t	2026-11-16 02:43:26.137322+00	\N	2026-11-16 02:43:26.137322+00	\N	0	EXECUTE
-5	REGISTER_SOURCE	원천 등록	관리자가 원천과 접속 계정을 등록한다(API 010). 원천 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	SOURCE_MANAGE	t	2026-11-16 02:43:26.137322+00	\N	2026-11-16 02:43:26.137322+00	\N	0	RECORD
-6	UPDATE_SOURCE	원천 정보 변경	관리자가 원천 이름·접속 설정·접속 계정을 바꾼다(API 012). 원천 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	SOURCE_MANAGE	t	2026-11-16 02:43:26.137322+00	\N	2026-11-16 02:43:26.137322+00	\N	0	RECORD
-7	CREATE_ACTION_DEFINITION	Action 정의 등록	관리자가 업무 Action 정의를 등록한다(API 088). Action API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ACTION_DEFINITION_MANAGE	t	2026-11-16 02:43:26.137322+00	\N	2026-11-16 02:43:26.137322+00	\N	0	RECORD
-8	UPDATE_ACTION_DEFINITION	Action 정의 수정	관리자가 업무 Action 정의를 수정한다(API 090). Action API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ACTION_DEFINITION_MANAGE	t	2026-11-16 02:43:26.137322+00	\N	2026-11-16 02:43:26.137322+00	\N	0	RECORD
-9	UPDATE_SYNC_SCHEDULE	원천별 수집 주기 설정	관리자가 원천의 자동 수집 여부와 주기를 바꾼다(API 072). 수집 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	SYNC_SCHEDULE_MANAGE	t	2026-11-16 02:43:26.137322+00	\N	2026-11-16 02:43:26.137322+00	\N	0	RECORD
-10	DECIDE_PROPOSAL	후보 승인·거절·보류	관리자가 후보를 승인·거절·보류한다(API 054). 검토 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	PROPOSAL_DECIDE	t	2026-11-16 02:43:26.137322+00	\N	2026-11-16 02:43:26.137322+00	\N	0	RECORD
-11	CREATE_OBJECT_TYPE	객체 유형 등록	관리자가 객체 유형을 직접 등록한다(API 022). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
-12	UPDATE_OBJECT_TYPE	객체 유형 수정	관리자가 객체 유형의 이름·설명·동의어·접근 그룹·표시 속성을 바꾼다(API 024). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
-13	DELETE_OBJECT_TYPE	객체 유형 삭제	관리자가 쓰이지 않는 객체 유형을 지운다(API 025). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
-14	CREATE_PROPERTY	속성 등록	관리자가 객체 유형에 속성을 직접 등록한다(API 027). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
-15	UPDATE_PROPERTY	속성 수정	관리자가 속성의 이름·자료형·제약·민감도 등을 바꾼다(API 028). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
-16	DELETE_PROPERTY	속성 삭제	관리자가 쓰이지 않는 속성을 지운다(API 029). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
-17	CREATE_LINK_TYPE	관계 유형 등록	관리자가 관계 유형을 직접 등록한다(API 031). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
-18	UPDATE_LINK_TYPE	관계 유형 수정	관리자가 관계 유형의 이름·설명·관계 수 등을 바꾼다(API 032). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
-19	DELETE_LINK_TYPE	관계 유형 삭제	관리자가 쓰이지 않는 관계 유형을 지운다(API 033). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
-20	CREATE_OBJECT_MAPPING	객체 매핑 등록	관리자가 원천 표와 객체 유형의 매핑을 직접 등록한다(API 035). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
-21	UPDATE_OBJECT_MAPPING	객체 매핑 수정	관리자가 객체 매핑의 원천 표·키·켜짐 여부를 바꾼다(API 036). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
-22	CREATE_PROPERTY_MAPPING	속성 매핑 등록	관리자가 원천 컬럼과 속성의 매핑을 직접 등록한다(API 038). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
-23	UPDATE_PROPERTY_MAPPING	속성 매핑 수정	관리자가 속성 매핑의 원천 컬럼·변환 단계를 바꾼다(API 039). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
-24	DELETE_PROPERTY_MAPPING	속성 매핑 삭제	관리자가 속성 매핑을 지운다(API 101). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-16 02:43:26.388103+00	\N	2026-11-16 02:43:26.388103+00	\N	0	RECORD
-25	CREATE_ISSUE_MANUAL_LINK	미연결 문제 수동 연결	관리자가 미연결 문제 상세에서 도착 객체와 연결한다(API 058). 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ISSUE_MANUAL_LINK	t	2026-11-16 02:43:26.409653+00	\N	2026-11-16 02:43:26.409653+00	\N	0	RECORD
+1	CREATE_ACCOUNT	계정 생성	관리자가 새 계정을 만든다(API 005). 계정 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ACCOUNT_MANAGE	t	2026-11-17 17:07:56.754144+00	\N	2026-11-17 17:07:56.754144+00	\N	0	RECORD
+2	UPDATE_ACCOUNT	계정·역할 변경	관리자가 계정의 이름·역할·상태를 바꾼다(API 007). 계정 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ACCOUNT_MANAGE	t	2026-11-17 17:07:56.754144+00	\N	2026-11-17 17:07:56.754144+00	\N	0	RECORD
+3	RESET_ACCOUNT_PASSWORD	관리자 비밀번호 초기화	관리자가 계정의 비밀번호를 임시 비밀번호로 바꾼다(API 103). 계정 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ACCOUNT_MANAGE	t	2026-11-17 17:07:56.754144+00	\N	2026-11-17 17:07:56.754144+00	\N	0	RECORD
+4	CREATE_REASSIGNMENT_PLAN	재배정 계획 생성	정지 설비의 작업지시·공정을 대체 설비로 옮기는 계획을 저장한다. 원천 MES 배정은 바꾸지 않는다.	OBJECT	\N	CREATE_REASSIGNMENT_PLAN	{"type": "object", "required": ["fromEquipmentId", "items", "dataAsOf"], "properties": {"items": {"type": "array", "items": {"type": "object", "required": ["workOrderId", "toEquipmentId"], "properties": {"workOrderId": {"type": "integer", "minimum": 1}, "operationCode": {"type": ["string", "null"], "maxLength": 50}, "toEquipmentId": {"type": "integer", "minimum": 1}}}, "minItems": 1}, "dataAsOf": {"type": "string", "format": "date-time"}, "selectionBasis": {"type": "object"}, "fromEquipmentId": {"type": "integer", "minimum": 1}}}	WRITE	f	PLAN_CREATE	t	2026-11-17 17:07:56.875272+00	\N	2026-11-17 17:07:56.875272+00	\N	0	EXECUTE
+5	REGISTER_SOURCE	원천 등록	관리자가 원천과 접속 계정을 등록한다(API 010). 원천 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	SOURCE_MANAGE	t	2026-11-17 17:07:56.875272+00	\N	2026-11-17 17:07:56.875272+00	\N	0	RECORD
+6	UPDATE_SOURCE	원천 정보 변경	관리자가 원천 이름·접속 설정·접속 계정을 바꾼다(API 012). 원천 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	SOURCE_MANAGE	t	2026-11-17 17:07:56.875272+00	\N	2026-11-17 17:07:56.875272+00	\N	0	RECORD
+7	CREATE_ACTION_DEFINITION	Action 정의 등록	관리자가 업무 Action 정의를 등록한다(API 088). Action API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ACTION_DEFINITION_MANAGE	t	2026-11-17 17:07:56.875272+00	\N	2026-11-17 17:07:56.875272+00	\N	0	RECORD
+8	UPDATE_ACTION_DEFINITION	Action 정의 수정	관리자가 업무 Action 정의를 수정한다(API 090). Action API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ACTION_DEFINITION_MANAGE	t	2026-11-17 17:07:56.875272+00	\N	2026-11-17 17:07:56.875272+00	\N	0	RECORD
+9	UPDATE_SYNC_SCHEDULE	원천별 수집 주기 설정	관리자가 원천의 자동 수집 여부와 주기를 바꾼다(API 072). 수집 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	SYNC_SCHEDULE_MANAGE	t	2026-11-17 17:07:56.875272+00	\N	2026-11-17 17:07:56.875272+00	\N	0	RECORD
+10	DECIDE_PROPOSAL	후보 승인·거절·보류	관리자가 후보를 승인·거절·보류한다(API 054). 검토 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	PROPOSAL_DECIDE	t	2026-11-17 17:07:56.875272+00	\N	2026-11-17 17:07:56.875272+00	\N	0	RECORD
+11	CREATE_OBJECT_TYPE	객체 유형 등록	관리자가 객체 유형을 직접 등록한다(API 022). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-17 17:07:57.194162+00	\N	2026-11-17 17:07:57.194162+00	\N	0	RECORD
+12	UPDATE_OBJECT_TYPE	객체 유형 수정	관리자가 객체 유형의 이름·설명·동의어·접근 그룹·표시 속성을 바꾼다(API 024). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-17 17:07:57.194162+00	\N	2026-11-17 17:07:57.194162+00	\N	0	RECORD
+13	DELETE_OBJECT_TYPE	객체 유형 삭제	관리자가 쓰이지 않는 객체 유형을 지운다(API 025). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-17 17:07:57.194162+00	\N	2026-11-17 17:07:57.194162+00	\N	0	RECORD
+14	CREATE_PROPERTY	속성 등록	관리자가 객체 유형에 속성을 직접 등록한다(API 027). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-17 17:07:57.194162+00	\N	2026-11-17 17:07:57.194162+00	\N	0	RECORD
+15	UPDATE_PROPERTY	속성 수정	관리자가 속성의 이름·자료형·제약·민감도 등을 바꾼다(API 028). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-17 17:07:57.194162+00	\N	2026-11-17 17:07:57.194162+00	\N	0	RECORD
+16	DELETE_PROPERTY	속성 삭제	관리자가 쓰이지 않는 속성을 지운다(API 029). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-17 17:07:57.194162+00	\N	2026-11-17 17:07:57.194162+00	\N	0	RECORD
+17	CREATE_LINK_TYPE	관계 유형 등록	관리자가 관계 유형을 직접 등록한다(API 031). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-17 17:07:57.194162+00	\N	2026-11-17 17:07:57.194162+00	\N	0	RECORD
+18	UPDATE_LINK_TYPE	관계 유형 수정	관리자가 관계 유형의 이름·설명·관계 수 등을 바꾼다(API 032). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-17 17:07:57.194162+00	\N	2026-11-17 17:07:57.194162+00	\N	0	RECORD
+19	DELETE_LINK_TYPE	관계 유형 삭제	관리자가 쓰이지 않는 관계 유형을 지운다(API 033). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-17 17:07:57.194162+00	\N	2026-11-17 17:07:57.194162+00	\N	0	RECORD
+20	CREATE_OBJECT_MAPPING	객체 매핑 등록	관리자가 원천 표와 객체 유형의 매핑을 직접 등록한다(API 035). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-17 17:07:57.194162+00	\N	2026-11-17 17:07:57.194162+00	\N	0	RECORD
+21	UPDATE_OBJECT_MAPPING	객체 매핑 수정	관리자가 객체 매핑의 원천 표·키·켜짐 여부를 바꾼다(API 036). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-17 17:07:57.194162+00	\N	2026-11-17 17:07:57.194162+00	\N	0	RECORD
+22	CREATE_PROPERTY_MAPPING	속성 매핑 등록	관리자가 원천 컬럼과 속성의 매핑을 직접 등록한다(API 038). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-17 17:07:57.194162+00	\N	2026-11-17 17:07:57.194162+00	\N	0	RECORD
+23	UPDATE_PROPERTY_MAPPING	속성 매핑 수정	관리자가 속성 매핑의 원천 컬럼·변환 단계를 바꾼다(API 039). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-17 17:07:57.194162+00	\N	2026-11-17 17:07:57.194162+00	\N	0	RECORD
+24	DELETE_PROPERTY_MAPPING	속성 매핑 삭제	관리자가 속성 매핑을 지운다(API 101). 정의 API가 직접 실행하고 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ONTOLOGY_MANAGE	t	2026-11-17 17:07:57.194162+00	\N	2026-11-17 17:07:57.194162+00	\N	0	RECORD
+25	CREATE_ISSUE_MANUAL_LINK	미연결 문제 수동 연결	관리자가 미연결 문제 상세에서 도착 객체와 연결한다(API 058). 091로는 실행하지 않는다.	SYSTEM	\N	\N	{}	WRITE	f	ISSUE_MANUAL_LINK	t	2026-11-17 17:07:57.217023+00	\N	2026-11-17 17:07:57.217023+00	\N	0	RECORD
 \.
 
 
@@ -2720,33 +2727,36 @@ COPY platform.entity_change (id, action_execution_id, table_name, row_key, chang
 --
 
 COPY platform.flyway_schema_history (installed_rank, version, description, type, script, checksum, installed_by, installed_on, execution_time, success) FROM stdin;
-0	\N	<< Flyway Schema Creation >>	SCHEMA	"platform"	\N	axcore	2026-11-16 02:43:25.517291	0	t
-1	1	create ontology core	SQL	V1__create_ontology_core.sql	-1373187552	axcore	2026-11-16 02:43:25.547346	80	t
-2	2	create operations	SQL	V2__create_operations.sql	750752606	axcore	2026-11-16 02:43:25.742487	73	t
-3	3	add cross domain constraints	SQL	V3__add_cross_domain_constraints.sql	-1408328860	axcore	2026-11-16 02:43:25.87447	25	t
-4	4	create spring session	SQL	V4__create_spring_session.sql	-1311745729	axcore	2026-11-16 02:43:25.930194	6	t
-5	5	switch source sync to cdc	SQL	V5__switch_source_sync_to_cdc.sql	583136016	axcore	2026-11-16 02:43:25.97307	12	t
-6	6	create spring batch metadata	SQL	V6__create_spring_batch_metadata.sql	-43429806	axcore	2026-11-16 02:43:25.999373	8	t
-7	7	add account action definitions	SQL	V7__add_account_action_definitions.sql	-1322818323	axcore	2026-11-16 02:43:26.040142	3	t
-8	8	allow running agent message	SQL	V8__allow_running_agent_message.sql	-1575073470	axcore	2026-11-16 02:43:26.067279	3	t
-9	9	add action definition mode	SQL	V9__add_action_definition_mode.sql	-2084365037	axcore	2026-11-16 02:43:26.099321	4	t
-10	10	add action definitions	SQL	V10__add_action_definitions.sql	-166588881	axcore	2026-11-16 02:43:26.130985	3	t
-11	11	judge full load by snapshot	SQL	V11__judge_full_load_by_snapshot.sql	1186728447	axcore	2026-11-16 02:43:26.14396	6	t
-12	12	track cdc consumer and pending checks	SQL	V12__track_cdc_consumer_and_pending_checks.sql	-1766531630	axcore	2026-11-16 02:43:26.178125	14	t
-13	13	seed role data scope	SQL	V13__seed_role_data_scope.sql	147465302	axcore	2026-11-16 02:43:26.222072	3	t
-14	14	resume cdc after recovery	SQL	V14__resume_cdc_after_recovery.sql	735742092	axcore	2026-11-16 02:43:26.256176	3	t
-15	15	add agent conversation summary	SQL	V15__add_agent_conversation_summary.sql	1566169318	axcore	2026-11-16 02:43:26.289606	2	t
-16	16	allow apply failed recovery	SQL	V16__allow_apply_failed_recovery.sql	-1452440330	axcore	2026-11-16 02:43:26.299733	2	t
-17	17	one active rule per link type	SQL	V17__one_active_rule_per_link_type.sql	1405235801	axcore	2026-11-16 02:43:26.328231	3	t
-18	18	add definition edit actions	SQL	V18__add_definition_edit_actions.sql	1612414833	axcore	2026-11-16 02:43:26.363664	3	t
-19	19	add issue manual link action	SQL	V19__add_issue_manual_link_action.sql	32477048	axcore	2026-11-16 02:43:26.394792	2	t
-20	20	add check result excluded targets	SQL	V20__add_check_result_excluded_targets.sql	1887927097	axcore	2026-11-16 02:43:26.415126	2	t
-21	21	separate admin data scope	SQL	V21__separate_admin_data_scope.sql	-1741527675	axcore	2026-11-16 02:43:26.425816	3	t
-22	22	drop held items	SQL	V22__drop_held_items.sql	1502156411	axcore	2026-11-16 02:43:26.465786	5	t
-23	23	add restricted view event	SQL	V23__add_restricted_view_event.sql	-1252236669	axcore	2026-11-16 02:43:26.487967	2	t
-24	24	add agent conversation deleted at	SQL	V24__add_agent_conversation_deleted_at.sql	-1590374105	axcore	2026-11-16 02:43:26.500819	3	t
-25	25	add agent conversation summary scope	SQL	V25__add_agent_conversation_summary_scope.sql	-724658801	axcore	2026-11-16 02:43:26.519573	2	t
-26	26	add property restriction history	SQL	V26__add_property_restriction_history.sql	602473121	axcore	2026-11-16 02:43:26.555664	4	t
+0	\N	<< Flyway Schema Creation >>	SCHEMA	"platform"	\N	axcore	2026-11-17 17:07:56.16498	0	t
+1	1	create ontology core	SQL	V1__create_ontology_core.sql	-1373187552	axcore	2026-11-17 17:07:56.193432	99	t
+2	2	create operations	SQL	V2__create_operations.sql	750752606	axcore	2026-11-17 17:07:56.394945	78	t
+3	3	add cross domain constraints	SQL	V3__add_cross_domain_constraints.sql	-1408328860	axcore	2026-11-17 17:07:56.529012	17	t
+4	4	create spring session	SQL	V4__create_spring_session.sql	-1311745729	axcore	2026-11-17 17:07:56.571697	5	t
+5	5	switch source sync to cdc	SQL	V5__switch_source_sync_to_cdc.sql	583136016	axcore	2026-11-17 17:07:56.612272	14	t
+6	6	create spring batch metadata	SQL	V6__create_spring_batch_metadata.sql	-43429806	axcore	2026-11-17 17:07:56.642456	12	t
+7	7	add account action definitions	SQL	V7__add_account_action_definitions.sql	-1322818323	axcore	2026-11-17 17:07:56.700846	5	t
+8	8	allow running agent message	SQL	V8__allow_running_agent_message.sql	-1575073470	axcore	2026-11-17 17:07:56.763169	4	t
+9	9	add action definition mode	SQL	V9__add_action_definition_mode.sql	-2084365037	axcore	2026-11-17 17:07:56.817765	5	t
+10	10	add action definitions	SQL	V10__add_action_definitions.sql	-166588881	axcore	2026-11-17 17:07:56.865169	4	t
+11	11	judge full load by snapshot	SQL	V11__judge_full_load_by_snapshot.sql	1186728447	axcore	2026-11-17 17:07:56.883399	8	t
+12	12	track cdc consumer and pending checks	SQL	V12__track_cdc_consumer_and_pending_checks.sql	-1766531630	axcore	2026-11-17 17:07:56.935822	16	t
+13	13	seed role data scope	SQL	V13__seed_role_data_scope.sql	147465302	axcore	2026-11-17 17:07:56.996251	3	t
+14	14	resume cdc after recovery	SQL	V14__resume_cdc_after_recovery.sql	735742092	axcore	2026-11-17 17:07:57.040245	3	t
+15	15	add agent conversation summary	SQL	V15__add_agent_conversation_summary.sql	1566169318	axcore	2026-11-17 17:07:57.079462	2	t
+16	16	allow apply failed recovery	SQL	V16__allow_apply_failed_recovery.sql	-1452440330	axcore	2026-11-17 17:07:57.091954	3	t
+17	17	one active rule per link type	SQL	V17__one_active_rule_per_link_type.sql	1405235801	axcore	2026-11-17 17:07:57.129447	3	t
+18	18	add definition edit actions	SQL	V18__add_definition_edit_actions.sql	1612414833	axcore	2026-11-17 17:07:57.169397	3	t
+19	19	add issue manual link action	SQL	V19__add_issue_manual_link_action.sql	32477048	axcore	2026-11-17 17:07:57.200518	2	t
+20	20	add check result excluded targets	SQL	V20__add_check_result_excluded_targets.sql	1887927097	axcore	2026-11-17 17:07:57.221766	2	t
+21	21	separate admin data scope	SQL	V21__separate_admin_data_scope.sql	-1741527675	axcore	2026-11-17 17:07:57.233104	3	t
+22	22	drop held items	SQL	V22__drop_held_items.sql	1502156411	axcore	2026-11-17 17:07:57.269024	5	t
+23	23	add restricted view event	SQL	V23__add_restricted_view_event.sql	-1252236669	axcore	2026-11-17 17:07:57.292095	2	t
+24	24	add agent conversation deleted at	SQL	V24__add_agent_conversation_deleted_at.sql	-1590374105	axcore	2026-11-17 17:07:57.304388	2	t
+25	25	add agent conversation summary scope	SQL	V25__add_agent_conversation_summary_scope.sql	-724658801	axcore	2026-11-17 17:07:57.323418	2	t
+26	26	add property restriction history	SQL	V26__add_property_restriction_history.sql	602473121	axcore	2026-11-17 17:07:57.360771	3	t
+27	27	add restricted value preview	SQL	V27__add_restricted_value_preview.sql	113982237	axcore	2026-11-17 17:07:57.385959	3	t
+28	28	remove approved reassignment test plans	SQL	V28__remove_approved_reassignment_test_plans.sql	-1996884932	axcore	2026-11-17 17:07:57.407946	4	t
+29	29	allow admin unclassified types	SQL	V29__allow_admin_unclassified_types.sql	-1034065032	axcore	2026-11-17 17:07:57.427915	2	t
 \.
 
 
@@ -2949,6 +2959,7 @@ COPY platform.role_data_scope (role_id, access_group, can_view_restricted) FROM 
 4	PRODUCTION	f
 1	PRODUCTION	f
 1	SALES_SUPPLY	f
+1	UNCLASSIFIED	f
 \.
 
 
@@ -5602,5 +5613,5 @@ ALTER TABLE ONLY platform.sync_run
 -- PostgreSQL database dump complete
 --
 
-\unrestrict vta38cNcm6x8O9t1qWfPXk1K578ihawnVyeWqGeOgoz3wQI4yUBxZ3DVmYAjmKU
+\unrestrict tAA4Idzm6vGUArLcgQt82CqLrgDONrYLU4sFeYnpXQz7MK9kkoKwD4LspuuczNW
 
