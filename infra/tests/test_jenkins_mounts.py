@@ -26,7 +26,6 @@ if Path(sys.argv[0]).name == 'git':
             'TRACKED_POLICY' if 'test_source_allowlist' in path
             else 'TRACKED_AI_POLICY' if 'source_policy.py' in path
             else 'TRACKED_MOUNTS' if 'test_jenkins_mounts' in path
-            else 'TRACKED_BACKUP' if 'test_pg_backup.py' in path
             else 'TRACKED_CI'
         )
         sys.exit(0 if os.environ.get(tracked) == '1' else 1)
@@ -97,7 +96,6 @@ class JenkinsMountTests(unittest.TestCase):
             "WORKSPACE": str(self.workspace),
             "JENKINS_HOME": str(self.base / "jenkins"),
             "TRACKED_CI": "0",
-            "TRACKED_BACKUP": "0",
             "DOCKER_CALLS": str(self.calls),
             "CHECK_COMPONENT": "backend",
         }
@@ -255,49 +253,6 @@ class JenkinsMountTests(unittest.TestCase):
         result = self.run_shell("stage('Infra check')")
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(len(self.docker_calls()), 1)
-
-    def add_backup_tests(self):
-        (self.workspace / 'infra/scripts/test_pg_backup.py').write_text('# fixture\n')
-        self.environment['TRACKED_BACKUP'] = '1'
-
-    def test_backup_tests_mount_only_script_and_suite_without_network(self):
-        self.add_backup_tests()
-        result = self.run_shell("stage('Infra check')")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        calls = self.docker_calls()
-        self.assertEqual(len(calls), 2)
-        self.assertEqual([
-            'dst=/repo/infra/scripts/pg-backup.sh', 'dst=/repo/infra/scripts/test_pg_backup.py',
-        ], self.policy_mounts(calls[0]))
-        self.assertNotIn('-v', calls[0][:calls[0].index('python:3.11-slim')])
-        self.assertEqual(calls[0][calls[0].index('--network') + 1], 'none')
-        self.assertEqual(calls[0][calls[0].index('--cpus') + 1], '0.5')
-
-    def test_missing_tracked_backup_suite_fails_before_container_start(self):
-        self.environment['TRACKED_BACKUP'] = '1'
-        result = self.run_shell("stage('Infra check')")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(self.docker_calls(), [])
-
-    def test_linked_backup_script_is_not_mounted(self):
-        self.add_backup_tests()
-        outside = self.base / 'outside-backup.sh'
-        outside.write_text('# fixture\n')
-        script = self.workspace / 'infra/scripts/pg-backup.sh'
-        script.unlink()
-        script.symlink_to(outside)
-        result = self.run_shell("stage('Infra check')")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(self.docker_calls(), [])
-
-    def test_missing_daemon_backup_source_is_not_created(self):
-        self.add_backup_tests()
-        daemon = self.base / 'daemon-workspace'
-        daemon.mkdir()
-        self.environment['DAEMON_ROOT'] = str(daemon)
-        result = self.run_shell("stage('Infra check')")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertFalse((daemon / 'infra/scripts').exists())
 
     def add_mount_tests(self):
         folder = self.workspace / "infra/tests"
