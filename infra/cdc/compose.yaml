@@ -6,9 +6,16 @@
 # 웹 화면(console)만 127.0.0.1에 열어 SSH 터널로 본다.
 name: axcore-cdc
 
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   # KRaft 단일 노드(브로커 + 컨트롤러). 복제본이 하나라 내부 토픽 복제 수도 1이다.
   kafka:
+    logging: *default-logging
     image: apache/kafka:4.2.2
     container_name: kafka
     restart: unless-stopped
@@ -44,6 +51,7 @@ services:
 
   # Debezium PostgreSQL 커넥터가 들어 있는 Kafka Connect. 커넥터 등록은 REST(8083)로 컨테이너 안에서만 한다.
   kafka-connect:
+    logging: *default-logging
     image: quay.io/debezium/connect:3.6.3.Final
     container_name: kafka-connect
     restart: unless-stopped
@@ -80,6 +88,7 @@ services:
   # Kafka 웹 화면(토픽·메시지·소비자 그룹·커넥터 상태). 로그인 기능이 없어 외부에 열지 않는다.
   # 노트북에서: ssh -i ~/.ssh/K15C106T.pem -L 18082:127.0.0.1:18082 ubuntu@k15c106.p.ssafy.io → http://localhost:18082
   console:
+    logging: *default-logging
     image: redpandadata/console:v3.12.0
     container_name: kafka-console
     restart: unless-stopped

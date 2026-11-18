@@ -1,5 +1,12 @@
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   nginx:
+    logging: *default-logging
     image: nginx:1.30
     container_name: nginx
     restart: unless-stopped
@@ -16,6 +23,7 @@ services:
       - axcore-net
 
   certbot:
+    logging: *default-logging
     image: certbot/certbot:v4.1.1
     profiles: ["tools"]
     volumes:
@@ -23,6 +31,7 @@ services:
       - ./certbot/conf:/etc/letsencrypt
 
   jenkins:
+    logging: *default-logging
     build: ./jenkins
     image: axcore-jenkins:2.580.1
     container_name: jenkins
@@ -49,6 +58,7 @@ services:
       - axcore-net
 
   postgres:
+    logging: *default-logging
     image: postgres:18.6
     container_name: postgres
     restart: unless-stopped
@@ -72,6 +82,7 @@ services:
 
   # 플랫폼 백엔드 (Spring Boot, api 모드). 이미지 태그는 .env의 BACKEND_TAG (= 커밋 SHA).
   backend:
+    logging: *default-logging
     image: axcore-backend:${BACKEND_TAG}
     container_name: backend
     restart: unless-stopped
@@ -122,6 +133,7 @@ services:
 
   # backend와 같은 이미지의 비웹 배치 프로세스. 실제 작업 로직은 백엔드에서 구현한다.
   batch:
+    logging: *default-logging
     image: axcore-backend:${BACKEND_TAG}
     container_name: batch
     restart: unless-stopped
@@ -153,6 +165,7 @@ services:
   # 플랫폼 프론트 (React 정적 파일을 컨테이너 안 nginx가 서빙, frontend/Dockerfile). 이미지 태그는 .env의 FRONTEND_TAG (= 커밋 SHA).
   # 바깥 손님은 메인 nginx(443)의 / 를 거쳐 들어온다. 10080은 서버 안 디버그용 (포트 규칙: 1 + 컨테이너 기본 포트. 13000은 grafana 예정).
   frontend:
+    logging: *default-logging
     image: axcore-frontend:${FRONTEND_TAG}
     container_name: frontend
     restart: unless-stopped
@@ -171,6 +184,7 @@ services:
 
   # 내부 AI 서비스. 이미지 태그는 서버 .env의 AI_TAG로 관리한다.
   ai:
+    logging: *default-logging
     image: axcore-ai:${AI_TAG}
     container_name: ai
     restart: unless-stopped
@@ -198,6 +212,7 @@ services:
 
   # 지표 저장소. 호스트 포트는 열지 않고 내부망에서만 접근한다.
   prometheus:
+    logging: *default-logging
     image: prom/prometheus:v3.14.0
     container_name: prometheus
     restart: unless-stopped
@@ -223,6 +238,7 @@ services:
 
   # 호스트·컨테이너 지표 수집기. 외부 포트는 열지 않으며 런타임 소켓 접근 권한이 있다.
   alloy:
+    logging: *default-logging
     image: grafana/alloy:v1.21.3
     container_name: alloy
     restart: unless-stopped
@@ -270,6 +286,7 @@ services:
 
   # 지표 조회 화면. SSH 터널로 접속하며 외부에 직접 공개하지 않는다.
   grafana:
+    logging: *default-logging
     image: grafana/grafana:13.3.0
     container_name: grafana
     restart: unless-stopped
@@ -304,6 +321,7 @@ services:
 
   # 로그 저장소. Alloy·Grafana가 내부망으로 접근하며 호스트 포트는 열지 않는다.
   loki:
+    logging: *default-logging
     image: grafana/loki:3.7.9
     container_name: loki
     restart: unless-stopped
